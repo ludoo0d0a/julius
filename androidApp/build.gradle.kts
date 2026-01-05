@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinAndroid)
@@ -14,10 +16,32 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+        
+        val elevenLabsKey = project.rootProject.file("local.properties").let { file ->
+            if (file.exists()) {
+                val properties = Properties()
+                properties.load(file.inputStream())
+                properties.getProperty("elevenlabs.key") ?: ""
+            } else {
+                ""
+            }
+        }
+        val geminiKey = project.rootProject.file("local.properties").let { file ->
+            if (file.exists()) {
+                val properties = Properties()
+                properties.load(file.inputStream())
+                properties.getProperty("gemini.key") ?: ""
+            } else {
+                ""
+            }
+        }
+        buildConfigField("String", "ELEVENLABS_KEY", "\"$elevenLabsKey\"")
+        buildConfigField("String", "GEMINI_KEY", "\"$geminiKey\"")
     }
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
 

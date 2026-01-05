@@ -6,13 +6,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-enum class AgentType { OpenAI, ElevenLabs, Deepgram, Native }
+enum class AgentType { OpenAI, ElevenLabs, Deepgram, Native, Gemini }
 enum class AppTheme { Particles, Sphere, Waves }
 
 data class AppSettings(
     val openAiKey: String = "",
     val elevenLabsKey: String = "",
     val perplexityKey: String = "",
+    val geminiKey: String = "",
     val selectedAgent: AgentType = AgentType.OpenAI,
     val selectedTheme: AppTheme = AppTheme.Particles
 )
@@ -27,8 +28,9 @@ class SettingsManager(context: Context) {
     private fun loadSettings(): AppSettings {
         return AppSettings(
             openAiKey = prefs.getString("openai_key", "") ?: "",
-            elevenLabsKey = prefs.getString("elevenlabs_key", "") ?: "",
+            elevenLabsKey = prefs.getString("elevenlabs_key", "")?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.ELEVENLABS_KEY,
             perplexityKey = prefs.getString("perplexity_key", "") ?: "",
+            geminiKey = prefs.getString("gemini_key", "")?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.GEMINI_KEY,
             selectedAgent = AgentType.valueOf(prefs.getString("agent", AgentType.OpenAI.name) ?: AgentType.OpenAI.name),
             selectedTheme = AppTheme.valueOf(prefs.getString("theme", AppTheme.Particles.name) ?: AppTheme.Particles.name)
         )
@@ -38,6 +40,7 @@ class SettingsManager(context: Context) {
         openAiKey: String,
         elevenLabsKey: String,
         perplexityKey: String,
+        geminiKey: String,
         agent: AgentType,
         theme: AppTheme
     ) {
@@ -45,6 +48,7 @@ class SettingsManager(context: Context) {
             .putString("openai_key", openAiKey)
             .putString("elevenlabs_key", elevenLabsKey)
             .putString("perplexity_key", perplexityKey)
+            .putString("gemini_key", geminiKey)
             .putString("agent", agent.name)
             .putString("theme", theme.name)
             .apply()

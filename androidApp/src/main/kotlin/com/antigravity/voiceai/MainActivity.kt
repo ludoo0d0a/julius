@@ -66,18 +66,6 @@ class MainActivity : ComponentActivity() {
                                     .fillMaxSize()
                             ) {
                             
-                                // 2. Settings Button (Top Right)
-                                IconButton(
-                                    onClick = { showSettings = true },
-                                    modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_settings),
-                                        contentDescription = "Settings",
-                                        tint = Color.White
-                                    )
-                                }
-                                
                                 // 3. Chat Content (Overlay)
                                 Column(
                                     modifier = Modifier
@@ -105,7 +93,7 @@ class MainActivity : ComponentActivity() {
                                     modifier = Modifier.align(Alignment.BottomCenter)
                                 )
                                 
-                                // 5. Controls
+                                // 5. Controls (Centered Mic/Speaker Button)
                                 IconButton(
                                     onClick = { 
                                         if (state.status == VoiceEvent.Listening) store.stopListening() else store.startListening()
@@ -115,11 +103,34 @@ class MainActivity : ComponentActivity() {
                                         .padding(bottom = 40.dp)
                                         .size(64.dp)
                                 ) {
-                                     Icon(
-                                         painter = painterResource(id = R.drawable.ic_launcher),
-                                         contentDescription = "Mic",
-                                         tint = if (state.status == VoiceEvent.Listening) Color.Red else Color.White
-                                     )
+                                     // Rounded background for the button
+                                     Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color(0xFF6366F1), shape = androidx.compose.foundation.shape.CircleShape),
+                                        contentAlignment = Alignment.Center
+                                     ) {
+                                         Icon(
+                                             painter = painterResource(id = R.drawable.ic_speaker),
+                                             contentDescription = "Speak",
+                                             tint = Color.White,
+                                             modifier = Modifier.size(32.dp)
+                                         )
+                                     }
+                                }
+                                
+                                // 2. Settings Button (Bottom Left)
+                                IconButton(
+                                    onClick = { showSettings = true },
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .padding(start=24.dp, bottom=48.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_settings),
+                                        contentDescription = "Settings",
+                                        tint = Color.White.copy(alpha=0.7f)
+                                    )
                                 }
                             }
                         }
