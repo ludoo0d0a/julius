@@ -114,7 +114,7 @@ class MainActivity : ComponentActivity() {
                                          Icon(
                                              painter = painterResource(id = R.drawable.ic_speaker),
                                              contentDescription = "Speak",
-                                             tint = Color.White,
+                                             tint = if (state.status == VoiceEvent.Listening) Color.Red else Color.White,
                                              modifier = Modifier.size(32.dp)
                                          )
                                      }
