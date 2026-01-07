@@ -50,16 +50,6 @@ fun SettingsScreen(
         Text("Settings", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(24.dp))
 
-        // API Keys Section
-        SectionTitle("API Keys")
-        StyledTextField("OpenAI Key", openAiKey) { openAiKey = it }
-        StyledTextField("ElevenLabs Key", elevenKey) { elevenKey = it }
-        StyledTextField("Perplexity Key", pplxKey) { pplxKey = it }
-        StyledTextField("Gemini Key (Free)", geminiKey) { geminiKey = it }
-        StyledTextField("Deepgram Key", deepgramKey) { deepgramKey = it }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
         SectionTitle("Assistant")
         StyledExposedDropdownMenuBox(
             label = "Agent",
@@ -68,6 +58,25 @@ fun SettingsScreen(
             onValueChange = { selectedAgent = it },
             getDisplayName = { it.name }
         )
+        
+        // Show API key field only for the selected agent
+        when (selectedAgent) {
+            AgentType.OpenAI -> {
+                StyledTextField("OpenAI Key", openAiKey) { openAiKey = it }
+            }
+            AgentType.ElevenLabs -> {
+                StyledTextField("ElevenLabs Key", elevenKey) { elevenKey = it }
+            }
+            AgentType.Native -> {
+                StyledTextField("Perplexity Key", pplxKey) { pplxKey = it }
+            }
+            AgentType.Gemini -> {
+                StyledTextField("Gemini Key (Free)", geminiKey) { geminiKey = it }
+            }
+            AgentType.Deepgram -> {
+                StyledTextField("Deepgram Key", deepgramKey) { deepgramKey = it }
+            }
+        }
         StyledExposedDropdownMenuBox(
             label = "Theme",
             selectedValue = selectedTheme,

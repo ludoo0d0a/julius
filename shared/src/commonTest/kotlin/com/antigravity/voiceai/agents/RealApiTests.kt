@@ -7,7 +7,9 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
-import kotlin.test.assert
+import kotlin.test.assertTrue
+import kotlin.test.assertNotNull
+import kotlin.test.assertNotEquals
 
 /**
  * Integration tests that actually call the real APIs.
@@ -65,12 +67,12 @@ class RealApiTests {
             val response = agent.process(testPrompt)
             println("✅ OpenAI Response: ${response.text.take(150)}...")
             
-            assert(response.text.isNotEmpty()) { "Response text should not be empty" }
-            assert(!response.text.startsWith("Error")) { "Should not return error message: ${response.text}" }
+            assertTrue(response.text.isNotEmpty(), "Response text should not be empty")
+            assertTrue(!response.text.startsWith("Error"), "Should not return error message: ${response.text}")
             
             // Audio may be null if TTS fails, but text should always be present
             if (response.audio != null) {
-                assert(response.audio.isNotEmpty()) { "Audio bytes should not be empty if present" }
+                assertTrue(response.audio.isNotEmpty(), "Audio bytes should not be empty if present")
             }
         } catch (e: Exception) {
             println("❌ OpenAI test failed: ${e.message}")
@@ -98,10 +100,9 @@ class RealApiTests {
             val response = agent.process(testPrompt)
             println("✅ Gemini Response: ${response.text.take(150)}...")
             
-            assert(response.text.isNotEmpty()) { "Response text should not be empty" }
-            assert(!response.text.startsWith("Error connecting")) { 
-                "Should not return connection error: ${response.text}" 
-            }
+            assertTrue(response.text.isNotEmpty(), "Response text should not be empty")
+            assertTrue(!response.text.startsWith("Error connecting"), 
+                "Should not return connection error: ${response.text}")
         } catch (e: Exception) {
             println("❌ Gemini test failed: ${e.message}")
             e.printStackTrace()
@@ -129,8 +130,8 @@ class RealApiTests {
             val response = agent.process(testPrompt)
             println("✅ Native/Perplexity Response: ${response.text.take(150)}...")
             
-            assert(response.text.isNotEmpty()) { "Response text should not be empty" }
-            assert(response.text != "No response") { "Should not return 'No response' error" }
+            assertTrue(response.text.isNotEmpty(), "Response text should not be empty")
+            assertNotEquals("No response", response.text, "Should not return 'No response' error")
         } catch (e: Exception) {
             println("❌ Native/Perplexity test failed: ${e.message}")
             e.printStackTrace()
@@ -165,11 +166,11 @@ class RealApiTests {
             val response = agent.process(testPrompt)
             println("✅ ElevenLabs Response: ${response.text.take(150)}...")
             
-            assert(response.text.isNotEmpty()) { "Response text should not be empty" }
+            assertTrue(response.text.isNotEmpty(), "Response text should not be empty")
             
             // Audio may be null if ElevenLabs API fails, but text from Perplexity should be present
             if (response.audio != null) {
-                assert(response.audio.isNotEmpty()) { "Audio bytes should not be empty if present" }
+                assertTrue(response.audio.isNotEmpty(), "Audio bytes should not be empty if present")
                 println("✅ ElevenLabs audio generated (${response.audio.size} bytes)")
             } else {
                 println("⚠️  ElevenLabs audio generation failed (text response still present)")
@@ -200,7 +201,7 @@ class RealApiTests {
             val response = agent.process(testPrompt)
             println("✅ Deepgram Response: ${response.text.take(150)}...")
             
-            assert(response.text.isNotEmpty()) { "Response text should not be empty" }
+            assertTrue(response.text.isNotEmpty(), "Response text should not be empty")
             
             // Check for error messages
             if (response.text.contains("Error connecting")) {
@@ -233,9 +234,8 @@ class RealApiTests {
         
         val response = agent.process("Test prompt")
         
-        assert(response.text.contains("API key", ignoreCase = true)) {
-            "Should return API key required message"
-        }
+        assertTrue(response.text.contains("API key", ignoreCase = true),
+            "Should return API key required message")
         println("✅ Deepgram empty key test passed")
         
         client.close()
