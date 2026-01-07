@@ -1,9 +1,9 @@
 package com.antigravity.voiceai.shared
 
 import platform.Foundation.NSDate
+import platform.Foundation.timeIntervalSince1970
 
 actual fun getCurrentTimeMillis(): Long {
-    val date = NSDate()
-    return (date.timeIntervalSince1970 * 1000.0).toLong()
+    return (NSDate().timeIntervalSince1970 * 1000.0).toLong()
 }
 

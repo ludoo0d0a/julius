@@ -5,7 +5,7 @@ import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
-import io.ktor.client.statement.readBytes
+import io.ktor.client.statement.body
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.serialization.Serializable
@@ -45,7 +45,7 @@ class OpenAIAgent(
                 header("Authorization", "Bearer $apiKey")
                 contentType(ContentType.Application.Json)
                 setBody(TtsReq(input = text))
-            }.readBytes()
+            }.body<ByteArray>()
         } catch (e: Exception) {
             null
         }
