@@ -62,6 +62,8 @@ fun MainUI(
     onSettingsClick: () -> Unit = {}
 ) {
     var showSettings by remember { mutableStateOf(false) }
+    val settings by settingsManager.settings.collectAsState()
+    val selectedTheme = settings.selectedTheme
     
     MaterialTheme(
         colorScheme = darkColorScheme(background = Color(0xFF0F172A))
@@ -77,8 +79,9 @@ fun MainUI(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    // 1. Background Particles (Fill Screen)
-                    ParticleEffectCanvas(
+                    // 1. Background Theme Effect (Applied from settings)
+                    ThemeBackground(
+                        theme = selectedTheme,
                         isActive = state.status == VoiceEvent.Listening || state.status == VoiceEvent.Speaking
                     )
                     
@@ -232,4 +235,26 @@ fun MainUIPreview() {
         store = mockStore,
         settingsManager = mockSettingsManager
     )
+}
+
+@Composable
+fun ThemeBackground(
+    theme: AppTheme,
+    isActive: Boolean
+) {
+    when (theme) {
+        AppTheme.Particles -> {
+            ParticleEffectCanvas(isActive = isActive)
+        }
+        AppTheme.Sphere -> {
+            // TODO: Implement Sphere effect component
+            // For now, using Particles as placeholder
+            ParticleEffectCanvas(isActive = isActive)
+        }
+        AppTheme.Waves -> {
+            // TODO: Implement Waves effect component
+            // For now, using Particles as placeholder
+            ParticleEffectCanvas(isActive = isActive)
+        }
+    }
 }
