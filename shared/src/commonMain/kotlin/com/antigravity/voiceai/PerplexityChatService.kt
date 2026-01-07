@@ -20,7 +20,7 @@ class PerplexityChatService(
     
     @Serializable
     private data class Request(
-        val model: String = "llama-3.1-sonar-small-128k-online",
+        val model: String,
         val messages: List<Message>
     )
 
@@ -32,22 +32,32 @@ class PerplexityChatService(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun sendMessage(message: String): String {
+    override suspend fun sendMessage(message: String, model: String): String {
         try {
-            // Placeholder URL - for Perplexity it is https://api.perplexity.ai/chat/completions
-            val responseBody = client.post("https://api.perplexity.ai/chat/completions") {
+            log.i { "Sending message to Perplexity with model $model" }
+            val response = client.post("https://api.perplexity.ai/chat/completions") {
                 header("Authorization", "Bearer $apiKey")
                 contentType(ContentType.Application.Json)
                 setBody(
-                    Request(messages = listOf(Message("user", message)))
+                    Request(
+                        model = model,
+                        messages = listOf(Message("user", message))
+                    )
                 )
-            }.bodyAsText()
+            }
 
-            val response = json.decodeFromString<Response>(responseBody)
-            return response.choices.firstOrNull()?.message?.content ?: "No response"
+            val responseBody = response.bodyAsText()
+
+            if (response.status.value != 200) {
+                throw Exception("Error from Perplexity API: ${response.status.value} ${responseBody}")
+            }
+
+
+            val decodedResponse = json.decodeFromString<Response>(responseBody)
+            return decodedResponse.choices.firstOrNull()?.message?.content ?: "No response"
         } catch (e: Exception) {
-            e.printStackTrace()
-            return "Error: ${e.message}"
+            log.e(e) { "Error sending message to Perplexity" }
+            throw e
         }
     }
 }

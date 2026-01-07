@@ -49,7 +49,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     if (showSettings) {
-                        SettingsScreen(settingsManager) { showSettings = false }
+                        SettingsScreen(settingsManager, state.lastError) { showSettings = false }
                     } else {
                         BoxWithConstraints(
                             modifier = Modifier.fillMaxSize(),
@@ -86,6 +86,14 @@ class MainActivity : ComponentActivity() {
                                         fontSize = 24.sp,
                                         fontWeight = FontWeight.Medium
                                     )
+                                    if (state.lastError != null) {
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Text(
+                                            text = state.lastError,
+                                            color = Color.Red,
+                                            fontSize = 14.sp
+                                        )
+                                    }
                                 }
     
                                 // 4. Bottom Tray Light (Constrained)
