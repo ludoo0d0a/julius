@@ -28,9 +28,9 @@ class SettingsManager(context: Context) {
 
     private fun loadSettings(): AppSettings {
         return AppSettings(
-            openAiKey = prefs.getString("openai_key", "") ?: "",
+            openAiKey = prefs.getString("openai_key", "") ?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.OPENAI_KEY,
             elevenLabsKey = prefs.getString("elevenlabs_key", "")?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.ELEVENLABS_KEY,
-            perplexityKey = prefs.getString("perplexity_key", "") ?: "",
+            perplexityKey = prefs.getString("perplexity_key", "") ?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.PERPLEXITY_KEY,
             geminiKey = prefs.getString("gemini_key", "")?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.GEMINI_KEY,
             deepgramKey = prefs.getString("deepgram_key", "")?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.DEEPGRAM_KEY,
             selectedAgent = AgentType.valueOf(prefs.getString("agent", AgentType.OpenAI.name) ?: AgentType.OpenAI.name),

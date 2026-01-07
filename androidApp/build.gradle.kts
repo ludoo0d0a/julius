@@ -44,9 +44,29 @@ android {
                 ""
             }
         }
+        val openaiKey = project.rootProject.file("local.properties").let { file ->
+            if (file.exists()) {
+                val properties = Properties()
+                properties.load(file.inputStream())
+                properties.getProperty("openai.key") ?: ""
+            } else {
+                ""
+            }
+        }
+        val perplexityKey = project.rootProject.file("local.properties").let { file ->
+            if (file.exists()) {
+                val properties = Properties()
+                properties.load(file.inputStream())
+                properties.getProperty("perplexity.key") ?: ""
+            } else {
+                ""
+            }
+        }
         buildConfigField("String", "ELEVENLABS_KEY", "\"$elevenLabsKey\"")
         buildConfigField("String", "GEMINI_KEY", "\"$geminiKey\"")
         buildConfigField("String", "DEEPGRAM_KEY", "\"$deepgramKey\"")
+        buildConfigField("String", "OPENAI_KEY", "\"$openaiKey\"")
+        buildConfigField("String", "PERPLEXITY_KEY", "\"$perplexityKey\"")
     }
 
     buildFeatures {

@@ -1,6 +1,7 @@
 package com.antigravity.voiceai.shared
 
 import com.antigravity.voiceai.agents.ConversationalAgent
+import com.antigravity.voiceai.shared.ActionParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -30,7 +31,8 @@ enum class Role {
 class ConversationStore(
     private val scope: CoroutineScope,
     private val agent: ConversationalAgent, // Swapped ChatService for Agent
-    private val voiceManager: VoiceManager
+    private val voiceManager: VoiceManager,
+    private val actionExecutor: ActionExecutor? = null
 ) {
     private val _state = MutableStateFlow(ConversationState())
     val state: StateFlow<ConversationState> = _state.asStateFlow()
@@ -65,13 +67,31 @@ class ConversationStore(
             // 2. Call AI
             _state.value = _state.value.copy(status = VoiceEvent.Processing)
             
-            val response = agent.process(text) // Returns text + audio?
+            val response = agent.process(text) // Returns text + audio + action
             
-            // 3. Add AI Message
-            val aiMsg = ChatMessage("a_${System.currentTimeMillis()}", Role.Assistant, response.text)
+            // 3. Execute action if present (from agent or parsed from response)
+            var actionResultMessage = ""
+            val actionToExecute = response.action ?: ActionParser.parseActionFromResponse(response.text)
+            
+            if (actionToExecute != null && actionExecutor != null) {
+                try {
+                    val actionResult = actionExecutor.executeAction(actionToExecute)
+                    actionResultMessage = if (actionResult.success) {
+                        "\n[Action executed: ${actionResult.message}]"
+                    } else {
+                        "\n[Action failed: ${actionResult.message}]"
+                    }
+                } catch (e: Exception) {
+                    actionResultMessage = "\n[Action error: ${e.message}]"
+                }
+            }
+            
+            // 4. Add AI Message (with action result if any)
+            val responseText = response.text + actionResultMessage
+            val aiMsg = ChatMessage("a_${System.currentTimeMillis()}", Role.Assistant, responseText)
             updateMessages(aiMsg)
             
-            // 4. Speak
+            // 5. Speak (text without action result message for cleaner audio)
             if (response.audio != null) {
                 voiceManager.playAudio(response.audio)
             } else {

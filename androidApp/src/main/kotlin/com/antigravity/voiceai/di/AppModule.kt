@@ -1,11 +1,13 @@
 package com.antigravity.voiceai.di
 
 import com.antigravity.voiceai.AndroidVoiceManager
+import com.antigravity.voiceai.AndroidActionExecutor
 import com.antigravity.voiceai.SettingsManager
 import com.antigravity.voiceai.AgentType
 import com.antigravity.voiceai.agents.*
 import com.antigravity.voiceai.shared.ConversationStore
 import com.antigravity.voiceai.shared.VoiceManager
+import com.antigravity.voiceai.shared.ActionExecutor
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -56,11 +58,16 @@ val appModule = module {
         AndroidVoiceManager(androidContext())
     }
     
+    single<ActionExecutor> {
+        AndroidActionExecutor(androidContext())
+    }
+    
     single {
         ConversationStore(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             agent = get(),
-            voiceManager = get()
+            voiceManager = get(),
+            actionExecutor = get()
         )
     }
 }
