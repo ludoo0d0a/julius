@@ -109,10 +109,10 @@ fun MainUI(
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Medium
                             )
-                            if (state.lastError != null) {
+                            state.lastError?.let { error ->
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-                                    text = state.lastError,
+                                    text = error,
                                     color = Color.Red,
                                     fontSize = 14.sp
                                 )

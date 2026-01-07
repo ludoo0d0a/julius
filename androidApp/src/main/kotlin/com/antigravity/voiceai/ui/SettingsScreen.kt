@@ -20,6 +20,7 @@ import com.antigravity.voiceai.IaModel
 import com.antigravity.voiceai.SettingsManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -117,7 +118,7 @@ fun SettingsScreen(
 
         Button(
             onClick = {
-                settingsManager.saveSettings(openAiKey, elevenKey, pplxKey, geminiKey, deepgramKey, selectedAgent, selectedTheme)
+                settingsManager.saveSettings(openAiKey, elevenKey, pplxKey, geminiKey, deepgramKey, selectedAgent, selectedTheme, selectedModel)
                 onDismiss()
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),

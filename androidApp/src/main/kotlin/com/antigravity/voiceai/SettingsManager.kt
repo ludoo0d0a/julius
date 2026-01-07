@@ -24,12 +24,12 @@ data class AppSettings(
     val selectedModel: IaModel = IaModel.LLAMA_3_1_SONAR_SMALL
 )
 
-class SettingsManager(context: Context) {
+open class SettingsManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("voice_ai_prefs", Context.MODE_PRIVATE)
     
     // Simple state flow to observe changes
     private val _settings = MutableStateFlow(loadSettings())
-    val settings: StateFlow<AppSettings> = _settings.asStateFlow()
+    open val settings: StateFlow<AppSettings> = _settings.asStateFlow()
 
     private fun loadSettings(): AppSettings {
         return AppSettings(
@@ -44,7 +44,7 @@ class SettingsManager(context: Context) {
         )
     }
 
-    fun saveSettings(
+    open fun saveSettings(
         openAiKey: String,
         elevenLabsKey: String,
         perplexityKey: String,

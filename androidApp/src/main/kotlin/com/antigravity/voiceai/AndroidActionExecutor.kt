@@ -145,7 +145,7 @@ class AndroidActionExecutor(
         try {
             val query = destination.replace(" ", "+")
             val intent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse("geo:0,0?q=$query")
+                this.data = Uri.parse("geo:0,0?q=$query")
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 setPackage("com.google.android.apps.maps") // Prefer Google Maps
             }
@@ -156,7 +156,7 @@ class AndroidActionExecutor(
             } else {
                 // Fallback to generic geo intent
                 val intent2 = Intent(Intent.ACTION_VIEW).apply {
-                    data = Uri.parse("geo:0,0?q=$query")
+                    this.data = Uri.parse("geo:0,0?q=$query")
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 if (intent2.resolveActivity(context.packageManager) != null) {
@@ -234,4 +234,3 @@ class AndroidActionExecutor(
         )
     }
 }
-

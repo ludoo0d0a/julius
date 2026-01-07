@@ -29,7 +29,7 @@ enum class Role {
     User, Assistant
 }
 
-class ConversationStore(
+open class ConversationStore(
     private val scope: CoroutineScope,
     private val agent: ConversationalAgent, // Swapped ChatService for Agent
     private val voiceManager: VoiceManager,

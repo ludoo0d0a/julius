@@ -4,7 +4,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
-import io.ktor.client.statement.body
+import io.ktor.client.call.body
+import io.ktor.client.call.HttpClientCall
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.serialization.Serializable
@@ -38,7 +39,7 @@ class ElevenLabsAgent(
                 header("xi-api-key", elevenLabsKey)
                 contentType(ContentType.Application.Json)
                 setBody(TtsReq(text = text))
-            }.body<ByteArray>()
+            }.body()
         } catch (e: Exception) {
             null
         }
