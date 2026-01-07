@@ -30,6 +30,7 @@ fun SettingsScreen(
     var elevenKey by remember { mutableStateOf(current.elevenLabsKey) }
     var pplxKey by remember { mutableStateOf(current.perplexityKey) }
     var geminiKey by remember { mutableStateOf(current.geminiKey) }
+    var deepgramKey by remember { mutableStateOf(current.deepgramKey) }
     var selectedAgent by remember { mutableStateOf(current.selectedAgent) }
     var selectedTheme by remember { mutableStateOf(current.selectedTheme) }
     var selectedModel by remember { mutableStateOf(current.selectedModel) }
@@ -50,6 +51,7 @@ fun SettingsScreen(
         StyledTextField("ElevenLabs Key", elevenKey) { elevenKey = it }
         StyledTextField("Perplexity Key", pplxKey) { pplxKey = it }
         StyledTextField("Gemini Key (Free)", geminiKey) { geminiKey = it }
+        StyledTextField("Deepgram Key", deepgramKey) { deepgramKey = it }
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -111,7 +113,7 @@ fun SettingsScreen(
 
         Button(
             onClick = {
-                settingsManager.saveSettings(openAiKey, elevenKey, pplxKey, geminiKey, selectedAgent, selectedTheme, selectedModel)
+                settingsManager.saveSettings(openAiKey, elevenKey, pplxKey, geminiKey, deepgramKey, selectedAgent, selectedTheme)
                 onDismiss()
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),

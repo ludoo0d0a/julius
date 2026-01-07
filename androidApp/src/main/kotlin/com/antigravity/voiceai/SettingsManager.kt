@@ -18,6 +18,7 @@ data class AppSettings(
     val elevenLabsKey: String = "",
     val perplexityKey: String = "",
     val geminiKey: String = "",
+    val deepgramKey: String = "",
     val selectedAgent: AgentType = AgentType.OpenAI,
     val selectedTheme: AppTheme = AppTheme.Particles,
     val selectedModel: IaModel = IaModel.LLAMA_3_1_SONAR_SMALL
@@ -36,6 +37,7 @@ class SettingsManager(context: Context) {
             elevenLabsKey = prefs.getString("elevenlabs_key", "")?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.ELEVENLABS_KEY,
             perplexityKey = prefs.getString("perplexity_key", "") ?: "",
             geminiKey = prefs.getString("gemini_key", "")?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.GEMINI_KEY,
+            deepgramKey = prefs.getString("deepgram_key", "")?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.DEEPGRAM_KEY,
             selectedAgent = AgentType.valueOf(prefs.getString("agent", AgentType.OpenAI.name) ?: AgentType.OpenAI.name),
             selectedTheme = AppTheme.valueOf(prefs.getString("theme", AppTheme.Particles.name) ?: AppTheme.Particles.name),
             selectedModel = IaModel.valueOf(prefs.getString("model", IaModel.LLAMA_3_1_SONAR_SMALL.name) ?: IaModel.LLAMA_3_1_SONAR_SMALL.name)
@@ -47,6 +49,7 @@ class SettingsManager(context: Context) {
         elevenLabsKey: String,
         perplexityKey: String,
         geminiKey: String,
+        deepgramKey: String,
         agent: AgentType,
         theme: AppTheme,
         model: IaModel
@@ -56,6 +59,7 @@ class SettingsManager(context: Context) {
             .putString("elevenlabs_key", elevenLabsKey)
             .putString("perplexity_key", perplexityKey)
             .putString("gemini_key", geminiKey)
+            .putString("deepgram_key", deepgramKey)
             .putString("agent", agent.name)
             .putString("theme", theme.name)
             .putString("model", model.name)
