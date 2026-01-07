@@ -14,10 +14,11 @@ class ElevenLabsAgent(
     private val client: HttpClient,
     private val perplexityKey: String,
     private val elevenLabsKey: String,
-    private val voiceId: String = "JBFqnCBsd6RMkjVDRZzb" // Example: George
+    private val voiceId: String = "JBFqnCBsd6RMkjVDRZzb", // Example: George
+    private val model: String
 ) : ConversationalAgent {
 
-    private val nativeAgent = NativeAgent(client, perplexityKey)
+    private val nativeAgent = NativeAgent(client, perplexityKey, model)
 
     @Serializable private data class TtsReq(
         val text: String,

@@ -31,6 +31,7 @@ kotlin {
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.koin.core)
+            implementation("co.touchlab:kermit:2.0.0-RC4")
         }
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)

@@ -27,9 +27,9 @@ class DynamicAgentWrapper(
         val settings = settingsManager.settings.value
         val agent = when (settings.selectedAgent) {
             AgentType.OpenAI -> OpenAIAgent(client, apiKey = settings.openAiKey)
-            AgentType.ElevenLabs -> ElevenLabsAgent(client, perplexityKey = settings.perplexityKey, elevenLabsKey = settings.elevenLabsKey)
-            AgentType.Deepgram -> DeepgramAgent(client, deepgramKey = settings.deepgramKey)
-            AgentType.Native -> NativeAgent(client, apiKey = settings.perplexityKey)
+            AgentType.ElevenLabs -> ElevenLabsAgent(client, perplexityKey = settings.perplexityKey, elevenLabsKey = settings.elevenLabsKey, model = settings.selectedModel.modelName)
+            AgentType.Deepgram -> DeepgramAgent(client, deepgramKey = "")
+            AgentType.Native -> NativeAgent(client, apiKey = settings.perplexityKey, model = settings.selectedModel.modelName)
             AgentType.Gemini -> GeminiAgent(client, apiKey = settings.geminiKey)
         }
         return agent.process(input)
