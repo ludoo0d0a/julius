@@ -35,8 +35,18 @@ android {
                 ""
             }
         }
+        val deepgramKey = project.rootProject.file("local.properties").let { file ->
+            if (file.exists()) {
+                val properties = Properties()
+                properties.load(file.inputStream())
+                properties.getProperty("deepgram.key") ?: ""
+            } else {
+                ""
+            }
+        }
         buildConfigField("String", "ELEVENLABS_KEY", "\"$elevenLabsKey\"")
         buildConfigField("String", "GEMINI_KEY", "\"$geminiKey\"")
+        buildConfigField("String", "DEEPGRAM_KEY", "\"$deepgramKey\"")
     }
 
     buildFeatures {
