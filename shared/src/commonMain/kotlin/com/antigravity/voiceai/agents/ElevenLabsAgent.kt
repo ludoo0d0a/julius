@@ -39,7 +39,7 @@ class ElevenLabsAgent(
                 header("xi-api-key", elevenLabsKey)
                 contentType(ContentType.Application.Json)
                 setBody(TtsReq(text = text))
-            }.body()
+            }.body<ByteArray>()
         } catch (e: Exception) {
             null
         }

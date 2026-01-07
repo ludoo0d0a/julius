@@ -26,6 +26,8 @@ import com.antigravity.voiceai.shared.ConversationState
 import com.antigravity.voiceai.shared.VoiceEvent
 import com.antigravity.voiceai.ui.SettingsScreen
 import com.antigravity.voiceai.ui.components.ParticleEffectCanvas
+import com.antigravity.voiceai.ui.components.SphereEffectCanvas
+import com.antigravity.voiceai.ui.components.WavesEffectCanvas
 import com.antigravity.voiceai.ui.components.TrayLight
 import org.koin.android.ext.android.inject
 
@@ -80,10 +82,13 @@ fun MainUI(
                     contentAlignment = Alignment.Center
                 ) {
                     // 1. Background Theme Effect (Applied from settings)
-                    ThemeBackground(
-                        theme = selectedTheme,
-                        isActive = state.status == VoiceEvent.Listening || state.status == VoiceEvent.Speaking
-                    )
+                    // Use key to ensure proper recomposition when theme changes
+                    key(selectedTheme) {
+                        ThemeBackground(
+                            theme = selectedTheme,
+                            isActive = state.status == VoiceEvent.Listening || state.status == VoiceEvent.Speaking
+                        )
+                    }
                     
                     // Responsive Container
                     Box(
@@ -248,14 +253,10 @@ fun ThemeBackground(
             ParticleEffectCanvas(isActive = isActive)
         }
         AppTheme.Sphere -> {
-            // TODO: Implement Sphere effect component
-            // For now, using Particles as placeholder
-            ParticleEffectCanvas(isActive = isActive)
+            SphereEffectCanvas(isActive = isActive)
         }
         AppTheme.Waves -> {
-            // TODO: Implement Waves effect component
-            // For now, using Particles as placeholder
-            ParticleEffectCanvas(isActive = isActive)
+            WavesEffectCanvas(isActive = isActive)
         }
     }
 }
