@@ -158,7 +158,7 @@ class RealApiTests {
 
         val client = createHttpClient()
         val model = "llama-3.1-sonar-small-128k-online"
-        val agent = ElevenLabsAgent(client, perplexityKey, elevenLabsKey, model)
+        val agent = ElevenLabsAgent(client, perplexityKey, elevenLabsKey, model = model)
         
         val testPrompt = "donne la météo de demain"
         

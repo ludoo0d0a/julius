@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import kotlin.math.*
+import androidx.compose.ui.graphics.lerp
 
 @Composable
 fun SphereEffectCanvas(
@@ -139,11 +140,11 @@ private fun DrawScope.drawSphere(
         // Color interpolation based on depth and pulse
         val color = when {
             isActive -> {
-                Color.lerp(
+                lerp(
                     primaryColor.copy(alpha = alpha),
                     secondaryColor.copy(alpha = alpha),
                     abs(z) * 0.5f + pulse * 0.3f
-                ) ?: primaryColor.copy(alpha = alpha)
+                )
             }
             else -> primaryColor.copy(alpha = alpha)
         }
