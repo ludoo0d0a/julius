@@ -35,7 +35,10 @@ class AndroidVoiceManager(
         tts = TextToSpeech(context, this)
         mediaPlayer = MediaPlayer()
         mediaPlayer?.setOnCompletionListener { 
-            _events.value = VoiceEvent.Silence
+            // Only reset to Silence if we were speaking, not if we're listening
+            if (_events.value == VoiceEvent.Speaking) {
+                _events.value = VoiceEvent.Silence
+            }
         }
     }
 
@@ -101,7 +104,10 @@ class AndroidVoiceManager(
     }
 
     // RecognitionListener
-    override fun onReadyForSpeech(params: Bundle?) {}
+    override fun onReadyForSpeech(params: Bundle?) {
+        // Ensure icon stays red as soon as recognizer is ready to listen
+        _events.value = VoiceEvent.Listening
+    }
     override fun onBeginningOfSpeech() {
         _events.value = VoiceEvent.Listening 
     }

@@ -147,6 +147,7 @@ fun MainUI(
                                  Icon(
                                      painter = painterResource(id = R.drawable.ic_speaker),
                                      contentDescription = "Speak",
+                                     // Microphone icon turns red when listening
                                      tint = if (state.status == VoiceEvent.Listening) Color.Red else Color.White,
                                      modifier = Modifier.size(32.dp)
                                  )
