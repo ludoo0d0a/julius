@@ -25,3 +25,4 @@ lint
 .kotlin
 # Android Auto / Google specific if any (usually covered above)
 build_error.log
+build_output.log

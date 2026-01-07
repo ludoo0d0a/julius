@@ -109,15 +109,15 @@ object ActionParser {
     private fun extractAppName(text: String): String? {
         val patterns = listOf(
             // English patterns
-            Regex("open (.+?)(?:\\s|$)", RegexOption.IGNORE_CASE),
-            Regex("launch (.+?)(?:\\s|$)", RegexOption.IGNORE_CASE),
-            Regex("start (.+?)(?:\\s|$)", RegexOption.IGNORE_CASE),
+            Regex("open (.+?)(?:\s|$)", RegexOption.IGNORE_CASE),
+            Regex("launch (.+?)(?:\s|$)", RegexOption.IGNORE_CASE),
+            Regex("start (.+?)(?:\s|$)", RegexOption.IGNORE_CASE),
             // French patterns
-            Regex("ouvrir (.+?)(?:\\s|$)", RegexOption.IGNORE_CASE),
-            Regex("ouvre (.+?)(?:\\s|$)", RegexOption.IGNORE_CASE),
-            Regex("lancer (.+?)(?:\\s|$)", RegexOption.IGNORE_CASE),
-            Regex("lance (.+?)(?:\\s|$)", RegexOption.IGNORE_CASE),
-            Regex("démarrer (.+?)(?:\\s|$)", RegexOption.IGNORE_CASE)
+            Regex("ouvrir (.+?)(?:\s|$)", RegexOption.IGNORE_CASE),
+            Regex("ouvre (.+?)(?:\s|$)", RegexOption.IGNORE_CASE),
+            Regex("lancer (.+?)(?:\s|$)", RegexOption.IGNORE_CASE),
+            Regex("lance (.+?)(?:\s|$)", RegexOption.IGNORE_CASE),
+            Regex("démarrer (.+?)(?:\s|$)", RegexOption.IGNORE_CASE)
         )
         
         for (pattern in patterns) {
@@ -141,15 +141,15 @@ object ActionParser {
         // Match phone number patterns (US, French, and international formats)
         val patterns = listOf(
             // US format: 123-456-7890 or (123) 456-7890
-            Regex("\\b\\d{3}[-.]?\\d{3}[-.]?\\d{4}\\b"),
-            Regex("\\b\\(\\d{3}\\)\\s?\\d{3}[-.]?\\d{4}\\b"),
-            Regex("\\b\\+?1?[-.]?\\d{3}[-.]?\\d{3}[-.]?\\d{4}\\b"),
+            Regex("\b\d{3}[-.]?\d{3}[-.]?\d{4}\b"),
+            Regex("\b\(\d{3}\)\s?\d{3}[-.]?\d{4}\b"),
+            Regex("\b\+?1?[-.]?\d{3}[-.]?\d{3}[-.]?\d{4}\b"),
             // French format: 06 12 34 56 78 or 0612345678 or +33 6 12 34 56 78
-            Regex("\\b(?:\\+33|0033|0)[-.\\s]?[1-9][-.\\s]?\\d{2}[-.\\s]?\\d{2}[-.\\s]?\\d{2}[-.\\s]?\\d{2}[-.\\s]?\\d{2}\\b"),
+            Regex("\b(?:\+33|0033|0)[-.\s]?[1-9][-.\s]?\d{2}[-.\s]?\d{2}[-.\s]?\d{2}[-.\s]?\d{2}[-.\s]?\d{2}\b"),
             // Generic 10-digit numbers (French format)
-            Regex("\\b0[1-9]\\d{8}\\b"),
+            Regex("\b0[1-9]\d{8}\b"),
             // International format with country code
-            Regex("\\b\\+\\d{1,3}[-.\\s]?\\d{1,4}[-.\\s]?\\d{1,4}[-.\\s]?\\d{1,9}\\b")
+            Regex("\b\+\d{1,3}[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}\b")
         )
         
         for (pattern in patterns) {
@@ -220,18 +220,18 @@ object ActionParser {
         // Or "3h30" or "15h00" or "3 heures" (French)
         val timePatterns = listOf(
             // Standard format: 3:30 or 15:30
-            Regex("(\\d{1,2}):(\\d{2})"),
+            Regex("(\d{1,2}):(\d{2})"),
             // French format: 3h30 or 15h00
-            Regex("(\\d{1,2})h(\\d{2})"),
-            Regex("(\\d{1,2})h(\\d{2})"),
+            Regex("(\d{1,2})h(\d{2})"),
+            Regex("(\d{1,2})h(\d{2})"),
             // AM/PM format: 3 pm or 3am
-            Regex("(\\d{1,2})\\s*(am|pm)", RegexOption.IGNORE_CASE),
+            Regex("(\d{1,2})\s*(am|pm)", RegexOption.IGNORE_CASE),
             // O'clock format: 3 o'clock
-            Regex("(\\d{1,2}) o'clock", RegexOption.IGNORE_CASE),
+            Regex("(\d{1,2}) o'clock", RegexOption.IGNORE_CASE),
             // French heure format: 3 heures or 15 heures
-            Regex("(\\d{1,2})\\s*heures?", RegexOption.IGNORE_CASE),
+            Regex("(\d{1,2})\s*heures?", RegexOption.IGNORE_CASE),
             // French avec minutes: 3 heures 30
-            Regex("(\\d{1,2})\\s*heures?\\s*(\\d{1,2})", RegexOption.IGNORE_CASE)
+            Regex("(\d{1,2})\s*heures?\s*(\d{1,2})", RegexOption.IGNORE_CASE)
         )
         
         for (pattern in timePatterns) {
@@ -241,7 +241,7 @@ object ActionParser {
                 val hour = hourStr.toIntOrNull() ?: continue
                 
                 // Handle AM/PM
-                if (pattern.pattern.contains("am|pm", RegexOption.IGNORE_CASE)) {
+                if (pattern.pattern.contains("am|pm", ignoreCase = true)) {
                     val amPm = match.groupValues[2].lowercase()
                     val adjustedHour = if (amPm == "pm" && hour != 12) hour + 12 else if (amPm == "am" && hour == 12) 0 else hour
                     return Pair(adjustedHour, 0)
@@ -337,4 +337,3 @@ object ActionParser {
         }?.value
     }
 }
-

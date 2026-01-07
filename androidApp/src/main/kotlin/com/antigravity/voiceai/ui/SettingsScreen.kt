@@ -10,12 +10,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.antigravity.voiceai.AgentType
+import com.antigravity.voiceai.AppSettings
 import com.antigravity.voiceai.AppTheme
 import com.antigravity.voiceai.IaModel
 import com.antigravity.voiceai.SettingsManager
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -180,6 +184,54 @@ fun StyledTextField(label: String, value: String, onValueChange: (String) -> Uni
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White
             )
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0F172A)
+@Composable
+fun SettingsScreenPreview() {
+    // Create a mock SettingsManager for preview
+    val mockSettingsManager = remember {
+        object : SettingsManager(null as android.content.Context) {
+            private val mockSettings = MutableStateFlow(
+                AppSettings(
+                    openAiKey = "sk-preview-key-123",
+                    elevenLabsKey = "preview-eleven-key",
+                    perplexityKey = "preview-perplexity-key",
+                    geminiKey = "preview-gemini-key",
+                    deepgramKey = "preview-deepgram-key",
+                    selectedAgent = AgentType.OpenAI,
+                    selectedTheme = AppTheme.Particles,
+                    selectedModel = IaModel.LLAMA_3_1_SONAR_SMALL
+                )
+            )
+            override val settings: StateFlow<AppSettings> = mockSettings.asStateFlow()
+            override fun saveSettings(
+                openAiKey: String,
+                elevenLabsKey: String,
+                perplexityKey: String,
+                geminiKey: String,
+                deepgramKey: String,
+                agent: AgentType,
+                theme: AppTheme,
+                model: IaModel
+            ) {
+                mockSettings.value = AppSettings(
+                    openAiKey, elevenLabsKey, perplexityKey, geminiKey, deepgramKey,
+                    agent, theme, model
+                )
+            }
+        }
+    }
+    
+    MaterialTheme(
+        colorScheme = darkColorScheme(background = Color(0xFF0F172A))
+    ) {
+        SettingsScreen(
+            settingsManager = mockSettingsManager,
+            lastError = "Sample error message for preview",
+            onDismiss = {}
         )
     }
 }
