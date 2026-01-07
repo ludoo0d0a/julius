@@ -17,7 +17,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -186,7 +185,7 @@ fun MainUIPreview() {
         object : ConversationStore(
             scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main),
             agent = object : com.antigravity.voiceai.agents.ConversationalAgent {
-                override suspend fun process(text: String): com.antigravity.voiceai.agents.AgentResponse {
+                override suspend fun process(input: String): com.antigravity.voiceai.agents.AgentResponse {
                     return com.antigravity.voiceai.agents.AgentResponse("Mock response", null, null)
                 }
             },

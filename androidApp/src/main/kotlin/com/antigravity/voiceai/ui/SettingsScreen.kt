@@ -61,43 +61,31 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         SectionTitle("Assistant")
-        StyledDropdown("Agent", selectedAgent, { it.name }) { onDismiss ->
-            AgentType.entries.forEach { agent ->
-                DropdownMenuItem(
-                    text = { Text(agent.name) },
-                    onClick = {
-                        selectedAgent = agent
-                        onDismiss()
-                    }
-                )
-            }
-        }
-        StyledDropdown("Theme", selectedTheme, { it.name }) { onDismiss ->
-            AppTheme.entries.forEach { theme ->
-                DropdownMenuItem(
-                    text = { Text(theme.name) },
-                    onClick = {
-                        selectedTheme = theme
-                        onDismiss()
-                    }
-                )
-            }
-        }
+        StyledExposedDropdownMenuBox(
+            label = "Agent",
+            selectedValue = selectedAgent,
+            options = AgentType.entries.toList(),
+            onValueChange = { selectedAgent = it },
+            getDisplayName = { it.name }
+        )
+        StyledExposedDropdownMenuBox(
+            label = "Theme",
+            selectedValue = selectedTheme,
+            options = AppTheme.entries.toList(),
+            onValueChange = { selectedTheme = it },
+            getDisplayName = { it.name }
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
 
         SectionTitle("Advanced")
-        StyledDropdown("IA Model", selectedModel, { it.displayName }) { onDismiss ->
-            IaModel.entries.forEach { model ->
-                DropdownMenuItem(
-                    text = { Text(model.displayName) },
-                    onClick = {
-                        selectedModel = model
-                        onDismiss()
-                    }
-                )
-            }
-        }
+        StyledExposedDropdownMenuBox(
+            label = "IA Model",
+            selectedValue = selectedModel,
+            options = IaModel.entries.toList(),
+            onValueChange = { selectedModel = it },
+            getDisplayName = { it.displayName }
+        )
         Column(modifier = Modifier.padding(vertical = 4.dp)) {
             Text("Last Error Log", color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
             OutlinedTextField(
@@ -129,38 +117,64 @@ fun SettingsScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun <T> StyledDropdown(
+fun <T> StyledExposedDropdownMenuBox(
     label: String,
     selectedValue: T,
-    valueToString: (T) -> String,
-    content: @Composable ColumnScope.(() -> Unit) -> Unit
+    options: List<T>,
+    onValueChange: (T) -> Unit,
+    getDisplayName: (T) -> String
 ) {
     var expanded by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
         Text(label, color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
-        Box {
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded }
+        ) {
             OutlinedTextField(
-                value = valueToString(selectedValue),
+                value = getDisplayName(selectedValue),
                 onValueChange = { },
                 readOnly = true,
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { expanded = true },
+                    .menuAnchor(),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF6366F1),
                     unfocusedBorderColor = Color(0xFF334155),
                     focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
+                    unfocusedTextColor = Color.White,
+                    focusedTrailingIconColor = Color(0xFF6366F1),
+                    unfocusedTrailingIconColor = Color(0xFF94A3B8)
                 )
             )
-            DropdownMenu(
+            ExposedDropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.background(Color(0xFF1E293B))
             ) {
-                content { expanded = false }
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { 
+                            Text(
+                                text = getDisplayName(option),
+                                color = if (option == selectedValue) Color(0xFF6366F1) else Color.White
+                            )
+                        },
+                        onClick = {
+                            onValueChange(option)
+                            expanded = false
+                        },
+                        colors = MenuDefaults.itemColors(
+                            textColor = if (option == selectedValue) Color(0xFF6366F1) else Color.White
+                        )
+                    )
+                }
             }
         }
     }
