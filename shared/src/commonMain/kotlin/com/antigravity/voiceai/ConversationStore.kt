@@ -63,7 +63,7 @@ class ConversationStore(
         scope.launch {
             try {
                 // 1. Add User Message
-                val userMsg = ChatMessage("u_${System.currentTimeMillis()}", Role.User, text)
+                val userMsg = ChatMessage("u_${getCurrentTimeMillis()}", Role.User, text)
                 updateMessages(userMsg)
                 
                 // 2. Call AI
@@ -90,7 +90,7 @@ class ConversationStore(
                 
                 // 4. Add AI Message (with action result if any)
                 val responseText = response.text + actionResultMessage
-                val aiMsg = ChatMessage("a_${System.currentTimeMillis()}", Role.Assistant, responseText)
+                val aiMsg = ChatMessage("a_${getCurrentTimeMillis()}", Role.Assistant, responseText)
                 updateMessages(aiMsg)
                 
                 // 5. Speak (text without action result message for cleaner audio)
