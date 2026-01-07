@@ -14,7 +14,8 @@ import kotlinx.coroutines.launch
 data class ConversationState(
     val messages: List<ChatMessage> = emptyList(),
     val status: VoiceEvent = VoiceEvent.Silence,
-    val currentTranscript: String = ""
+    val currentTranscript: String = "",
+    val lastError: String? = null
 )
 
 data class ChatMessage(
@@ -58,24 +59,28 @@ class ConversationStore(
         if (text.isBlank()) return
         
         scope.launch {
-            // 1. Add User Message
-            val userMsg = ChatMessage("u_${System.currentTimeMillis()}", Role.User, text)
-            updateMessages(userMsg)
-            
-            // 2. Call AI
-            _state.value = _state.value.copy(status = VoiceEvent.Processing)
-            
-            val response = agent.process(text) // Returns text + audio?
-            
-            // 3. Add AI Message
-            val aiMsg = ChatMessage("a_${System.currentTimeMillis()}", Role.Assistant, response.text)
-            updateMessages(aiMsg)
-            
-            // 4. Speak
-            if (response.audio != null) {
-                voiceManager.playAudio(response.audio)
-            } else {
-                voiceManager.speak(response.text)
+            try {
+                // 1. Add User Message
+                val userMsg = ChatMessage("u_${System.currentTimeMillis()}", Role.User, text)
+                updateMessages(userMsg)
+
+                // 2. Call AI
+                _state.value = _state.value.copy(status = VoiceEvent.Processing, lastError = null)
+
+                val response = agent.process(text) // Returns text + audio?
+
+                // 3. Add AI Message
+                val aiMsg = ChatMessage("a_${System.currentTimeMillis()}", Role.Assistant, response.text)
+                updateMessages(aiMsg)
+
+                // 4. Speak
+                if (response.audio != null) {
+                    voiceManager.playAudio(response.audio)
+                } else {
+                    voiceManager.speak(response.text)
+                }
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(lastError = e.message, status = VoiceEvent.Silence)
             }
         }
     }

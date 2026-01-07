@@ -14,22 +14,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.antigravity.voiceai.AgentType
 import com.antigravity.voiceai.AppTheme
+import com.antigravity.voiceai.IaModel
 import com.antigravity.voiceai.SettingsManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     settingsManager: SettingsManager,
+    lastError: String?,
     onDismiss: () -> Unit
 ) {
     val current by settingsManager.settings.collectAsState()
-    
+
     var openAiKey by remember { mutableStateOf(current.openAiKey) }
     var elevenKey by remember { mutableStateOf(current.elevenLabsKey) }
     var pplxKey by remember { mutableStateOf(current.perplexityKey) }
     var geminiKey by remember { mutableStateOf(current.geminiKey) }
     var selectedAgent by remember { mutableStateOf(current.selectedAgent) }
     var selectedTheme by remember { mutableStateOf(current.selectedTheme) }
+    var selectedModel by remember { mutableStateOf(current.selectedModel) }
 
     Column(
         modifier = Modifier
@@ -49,22 +52,109 @@ fun SettingsScreen(
         StyledTextField("Gemini Key (Free)", geminiKey) { geminiKey = it }
 
         Spacer(modifier = Modifier.height(24.dp))
-        
-        // ... (Agent Selection) ...
-        
-        // ... (Theme Selection) ...
+
+        SectionTitle("Assistant")
+        StyledDropdown("Agent", selectedAgent, { it.name }) { onDismiss ->
+            AgentType.entries.forEach { agent ->
+                DropdownMenuItem(
+                    text = { Text(agent.name) },
+                    onClick = {
+                        selectedAgent = agent
+                        onDismiss()
+                    }
+                )
+            }
+        }
+        StyledDropdown("Theme", selectedTheme, { it.name }) { onDismiss ->
+            AppTheme.entries.forEach { theme ->
+                DropdownMenuItem(
+                    text = { Text(theme.name) },
+                    onClick = {
+                        selectedTheme = theme
+                        onDismiss()
+                    }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        SectionTitle("Advanced")
+        StyledDropdown("IA Model", selectedModel, { it.displayName }) { onDismiss ->
+            IaModel.entries.forEach { model ->
+                DropdownMenuItem(
+                    text = { Text(model.displayName) },
+                    onClick = {
+                        selectedModel = model
+                        onDismiss()
+                    }
+                )
+            }
+        }
+        Column(modifier = Modifier.padding(vertical = 4.dp)) {
+            Text("Last Error Log", color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
+            OutlinedTextField(
+                value = lastError ?: "No errors",
+                onValueChange = {},
+                readOnly = true,
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF6366F1),
+                    unfocusedBorderColor = Color(0xFF334155),
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                )
+            )
+        }
 
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
             onClick = {
-                settingsManager.saveSettings(openAiKey, elevenKey, pplxKey, geminiKey, selectedAgent, selectedTheme)
+                settingsManager.saveSettings(openAiKey, elevenKey, pplxKey, geminiKey, selectedAgent, selectedTheme, selectedModel)
                 onDismiss()
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Save & Close")
+        }
+    }
+}
+
+@Composable
+fun <T> StyledDropdown(
+    label: String,
+    selectedValue: T,
+    valueToString: (T) -> String,
+    content: @Composable ColumnScope.(() -> Unit) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+        Text(label, color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
+        Box {
+            OutlinedTextField(
+                value = valueToString(selectedValue),
+                onValueChange = { },
+                readOnly = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = true },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF6366F1),
+                    unfocusedBorderColor = Color(0xFF334155),
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                )
+            )
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                content { expanded = false }
+            }
         }
     }
 }
