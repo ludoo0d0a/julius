@@ -38,7 +38,18 @@ open class SettingsManager(context: Context) {
             perplexityKey = prefs.getString("perplexity_key", "") ?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.PERPLEXITY_KEY,
             geminiKey = prefs.getString("gemini_key", "")?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.GEMINI_KEY,
             deepgramKey = prefs.getString("deepgram_key", "")?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.DEEPGRAM_KEY,
-            selectedAgent = AgentType.valueOf(prefs.getString("agent", AgentType.Deepgram.name) ?: AgentType.Deepgram.name),
+            selectedAgent = try {
+                val agentName = prefs.getString("agent", null)
+                if (agentName != null) {
+                    AgentType.valueOf(agentName)
+                } else {
+                    AgentType.Deepgram // Default fallback
+                }
+            } catch (e: IllegalArgumentException) {
+                // Invalid agent name in preferences, use default
+                android.util.Log.w("SettingsManager", "Invalid agent name in preferences, using default: ${e.message}")
+                AgentType.Deepgram
+            },
             selectedTheme = AppTheme.valueOf(prefs.getString("theme", AppTheme.Particles.name) ?: AppTheme.Particles.name),
             selectedModel = IaModel.valueOf(prefs.getString("model", IaModel.LLAMA_3_1_SONAR_SMALL.name) ?: IaModel.LLAMA_3_1_SONAR_SMALL.name)
         )
@@ -54,6 +65,8 @@ open class SettingsManager(context: Context) {
         theme: AppTheme,
         model: IaModel
     ) {
+        // Use commit() instead of apply() to ensure settings are persisted immediately
+        // This prevents state desynchronization if the app restarts or crashes
         prefs.edit()
             .putString("openai_key", openAiKey)
             .putString("elevenlabs_key", elevenLabsKey)
@@ -63,7 +76,7 @@ open class SettingsManager(context: Context) {
             .putString("agent", agent.name)
             .putString("theme", theme.name)
             .putString("model", model.name)
-            .apply()
+            .commit() // Changed from apply() to commit() for immediate persistence
         
         // Update StateFlow immediately with the new values to ensure UI and agent switching update right away
         _settings.value = AppSettings(

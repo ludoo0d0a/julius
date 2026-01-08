@@ -26,14 +26,30 @@ class DynamicAgentWrapper(
 ) : ConversationalAgent {
     
     override suspend fun process(input: String): AgentResponse {
+        // Always read fresh settings value to ensure we use the latest agent selection
         val settings = settingsManager.settings.value
+        
+        // Debug logging to help identify state management issues
+        android.util.Log.d("DynamicAgentWrapper", "Processing with agent: ${settings.selectedAgent.name}")
+        
         val agent = when (settings.selectedAgent) {
             AgentType.OpenAI -> OpenAIAgent(client, apiKey = settings.openAiKey)
-            AgentType.ElevenLabs -> ElevenLabsAgent(client, perplexityKey = settings.perplexityKey, elevenLabsKey = settings.elevenLabsKey, model = settings.selectedModel.modelName)
-            AgentType.Deepgram -> DeepgramAgent(client, deepgramKey = settings.deepgramKey)
+            AgentType.ElevenLabs -> {
+                // Ensure required keys are present for ElevenLabs
+                if (settings.perplexityKey.isBlank() || settings.elevenLabsKey.isBlank()) {
+                    android.util.Log.w("DynamicAgentWrapper", "ElevenLabs selected but missing keys (perplexity: ${settings.perplexityKey.isNotBlank()}, elevenlabs: ${settings.elevenLabsKey.isNotBlank()})")
+                }
+                ElevenLabsAgent(client, perplexityKey = settings.perplexityKey, elevenLabsKey = settings.elevenLabsKey, model = settings.selectedModel.modelName)
+            }
+            AgentType.Deepgram -> {
+                android.util.Log.d("DynamicAgentWrapper", "Creating Deepgram agent (this should not happen if ElevenLabs is selected)")
+                DeepgramAgent(client, deepgramKey = settings.deepgramKey)
+            }
             AgentType.Native -> NativeAgent(client, apiKey = settings.perplexityKey, model = settings.selectedModel.modelName)
             AgentType.Gemini -> GeminiAgent(client, apiKey = settings.geminiKey)
         }
+        
+        android.util.Log.d("DynamicAgentWrapper", "Agent created: ${agent::class.simpleName}, processing input...")
         return agent.process(input)
     }
 }
