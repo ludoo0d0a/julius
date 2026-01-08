@@ -32,13 +32,25 @@ class DeepgramAgent(
         }
 
         try {
-            val responseBody = client.post("https://api.deepgram.com/v1/chat/completions") {
+            val response = client.post("https://api.deepgram.com/v1/chat/completions") {
                 header("Authorization", "Bearer $deepgramKey")
                 contentType(ContentType.Application.Json)
                 setBody(
                     ChatReq(messages = listOf(Msg("user", input)))
                 )
-            }.bodyAsText()
+            }
+
+            val responseBody = response.bodyAsText()
+
+            // Check for error response
+            if (response.status.value != 200) {
+                return AgentResponse("Error connecting to Deepgram: ${response.status.value} - $responseBody", null)
+            }
+
+            // Check if response body is empty
+            if (responseBody.isBlank()) {
+                return AgentResponse("Error connecting to Deepgram: Empty response", null)
+            }
 
             val text = json.decodeFromString<ChatRes>(responseBody)
                 .choices

@@ -104,6 +104,14 @@ fun MainUI(
                                 .padding(32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
+                            // Current Agent Display
+                            Text(
+                                text = settings.selectedAgent.name,
+                                color = Color(0xFF6366F1).copy(alpha = 0.7f),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = state.status.name,
                                 color = Color.White.copy(alpha = 0.5f),

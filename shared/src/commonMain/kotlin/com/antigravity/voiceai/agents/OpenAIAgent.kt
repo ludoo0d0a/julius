@@ -30,7 +30,7 @@ class OpenAIAgent(
         val chatResponse = client.post("https://api.openai.com/v1/chat/completions") {
             header("Authorization", "Bearer $apiKey")
             contentType(ContentType.Application.Json)
-            setBody(ChatReq(messages = listOf(Msg("user", input))))
+            setBody(ChatReq(model = "gpt-4o", messages = listOf(Msg("user", input))))
         }
         
         val chatBody = chatResponse.bodyAsText()
@@ -51,7 +51,7 @@ class OpenAIAgent(
             client.post("https://api.openai.com/v1/audio/speech") {
                 header("Authorization", "Bearer $apiKey")
                 contentType(ContentType.Application.Json)
-                setBody(TtsReq(input = text))
+                setBody(TtsReq(model = "tts-1-hd", input = text, voice = "nova"))
             }.body<ByteArray>()
         } catch (e: Exception) {
             null

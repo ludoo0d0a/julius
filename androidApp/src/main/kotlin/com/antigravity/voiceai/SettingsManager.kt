@@ -64,7 +64,17 @@ open class SettingsManager(context: Context) {
             .putString("theme", theme.name)
             .putString("model", model.name)
             .apply()
-            
-        _settings.value = loadSettings()
+        
+        // Update StateFlow immediately with the new values to ensure UI and agent switching update right away
+        _settings.value = AppSettings(
+            openAiKey = openAiKey,
+            elevenLabsKey = elevenLabsKey,
+            perplexityKey = perplexityKey,
+            geminiKey = geminiKey,
+            deepgramKey = deepgramKey,
+            selectedAgent = agent,
+            selectedTheme = theme,
+            selectedModel = model
+        )
     }
 }

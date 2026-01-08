@@ -28,23 +28,41 @@ class GeminiAgent(
     private data class Candidate(val content: Content)
     
     @Serializable 
+    private data class ErrorDetail(val message: String, val status: String)
+    
+    @Serializable 
+    private data class ErrorRes(val error: ErrorDetail)
+    
+    @Serializable 
     private data class Res(val candidates: List<Candidate>?)
 
     private val json = Json { ignoreUnknownKeys = true }
 
     override suspend fun process(input: String): AgentResponse {
          try {
-            // Using Gemini 1.5 Flash (Free Tier eligible)
-            val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey"
+            // Using Gemini 1.5 Flash (Free Tier eligible) - try v1beta with latest
+            val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=$apiKey"
             
-            val responseBody = client.post(url) {
+            val response = client.post(url) {
                 contentType(ContentType.Application.Json)
                 setBody(
                     Req(contents = listOf(
                         Content(parts = listOf(Part(text = input)))
                     ))
                 )
-            }.bodyAsText()
+            }
+
+            val responseBody = response.bodyAsText()
+
+            // Check for error response first
+            if (response.status.value != 200) {
+                try {
+                    val errorRes = json.decodeFromString<ErrorRes>(responseBody)
+                    return AgentResponse("Error connecting to Gemini: ${errorRes.error.message}", null)
+                } catch (e: Exception) {
+                    return AgentResponse("Error connecting to Gemini: ${response.status.value} - $responseBody", null)
+                }
+            }
 
             val res = json.decodeFromString<Res>(responseBody)
             val text = res.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: "I didn't get a response."
