@@ -27,16 +27,23 @@ class OpenAIAgent(
 
     override suspend fun process(input: String): AgentResponse {
         // 1. Get Text
-        val chatBody = client.post("https://api.openai.com/v1/chat/completions") {
+        val chatResponse = client.post("https://api.openai.com/v1/chat/completions") {
             header("Authorization", "Bearer $apiKey")
             contentType(ContentType.Application.Json)
             setBody(ChatReq(messages = listOf(Msg("user", input))))
-        }.bodyAsText()
+        }
+        
+        val chatBody = chatResponse.bodyAsText()
         
         val text = try {
-            json.decodeFromString<ChatRes>(chatBody).choices.first().message.content
+            if (chatResponse.status.value != 200) {
+                "Error from OpenAI: ${chatResponse.status.value} - $chatBody"
+            } else {
+                json.decodeFromString<ChatRes>(chatBody).choices.firstOrNull()?.message?.content 
+                    ?: "No response from OpenAI"
+            }
         } catch (e: Exception) {
-            "Error from OpenAI"
+            "Error from OpenAI: ${e.message}"
         }
 
         // 2. Get Audio

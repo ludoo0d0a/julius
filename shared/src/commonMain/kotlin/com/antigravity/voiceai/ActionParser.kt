@@ -109,15 +109,15 @@ object ActionParser {
     private fun extractAppName(text: String): String? {
         val patterns = listOf(
             // English patterns
-            Regex("open (.+?)(?:\\s|$)", RegexOption.IGNORE_CASE),
-            Regex("launch (.+?)(?:\\s|$)", RegexOption.IGNORE_CASE),
-            Regex("start (.+?)(?:\\s|$)", RegexOption.IGNORE_CASE),
+            Regex("""open (.+?)(?:\s|$)""", RegexOption.IGNORE_CASE),
+            Regex("""launch (.+?)(?:\s|$)""", RegexOption.IGNORE_CASE),
+            Regex("""start (.+?)(?:\s|$)""", RegexOption.IGNORE_CASE),
             // French patterns
-            Regex("ouvrir (.+?)(?:\\s|$)", RegexOption.IGNORE_CASE),
-            Regex("ouvre (.+?)(?:\\s|$)", RegexOption.IGNORE_CASE),
-            Regex("lancer (.+?)(?:\\s|$)", RegexOption.IGNORE_CASE),
-            Regex("lance (.+?)(?:\\s|$)", RegexOption.IGNORE_CASE),
-            Regex("démarrer (.+?)(?:\\s|$)", RegexOption.IGNORE_CASE)
+            Regex("""ouvrir (.+?)(?:\s|$)""", RegexOption.IGNORE_CASE),
+            Regex("""ouvre (.+?)(?:\s|$)""", RegexOption.IGNORE_CASE),
+            Regex("""lancer (.+?)(?:\s|$)""", RegexOption.IGNORE_CASE),
+            Regex("""lance (.+?)(?:\s|$)""", RegexOption.IGNORE_CASE),
+            Regex("""démarrer (.+?)(?:\s|$)""", RegexOption.IGNORE_CASE)
         )
         
         for (pattern in patterns) {

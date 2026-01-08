@@ -151,7 +151,13 @@ private fun DrawScope.drawWaveLayer(
 ) {
     val path = Path()
     val waveColor = if (isActive) {
-        Color.lerp(color, Color.White, 0.3f)?.copy(alpha = alpha) ?: color.copy(alpha = alpha)
+        // Interpolate between color and white (30% white)
+        Color(
+            red = (color.red * 0.7f + 1f * 0.3f).coerceIn(0f, 1f),
+            green = (color.green * 0.7f + 1f * 0.3f).coerceIn(0f, 1f),
+            blue = (color.blue * 0.7f + 1f * 0.3f).coerceIn(0f, 1f),
+            alpha = alpha
+        )
     } else {
         color.copy(alpha = alpha)
     }
@@ -178,7 +184,7 @@ private fun DrawScope.drawWaveLayer(
     drawPath(
         path = path,
         brush = Brush.verticalGradient(
-            colors = listOf(
+            colors = listOf<Color>(
                 waveColor,
                 waveColor.copy(alpha = alpha * 0.5f),
                 Color.Transparent
@@ -199,7 +205,7 @@ private fun DrawScope.drawWaveLayer(
     
     drawPath(
         path = outlinePath,
-        color = waveColor.copy(alpha = alpha + 0.2f),
+        color = waveColor.copy(alpha = (alpha + 0.2f).coerceIn(0f, 1f)),
         style = Stroke(width = 2f, cap = StrokeCap.Round)
     )
 }
