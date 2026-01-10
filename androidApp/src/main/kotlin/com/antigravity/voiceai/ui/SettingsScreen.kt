@@ -18,6 +18,7 @@ import com.antigravity.voiceai.AppSettings
 import com.antigravity.voiceai.AppTheme
 import com.antigravity.voiceai.IaModel
 import com.antigravity.voiceai.SettingsManager
+import com.antigravity.voiceai.shared.ErrorState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,7 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 @Composable
 fun SettingsScreen(
     settingsManager: SettingsManager,
-    lastError: String?,
+    lastError: ErrorState?,
     onDismiss: () -> Unit
 ) {
     val current by settingsManager.settings.collectAsState()
@@ -98,7 +99,9 @@ fun SettingsScreen(
         Column(modifier = Modifier.padding(vertical = 4.dp)) {
             Text("Last Error Log", color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
             OutlinedTextField(
-                value = lastError ?: "No errors",
+                value = lastError?.let {
+                    "Code: ${it.code ?: "N/A"}\nReason: ${it.reason ?: "N/A"}\nMessage: ${it.message ?: "No details"}"
+                } ?: "No errors",
                 onValueChange = {},
                 readOnly = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -254,7 +257,7 @@ fun SettingsScreenPreview() {
     ) {
         SettingsScreen(
             settingsManager = mockSettingsManager,
-            lastError = "Sample error message for preview",
+            lastError = ErrorState(404, "Not found", "Sample error message for preview"),
             onDismiss = {}
         )
     }

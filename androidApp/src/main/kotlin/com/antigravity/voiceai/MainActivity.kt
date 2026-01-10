@@ -127,7 +127,7 @@ fun MainUI(
                             state.lastError?.let { error ->
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-                                    text = error,
+                                    text = "Error: ${error.code ?: "N/A"} - ${error.reason ?: "Unknown"}",
                                     color = Color.Red,
                                     fontSize = 14.sp
                                 )

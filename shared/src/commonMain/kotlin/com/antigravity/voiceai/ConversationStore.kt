@@ -2,6 +2,7 @@ package com.antigravity.voiceai.shared
 
 import com.antigravity.voiceai.agents.ConversationalAgent
 import com.antigravity.voiceai.shared.ActionParser
+import io.ktor.client.plugins.ClientRequestException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -16,9 +17,14 @@ data class ConversationState(
     val messages: List<ChatMessage> = emptyList(),
     val status: VoiceEvent = VoiceEvent.Silence,
     val currentTranscript: String = "",
-    val lastError: String? = null
+    val lastError: ErrorState? = null
 )
 
+data class ErrorState(
+    val code: Int?,
+    val reason: String?,
+    val message: String?
+)
 data class ChatMessage(
     val id: String,
     val sender: Role,
@@ -100,7 +106,13 @@ open class ConversationStore(
                     voiceManager.speak(response.text)
                 }
             } catch (e: Exception) {
-                _state.value = _state.value.copy(lastError = e.message, status = VoiceEvent.Silence)
+                val error = when(e) {
+                    is ClientRequestException -> {
+                        ErrorState(e.response.status.value, e.response.status.description, e.message)
+                    }
+                    else -> ErrorState(null, null, e.message)
+                }
+                _state.value = _state.value.copy(lastError = error, status = VoiceEvent.Silence)
             }
         }
     }
