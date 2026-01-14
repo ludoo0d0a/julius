@@ -12,11 +12,17 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
+data class DetailedError(
+    val httpCode: Int?,
+    val message: String
+)
+
 data class ConversationState(
     val messages: List<ChatMessage> = emptyList(),
     val status: VoiceEvent = VoiceEvent.Silence,
     val currentTranscript: String = "",
-    val lastError: String? = null
+    val lastError: DetailedError? = null,
+    val errorLog: List<DetailedError> = emptyList()
 )
 
 data class ChatMessage(
@@ -99,8 +105,22 @@ open class ConversationStore(
                 } else {
                     voiceManager.speak(response.text)
                 }
+            } catch (e: NetworkException) {
+                val error = DetailedError(e.httpCode, e.message ?: "Unknown error")
+                val newErrorLog = (_state.value.errorLog + error).takeLast(10)
+                _state.value = _state.value.copy(
+                    lastError = error,
+                    errorLog = newErrorLog,
+                    status = VoiceEvent.Silence
+                )
             } catch (e: Exception) {
-                _state.value = _state.value.copy(lastError = e.message, status = VoiceEvent.Silence)
+                val error = DetailedError(null, e.message ?: "Unknown error")
+                val newErrorLog = (_state.value.errorLog + error).takeLast(10)
+                _state.value = _state.value.copy(
+                    lastError = error,
+                    errorLog = newErrorLog,
+                    status = VoiceEvent.Silence
+                )
             }
         }
     }

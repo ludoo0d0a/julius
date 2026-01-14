@@ -18,6 +18,7 @@ import com.antigravity.voiceai.AppSettings
 import com.antigravity.voiceai.AppTheme
 import com.antigravity.voiceai.IaModel
 import com.antigravity.voiceai.SettingsManager
+import com.antigravity.voiceai.shared.DetailedError
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,7 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 @Composable
 fun SettingsScreen(
     settingsManager: SettingsManager,
-    lastError: String?,
+    errorLog: List<DetailedError>,
     onDismiss: () -> Unit
 ) {
     val current by settingsManager.settings.collectAsState()
@@ -97,8 +98,16 @@ fun SettingsScreen(
         )
         Column(modifier = Modifier.padding(vertical = 4.dp)) {
             Text("Last Error Log", color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
+            val errorText = if (errorLog.isEmpty()) {
+                "No errors"
+            } else {
+                errorLog.joinToString("\n") {
+                    val httpCode = it.httpCode?.let { " ($it)" } ?: ""
+                    "Error: ${it.message}$httpCode"
+                }
+            }
             OutlinedTextField(
-                value = lastError ?: "No errors",
+                value = errorText,
                 onValueChange = {},
                 readOnly = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -254,7 +263,10 @@ fun SettingsScreenPreview() {
     ) {
         SettingsScreen(
             settingsManager = mockSettingsManager,
-            lastError = "Sample error message for preview",
+            errorLog = listOf(
+                DetailedError(401, "Unauthorized"),
+                DetailedError(500, "Internal Server Error")
+            ),
             onDismiss = {}
         )
     }

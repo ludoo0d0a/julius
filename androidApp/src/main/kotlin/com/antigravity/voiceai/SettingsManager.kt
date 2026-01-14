@@ -10,7 +10,8 @@ enum class AgentType { OpenAI, ElevenLabs, Deepgram, Native, Gemini }
 enum class AppTheme { Particles, Sphere, Waves }
 enum class IaModel(val modelName: String, val displayName: String) {
     LLAMA_3_1_SONAR_SMALL("llama-3.1-sonar-small-128k-online", "Sonar Small"),
-    LLAMA_3_1_SONAR_LARGE("llama-3.1-sonar-large-128k-online", "Sonar Large")
+    LLAMA_3_1_SONAR_LARGE("llama-3.1-sonar-large-128k-online", "Sonar Large"),
+    LLAMA_3_1_8B_INSTRUCT("llama-3.1-8b-instruct", "Llama 3.1 Instruct")
 }
 
 data class AppSettings(
