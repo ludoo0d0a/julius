@@ -1,5 +1,6 @@
 package com.antigravity.voiceai.agents
 
+import com.antigravity.voiceai.shared.NetworkException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -28,7 +29,7 @@ class DeepgramAgent(
 
     override suspend fun process(input: String): AgentResponse {
         if (deepgramKey.isBlank()) {
-            return AgentResponse("Deepgram API key is required. Please set it in settings.", null)
+            throw NetworkException(null, "Deepgram API key is required. Please set it in settings.")
         }
 
         try {
@@ -44,12 +45,12 @@ class DeepgramAgent(
 
             // Check for error response
             if (response.status.value != 200) {
-                return AgentResponse("Error connecting to Deepgram: ${response.status.value} - $responseBody", null)
+                throw NetworkException(response.status.value, "Error connecting to Deepgram: $responseBody")
             }
 
             // Check if response body is empty
             if (responseBody.isBlank()) {
-                return AgentResponse("Error connecting to Deepgram: Empty response", null)
+                throw NetworkException(null, "Error connecting to Deepgram: Empty response")
             }
 
             val text = json.decodeFromString<ChatRes>(responseBody)
@@ -63,7 +64,7 @@ class DeepgramAgent(
             return AgentResponse(text, null)
         } catch (e: Exception) {
             e.printStackTrace()
-            return AgentResponse("Error connecting to Deepgram: ${e.message}", null)
+            throw NetworkException(null, "Error connecting to Deepgram: ${e.message}")
         }
     }
 }
