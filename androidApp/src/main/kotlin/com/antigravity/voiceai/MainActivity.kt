@@ -75,7 +75,7 @@ fun MainUI(
             color = MaterialTheme.colorScheme.background
         ) {
             if (showSettings) {
-                SettingsScreen(settingsManager, state.lastError) { showSettings = false }
+                SettingsScreen(settingsManager, state.errorLog) { showSettings = false }
             } else {
                 BoxWithConstraints(
                     modifier = Modifier.fillMaxSize(),
@@ -126,8 +126,9 @@ fun MainUI(
                             )
                             state.lastError?.let { error ->
                                 Spacer(modifier = Modifier.height(16.dp))
+                                val httpCode = error.httpCode?.let { " ($it)" } ?: ""
                                 Text(
-                                    text = error,
+                                    text = "Error: ${error.message}$httpCode",
                                     color = Color.Red,
                                     fontSize = 14.sp
                                 )

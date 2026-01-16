@@ -1,5 +1,6 @@
 package com.antigravity.voiceai.agents
 
+import com.antigravity.voiceai.shared.NetworkException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -24,6 +25,10 @@ class NativeAgent(
     private val json = Json { ignoreUnknownKeys = true }
 
     override suspend fun process(input: String): AgentResponse {
+        if (apiKey.isBlank()) {
+            throw NetworkException(null, "Perplexity API key is required. Please set it in settings.")
+        }
+
         val response = client.post("https://api.perplexity.ai/chat/completions") {
             header("Authorization", "Bearer $apiKey")
             contentType(ContentType.Application.Json)
@@ -38,7 +43,7 @@ class NativeAgent(
         val responseBody = response.bodyAsText()
 
         if (response.status.value != 200) {
-            throw Exception("Error from Perplexity API: ${response.status.value} $responseBody")
+            throw NetworkException(response.status.value, "Error from Perplexity API: $responseBody")
         }
 
         val text = json.decodeFromString<Res>(responseBody).choices.firstOrNull()?.message?.content ?: "No response"
