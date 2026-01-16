@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-enum class AgentType { OpenAI, ElevenLabs, Deepgram, Native, Gemini }
+enum class AgentType { OpenAI, ElevenLabs, Deepgram, Native, Gemini, Genkit, FirebaseAI }
 enum class AppTheme { Particles, Sphere, Waves }
 enum class IaModel(val modelName: String, val displayName: String) {
     LLAMA_3_1_SONAR_SMALL("llama-3.1-sonar-small-128k-online", "Sonar Small"),
@@ -19,6 +19,10 @@ data class AppSettings(
     val perplexityKey: String = "",
     val geminiKey: String = "",
     val deepgramKey: String = "",
+    val genkitApiKey: String = "",
+    val genkitEndpoint: String = "",
+    val firebaseAiKey: String = "",
+    val firebaseAiModel: String = "gemini-1.5-flash-latest",
     val selectedAgent: AgentType = AgentType.Deepgram,
     val selectedTheme: AppTheme = AppTheme.Particles,
     val selectedModel: IaModel = IaModel.LLAMA_3_1_SONAR_SMALL
@@ -38,6 +42,10 @@ open class SettingsManager(context: Context) {
             perplexityKey = prefs.getString("perplexity_key", "") ?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.PERPLEXITY_KEY,
             geminiKey = prefs.getString("gemini_key", "")?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.GEMINI_KEY,
             deepgramKey = prefs.getString("deepgram_key", "")?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.DEEPGRAM_KEY,
+            genkitApiKey = prefs.getString("genkit_key", "")?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.GENKIT_KEY,
+            genkitEndpoint = prefs.getString("genkit_endpoint", "")?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.GENKIT_ENDPOINT,
+            firebaseAiKey = prefs.getString("firebase_ai_key", "")?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.FIREBASE_AI_KEY,
+            firebaseAiModel = prefs.getString("firebase_ai_model", "")?.takeIf { it.isNotEmpty() } ?: com.antigravity.voiceai.BuildConfig.FIREBASE_AI_MODEL,
             selectedAgent = try {
                 val agentName = prefs.getString("agent", null)
                 if (agentName != null) {
@@ -61,6 +69,10 @@ open class SettingsManager(context: Context) {
         perplexityKey: String,
         geminiKey: String,
         deepgramKey: String,
+        genkitApiKey: String,
+        genkitEndpoint: String,
+        firebaseAiKey: String,
+        firebaseAiModel: String,
         agent: AgentType,
         theme: AppTheme,
         model: IaModel
@@ -73,6 +85,10 @@ open class SettingsManager(context: Context) {
             .putString("perplexity_key", perplexityKey)
             .putString("gemini_key", geminiKey)
             .putString("deepgram_key", deepgramKey)
+            .putString("genkit_key", genkitApiKey)
+            .putString("genkit_endpoint", genkitEndpoint)
+            .putString("firebase_ai_key", firebaseAiKey)
+            .putString("firebase_ai_model", firebaseAiModel)
             .putString("agent", agent.name)
             .putString("theme", theme.name)
             .putString("model", model.name)
@@ -85,6 +101,10 @@ open class SettingsManager(context: Context) {
             perplexityKey = perplexityKey,
             geminiKey = geminiKey,
             deepgramKey = deepgramKey,
+            genkitApiKey = genkitApiKey,
+            genkitEndpoint = genkitEndpoint,
+            firebaseAiKey = firebaseAiKey,
+            firebaseAiModel = firebaseAiModel,
             selectedAgent = agent,
             selectedTheme = theme,
             selectedModel = model

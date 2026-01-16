@@ -62,11 +62,51 @@ android {
                 ""
             }
         }
+        val genkitKey = project.rootProject.file("local.properties").let { file ->
+            if (file.exists()) {
+                val properties = Properties()
+                properties.load(file.inputStream())
+                properties.getProperty("genkit.key") ?: ""
+            } else {
+                ""
+            }
+        }
+        val genkitEndpoint = project.rootProject.file("local.properties").let { file ->
+            if (file.exists()) {
+                val properties = Properties()
+                properties.load(file.inputStream())
+                properties.getProperty("genkit.endpoint") ?: ""
+            } else {
+                ""
+            }
+        }
+        val firebaseAiKey = project.rootProject.file("local.properties").let { file ->
+            if (file.exists()) {
+                val properties = Properties()
+                properties.load(file.inputStream())
+                properties.getProperty("firebaseai.key") ?: ""
+            } else {
+                ""
+            }
+        }
+        val firebaseAiModel = project.rootProject.file("local.properties").let { file ->
+            if (file.exists()) {
+                val properties = Properties()
+                properties.load(file.inputStream())
+                properties.getProperty("firebaseai.model") ?: "gemini-1.5-flash-latest"
+            } else {
+                "gemini-1.5-flash-latest"
+            }
+        }
         buildConfigField("String", "ELEVENLABS_KEY", "\"$elevenLabsKey\"")
         buildConfigField("String", "GEMINI_KEY", "\"$geminiKey\"")
         buildConfigField("String", "DEEPGRAM_KEY", "\"$deepgramKey\"")
         buildConfigField("String", "OPENAI_KEY", "\"$openaiKey\"")
         buildConfigField("String", "PERPLEXITY_KEY", "\"$perplexityKey\"")
+        buildConfigField("String", "GENKIT_KEY", "\"$genkitKey\"")
+        buildConfigField("String", "GENKIT_ENDPOINT", "\"$genkitEndpoint\"")
+        buildConfigField("String", "FIREBASE_AI_KEY", "\"$firebaseAiKey\"")
+        buildConfigField("String", "FIREBASE_AI_MODEL", "\"$firebaseAiModel\"")
     }
 
     buildFeatures {

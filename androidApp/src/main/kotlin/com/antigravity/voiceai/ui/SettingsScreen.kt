@@ -36,6 +36,10 @@ fun SettingsScreen(
     var pplxKey by remember { mutableStateOf(current.perplexityKey) }
     var geminiKey by remember { mutableStateOf(current.geminiKey) }
     var deepgramKey by remember { mutableStateOf(current.deepgramKey) }
+    var genkitKey by remember { mutableStateOf(current.genkitApiKey) }
+    var genkitEndpoint by remember { mutableStateOf(current.genkitEndpoint) }
+    var firebaseAiKey by remember { mutableStateOf(current.firebaseAiKey) }
+    var firebaseAiModel by remember { mutableStateOf(current.firebaseAiModel) }
     var selectedAgent by remember { mutableStateOf(current.selectedAgent) }
     var selectedTheme by remember { mutableStateOf(current.selectedTheme) }
     var selectedModel by remember { mutableStateOf(current.selectedModel) }
@@ -66,6 +70,7 @@ fun SettingsScreen(
             }
             AgentType.ElevenLabs -> {
                 StyledTextField("ElevenLabs Key", elevenKey) { elevenKey = it }
+                StyledTextField("Perplexity Key", pplxKey) { pplxKey = it }
             }
             AgentType.Native -> {
                 StyledTextField("Perplexity Key", pplxKey) { pplxKey = it }
@@ -75,6 +80,14 @@ fun SettingsScreen(
             }
             AgentType.Deepgram -> {
                 StyledTextField("Deepgram Key", deepgramKey) { deepgramKey = it }
+            }
+            AgentType.Genkit -> {
+                StyledTextField("Genkit Endpoint", genkitEndpoint) { genkitEndpoint = it }
+                StyledTextField("Genkit API Key (Optional)", genkitKey) { genkitKey = it }
+            }
+            AgentType.FirebaseAI -> {
+                StyledTextField("Firebase AI Key", firebaseAiKey) { firebaseAiKey = it }
+                StyledTextField("Firebase AI Model", firebaseAiModel) { firebaseAiModel = it }
             }
         }
         StyledExposedDropdownMenuBox(
@@ -115,7 +128,20 @@ fun SettingsScreen(
 
         Button(
             onClick = {
-                settingsManager.saveSettings(openAiKey, elevenKey, pplxKey, geminiKey, deepgramKey, selectedAgent, selectedTheme, selectedModel)
+                settingsManager.saveSettings(
+                    openAiKey,
+                    elevenKey,
+                    pplxKey,
+                    geminiKey,
+                    deepgramKey,
+                    genkitKey,
+                    genkitEndpoint,
+                    firebaseAiKey,
+                    firebaseAiModel,
+                    selectedAgent,
+                    selectedTheme,
+                    selectedModel
+                )
                 onDismiss()
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
@@ -225,6 +251,10 @@ fun SettingsScreenPreview() {
                     perplexityKey = "preview-perplexity-key",
                     geminiKey = "preview-gemini-key",
                     deepgramKey = "preview-deepgram-key",
+                    genkitApiKey = "preview-genkit-key",
+                    genkitEndpoint = "https://example.com/genkit",
+                    firebaseAiKey = "preview-firebase-key",
+                    firebaseAiModel = "gemini-1.5-flash-latest",
                     selectedAgent = AgentType.OpenAI,
                     selectedTheme = AppTheme.Particles,
                     selectedModel = IaModel.LLAMA_3_1_SONAR_SMALL
@@ -237,12 +267,24 @@ fun SettingsScreenPreview() {
                 perplexityKey: String,
                 geminiKey: String,
                 deepgramKey: String,
+                genkitApiKey: String,
+                genkitEndpoint: String,
+                firebaseAiKey: String,
+                firebaseAiModel: String,
                 agent: AgentType,
                 theme: AppTheme,
                 model: IaModel
             ) {
                 mockSettings.value = AppSettings(
-                    openAiKey, elevenLabsKey, perplexityKey, geminiKey, deepgramKey,
+                    openAiKey,
+                    elevenLabsKey,
+                    perplexityKey,
+                    geminiKey,
+                    deepgramKey,
+                    genkitApiKey,
+                    genkitEndpoint,
+                    firebaseAiKey,
+                    firebaseAiModel,
                     agent, theme, model
                 )
             }

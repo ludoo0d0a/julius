@@ -47,6 +47,8 @@ class DynamicAgentWrapper(
             }
             AgentType.Native -> NativeAgent(client, apiKey = settings.perplexityKey, model = settings.selectedModel.modelName)
             AgentType.Gemini -> GeminiAgent(client, apiKey = settings.geminiKey)
+            AgentType.Genkit -> GenkitAgent(client, endpoint = settings.genkitEndpoint, apiKey = settings.genkitApiKey)
+            AgentType.FirebaseAI -> FirebaseAIAgent(client, apiKey = settings.firebaseAiKey, model = settings.firebaseAiModel)
         }
         
         android.util.Log.d("DynamicAgentWrapper", "Agent created: ${agent::class.simpleName}, processing input...")

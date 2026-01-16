@@ -254,5 +254,93 @@ class RealApiTests {
         
         client.close()
     }
+
+    @Test
+    fun testGenkitAgent_SimplePrompt() = runBlocking {
+        val endpoint = getApiKey("genkit.endpoint")
+        if (endpoint.isEmpty()) {
+            println("⚠️  Skipping Genkit test - no endpoint provided")
+            return@runBlocking
+        }
+
+        val apiKey = getApiKey("genkit.key")
+        val client = createHttpClient()
+        val agent = GenkitAgent(client, endpoint = endpoint, apiKey = apiKey)
+
+        val testPrompt = "donne la météo de demain"
+
+        try {
+            val response = agent.process(testPrompt)
+            println("✅ Genkit Response: ${response.text.take(150)}...")
+
+            assertTrue(response.text.isNotEmpty(), "Response text should not be empty")
+            assertTrue(!response.text.startsWith("Error connecting"),
+                "Should not return connection error: ${response.text}")
+        } catch (e: Exception) {
+            println("❌ Genkit test failed: ${e.message}")
+            e.printStackTrace()
+            throw e
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun testGenkitAgent_EmptyEndpoint() = runBlocking {
+        val client = createHttpClient()
+        val agent = GenkitAgent(client, endpoint = "", apiKey = "ignored")
+
+        val response = agent.process("Test prompt")
+
+        assertTrue(response.text.contains("endpoint", ignoreCase = true),
+            "Should return endpoint required message")
+        println("✅ Genkit empty endpoint test passed")
+
+        client.close()
+    }
+
+    @Test
+    fun testFirebaseAIAgent_SimplePrompt() = runBlocking {
+        val apiKey = getApiKey("firebaseai.key")
+        if (apiKey.isEmpty()) {
+            println("⚠️  Skipping Firebase AI test - no API key provided")
+            return@runBlocking
+        }
+
+        val model = getApiKey("firebaseai.model", default = "gemini-1.5-flash-latest")
+        val client = createHttpClient()
+        val agent = FirebaseAIAgent(client, apiKey = apiKey, model = model)
+
+        val testPrompt = "donne la météo de demain"
+
+        try {
+            val response = agent.process(testPrompt)
+            println("✅ Firebase AI Response: ${response.text.take(150)}...")
+
+            assertTrue(response.text.isNotEmpty(), "Response text should not be empty")
+            assertTrue(!response.text.startsWith("Error connecting"),
+                "Should not return connection error: ${response.text}")
+        } catch (e: Exception) {
+            println("❌ Firebase AI test failed: ${e.message}")
+            e.printStackTrace()
+            throw e
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun testFirebaseAIAgent_EmptyKey() = runBlocking {
+        val client = createHttpClient()
+        val agent = FirebaseAIAgent(client, "")
+
+        val response = agent.process("Test prompt")
+
+        assertTrue(response.text.contains("key", ignoreCase = true),
+            "Should return API key required message")
+        println("✅ Firebase AI empty key test passed")
+
+        client.close()
+    }
 }
 

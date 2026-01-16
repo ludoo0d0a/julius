@@ -235,6 +235,10 @@ fun MainUIPreview() {
                 perplexityKey: String,
                 geminiKey: String,
                 deepgramKey: String,
+                genkitApiKey: String,
+                genkitEndpoint: String,
+                firebaseAiKey: String,
+                firebaseAiModel: String,
                 agent: AgentType,
                 theme: AppTheme,
                 model: IaModel
