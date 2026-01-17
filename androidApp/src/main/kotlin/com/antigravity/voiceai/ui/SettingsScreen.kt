@@ -114,16 +114,16 @@ fun SettingsScreen(
             val errorText = if (errorLog.isEmpty()) {
                 "No errors"
             } else {
-                errorLog.joinToString("\n") {
-                    val httpCode = it.httpCode?.let { " ($it)" } ?: ""
-                    "Error: ${it.message}$httpCode"
+                errorLog.joinToString("\n") { error ->
+                    val httpCode = error.httpCode?.let { "HTTP Code: $it" } ?: "No HTTP Code"
+                    "- $httpCode: ${error.message}"
                 }
             }
             OutlinedTextField(
                 value = errorText,
                 onValueChange = {},
                 readOnly = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp, max = 200.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF6366F1),
                     unfocusedBorderColor = Color(0xFF334155),
