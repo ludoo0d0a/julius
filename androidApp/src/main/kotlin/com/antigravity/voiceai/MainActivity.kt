@@ -126,12 +126,27 @@ fun MainUI(
                             )
                             state.lastError?.let { error ->
                                 Spacer(modifier = Modifier.height(16.dp))
-                                val httpCode = error.httpCode?.let { " ($it)" } ?: ""
-                                Text(
-                                    text = "Error: ${error.message}$httpCode",
-                                    color = Color.Red,
-                                    fontSize = 14.sp
-                                )
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "An error occurred",
+                                        color = Color.Red,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    error.httpCode?.let {
+                                        Text(
+                                            text = "HTTP Code: $it",
+                                            color = Color.Red.copy(alpha = 0.8f),
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                    Text(
+                                        text = error.message,
+                                        color = Color.Red.copy(alpha = 0.8f),
+                                        fontSize = 12.sp
+                                    )
+                                }
                             }
                         }
 
