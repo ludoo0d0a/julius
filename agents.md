@@ -29,6 +29,7 @@ Julius is a **Kotlin Multiplatform (KMP)** voice assistant application designed 
 - `ElevenLabsAgent`: ElevenLabs voice synthesis + Perplexity chat
 - `DeepgramAgent`: Deepgram voice processing
 - `PerplexityAgent`: Perplexity implementation for web-aware responses
+- `EmbeddedAgent`: On-device offline LLM using Llamatik
 
 **Core Services:**
 - `ConversationStore`: Manages conversation state, message history, and coordinates between voice manager and agents
@@ -231,6 +232,70 @@ Julius supports multiple AI agents, each with different capabilities, pricing mo
 
 ---
 
+### 6. Embedded Agent (`EmbeddedAgent`)
+
+**Model Used:** On-device LLM via Llamatik (supports various GGUF models)
+
+**How it works:**
+- Uses Llamatik library (Kotlin Multiplatform) with llama.cpp backend
+- Loads GGUF format models from app assets or file system
+- Runs inference completely offline on-device
+- Returns text only (uses system TTS for voice output)
+- No API keys or network connectivity required
+
+**Pros:**
+- ✅ **100% offline** - Works without internet connection
+- ✅ **No API costs** - Free to use after initial model download
+- ✅ **Privacy-focused** - All processing happens locally
+- ✅ **No API keys needed** - Zero configuration required
+- ✅ **Works in airplane mode** - Perfect for offline scenarios
+- ✅ **Kotlin Multiplatform** - Uses Llamatik for cross-platform support
+
+**Cons:**
+- ❌ **Large app size** - Model files can be 650MB - 2GB+ (depending on model)
+- ❌ **Slower inference** - On-device CPU is slower than cloud GPUs
+- ❌ **Limited quality** - Smaller models have reduced capability vs. cloud models
+- ❌ **Memory intensive** - Requires 4-8GB+ RAM for reasonable performance
+- ❌ **Model download required** - Must manually add GGUF model files to assets
+- ❌ **No web access** - Cannot access current information or real-time data
+- ❌ **Battery impact** - CPU-intensive inference drains battery faster
+
+**Recommended Models:**
+- **TinyLlama (Q4_0):** ~650MB - Fastest, lower quality, good for older devices
+- **Phi-2 (Q4_0):** ~1.6GB - Good balance of quality and speed
+- **Gemma 2B (Q4_0):** ~1.4GB - Optimized for mobile, Google's recommendation
+- **Llama-3.1-8B (Q4_0):** ~4.5GB - Better quality, requires 8GB+ RAM
+
+**Pricing:**
+- **Model download:** Free (download GGUF models from Hugging Face or similar)
+- **Inference:** $0.00 per request (100% free after model acquisition)
+- **App size impact:** +650MB to 2GB+ depending on model choice
+
+**Setup Instructions:**
+1. Download a GGUF model file (e.g., `phi-2.Q4_0.gguf` from Hugging Face)
+2. Place it in `androidApp/src/main/assets/models/` directory
+3. Create the `models` directory if it doesn't exist
+4. The default path is `models/phi-2.Q4_0.gguf` (can be customized in code)
+5. Select "Embedded" agent in app settings (no API key needed)
+
+**Technical Details:**
+- Uses Llamatik library v0.8.0+ for Kotlin Multiplatform
+- Supports GGUF quantization formats (Q4_0, Q5_0, Q8_0, etc.)
+- Models are loaded from Android assets at runtime
+- Initialization happens on first use (lazy loading)
+- System TTS is used for voice output (Android TextToSpeech)
+
+**Estimated cost per conversation:** $0.00 (one-time model download)
+
+**Best for:** 
+- Privacy-conscious users who want complete offline functionality
+- Users in areas with poor/no internet connectivity
+- Development/testing without API costs
+- Educational or demonstration purposes
+- Users with sufficient device storage and RAM
+
+---
+
 ## Agent Comparison Summary
 
 | Agent | Voice Quality | Cost | Web-Aware | Free Tier | Best Use Case |
@@ -240,12 +305,14 @@ Julius supports multiple AI agents, each with different capabilities, pricing mo
 | **Perplexity** | ⭐⭐ | 💰 | ✅ | ❌ | Current information, cost-effective |
 | **ElevenLabs** | ⭐⭐⭐⭐⭐ | 💰💰 | ✅ | ⚠️ Limited | Best overall (quality + web-aware) |
 | **Deepgram** | ❓ | ❓ | ❓ | ✅ | Future implementation |
+| **Embedded** | ⭐⭐ | 💰 (free) | ❌ | ✅ | Offline/privacy, no internet needed |
 
 **Recommendations:**
-- **For testing/development:** Gemini (free tier)
+- **For testing/development:** Gemini (free tier) or Embedded (offline)
 - **For production with budget:** Gemini or Perplexity
 - **For premium experience:** OpenAI or ElevenLabs
 - **For best value:** ElevenLabs (quality + web-aware)
+- **For offline/privacy:** Embedded (no API costs, complete privacy)
 
 ## Setup Instructions
 

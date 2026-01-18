@@ -90,6 +90,15 @@ fun SettingsScreen(
                 StyledTextField("Firebase AI Key", firebaseAiKey) { firebaseAiKey = it }
                 StyledTextField("Firebase AI Model", firebaseAiModel) { firebaseAiModel = it }
             }
+            AgentType.Embedded -> {
+                // No API key needed - runs offline with embedded model
+                Text(
+                    "No API key required. This agent runs offline using an embedded model.\n\nPlace a GGUF model file in assets/models/ (e.g., phi-2.Q4_0.gguf)",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
         }
         StyledExposedDropdownMenuBox(
             label = "Theme",
