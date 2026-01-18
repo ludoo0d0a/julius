@@ -13,6 +13,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "VoiceAI"
+rootProject.name = "Julius"
 include(":androidApp")
 include(":shared")
