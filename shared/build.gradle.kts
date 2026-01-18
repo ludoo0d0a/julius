@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidKotlinMultiplatformLibrary)
@@ -20,13 +22,12 @@ kotlin {
     jvm("desktop") {
         testRuns["test"].executionTask.configure {
             useJUnitPlatform()
-        }
-    }
-    
-    // JVM target for running tests on desktop (MacBook Intel x64)
-    jvm("desktop") {
-        testRuns["test"].executionTask.configure {
-            useJUnitPlatform()
+            // Show all test results (not just failures)
+            testLogging {
+                events("passed", "failed", "skipped")
+                showStandardStreams = true
+                exceptionFormat = TestExceptionFormat.FULL
+            }
         }
     }
     
@@ -79,4 +80,32 @@ publishing {
             // Use default publications created by Kotlin Multiplatform
         }
     }
+}
+
+// Note: The --tests flag doesn't work reliably with Kotlin Multiplatform JVM targets
+// because test names include the target suffix [desktop] (e.g., "GeminiRealApiTests[desktop]").
+//
+// To run GeminiRealApiTests, simply run all desktop tests - they all execute:
+//   ./gradlew :shared:desktopTest
+//
+// Or use custom tasks below to run specific tests:
+
+// Custom task to run Gemini tests (all methods in GeminiRealApiTests)
+// Note: Filtering by specific method doesn't work with Kotlin Multiplatform
+// This task runs all GeminiRealApiTests methods
+tasks.register("desktopTestGemini", Test::class) {
+    group = "verification"
+    description = "Runs all GeminiRealApiTests on desktop target"
+    
+    val desktopTarget = kotlin.targets.getByName("desktop")
+    val testCompilation = desktopTarget.compilations.getByName("test")
+    
+    testClassesDirs = testCompilation.output.classesDirs
+    classpath = testCompilation.runtimeDependencyFiles ?: files()
+    
+    useJUnitPlatform()
+    
+    // No filter - runs all GeminiRealApiTests (including testListModels)
+    // To see only testListModels output, filter the console output:
+    // ./gradlew :shared:desktopTestGemini 2>&1 | grep -i "testListModels\|ListModels Response"
 }
