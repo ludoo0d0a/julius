@@ -50,3 +50,14 @@ kotlin {
         }
     }
 }
+
+// Configure publishing to avoid archives configuration deprecation
+// Note: The Kotlin Multiplatform plugin still uses 'archives' internally.
+// This warning will be resolved when the plugin is updated for full Gradle 9 compatibility.
+publishing {
+    publications {
+        withType<MavenPublication>().configureEach {
+            // Use default publications created by Kotlin Multiplatform
+        }
+    }
+}
