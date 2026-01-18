@@ -1,9 +1,10 @@
 package com.antigravity.voiceai.agents
 
+import com.antigravity.voiceai.IaModel
 import com.antigravity.voiceai.shared.DeviceAction
 
 interface ConversationalAgent {
-    suspend fun process(input: String): AgentResponse
+    suspend fun process(input: String, model: IaModel): AgentResponse
 }
 
 data class AgentResponse(

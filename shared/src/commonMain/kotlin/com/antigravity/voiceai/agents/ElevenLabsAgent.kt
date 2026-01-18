@@ -1,5 +1,6 @@
 package com.antigravity.voiceai.agents
 
+import com.antigravity.voiceai.IaModel
 import com.antigravity.voiceai.shared.NetworkException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
@@ -28,13 +29,13 @@ class ElevenLabsAgent(
     )
     @Serializable private data class VoiceSettings(val stability: Double = 0.5, val similarity_boost: Double = 0.75)
 
-    override suspend fun process(input: String): AgentResponse {
+    override suspend fun process(input: String, model: IaModel): AgentResponse {
         if (elevenLabsKey.isBlank()) {
             throw NetworkException(null, "ElevenLabs API key is required. Please set it in settings.")
         }
 
         // 1. Get Text from LLM (reusing NativeAgent)
-        val response = nativeAgent.process(input)
+        val response = nativeAgent.process(input, model)
         val text = response.text
 
         // 2. Get Audio from ElevenLabs

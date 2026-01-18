@@ -1,5 +1,6 @@
 package com.antigravity.voiceai.agents
 
+import com.antigravity.voiceai.IaModel
 import com.antigravity.voiceai.shared.NetworkException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
@@ -24,7 +25,7 @@ class NativeAgent(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun process(input: String): AgentResponse {
+    override suspend fun process(input: String, model: IaModel): AgentResponse {
         if (apiKey.isBlank()) {
             throw NetworkException(null, "Perplexity API key is required. Please set it in settings.")
         }
@@ -34,7 +35,7 @@ class NativeAgent(
             contentType(ContentType.Application.Json)
             setBody(
                 Req(
-                    model = model,
+                    model = model.modelName,
                     messages = listOf(Msg("user", input))
                 )
             )

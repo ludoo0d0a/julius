@@ -157,9 +157,22 @@ fun MainUI(
                         )
                         
                         // 5. Controls (Centered Mic/Speaker Button)
+                        LaunchedEffect(state.status, state.currentTranscript) {
+                            if (state.status == VoiceEvent.Silence && state.currentTranscript.isNotBlank()) {
+                                store.onUserFinishedSpeaking(state.currentTranscript, settings.selectedModel)
+                            }
+                        }
+
                         IconButton(
-                            onClick = { 
-                                if (state.status == VoiceEvent.Listening) store.stopListening() else store.startListening()
+                            onClick = {
+                                if (state.status == VoiceEvent.Listening) {
+                                    store.stopListening()
+                                    if (state.currentTranscript.isNotBlank()) {
+                                        store.onUserFinishedSpeaking(state.currentTranscript, settings.selectedModel)
+                                    }
+                                } else {
+                                    store.startListening()
+                                }
                             },
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)

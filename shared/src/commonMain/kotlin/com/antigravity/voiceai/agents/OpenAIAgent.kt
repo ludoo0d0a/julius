@@ -1,5 +1,6 @@
 package com.antigravity.voiceai.agents
 
+import com.antigravity.voiceai.IaModel
 import com.antigravity.voiceai.shared.NetworkException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
@@ -26,7 +27,7 @@ class OpenAIAgent(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun process(input: String): AgentResponse {
+    override suspend fun process(input: String, model: IaModel): AgentResponse {
         if (apiKey.isBlank()) {
             throw NetworkException(null, "OpenAI API key is required. Please set it in settings.")
         }
@@ -35,7 +36,7 @@ class OpenAIAgent(
         val chatResponse = client.post("https://api.openai.com/v1/chat/completions") {
             header("Authorization", "Bearer $apiKey")
             contentType(ContentType.Application.Json)
-            setBody(ChatReq(model = "gpt-4o", messages = listOf(Msg("user", input))))
+            setBody(ChatReq(model = model.modelName, messages = listOf(Msg("user", input))))
         }
         
         val chatBody = chatResponse.bodyAsText()

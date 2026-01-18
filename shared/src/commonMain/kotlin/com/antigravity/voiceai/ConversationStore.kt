@@ -1,5 +1,6 @@
 package com.antigravity.voiceai.shared
 
+import com.antigravity.voiceai.IaModel
 import com.antigravity.voiceai.agents.ConversationalAgent
 import com.antigravity.voiceai.shared.ActionParser
 import kotlinx.coroutines.CoroutineScope
@@ -57,13 +58,13 @@ open class ConversationStore(
              if (text.isNotBlank() && _state.value.status != VoiceEvent.Speaking) {
                  _state.value = _state.value.copy(currentTranscript = text)
                  // Auto-send when transcription stabilizes
-                 onUserFinishedSpeaking(text)
+                 // onUserFinishedSpeaking(text) // TODO: refactor this to pass the model
              }
         }.launchIn(scope)
     }
 
     // Made public to be called manually or from VoiceManager logic
-    fun onUserFinishedSpeaking(text: String) {
+    fun onUserFinishedSpeaking(text: String, model: IaModel) {
         if (text.isBlank()) return
         
         scope.launch {
@@ -75,7 +76,7 @@ open class ConversationStore(
                 // 2. Call AI
                 _state.value = _state.value.copy(status = VoiceEvent.Processing, lastError = null)
                 
-                val response = agent.process(text) // Returns text + audio + action
+                val response = agent.process(text, model) // Returns text + audio + action
                 
                 // 3. Execute action if present (from agent or parsed from response)
                 var actionResultMessage = ""

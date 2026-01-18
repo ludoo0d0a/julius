@@ -1,5 +1,6 @@
 package com.antigravity.voiceai.agents
 
+import com.antigravity.voiceai.IaModel
 import com.antigravity.voiceai.shared.NetworkException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.post
@@ -38,14 +39,14 @@ class GeminiAgent(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun process(input: String): AgentResponse {
+    override suspend fun process(input: String, model: IaModel): AgentResponse {
         if (apiKey.isBlank()) {
             throw NetworkException(null, "Gemini API key is required. Please set it in settings.")
         }
 
         try {
             // Using Gemini 1.5 Flash (Free Tier eligible) - try v1beta with latest
-            val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=$apiKey"
+            val url = "https://generativelanguage.googleapis.com/v1beta/models/${model.modelName}:generateContent?key=$apiKey"
             
             val response = client.post(url) {
                 contentType(ContentType.Application.Json)

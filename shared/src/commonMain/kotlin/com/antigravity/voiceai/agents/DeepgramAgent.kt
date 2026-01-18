@@ -1,5 +1,6 @@
 package com.antigravity.voiceai.agents
 
+import com.antigravity.voiceai.IaModel
 import com.antigravity.voiceai.shared.NetworkException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
@@ -27,7 +28,7 @@ class DeepgramAgent(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun process(input: String): AgentResponse {
+    override suspend fun process(input: String, model: IaModel): AgentResponse {
         if (deepgramKey.isBlank()) {
             throw NetworkException(null, "Deepgram API key is required. Please set it in settings.")
         }
