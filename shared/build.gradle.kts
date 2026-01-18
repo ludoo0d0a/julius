@@ -16,6 +16,20 @@ kotlin {
         }
     }
     
+    // JVM target for running tests on desktop (MacBook Intel x64)
+    jvm("desktop") {
+        testRuns["test"].executionTask.configure {
+            useJUnitPlatform()
+        }
+    }
+    
+    // JVM target for running tests on desktop (MacBook Intel x64)
+    jvm("desktop") {
+        testRuns["test"].executionTask.configure {
+            useJUnitPlatform()
+        }
+    }
+    
     // Simple iOS target configuration for KMP
     listOf(
         iosX64(),
@@ -40,6 +54,11 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
             implementation(libs.kotlinx.coroutines.android)
+        }
+        val desktopMain by getting {
+            dependencies {
+                implementation(libs.ktor.client.okhttp)
+            }
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
