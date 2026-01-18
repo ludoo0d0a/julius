@@ -11,7 +11,7 @@ import io.ktor.http.contentType
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-class NativeAgent(
+class PerplexityAgent(
     private val client: HttpClient,
     private val apiKey: String,
     private val model: String

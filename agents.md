@@ -28,7 +28,7 @@ Julius is a **Kotlin Multiplatform (KMP)** voice assistant application designed 
 - `GeminiAgent`: Google Gemini integration
 - `ElevenLabsAgent`: ElevenLabs voice synthesis + Perplexity chat
 - `DeepgramAgent`: Deepgram voice processing
-- `NativeAgent`: Native implementation using Perplexity
+- `PerplexityAgent`: Perplexity implementation for web-aware responses
 
 **Core Services:**
 - `ConversationStore`: Manages conversation state, message history, and coordinates between voice manager and agents
@@ -132,7 +132,7 @@ Julius supports multiple AI agents, each with different capabilities, pricing mo
 
 ---
 
-### 3. Native Agent (`NativeAgent`)
+### 3. Perplexity Agent (`PerplexityAgent`)
 
 **Model Used:** Perplexity AI (llama-3.1-sonar-small-128k-online)
 
@@ -169,7 +169,7 @@ Julius supports multiple AI agents, each with different capabilities, pricing mo
 **Model Used:** Perplexity AI (for chat) + ElevenLabs TTS (for voice)
 
 **How it works:**
-- Uses `NativeAgent` (Perplexity) for generating text responses
+- Uses `PerplexityAgent` for generating text responses
 - Uses ElevenLabs API for high-quality voice synthesis
 - Combines web-aware chat with premium voice quality
 
@@ -237,13 +237,13 @@ Julius supports multiple AI agents, each with different capabilities, pricing mo
 |-------|--------------|------|-----------|-----------|---------------|
 | **OpenAI** | ⭐⭐⭐⭐⭐ | 💰💰💰 | ❌ | ❌ | Premium quality, budget not a concern |
 | **Gemini** | ⭐⭐ | 💰 | ❌ | ✅ | Budget-conscious, high volume |
-| **Native (Perplexity)** | ⭐⭐ | 💰 | ✅ | ❌ | Current information, cost-effective |
+| **Perplexity** | ⭐⭐ | 💰 | ✅ | ❌ | Current information, cost-effective |
 | **ElevenLabs** | ⭐⭐⭐⭐⭐ | 💰💰 | ✅ | ⚠️ Limited | Best overall (quality + web-aware) |
 | **Deepgram** | ❓ | ❓ | ❓ | ✅ | Future implementation |
 
 **Recommendations:**
 - **For testing/development:** Gemini (free tier)
-- **For production with budget:** Gemini or Native
+- **For production with budget:** Gemini or Perplexity
 - **For premium experience:** OpenAI or ElevenLabs
 - **For best value:** ElevenLabs (quality + web-aware)
 

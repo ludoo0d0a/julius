@@ -19,7 +19,7 @@ class ElevenLabsAgent(
     private val model: String
 ) : ConversationalAgent {
 
-    private val nativeAgent = NativeAgent(client, perplexityKey, model)
+    private val perplexityAgent = PerplexityAgent(client, perplexityKey, model)
 
     @Serializable private data class TtsReq(
         val text: String,
@@ -33,8 +33,8 @@ class ElevenLabsAgent(
             throw NetworkException(null, "ElevenLabs API key is required. Please set it in settings.")
         }
 
-        // 1. Get Text from LLM (reusing NativeAgent)
-        val response = nativeAgent.process(input)
+        // 1. Get Text from LLM (reusing PerplexityAgent)
+        val response = perplexityAgent.process(input)
         val text = response.text
 
         // 2. Get Audio from ElevenLabs
