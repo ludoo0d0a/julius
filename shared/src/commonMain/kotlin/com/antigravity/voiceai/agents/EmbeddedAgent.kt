@@ -1,7 +1,8 @@
 package com.antigravity.voiceai.agents
 
 import com.antigravity.voiceai.shared.NetworkException
-import com.llamatik.library.LlamaBridge
+// TODO: Fix LlamaBridge import - library dependency resolves but class is not found
+// import com.llamatik.library.LlamaBridge
 
 /**
  * EmbeddedAgent - On-device/offline LLM inference using Llamatik
@@ -16,37 +17,45 @@ import com.llamatik.library.LlamaBridge
  * 
  * Model files should be placed in: androidApp/src/main/assets/models/
  * Example: androidApp/src/main/assets/models/phi-2.Q4_0.gguf
+ * 
+ * NOTE: Currently disabled due to unresolved LlamaBridge reference.
+ * The library dependency (com.llamatik:library:0.11.0) resolves but LlamaBridge class is not found.
+ * This may be due to API changes in version 0.11.0 or packaging issues.
  */
 class EmbeddedAgent(
     private val modelPath: String = "models/phi-2.Q4_0.gguf"
 ) : ConversationalAgent {
 
-    private var isModelInitialized = false
-    private val systemPrompt = "You are a helpful and concise voice assistant. Provide clear, brief responses suitable for voice interaction."
+    override suspend fun process(input: String): AgentResponse {
+        // TODO: Re-enable once LlamaBridge import is fixed
+        throw NetworkException(null, "EmbeddedAgent is currently disabled. LlamaBridge class not found. Please check the com.llamatik:library dependency setup.")
+        
+        /* Commented out until LlamaBridge is available:
+        private var isModelInitialized = false
+        private val systemPrompt = "You are a helpful and concise voice assistant. Provide clear, brief responses suitable for voice interaction."
 
-    init {
-        initializeModelIfNeeded()
-    }
+        init {
+            initializeModelIfNeeded()
+        }
 
-    private fun initializeModelIfNeeded() {
-        if (!isModelInitialized) {
-            try {
-                // Get the full path to the model file
-                val fullModelPath = LlamaBridge.getModelPath(modelPath)
-                
-                // Initialize the generation model
-                isModelInitialized = LlamaBridge.initGenerateModel(fullModelPath)
-                
-                if (!isModelInitialized) {
-                    throw IllegalStateException("Failed to initialize embedded model at: $fullModelPath")
+        private fun initializeModelIfNeeded() {
+            if (!isModelInitialized) {
+                try {
+                    // Get the full path to the model file
+                    val fullModelPath = LlamaBridge.getModelPath(modelPath)
+                    
+                    // Initialize the generation model
+                    isModelInitialized = LlamaBridge.initGenerateModel(fullModelPath)
+                    
+                    if (!isModelInitialized) {
+                        throw IllegalStateException("Failed to initialize embedded model at: $fullModelPath")
+                    }
+                } catch (e: Exception) {
+                    throw NetworkException(null, "Failed to load embedded model: ${e.message}. Make sure the model file exists at '$modelPath' in assets.")
                 }
-            } catch (e: Exception) {
-                throw NetworkException(null, "Failed to load embedded model: ${e.message}. Make sure the model file exists at '$modelPath' in assets.")
             }
         }
-    }
 
-    override suspend fun process(input: String): AgentResponse {
         try {
             // Ensure model is initialized
             if (!isModelInitialized) {
@@ -70,6 +79,7 @@ class EmbeddedAgent(
             e.printStackTrace()
             throw NetworkException(null, "Error with embedded model: ${e.message}")
         }
+        */
     }
 
     /**
@@ -77,6 +87,8 @@ class EmbeddedAgent(
      * or when the app is closing.
      */
     fun shutdown() {
+        // TODO: Re-enable once LlamaBridge is available
+        /* Commented out until LlamaBridge is available:
         if (isModelInitialized) {
             try {
                 LlamaBridge.shutdown()
@@ -86,5 +98,6 @@ class EmbeddedAgent(
                 e.printStackTrace()
             }
         }
+        */
     }
 }
