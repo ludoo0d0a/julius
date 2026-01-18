@@ -2,6 +2,7 @@ package com.antigravity.voiceai.agents
 
 import com.antigravity.voiceai.shared.NetworkException
 import io.ktor.client.HttpClient
+import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
@@ -75,6 +76,28 @@ class GeminiAgent(
         } catch (e: Exception) {
             e.printStackTrace()
             throw NetworkException(null, "Error connecting to Gemini: ${e.message}")
+        }
+    }
+
+    override suspend fun listModels(): String {
+        if (apiKey.isBlank()) {
+            throw NetworkException(null, "Gemini API key is required. Please set it in settings.")
+        }
+
+        try {
+            val url = "https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey"
+            val response = client.get(url)
+            val responseBody = response.bodyAsText()
+
+            if (response.status.value != 200) {
+                throw NetworkException(response.status.value, "Error listing Gemini models: $responseBody")
+            }
+
+            return responseBody
+        } catch (e: Exception) {
+            e.printStackTrace()
+            if (e is NetworkException) throw e
+            throw NetworkException(null, "Error listing Gemini models: ${e.message}")
         }
     }
 }

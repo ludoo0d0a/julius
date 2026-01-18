@@ -4,6 +4,15 @@ import com.antigravity.voiceai.shared.DeviceAction
 
 interface ConversationalAgent {
     suspend fun process(input: String): AgentResponse
+    
+    /**
+     * Lists available models for this agent.
+     * Returns the raw JSON response as a String.
+     * @throws UnsupportedOperationException if the agent doesn't support listing models
+     */
+    suspend fun listModels(): String {
+        throw UnsupportedOperationException("This agent does not support listing models")
+    }
 }
 
 data class AgentResponse(
