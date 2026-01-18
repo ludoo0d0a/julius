@@ -33,8 +33,8 @@ kotlin {
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.koin.core)
-            implementation("co.touchlab:kermit:2.0.0-RC4")
-            implementation("com.llamatik:library:0.8.0")
+            implementation(libs.kermit)
+            implementation(libs.library)
         }
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)

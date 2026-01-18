@@ -1,3 +1,4 @@
+import com.android.build.api.dsl.ApplicationExtension
 import java.util.Properties
 
 plugins {
@@ -5,7 +6,7 @@ plugins {
     alias(libs.plugins.composeCompiler)
 }
 
-android {
+configure<ApplicationExtension> {
     namespace = "com.antigravity.voiceai"
     compileSdk = 36
 
