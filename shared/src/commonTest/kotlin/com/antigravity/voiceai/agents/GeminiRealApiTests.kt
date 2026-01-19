@@ -35,4 +35,27 @@ class GeminiRealApiTests : RealApiTestBase() {
             }
         }
     }
+
+    @Test
+    fun testGeminiAgent_WeatherInParis() = runBlocking {
+        withApiKey("gemini.key", "Gemini") { apiKey ->
+            withGeminiAgent(apiKey) { agent ->
+                testAgent(
+                    agent = agent,
+                    agentName = "Gemini",
+                    prompt = "what's the weather in Paris?",
+                    additionalAssertions = { response ->
+                        assertTrue(
+                            !response.text.startsWith("Error connecting"),
+                            "Should not return connection error: ${response.text}"
+                        )
+                        assertTrue(
+                            response.text.contains("Paris", ignoreCase = true),
+                            "Response should contain 'Paris'"
+                        )
+                    }
+                )
+            }
+        }
+    }
 }

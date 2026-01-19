@@ -1,5 +1,6 @@
 package com.antigravity.voiceai.agents
 
+import com.antigravity.voiceai.shared.NetworkException
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -54,14 +55,18 @@ class DeepgramRealApiTests : RealApiTestBase() {
         val client = createHttpClient()
         val agent = DeepgramAgent(client, "")
 
-        val response = agent.process("Test prompt")
-
-        assertTrue(
-            response.text.contains("API key", ignoreCase = true),
-            "Should return API key required message"
-        )
-        println("✅ Deepgram empty key test passed")
-
-        client.close()
+        try {
+            agent.process("Test prompt")
+            // Should have thrown an exception
+            assertTrue(false, "Should have thrown NetworkException for empty API key")
+        } catch (e: NetworkException) {
+            assertTrue(
+                e.message?.contains("API key is required") == true,
+                "Exception message should indicate missing API key"
+            )
+            println("✅ Deepgram empty key test passed")
+        } finally {
+            client.close()
+        }
     }
 }
