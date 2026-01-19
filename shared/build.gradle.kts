@@ -57,10 +57,12 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
             implementation(libs.kotlinx.coroutines.android)
+            implementation(libs.google.genai)
         }
         val desktopMain by getting {
             dependencies {
                 implementation(libs.ktor.client.okhttp)
+                implementation(libs.google.genai)
             }
         }
         iosMain.dependencies {

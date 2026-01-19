@@ -63,14 +63,14 @@ open class RealApiTestBase {
     }
 
     /**
-     * Executes a block with a GeminiAgent, managing HTTP client lifecycle internally
+     * Executes a block with a GeminiAgent (pure HTTP-based implementation)
      */
     protected suspend fun <T> withGeminiAgent(
         apiKey: String,
         block: suspend (GeminiAgent) -> T
     ): T {
         return withHttpClient { client ->
-            val agent = GeminiAgent(client, apiKey)
+            val agent = GeminiAgent(client, apiKey = apiKey)
             block(agent)
         }
     }

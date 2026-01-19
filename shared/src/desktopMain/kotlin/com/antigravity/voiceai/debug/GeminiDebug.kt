@@ -37,7 +37,7 @@ fun main() = runBlocking {
     println("✅ API key found: ${apiKey.take(10)}...")
     println()
     
-    // Create HTTP client (using OkHttp engine for desktop/JVM)
+    // Create HTTP client
     val client = HttpClient(OkHttp.create()) {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })
@@ -47,7 +47,7 @@ fun main() = runBlocking {
     try {
         // Create GeminiAgent
         println("🔧 Creating GeminiAgent...")
-        val agent = GeminiAgent(client, apiKey)
+        val agent = GeminiAgent(client, apiKey = apiKey)
         println("✅ GeminiAgent created")
         println()
         
@@ -84,7 +84,6 @@ fun main() = runBlocking {
         }
         
     } finally {
-        // Close HTTP client
         client.close()
         println("=".repeat(60))
         println("Debug script completed")

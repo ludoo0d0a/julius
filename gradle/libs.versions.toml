@@ -10,7 +10,8 @@ coroutines = "1.10.2"
 koin = "4.1.1"
 kermit = "2.0.8"
 llamatik-library = "0.11.0"
-junit-jupiter = "5.10.0"
+junit-jupiter = "6.0.2"
+google-genai = "1.35.0"
 
 [libraries]
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
@@ -38,6 +39,7 @@ kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutine
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 library = { module = "com.llamatik:library", version.ref = "llamatik-library" }
+google-genai = { module = "com.google.genai:google-genai", version.ref = "google-genai" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
