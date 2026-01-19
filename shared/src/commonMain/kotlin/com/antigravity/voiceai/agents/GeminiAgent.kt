@@ -9,11 +9,15 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
 class GeminiAgent(
     private val client: HttpClient,
-    private val apiKey: String
+    private val apiKey: String,
+    private val model: String = "models/gemini-flash-latest",
+    private val baseUrl: String = "https://generativelanguage.googleapis.com/v1beta"
 ) : ConversationalAgent {
 
     @Serializable 
@@ -36,6 +40,15 @@ class GeminiAgent(
     
     @Serializable 
     private data class Res(val candidates: List<Candidate>?)
+    
+    @Serializable
+    private data class ModelInfo(
+        val name: String,
+        val supportedGenerationMethods: List<String> = emptyList()
+    )
+    
+    @Serializable
+    private data class ModelsListResponse(val models: List<ModelInfo>)
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -45,8 +58,8 @@ class GeminiAgent(
         }
 
         try {
-            // Using Gemini 1.5 Flash (Free Tier eligible) - try v1beta with latest
-            val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=$apiKey"
+            // Using specified model (default: models/gemini-flash-latest) with v1beta API
+            val url = "$baseUrl/models/$model:generateContent?key=$apiKey"
             
             val response = client.post(url) {
                 contentType(ContentType.Application.Json)
@@ -85,7 +98,7 @@ class GeminiAgent(
         }
 
         try {
-            val url = "https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey"
+            val url = "$baseUrl/models?key=$apiKey"
             val response = client.get(url)
             val responseBody = response.bodyAsText()
 
@@ -93,7 +106,16 @@ class GeminiAgent(
                 throw NetworkException(response.status.value, "Error listing Gemini models: $responseBody")
             }
 
-            return responseBody
+            // Parse the JSON response and filter models that support generateContent
+            val modelsResponse = json.decodeFromString<ModelsListResponse>(responseBody)
+            val filteredModelNames = modelsResponse.models
+                .filter { modelInfo ->
+                    modelInfo.supportedGenerationMethods.contains("generateContent")
+                }
+                .map { it.name }
+            
+            // Return only model names as JSON array
+            return json.encodeToString(ListSerializer(String.serializer()), filteredModelNames)
         } catch (e: Exception) {
             e.printStackTrace()
             if (e is NetworkException) throw e

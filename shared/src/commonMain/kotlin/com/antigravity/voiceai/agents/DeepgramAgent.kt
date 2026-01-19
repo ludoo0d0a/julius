@@ -13,7 +13,8 @@ import kotlinx.serialization.json.Json
 
 class DeepgramAgent(
     private val client: HttpClient,
-    private val deepgramKey: String
+    private val deepgramKey: String,
+    private val baseUrl: String = "https://api.deepgram.com/v1"
 ) : ConversationalAgent {
 
     @Serializable private data class Msg(val role: String, val content: String)
@@ -33,7 +34,7 @@ class DeepgramAgent(
         }
 
         try {
-            val response = client.post("https://api.deepgram.com/v1/chat/completions") {
+            val response = client.post("$baseUrl/chat/completions") {
                 header("Authorization", "Bearer $deepgramKey")
                 contentType(ContentType.Application.Json)
                 setBody(

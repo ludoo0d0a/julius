@@ -12,7 +12,8 @@ import kotlinx.serialization.json.Json
 class FirebaseAIAgent(
     private val client: HttpClient,
     private val apiKey: String,
-    private val model: String = "gemini-1.5-flash-latest"
+    private val model: String = "gemini-1.5-flash-latest",
+    private val baseUrl: String = "https://generativelanguage.googleapis.com/v1beta"
 ) : ConversationalAgent {
 
     @Serializable
@@ -44,7 +45,7 @@ class FirebaseAIAgent(
         }
 
         return try {
-            val url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey"
+            val url = "$baseUrl/models/$model:generateContent?key=$apiKey"
 
             val response = client.post(url) {
                 contentType(ContentType.Application.Json)

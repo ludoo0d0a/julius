@@ -14,7 +14,8 @@ import kotlinx.serialization.json.Json
 
 class OpenAIAgent(
     private val client: HttpClient,
-    private val apiKey: String
+    private val apiKey: String,
+    private val baseUrl: String = "https://api.openai.com/v1"
 ) : ConversationalAgent {
 
     @Serializable private data class Msg(val role: String, val content: String)
@@ -32,7 +33,7 @@ class OpenAIAgent(
         }
 
         // 1. Get Text
-        val chatResponse = client.post("https://api.openai.com/v1/chat/completions") {
+        val chatResponse = client.post("$baseUrl/chat/completions") {
             header("Authorization", "Bearer $apiKey")
             contentType(ContentType.Application.Json)
             setBody(ChatReq(model = "gpt-4o", messages = listOf(Msg("user", input))))
@@ -53,7 +54,7 @@ class OpenAIAgent(
 
         // 2. Get Audio
         val audioBytes = try {
-            client.post("https://api.openai.com/v1/audio/speech") {
+            client.post("$baseUrl/audio/speech") {
                 header("Authorization", "Bearer $apiKey")
                 contentType(ContentType.Application.Json)
                 setBody(TtsReq(model = "tts-1-hd", input = text, voice = "nova"))

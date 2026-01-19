@@ -14,7 +14,8 @@ import kotlinx.serialization.json.Json
 class PerplexityAgent(
     private val client: HttpClient,
     private val apiKey: String,
-    private val model: String
+    private val model: String,
+    private val baseUrl: String = "https://api.perplexity.ai"
 ) : ConversationalAgent {
 
     @Serializable private data class Msg(val role: String, val content: String)
@@ -29,7 +30,7 @@ class PerplexityAgent(
             throw NetworkException(null, "Perplexity API key is required. Please set it in settings.")
         }
 
-        val response = client.post("https://api.perplexity.ai/chat/completions") {
+        val response = client.post("$baseUrl/chat/completions") {
             header("Authorization", "Bearer $apiKey")
             contentType(ContentType.Application.Json)
             setBody(

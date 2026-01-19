@@ -17,7 +17,8 @@ import kotlinx.serialization.json.JsonPrimitive
 class GenkitAgent(
     private val client: HttpClient,
     private val endpoint: String,
-    private val apiKey: String = ""
+    private val apiKey: String = "",
+    private val baseUrl: String = "" // Optional baseUrl for constructing full endpoint if endpoint is relative
 ) : ConversationalAgent {
 
     @Serializable
@@ -31,7 +32,13 @@ class GenkitAgent(
         }
 
         return try {
-            val response = client.post(endpoint) {
+            // Use baseUrl + endpoint if baseUrl is provided and endpoint is relative, otherwise use endpoint as-is
+            val fullEndpoint = if (baseUrl.isNotBlank() && !endpoint.startsWith("http")) {
+                "$baseUrl${if (endpoint.startsWith("/")) "" else "/"}$endpoint"
+            } else {
+                endpoint
+            }
+            val response = client.post(fullEndpoint) {
                 if (apiKey.isNotBlank()) {
                     header("Authorization", "Bearer $apiKey")
                 }

@@ -16,7 +16,8 @@ class ElevenLabsAgent(
     private val perplexityKey: String,
     private val elevenLabsKey: String,
     private val voiceId: String = "JBFqnCBsd6RMkjVDRZzb", // Example: George
-    private val model: String
+    private val model: String,
+    private val baseUrl: String = "https://api.elevenlabs.io/v1"
 ) : ConversationalAgent {
 
     private val perplexityAgent = PerplexityAgent(client, perplexityKey, model)
@@ -39,7 +40,7 @@ class ElevenLabsAgent(
 
         // 2. Get Audio from ElevenLabs
         val audioBytes = try {
-            val ttsResponse = client.post("https://api.elevenlabs.io/v1/text-to-speech/$voiceId") {
+            val ttsResponse = client.post("$baseUrl/text-to-speech/$voiceId") {
                 header("xi-api-key", elevenLabsKey)
                 contentType(ContentType.Application.Json)
                 setBody(TtsReq(text = text))
