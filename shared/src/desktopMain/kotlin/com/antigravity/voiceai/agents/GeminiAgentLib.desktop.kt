@@ -6,11 +6,16 @@ import com.google.genai.types.GenerateContentResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-actual class GeminiAgentLib(
-    private val apiKey: String,
-    private val model: String = "gemini-3-flash-preview"
-) : ConversationalAgent {
-    
+actual class GeminiAgentLib : ConversationalAgent {
+
+    private val apiKey: String
+    private val model: String
+
+    actual constructor(apiKey: String, model: String) {
+        this.apiKey = apiKey
+        this.model = model
+    }
+
     private val client: Client by lazy {
         if (apiKey.isBlank()) {
             throw IllegalArgumentException("Gemini API key is required. Please set it in settings.")
@@ -20,7 +25,7 @@ actual class GeminiAgentLib(
             .build()
     }
 
-    actual override suspend fun process(input: String): AgentResponse {
+    override suspend fun process(input: String): AgentResponse {
         if (apiKey.isBlank()) {
             throw NetworkException(null, "Gemini API key is required. Please set it in settings.")
         }
