@@ -50,18 +50,25 @@ class DeepgramRealApiTests : RealApiTestBase() {
     }
 
     @Test
-    fun testDeepgramAgent_EmptyKey() = runBlocking {
+    fun testDeepgramAgent_EmptyKey() {
         val client = createHttpClient()
         val agent = DeepgramAgent(client, "")
 
-        val response = agent.process("Test prompt")
-
-        assertTrue(
-            response.text.contains("API key", ignoreCase = true),
-            "Should return API key required message"
-        )
-        println("✅ Deepgram empty key test passed")
-
-        client.close()
+        try {
+            runBlocking {
+                agent.process("Test prompt")
+            }
+            // If it doesn't throw, the test fails
+            throw AssertionError("Expected NetworkException was not thrown.")
+        } catch (e: com.antigravity.voiceai.shared.NetworkException) {
+            // This is the expected outcome
+            assertTrue(
+                e.message?.contains("API key", ignoreCase = true) == true,
+                "The exception message should indicate an API key is required."
+            )
+            println("✅ Deepgram empty key test passed")
+        } finally {
+            client.close()
+        }
     }
 }
