@@ -14,7 +14,8 @@ import kotlinx.coroutines.launch
 
 data class DetailedError(
     val httpCode: Int?,
-    val message: String
+    val message: String,
+    val timestamp: Long
 )
 
 data class ConversationState(
@@ -106,7 +107,7 @@ open class ConversationStore(
                     voiceManager.speak(response.text)
                 }
             } catch (e: NetworkException) {
-                val error = DetailedError(e.httpCode, e.message ?: "Unknown error")
+                val error = DetailedError(e.httpCode, e.message ?: "Unknown error", getCurrentTimeMillis())
                 val newErrorLog = (_state.value.errorLog + error).takeLast(10)
                 _state.value = _state.value.copy(
                     lastError = error,
@@ -114,7 +115,7 @@ open class ConversationStore(
                     status = VoiceEvent.Silence
                 )
             } catch (e: Exception) {
-                val error = DetailedError(null, e.message ?: "Unknown error")
+                val error = DetailedError(null, e.message ?: "Unknown error", getCurrentTimeMillis())
                 val newErrorLog = (_state.value.errorLog + error).takeLast(10)
                 _state.value = _state.value.copy(
                     lastError = error,

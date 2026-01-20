@@ -1,6 +1,5 @@
 package com.antigravity.voiceai.shared
 
-actual fun getCurrentTimeMillis(): Long = System.currentTimeMillis()
-
-
-
+internal actual fun getCurrentTimeMillis(): Long {
+    return System.currentTimeMillis()
+}

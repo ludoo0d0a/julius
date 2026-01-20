@@ -19,6 +19,9 @@ import com.antigravity.voiceai.AppTheme
 import com.antigravity.voiceai.IaModel
 import com.antigravity.voiceai.SettingsManager
 import com.antigravity.voiceai.shared.DetailedError
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -111,21 +114,24 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         SectionTitle("Advanced")
-        StyledExposedDropdownMenuBox(
-            label = "IA Model",
-            selectedValue = selectedModel,
-            options = IaModel.entries.toList(),
-            onValueChange = { selectedModel = it },
-            getDisplayName = { it.displayName }
-        )
+        if (selectedAgent == AgentType.ElevenLabs || selectedAgent == AgentType.Native) {
+            StyledExposedDropdownMenuBox(
+                label = "IA Model",
+                selectedValue = selectedModel,
+                options = IaModel.entries.toList(),
+                onValueChange = { selectedModel = it },
+                getDisplayName = { it.displayName }
+            )
+        }
         Column(modifier = Modifier.padding(vertical = 4.dp)) {
             Text("Last Error Log", color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
             val errorText = if (errorLog.isEmpty()) {
                 "No errors"
             } else {
-                errorLog.joinToString("\n") { error ->
-                    val httpCode = error.httpCode?.let { "HTTP Code: $it" } ?: "No HTTP Code"
-                    "- $httpCode: ${error.message}"
+                errorLog.reversed().joinToString("\n") { error ->
+                    val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(error.timestamp))
+                    val httpCode = error.httpCode?.let { "HTTP $it" } ?: "Generic"
+                    "[$timestamp] $httpCode: ${error.message}"
                 }
             }
             OutlinedTextField(
@@ -315,8 +321,8 @@ fun SettingsScreenPreview() {
         SettingsScreen(
             settingsManager = mockSettingsManager,
             errorLog = listOf(
-                DetailedError(401, "Unauthorized"),
-                DetailedError(500, "Internal Server Error")
+                DetailedError(401, "Unauthorized", System.currentTimeMillis() - 10000),
+                DetailedError(500, "Internal Server Error", System.currentTimeMillis())
             ),
             onDismiss = {}
         )

@@ -126,24 +126,28 @@ fun MainUI(
                             )
                             state.lastError?.let { error ->
                                 Spacer(modifier = Modifier.height(16.dp))
+
+                                val errorTitle = when (error.httpCode) {
+                                    401 -> "Authentication Error"
+                                    403 -> "Permission Denied"
+                                    429 -> "Rate Limit Exceeded"
+                                    in 500..599 -> "Server Error"
+                                    else -> "Connection Error"
+                                }
+
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
-                                        text = "An error occurred",
-                                        color = Color.Red,
+                                        text = errorTitle,
+                                        color = Color(0xFFF87171),
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    error.httpCode?.let {
-                                        Text(
-                                            text = "HTTP Code: $it",
-                                            color = Color.Red.copy(alpha = 0.8f),
-                                            fontSize = 12.sp
-                                        )
-                                    }
+
+                                    val httpStatus = error.httpCode?.let { "HTTP $it" } ?: "Generic"
                                     Text(
-                                        text = error.message,
-                                        color = Color.Red.copy(alpha = 0.8f),
+                                        text = "[$httpStatus] ${error.message}",
+                                        color = Color(0xFFF87171).copy(alpha = 0.8f),
                                         fontSize = 12.sp
                                     )
                                 }
