@@ -14,7 +14,8 @@ enum class IaModel(val modelName: String, val displayName: String) {
     LLAMA_3_1_8B_INSTRUCT("llama-3.1-8b-instruct", "Llama 3.1 Instruct"),
     LLAMA_3_1_70B_INSTRUCT("llama-3.1-70b-instruct", "Llama 3.1 70B Instruct"),
     GEMMA_2_9B_IT("gemma-2-9b-it", "Gemma 2 9B"),
-    GEMMA_2_27B_IT("gemma-2-27b-it", "Gemma 2 27B")
+    GEMMA_2_27B_IT("gemma-2-27b-it", "Gemma 2 27B"),
+    MIXTRAL_8X7B("mixtral-8x7b-instruct", "Mixtral 8x7B")
 }
 
 data class AppSettings(
