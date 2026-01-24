@@ -77,7 +77,7 @@ fun MainUI(
             if (showSettings) {
                 SettingsScreen(settingsManager, state.errorLog) { showSettings = false }
             } else {
-                BoxWithConstraints(
+                Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
@@ -125,7 +125,7 @@ fun MainUI(
                                 fontWeight = FontWeight.Medium
                             )
                             state.lastError?.let { error ->
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(24.dp))
 
                                 val errorTitle = when (error.httpCode) {
                                     401 -> "Authentication Error"
@@ -139,16 +139,16 @@ fun MainUI(
                                     Text(
                                         text = errorTitle,
                                         color = Color(0xFFF87171),
-                                        fontSize = 16.sp,
+                                        fontSize = 20.sp,
                                         fontWeight = FontWeight.Bold
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Spacer(modifier = Modifier.height(8.dp))
 
-                                    val httpStatus = error.httpCode?.let { "HTTP $it" } ?: "Generic"
+                                    val httpStatus = error.httpCode?.let { "HTTP $it - " } ?: ""
                                     Text(
-                                        text = "[$httpStatus] ${error.message}",
-                                        color = Color(0xFFF87171).copy(alpha = 0.8f),
-                                        fontSize = 12.sp
+                                        text = "$httpStatus${error.message}",
+                                        color = Color(0xFFF87171).copy(alpha = 0.9f),
+                                        fontSize = 14.sp
                                     )
                                 }
                             }

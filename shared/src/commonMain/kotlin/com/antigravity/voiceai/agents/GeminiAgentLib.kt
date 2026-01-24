@@ -7,5 +7,5 @@ package com.antigravity.voiceai.agents
  */
 expect class GeminiAgentLib(
     apiKey: String,
-    model: String = "gemini-3-flash-preview"
+    model: String
 ) : ConversationalAgent

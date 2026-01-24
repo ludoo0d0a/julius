@@ -46,7 +46,7 @@ class DynamicAgentWrapper(
                 DeepgramAgent(client, deepgramKey = settings.deepgramKey)
             }
             AgentType.Native -> PerplexityAgent(client, apiKey = settings.perplexityKey, model = settings.selectedModel.modelName)
-            AgentType.Gemini -> GeminiAgent(client, apiKey = settings.geminiKey)
+            AgentType.Gemini -> GeminiAgent(client, apiKey = settings.geminiKey, model = settings.selectedModel.modelName)
             AgentType.Genkit -> GenkitAgent(client, endpoint = settings.genkitEndpoint, apiKey = settings.genkitApiKey)
             AgentType.FirebaseAI -> FirebaseAIAgent(client, apiKey = settings.firebaseAiKey, model = settings.firebaseAiModel)
             AgentType.Embedded -> EmbeddedAgent() // No API key needed - runs offline
