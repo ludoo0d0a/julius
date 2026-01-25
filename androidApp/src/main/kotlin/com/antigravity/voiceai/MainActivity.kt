@@ -144,7 +144,7 @@ fun MainUI(
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
 
-                                    val httpStatus = error.httpCode?.let { "HTTP $it" } ?: "Generic"
+                                    val httpStatus = error.httpCode?.let { "HTTP $it" } ?: "Error"
                                     Text(
                                         text = "[$httpStatus] ${error.message}",
                                         color = Color(0xFFF87171).copy(alpha = 0.8f),

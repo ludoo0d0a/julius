@@ -114,36 +114,36 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         SectionTitle("Advanced")
-        if (selectedAgent == AgentType.ElevenLabs || selectedAgent == AgentType.Native) {
-            StyledExposedDropdownMenuBox(
-                label = "IA Model",
-                selectedValue = selectedModel,
-                options = IaModel.entries.toList(),
-                onValueChange = { selectedModel = it },
-                getDisplayName = { it.displayName }
-            )
-        }
+        StyledExposedDropdownMenuBox(
+            label = "IA Model",
+            selectedValue = selectedModel,
+            options = IaModel.entries.toList(),
+            onValueChange = { selectedModel = it },
+            getDisplayName = { it.displayName }
+        )
         Column(modifier = Modifier.padding(vertical = 4.dp)) {
             Text("Last Error Log", color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
             val errorText = if (errorLog.isEmpty()) {
-                "No errors"
+                "No errors yet"
             } else {
-                errorLog.reversed().joinToString("\n") { error ->
+                errorLog.reversed().joinToString("\n\n") { error ->
                     val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(error.timestamp))
-                    val httpCode = error.httpCode?.let { "HTTP $it" } ?: "Generic"
-                    "[$timestamp] $httpCode: ${error.message}"
+                    val httpCode = error.httpCode?.let { "HTTP $it" } ?: "Error"
+                    "[$timestamp] $httpCode\n${error.message}"
                 }
             }
             OutlinedTextField(
                 value = errorText,
                 onValueChange = {},
                 readOnly = true,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp, max = 200.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 100.dp, max = 200.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF6366F1),
                     unfocusedBorderColor = Color(0xFF334155),
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
+                    focusedTextColor = Color(0xFF94A3B8),
+                    unfocusedTextColor = Color(0xFF94A3B8)
                 )
             )
         }
