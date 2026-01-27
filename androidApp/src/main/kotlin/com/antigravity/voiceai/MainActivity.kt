@@ -134,19 +134,18 @@ fun MainUI(
                                     in 500..599 -> "Server Error"
                                     else -> "Connection Error"
                                 }
+                                val httpStatus = error.httpCode?.let { " (HTTP $it)" } ?: ""
 
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
-                                        text = errorTitle,
+                                        text = "$errorTitle$httpStatus",
                                         color = Color(0xFFF87171),
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
-
-                                    val httpStatus = error.httpCode?.let { "HTTP $it" } ?: "Generic"
                                     Text(
-                                        text = "[$httpStatus] ${error.message}",
+                                        text = error.message,
                                         color = Color(0xFFF87171).copy(alpha = 0.8f),
                                         fontSize = 12.sp
                                     )
