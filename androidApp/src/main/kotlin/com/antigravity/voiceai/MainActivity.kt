@@ -144,11 +144,18 @@ fun MainUI(
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
 
-                                    val httpStatus = error.httpCode?.let { "HTTP $it" } ?: "Generic"
+                                    error.httpCode?.let {
+                                        Text(
+                                            text = "HTTP Code: $it",
+                                            color = Color(0xFFF87171).copy(alpha = 0.8f),
+                                            fontSize = 12.sp
+                                        )
+                                    }
                                     Text(
-                                        text = "[$httpStatus] ${error.message}",
+                                        text = error.message,
                                         color = Color(0xFFF87171).copy(alpha = 0.8f),
-                                        fontSize = 12.sp
+                                        fontSize = 12.sp,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                     )
                                 }
                             }
