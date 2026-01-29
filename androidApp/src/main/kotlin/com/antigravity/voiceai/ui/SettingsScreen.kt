@@ -114,24 +114,22 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         SectionTitle("Advanced")
-        if (selectedAgent == AgentType.ElevenLabs || selectedAgent == AgentType.Native) {
-            StyledExposedDropdownMenuBox(
-                label = "IA Model",
-                selectedValue = selectedModel,
-                options = IaModel.entries.toList(),
-                onValueChange = { selectedModel = it },
-                getDisplayName = { it.displayName }
-            )
-        }
+        StyledExposedDropdownMenuBox(
+            label = "IA Model",
+            selectedValue = selectedModel,
+            options = IaModel.entries.toList(),
+            onValueChange = { selectedModel = it },
+            getDisplayName = { it.displayName }
+        )
         Column(modifier = Modifier.padding(vertical = 4.dp)) {
             Text("Last Error Log", color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
             val errorText = if (errorLog.isEmpty()) {
                 "No errors"
             } else {
-                errorLog.reversed().joinToString("\n") { error ->
+                errorLog.reversed().joinToString("\n\n") { error ->
                     val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(error.timestamp))
                     val httpCode = error.httpCode?.let { "HTTP $it" } ?: "Generic"
-                    "[$timestamp] $httpCode: ${error.message}"
+                    "[$timestamp] $httpCode\n${error.message}"
                 }
             }
             OutlinedTextField(
