@@ -143,10 +143,9 @@ fun MainUI(
                                         fontWeight = FontWeight.Bold
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
-
-                                    val httpStatus = error.httpCode?.let { "HTTP $it" } ?: "Generic"
+                                    val httpStatus = error.httpCode?.let { "HTTP $it" } ?: ""
                                     Text(
-                                        text = "[$httpStatus] ${error.message}",
+                                        text = "$httpStatus ${error.message}".trim(),
                                         color = Color(0xFFF87171).copy(alpha = 0.8f),
                                         fontSize = 12.sp
                                     )
