@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -44,4 +45,16 @@ fun TrayLight(
                 shape = RoundedCornerShape(topStart = 100.dp, topEnd = 100.dp)
             )
     )
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0F172A)
+@Composable
+private fun TrayLightIdlePreview() {
+    TrayLight(isActive = false)
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0F172A)
+@Composable
+private fun TrayLightActivePreview() {
+    TrayLight(isActive = true)
 }
