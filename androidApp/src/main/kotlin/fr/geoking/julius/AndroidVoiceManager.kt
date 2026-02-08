@@ -4,10 +4,12 @@ import android.content.Context
 import android.content.Intent
 import android.media.MediaPlayer
 import android.os.Bundle
+import android.os.Handler
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.shared.VoiceManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,18 +32,44 @@ class AndroidVoiceManager(
     private var speechRecognizer: SpeechRecognizer? = null
     private var tts: TextToSpeech? = null
     private var mediaPlayer: MediaPlayer? = null
+    private val mainHandler = Handler(context.mainLooper)
     private var ttsReady: Boolean = false
     private var currentLanguageTag: String? = null
     private var pendingLanguageTag: String? = null
+    private var isRecognizerActive: Boolean = false
+    private var isBargeInActive: Boolean = false
+    private var bargeInRestartScheduled: Boolean = false
     
     init {
         tts = TextToSpeech(context, this)
+        tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onStart(utteranceId: String?) {
+                // Keep event in Speaking while TTS is active
+                if (_events.value != VoiceEvent.Speaking) {
+                    _events.value = VoiceEvent.Speaking
+                }
+            }
+
+            override fun onDone(utteranceId: String?) {
+                mainHandler.post {
+                    if (_events.value == VoiceEvent.Speaking) {
+                        _events.value = VoiceEvent.Silence
+                    }
+                    stopBargeInListening()
+                }
+            }
+
+            override fun onError(utteranceId: String?) {
+                onDone(utteranceId)
+            }
+        })
         mediaPlayer = MediaPlayer()
         mediaPlayer?.setOnCompletionListener { 
             // Only reset to Silence if we were speaking, not if we're listening
             if (_events.value == VoiceEvent.Speaking) {
                 _events.value = VoiceEvent.Silence
             }
+            stopBargeInListening()
         }
     }
 
@@ -54,27 +82,17 @@ class AndroidVoiceManager(
     }
 
     override fun startListening() {
-        if (speechRecognizer == null) {
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
-            speechRecognizer?.setRecognitionListener(this)
-        }
-        
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-        }
-        
-        android.os.Handler(context.mainLooper).post {
-            mediaPlayer?.stop()
-            tts?.stop()
-            speechRecognizer?.startListening(intent)
-            _events.value = VoiceEvent.Listening
-        }
+        startListeningInternal(stopOutputs = true, bargeIn = false)
     }
 
     override fun stopListening() {
-        android.os.Handler(context.mainLooper).post {
+        mainHandler.post {
             speechRecognizer?.stopListening()
+            isRecognizerActive = false
+            isBargeInActive = false
+            if (_events.value == VoiceEvent.Listening) {
+                _events.value = VoiceEvent.Silence
+            }
         }
     }
     
@@ -82,6 +100,7 @@ class AndroidVoiceManager(
         _events.value = VoiceEvent.Speaking
         updateTtsLanguage(languageTag)
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "voice_ai_utterance")
+        startBargeInListening()
     }
 
     override fun playAudio(bytes: ByteArray) {
@@ -97,6 +116,7 @@ class AndroidVoiceManager(
             mediaPlayer?.setDataSource(tempFile.absolutePath)
             mediaPlayer?.prepare()
             mediaPlayer?.start()
+            startBargeInListening()
         } catch (e: Exception) {
             e.printStackTrace()
             _events.value = VoiceEvent.Silence // Reset on error
@@ -106,6 +126,7 @@ class AndroidVoiceManager(
     override fun stopSpeaking() {
         tts?.stop()
         mediaPlayer?.stop()
+        stopBargeInListening()
         _events.value = VoiceEvent.Silence
     }
 
@@ -149,32 +170,126 @@ class AndroidVoiceManager(
         }
     }
 
+    private fun startListeningInternal(stopOutputs: Boolean, bargeIn: Boolean) {
+        val intent = buildRecognizerIntent()
+        mainHandler.post {
+            val recognizer = getOrCreateRecognizer() ?: return@post
+            if (stopOutputs) {
+                mediaPlayer?.stop()
+                tts?.stop()
+            }
+            if (isRecognizerActive) {
+                if (isBargeInActive == bargeIn) {
+                    if (!bargeIn) {
+                        _events.value = VoiceEvent.Listening
+                    }
+                    return@post
+                }
+                recognizer.cancel()
+            }
+            isRecognizerActive = true
+            isBargeInActive = bargeIn
+            bargeInRestartScheduled = false
+            recognizer.startListening(intent)
+            if (!bargeIn) {
+                _events.value = VoiceEvent.Listening
+            }
+        }
+    }
+
+    private fun startBargeInListening() {
+        startListeningInternal(stopOutputs = false, bargeIn = true)
+    }
+
+    private fun stopBargeInListening() {
+        if (!isBargeInActive) return
+        isBargeInActive = false
+        if (isRecognizerActive) {
+            speechRecognizer?.cancel()
+            isRecognizerActive = false
+        }
+    }
+
+    private fun scheduleBargeInRestart() {
+        if (bargeInRestartScheduled) return
+        bargeInRestartScheduled = true
+        mainHandler.postDelayed({
+            bargeInRestartScheduled = false
+            if (_events.value == VoiceEvent.Speaking) {
+                startBargeInListening()
+            } else {
+                isBargeInActive = false
+            }
+        }, BARGE_IN_RESTART_DELAY_MS)
+    }
+
+    private fun getOrCreateRecognizer(): SpeechRecognizer? {
+        if (speechRecognizer == null) {
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
+            speechRecognizer?.setRecognitionListener(this)
+        }
+        return speechRecognizer
+    }
+
+    private fun buildRecognizerIntent(): Intent {
+        return Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+        }
+    }
+
     // RecognitionListener
     override fun onReadyForSpeech(params: Bundle?) {
-        // Ensure icon stays red as soon as recognizer is ready to listen
-        _events.value = VoiceEvent.Listening
+        // Keep Speaking state when listening for barge-in
+        if (!(isBargeInActive && _events.value == VoiceEvent.Speaking)) {
+            _events.value = VoiceEvent.Listening
+        }
     }
     override fun onBeginningOfSpeech() {
+        if (isBargeInActive && _events.value == VoiceEvent.Speaking) {
+            tts?.stop()
+            mediaPlayer?.stop()
+            isBargeInActive = false
+        }
         _events.value = VoiceEvent.Listening 
     }
     override fun onRmsChanged(rmsdB: Float) {}
     override fun onBufferReceived(buffer: ByteArray?) {}
     override fun onEndOfSpeech() {
-        _events.value = VoiceEvent.Processing
+        if (!(isBargeInActive && _events.value == VoiceEvent.Speaking)) {
+            _events.value = VoiceEvent.Processing
+        }
     }
     override fun onError(error: Int) {
+        isRecognizerActive = false
+        if (isBargeInActive && _events.value == VoiceEvent.Speaking) {
+            scheduleBargeInRestart()
+            return
+        }
+        isBargeInActive = false
         _events.value = VoiceEvent.Silence
     }
     override fun onResults(results: Bundle?) {
+        isRecognizerActive = false
+        if (isBargeInActive && _events.value == VoiceEvent.Speaking) {
+            scheduleBargeInRestart()
+            return
+        }
+        isBargeInActive = false
         val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         val text = matches?.firstOrNull() ?: ""
         _transcribedText.value = text 
         // Note: ConversationStore observes this flow and triggers processing
     }
     override fun onPartialResults(partialResults: Bundle?) {
+        if (isBargeInActive && _events.value == VoiceEvent.Speaking) return
         val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         val text = matches?.firstOrNull() ?: ""
         // Optional: emit partials
     }
     override fun onEvent(eventType: Int, params: Bundle?) {}
+
+    companion object {
+        private const val BARGE_IN_RESTART_DELAY_MS = 250L
+    }
 }
