@@ -15,6 +15,7 @@ import androidx.car.app.model.Template
 import androidx.car.app.navigation.model.NavigationTemplate
 import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.lifecycleScope
+import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.R
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.VoiceEvent
@@ -82,6 +83,11 @@ class MainScreen(
     }
 
     override fun onGetTemplate(): Template {
+        // Play Store build: no ACCESS_SURFACE / NAVIGATION_TEMPLATES → use PaneTemplate only
+        if (!BuildConfig.CAR_USE_SURFACE) {
+            appManager.setSurfaceCallback(null)
+            return buildPaneTemplate()
+        }
         if (usePaneFallback) {
             appManager.setSurfaceCallback(null)
             return buildPaneTemplate()

@@ -121,6 +121,18 @@ configure<ApplicationExtension> {
         buildConfigField("String", "FIREBASE_AI_MODEL", "\"$firebaseAiModel\"")
     }
 
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("play") {
+            dimension = "distribution"
+            buildConfigField("boolean", "CAR_USE_SURFACE", "false")
+        }
+        create("full") {
+            dimension = "distribution"
+            buildConfigField("boolean", "CAR_USE_SURFACE", "true")
+        }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
