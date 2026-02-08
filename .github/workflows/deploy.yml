@@ -25,17 +25,31 @@ jobs:
 
       - name: Decode signing keystore
         shell: bash
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
         run: |
           set -euo pipefail
           mkdir -p androidApp/build/outputs/bundle/release
-          printf '%s' "${{ secrets.SIGNING_KEY }}" | base64 --decode > androidApp/build/outputs/bundle/release/signingKey.jks
+          : "${SIGNING_KEY:?Missing required secret SIGNING_KEY (base64-encoded keystore)}"
+          printf '%s' "$SIGNING_KEY" | base64 --decode > androidApp/build/outputs/bundle/release/signingKey.jks
+          if [[ ! -s androidApp/build/outputs/bundle/release/signingKey.jks ]]; then
+            echo "Decoded keystore is empty; check SIGNING_KEY secret contents."
+            exit 1
+          fi
 
       - name: Sign AAB (JKS keystore)
         shell: bash
+        env:
+          ALIAS: ${{ secrets.ALIAS }}
+          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
+          : "${ALIAS:?Missing required secret ALIAS}"
+          : "${KEY_STORE_PASSWORD:?Missing required secret KEY_STORE_PASSWORD}"
+
           AAB_PATH="$(ls -1 androidApp/build/outputs/bundle/release/*.aab | head -n 1)"
-          KEYPASS="${{ secrets.KEY_PASSWORD }}"
+          KEYPASS="${KEY_PASSWORD:-}"
           KEYOPT=()
           if [[ -n "${KEYPASS}" ]]; then
             KEYOPT=(-keypass "${KEYPASS}")
@@ -44,12 +58,12 @@ jobs:
           jarsigner \
             -keystore androidApp/build/outputs/bundle/release/signingKey.jks \
             -storetype JKS \
-            -storepass "${{ secrets.KEY_STORE_PASSWORD }}" \
+            -storepass "${KEY_STORE_PASSWORD}" \
             -sigalg SHA256withRSA \
             -digestalg SHA-256 \
             "${KEYOPT[@]}" \
             "$AAB_PATH" \
-            "${{ secrets.ALIAS }}"
+            "${ALIAS}"
 
           rm -f androidApp/build/outputs/bundle/release/signingKey.jks
 
