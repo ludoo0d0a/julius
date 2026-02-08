@@ -5,21 +5,24 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.consume
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlin.math.abs
 
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.ConversationState
@@ -70,7 +73,10 @@ fun MainUI(
     val selectedTheme = settings.selectedTheme
     val paletteIndex by AnimationPalettes.index.collectAsState()
     val palette = remember(paletteIndex) { AnimationPalettes.paletteFor(paletteIndex) }
-    val swipeThreshold = with(LocalDensity.current) { 64.dp.toPx() }
+    val currentSettings by rememberUpdatedState(settings)
+    val currentTheme by rememberUpdatedState(selectedTheme)
+    val verticalSwipeThresholdPx = with(LocalDensity.current) { 64.dp.toPx() }
+    val horizontalSwipeThresholdPx = with(LocalDensity.current) { 80.dp.toPx() }
     
     MaterialTheme(
         colorScheme = darkColorScheme(background = Color(0xFF0F172A))
@@ -85,21 +91,62 @@ fun MainUI(
                 BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxSize()
-                        .pointerInput(swipeThreshold) {
+                        .pointerInput(verticalSwipeThresholdPx) {
                             var accumulated = 0f
                             detectVerticalDragGestures(
                                 onDragEnd = { accumulated = 0f },
                                 onDragCancel = { accumulated = 0f },
                                 onVerticalDrag = { _, dragAmount ->
                                     accumulated += dragAmount
-                                    if (accumulated <= -swipeThreshold) {
+                                    if (accumulated <= -verticalSwipeThresholdPx) {
                                         AnimationPalettes.step(1)
                                         accumulated = 0f
-                                    } else if (accumulated >= swipeThreshold) {
+                                    } else if (accumulated >= verticalSwipeThresholdPx) {
                                         AnimationPalettes.step(-1)
                                         accumulated = 0f
                                     }
                                 }
+                            )
+                        }
+                        .pointerInput(currentTheme, currentSettings, horizontalSwipeThresholdPx) {
+                            var dragAmount = 0f
+                            detectHorizontalDragGestures(
+                                onDragStart = { dragAmount = 0f },
+                                onHorizontalDrag = { change, dragAmountX ->
+                                    dragAmount += dragAmountX
+                                    change.consume()
+                                },
+                                onDragEnd = {
+                                    if (abs(dragAmount) >= horizontalSwipeThresholdPx) {
+                                        val themes = AppTheme.entries
+                                        val currentIndex = themes.indexOf(currentTheme).let { if (it < 0) 0 else it }
+                                        val nextIndex = if (dragAmount < 0f) {
+                                            (currentIndex + 1) % themes.size
+                                        } else {
+                                            (currentIndex - 1 + themes.size) % themes.size
+                                        }
+                                        val nextTheme = themes[nextIndex]
+                                        if (nextTheme != currentTheme) {
+                                            val saved = currentSettings
+                                            settingsManager.saveSettings(
+                                                openAiKey = saved.openAiKey,
+                                                elevenLabsKey = saved.elevenLabsKey,
+                                                perplexityKey = saved.perplexityKey,
+                                                geminiKey = saved.geminiKey,
+                                                deepgramKey = saved.deepgramKey,
+                                                genkitApiKey = saved.genkitApiKey,
+                                                genkitEndpoint = saved.genkitEndpoint,
+                                                firebaseAiKey = saved.firebaseAiKey,
+                                                firebaseAiModel = saved.firebaseAiModel,
+                                                agent = saved.selectedAgent,
+                                                theme = nextTheme,
+                                                model = saved.selectedModel
+                                            )
+                                        }
+                                    }
+                                    dragAmount = 0f
+                                },
+                                onDragCancel = { dragAmount = 0f }
                             )
                         },
                     contentAlignment = Alignment.Center
@@ -133,8 +180,14 @@ fun MainUI(
                             modifier = Modifier.align(Alignment.BottomCenter)
                         )
                         VoiceControlButton(
-                            isListening = state.status == VoiceEvent.Listening,
-                            onClick = { if (state.status == VoiceEvent.Listening) store.stopListening() else store.startListening() },
+                            status = state.status,
+                            onClick = {
+                                when (state.status) {
+                                    VoiceEvent.Speaking -> store.stopSpeaking()
+                                    VoiceEvent.Listening -> store.stopListening()
+                                    else -> store.startListening()
+                                }
+                            },
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .padding(bottom = 40.dp)
@@ -178,7 +231,7 @@ fun MainUIPreview() {
                 override val transcribedText: kotlinx.coroutines.flow.Flow<String> = _transcribedText
                 override fun startListening() {}
                 override fun stopListening() {}
-                override fun speak(text: String) {}
+                override fun speak(text: String, languageTag: String?) {}
                 override fun playAudio(bytes: ByteArray) {}
                 override fun stopSpeaking() {}
             },

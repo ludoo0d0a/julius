@@ -2,8 +2,7 @@ name: Deploy to Google Play Store
 
 on:
   push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   build-and-release:
@@ -39,5 +38,5 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
           packageName: fr.geoking.julius
           releaseFiles: androidApp/build/outputs/bundle/release/*.aab
-          track: internal
-          whatsNew: "New release"
+          track: test
+          whatsNew: "Automated test build #${{ github.run_number }}"

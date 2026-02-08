@@ -44,9 +44,12 @@ open class ConversationStore(
 ) {
     private val _state = MutableStateFlow(ConversationState())
     val state: StateFlow<ConversationState> = _state.asStateFlow()
+
+    private val maxContextMessages = 12
     
     // Configurable prompt or context
     var systemPrompt: String = "You are a helpful driving assistant. Keep answers short."
+    private var preferredSpeechLanguageTag: String? = null
 
     init {
         voiceManager.events.onEach { event ->
@@ -66,6 +69,9 @@ open class ConversationStore(
     // Made public to be called manually or from VoiceManager logic
     fun onUserFinishedSpeaking(text: String) {
         if (text.isBlank()) return
+        SpeechLanguageResolver.extractPreferredLanguageTag(text)?.let { preferredTag ->
+            preferredSpeechLanguageTag = preferredTag
+        }
         
         scope.launch {
             try {
@@ -76,7 +82,8 @@ open class ConversationStore(
                 // 2. Call AI
                 _state.value = _state.value.copy(status = VoiceEvent.Processing, lastError = null)
                 
-                val response = agent.process(text) // Returns text + audio + action
+                val contextPrompt = buildContextPrompt(_state.value.messages)
+                val response = agent.process(contextPrompt) // Returns text + audio + action
                 
                 // 3. Execute action if present (from agent or parsed from response)
                 var actionResultMessage = ""
@@ -104,7 +111,9 @@ open class ConversationStore(
                 if (response.audio != null) {
                     voiceManager.playAudio(response.audio)
                 } else {
-                    voiceManager.speak(response.text)
+                    val speechLanguageTag = preferredSpeechLanguageTag
+                        ?: SpeechLanguageResolver.detectLanguageTag(response.text)
+                    voiceManager.speak(response.text, speechLanguageTag)
                 }
             } catch (e: NetworkException) {
                 val error = DetailedError(e.httpCode, e.message ?: "Unknown error", getCurrentTimeMillis())
@@ -130,6 +139,28 @@ open class ConversationStore(
         val current = _state.value.messages
         _state.value = _state.value.copy(messages = current + msg)
     }
+
+    private fun buildContextPrompt(messages: List<ChatMessage>): String {
+        val trimmedMessages = messages.takeLast(maxContextMessages)
+        val history = trimmedMessages.joinToString("\n") { msg ->
+            val speaker = if (msg.sender == Role.User) "User" else "Assistant"
+            "$speaker: ${msg.text.trim()}"
+        }
+        return buildString {
+            val prompt = systemPrompt.trim()
+            if (prompt.isNotBlank()) {
+                append("System: ")
+                append(prompt)
+                append("\n\n")
+            }
+            if (history.isNotBlank()) {
+                append("Conversation so far:\n")
+                append(history)
+                append("\n\n")
+            }
+            append("Please respond to the last user message.")
+        }
+    }
     
     fun startListening() {
         voiceManager.startListening()
@@ -137,5 +168,9 @@ open class ConversationStore(
     
     fun stopListening() {
         voiceManager.stopListening()
+    }
+
+    fun stopSpeaking() {
+        voiceManager.stopSpeaking()
     }
 }

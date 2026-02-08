@@ -31,6 +31,7 @@ class MainScreen(
     private var currentStatus: String = "Idle"
     private var currentText: String = "Tap mic to start"
     private var isListening: Boolean = false
+    private var isSpeaking: Boolean = false
 
     /** When true, use PaneTemplate (fallback) instead of NavigationTemplate. */
     private var usePaneFallback: Boolean = false
@@ -46,6 +47,7 @@ class MainScreen(
         lifecycleScope.launch {
             store.state.collectLatest { state ->
                 isListening = state.status == VoiceEvent.Listening
+                isSpeaking = state.status == VoiceEvent.Speaking
                 surfaceRenderer?.isActive = isListening
                 currentStatus = state.status.name
                 currentText = if (state.status == VoiceEvent.Listening) {
@@ -104,17 +106,22 @@ class MainScreen(
     }
 
     private fun buildNavigationTemplate(): Template {
-        val micIcon = CarIcon.Builder(
-            IconCompat.createWithResource(carContext, R.drawable.ic_speaker)
+        val actionIconRes = if (isSpeaking) R.drawable.ic_stop else R.drawable.ic_speaker
+        val actionIcon = CarIcon.Builder(
+            IconCompat.createWithResource(carContext, actionIconRes)
         ).build()
 
         val actionStrip = ActionStrip.Builder()
             .addAction(
                 Action.Builder()
-                    .setIcon(micIcon)
-                    .setTitle(if (isListening) "Stop" else "Speak")
+                    .setIcon(actionIcon)
+                    .setTitle(if (isListening || isSpeaking) "Stop" else "Speak")
                     .setOnClickListener {
-                        if (isListening) store.stopListening() else store.startListening()
+                        when {
+                            isSpeaking -> store.stopSpeaking()
+                            isListening -> store.stopListening()
+                            else -> store.startListening()
+                        }
                     }
                     .build()
             )
@@ -131,8 +138,9 @@ class MainScreen(
             IconCompat.createWithResource(carContext, themeImageResId)
         ).build()
 
-        val micIcon = CarIcon.Builder(
-            IconCompat.createWithResource(carContext, R.drawable.ic_speaker)
+        val actionIconRes = if (isSpeaking) R.drawable.ic_stop else R.drawable.ic_speaker
+        val actionIcon = CarIcon.Builder(
+            IconCompat.createWithResource(carContext, actionIconRes)
         ).build()
 
         val pane = Pane.Builder()
@@ -145,10 +153,14 @@ class MainScreen(
             )
             .addAction(
                 Action.Builder()
-                    .setIcon(micIcon)
-                    .setTitle(if (isListening) "Stop" else "Speak")
+                    .setIcon(actionIcon)
+                    .setTitle(if (isListening || isSpeaking) "Stop" else "Speak")
                     .setOnClickListener {
-                        if (isListening) store.stopListening() else store.startListening()
+                        when {
+                            isSpeaking -> store.stopSpeaking()
+                            isListening -> store.stopListening()
+                            else -> store.startListening()
+                        }
                     }
                     .build()
             )
