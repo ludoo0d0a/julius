@@ -47,6 +47,7 @@ open class ConversationStore(
     
     // Configurable prompt or context
     var systemPrompt: String = "You are a helpful driving assistant. Keep answers short."
+    private var preferredSpeechLanguageTag: String? = null
 
     init {
         voiceManager.events.onEach { event ->
@@ -66,6 +67,9 @@ open class ConversationStore(
     // Made public to be called manually or from VoiceManager logic
     fun onUserFinishedSpeaking(text: String) {
         if (text.isBlank()) return
+        SpeechLanguageResolver.extractPreferredLanguageTag(text)?.let { preferredTag ->
+            preferredSpeechLanguageTag = preferredTag
+        }
         
         scope.launch {
             try {
@@ -104,7 +108,9 @@ open class ConversationStore(
                 if (response.audio != null) {
                     voiceManager.playAudio(response.audio)
                 } else {
-                    voiceManager.speak(response.text)
+                    val speechLanguageTag = preferredSpeechLanguageTag
+                        ?: SpeechLanguageResolver.detectLanguageTag(response.text)
+                    voiceManager.speak(response.text, speechLanguageTag)
                 }
             } catch (e: NetworkException) {
                 val error = DetailedError(e.httpCode, e.message ?: "Unknown error", getCurrentTimeMillis())

@@ -30,6 +30,9 @@ class AndroidVoiceManager(
     private var speechRecognizer: SpeechRecognizer? = null
     private var tts: TextToSpeech? = null
     private var mediaPlayer: MediaPlayer? = null
+    private var ttsReady: Boolean = false
+    private var currentLanguageTag: String? = null
+    private var pendingLanguageTag: String? = null
     
     init {
         tts = TextToSpeech(context, this)
@@ -44,7 +47,9 @@ class AndroidVoiceManager(
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
-            tts?.language = Locale.US
+            ttsReady = true
+            setTtsLanguage(pendingLanguageTag)
+            pendingLanguageTag = null
         }
     }
 
@@ -73,8 +78,9 @@ class AndroidVoiceManager(
         }
     }
     
-    override fun speak(text: String) {
+    override fun speak(text: String, languageTag: String?) {
         _events.value = VoiceEvent.Speaking
+        updateTtsLanguage(languageTag)
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "voice_ai_utterance")
     }
 
@@ -101,6 +107,46 @@ class AndroidVoiceManager(
         tts?.stop()
         mediaPlayer?.stop()
         _events.value = VoiceEvent.Silence
+    }
+
+    private fun updateTtsLanguage(languageTag: String?) {
+        if (languageTag.isNullOrBlank()) return
+        if (!ttsReady) {
+            pendingLanguageTag = languageTag
+            return
+        }
+        if (languageTag == currentLanguageTag) return
+        setTtsLanguage(languageTag)
+    }
+
+    private fun setTtsLanguage(languageTag: String?) {
+        val desiredLocale = resolveLocale(languageTag)
+        if (applyLocale(desiredLocale)) return
+
+        if (!languageTag.isNullOrBlank()) {
+            val defaultLocale = Locale.getDefault()
+            if (defaultLocale != desiredLocale && applyLocale(defaultLocale)) return
+        }
+
+        applyLocale(Locale.US)
+    }
+
+    private fun resolveLocale(languageTag: String?): Locale {
+        if (languageTag.isNullOrBlank()) return Locale.getDefault()
+        val locale = Locale.forLanguageTag(languageTag)
+        return if (locale == Locale.ROOT) Locale.getDefault() else locale
+    }
+
+    private fun applyLocale(locale: Locale): Boolean {
+        val ttsInstance = tts ?: return false
+        val availability = ttsInstance.isLanguageAvailable(locale)
+        return if (availability >= TextToSpeech.LANG_AVAILABLE) {
+            ttsInstance.language = locale
+            currentLanguageTag = locale.toLanguageTag()
+            true
+        } else {
+            false
+        }
     }
 
     // RecognitionListener

@@ -151,7 +151,7 @@ fun MainUIPreview() {
                 override val transcribedText: kotlinx.coroutines.flow.Flow<String> = _transcribedText
                 override fun startListening() {}
                 override fun stopListening() {}
-                override fun speak(text: String) {}
+                override fun speak(text: String, languageTag: String?) {}
                 override fun playAudio(bytes: ByteArray) {}
                 override fun stopSpeaking() {}
             },

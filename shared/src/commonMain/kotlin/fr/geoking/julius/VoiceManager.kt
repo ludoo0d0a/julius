@@ -15,7 +15,7 @@ interface VoiceManager {
 
     fun startListening()
     fun stopListening()
-    fun speak(text: String)
+    fun speak(text: String, languageTag: String? = null)
     fun playAudio(bytes: ByteArray)
     fun stopSpeaking()
 }
