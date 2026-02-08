@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
@@ -15,7 +14,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun TrayLight(
+fun TrayLightEffectCanvas(
     isActive: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -49,12 +48,13 @@ fun TrayLight(
 
 @Preview(showBackground = true, backgroundColor = 0xFF0F172A)
 @Composable
-private fun TrayLightIdlePreview() {
-    TrayLight(isActive = false)
+private fun TrayLightEffectCanvasIdlePreview() {
+    TrayLightEffectCanvas(isActive = false)
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF0F172A)
 @Composable
-private fun TrayLightActivePreview() {
-    TrayLight(isActive = true)
+private fun TrayLightEffectCanvasActivePreview() {
+    TrayLightEffectCanvas(isActive = true)
 }
+

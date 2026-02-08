@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import fr.geoking.julius.AppTheme
 import fr.geoking.julius.ui.anim.phone.FractalEffectCanvas
-import fr.geoking.julius.ui.anim.phone.ParticleEffectCanvas
+import fr.geoking.julius.ui.anim.phone.ParticlesEffectCanvas
 import fr.geoking.julius.ui.anim.phone.SphereEffectCanvas
 import fr.geoking.julius.ui.anim.phone.WavesEffectCanvas
 
@@ -17,7 +17,7 @@ fun ThemeBackground(
     isActive: Boolean
 ) {
     when (theme) {
-        AppTheme.Particles -> ParticleEffectCanvas(isActive = isActive)
+        AppTheme.Particles -> ParticlesEffectCanvas(isActive = isActive)
         AppTheme.Sphere -> SphereEffectCanvas(isActive = isActive)
         AppTheme.Waves -> WavesEffectCanvas(isActive = isActive)
         AppTheme.Fractal -> FractalEffectCanvas(isActive = isActive)

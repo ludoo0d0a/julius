@@ -15,7 +15,7 @@ import kotlin.math.*
 import kotlin.random.Random
 
 @Composable
-fun ParticleEffectCanvas(
+fun ParticlesEffectCanvas(
     isActive: Boolean,
     isLowQuality: Boolean = false
 ) {

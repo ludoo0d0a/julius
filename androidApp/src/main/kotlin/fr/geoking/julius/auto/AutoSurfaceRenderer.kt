@@ -1,14 +1,16 @@
 package fr.geoking.julius.auto
 
 import android.view.Surface
-import fr.geoking.julius.ui.anim.auto.AutoParticlesEffect
+import fr.geoking.julius.ui.anim.auto.FractalEffectSurface
+import fr.geoking.julius.ui.anim.auto.ParticlesEffectSurface
 import fr.geoking.julius.ui.anim.auto.AutoSphereEffect
-import fr.geoking.julius.ui.anim.auto.AutoWavesEffect
+import fr.geoking.julius.ui.anim.auto.TrayLightEffectSurface
+import fr.geoking.julius.ui.anim.auto.WavesEffectSurface
 import kotlin.math.PI
 import kotlin.math.sin
 
 /**
- * Renders the 3 Auto animations (Particles, Sphere, Waves) onto an Android Auto Surface.
+ * Renders the 4 Auto animations (Particles, Sphere, Waves, Fractal) onto an Android Auto Surface.
  * Runs on a dedicated thread; cycles through effects every 15s.
  */
 class AutoSurfaceRenderer(
@@ -28,7 +30,7 @@ class AutoSurfaceRenderer(
     private val centerX: Float = width / 2f
     private val centerY: Float = height / 2f
 
-    private val particlesEffect = AutoParticlesEffect(
+    private val particlesEffect = ParticlesEffectSurface(
         particleCount = PARTICLE_COUNT,
         rayCount = RAY_COUNT
     )
@@ -50,7 +52,7 @@ class AutoSurfaceRenderer(
             val canvas = surface.lockCanvas(null) ?: break
             try {
                 val elapsed = (System.currentTimeMillis() - startMs) / 1000f
-                val effectIndex = ((System.currentTimeMillis() / EFFECT_CYCLE_MS) % 3).toInt()
+                val effectIndex = ((System.currentTimeMillis() / EFFECT_CYCLE_MS) % 4).toInt()
                 val time = (System.currentTimeMillis() % 20_000L) / 20_000f
                 val timeRotation = (System.currentTimeMillis() % 15_000L) / 15_000f * 360f
                 val pulse = 0.5f + 0.5f * sin((System.currentTimeMillis() % 2000L) / 2000f * 2 * PI.toFloat())
@@ -64,11 +66,16 @@ class AutoSurfaceRenderer(
                         canvas, width, height, centerX, centerY,
                         isActive, timeRotation, pulse
                     )
-                    2 -> AutoWavesEffect.draw(
+                    2 -> WavesEffectSurface.draw(
+                        canvas, width, height, centerX, centerY,
+                        isActive, elapsed, pulse
+                    )
+                    3 -> FractalEffectSurface.draw(
                         canvas, width, height, centerX, centerY,
                         isActive, elapsed, pulse
                     )
                 }
+                TrayLightEffectSurface.draw(canvas, width, height, isActive, pulse)
             } finally {
                 try {
                     surface.unlockCanvasAndPost(canvas)

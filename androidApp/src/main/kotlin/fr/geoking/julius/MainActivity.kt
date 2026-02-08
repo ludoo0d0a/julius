@@ -22,7 +22,7 @@ import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.ConversationState
 import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.ui.SettingsScreen
-import fr.geoking.julius.ui.anim.phone.TrayLight
+import fr.geoking.julius.ui.anim.phone.TrayLightEffectCanvas
 import fr.geoking.julius.ui.components.ThemeBackground
 import fr.geoking.julius.ui.components.VoiceControlButton
 import fr.geoking.julius.ui.components.VoiceStatusContent
@@ -101,7 +101,7 @@ fun MainUI(
                             lastError = state.lastError,
                             modifier = Modifier.align(Alignment.Center)
                         )
-                        TrayLight(
+                        TrayLightEffectCanvas(
                             isActive = state.status == VoiceEvent.Listening,
                             modifier = Modifier.align(Alignment.BottomCenter)
                         )
