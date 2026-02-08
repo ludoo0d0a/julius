@@ -3,7 +3,7 @@ package fr.geoking.julius.auto
 import android.view.Surface
 import fr.geoking.julius.ui.anim.auto.FractalEffectSurface
 import fr.geoking.julius.ui.anim.auto.ParticlesEffectSurface
-import fr.geoking.julius.ui.anim.auto.AutoSphereEffect
+import fr.geoking.julius.ui.anim.auto.SphereEffectSurface
 import fr.geoking.julius.ui.anim.auto.TrayLightEffectSurface
 import fr.geoking.julius.ui.anim.auto.WavesEffectSurface
 import kotlin.math.PI
@@ -62,7 +62,7 @@ class AutoSurfaceRenderer(
                         canvas, width, height, centerX, centerY,
                         isActive, time, timeRotation, pulse
                     )
-                    1 -> AutoSphereEffect.draw(
+                    1 -> SphereEffectSurface.draw(
                         canvas, width, height, centerX, centerY,
                         isActive, timeRotation, pulse
                     )
