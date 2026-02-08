@@ -5,9 +5,11 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RadialGradient
 import android.graphics.Shader
+import fr.geoking.julius.ui.anim.AnimationPalette
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.abs
 import kotlin.random.Random
 
 /**
@@ -30,7 +32,8 @@ class ParticlesEffectSurface(
         isActive: Boolean,
         time: Float,
         rotationDeg: Float,
-        pulse: Float
+        pulse: Float,
+        palette: AnimationPalette
     ) {
         val pulseScale = if (isActive) 0.5f + 0.5f * pulse else 1f
         val scale = if (isActive) 1.2f else 1f
@@ -51,12 +54,18 @@ class ParticlesEffectSurface(
         canvas.scale(pulseScale, pulseScale, centerX, centerY)
 
         // Rays
+        val rayColor = palette.primary
         val rayAlpha = if (isActive) 0.15f else 0.05f
         rays.forEach { ray ->
             val angleRad = (ray.angleOffset + rotationDeg) * PI.toFloat() / 180f
             val endX = centerX + cos(angleRad) * width
             val endY = centerY + sin(angleRad) * width
-            paint.color = Color.argb((rayAlpha * 128).toInt(), 0x63, 0x66, 0xF1)
+            paint.color = Color.argb(
+                (rayAlpha * 255).toInt(),
+                Color.red(rayColor),
+                Color.green(rayColor),
+                Color.blue(rayColor)
+            )
             paint.strokeWidth = ray.width * (if (isActive) 2f else 1f)
             paint.style = Paint.Style.STROKE
             paint.strokeCap = Paint.Cap.ROUND
@@ -67,7 +76,7 @@ class ParticlesEffectSurface(
 
         // Particles
         particles.forEach { p ->
-            p.update(isActive, time)
+            p.update(isActive, time, palette)
             val x = centerX + p.x * scale
             val y = centerY + p.y * scale
             if (isActive) {
@@ -89,13 +98,19 @@ class ParticlesEffectSurface(
         val speed = Random.nextFloat() * 2f + 0.5f
         var size = Random.nextFloat() * 4f + 2f
         var alpha = Random.nextFloat() * 0.5f + 0.3f
-        val baseColor: Int = listOf(0xFF6366F1.toInt(), 0xFFEC4899.toInt(), 0xFF8B5CF6.toInt(), 0xFF06B6D4.toInt()).random()
+        private val colorIndex = Random.nextInt()
         var x = 0f
         var y = 0f
-        var colorFill: Int = baseColor
-        var colorAura: Int = baseColor
+        var colorFill: Int = 0xFF6366F1.toInt()
+        var colorAura: Int = 0xFF6366F1.toInt()
 
-        fun update(active: Boolean, time: Float) {
+        fun update(active: Boolean, time: Float, palette: AnimationPalette) {
+            val paletteColors = palette.colors
+            val baseColor = if (paletteColors.isNotEmpty()) {
+                paletteColors[abs(colorIndex) % paletteColors.size]
+            } else {
+                0xFF6366F1.toInt()
+            }
             val mult = if (active) 3f else 1f
             angle += speed * 0.01f * mult
             val wobble = sin(time * 50f + size) * (if (active) 20f else 5f)

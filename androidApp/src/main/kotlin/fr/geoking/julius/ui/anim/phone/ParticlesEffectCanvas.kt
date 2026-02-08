@@ -13,10 +13,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import kotlin.math.*
 import kotlin.random.Random
+import fr.geoking.julius.ui.anim.AnimationPalette
 
 @Composable
 fun ParticlesEffectCanvas(
     isActive: Boolean,
+    palette: AnimationPalette,
     isLowQuality: Boolean = false
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "particle_loop")
@@ -38,6 +40,8 @@ fun ParticlesEffectCanvas(
 
     // Particles State
     val particles = remember { List(if (isLowQuality) 30 else 100) { Particle() } }
+    val paletteColors = remember(palette) { palette.colors.map { Color(it) } }
+    val rayColor = paletteColors.firstOrNull() ?: Color(0xFF6366F1)
     
     // Rays State
     val rays = remember { List(8) { Ray() } }
@@ -62,14 +66,14 @@ fun ParticlesEffectCanvas(
                 scale(scaleX = pulseAnim, scaleY = pulseAnim, pivot = Offset(centerX, centerY))
             }) {
                 rays.forEach { ray ->
-                    drawRay(ray, centerX, centerY, isActive)
+                    drawRay(ray, centerX, centerY, isActive, rayColor)
                 }
             }
         }
 
         // 3. Draw Particles (Core + Aura)
         particles.forEach { p ->
-            p.update(isActive, time)
+            p.update(isActive, time, paletteColors)
             val x = centerX + p.x * (if (isActive) 1.2f else 1f)
             val y = centerY + p.y * (if (isActive) 1.2f else 1f)
             
@@ -100,18 +104,18 @@ private class Particle {
     var speed = Random.nextFloat() * 2f + 0.5f
     var size = Random.nextFloat() * 4f + 2f
     var alpha = Random.nextFloat() * 0.5f + 0.3f
-    val baseColor = listOf(
-        Color(0xFF6366F1), // Indigo
-        Color(0xFFEC4899), // Pink
-        Color(0xFF8B5CF6), // Violet
-        Color(0xFF06B6D4)  // Cyan
-    ).random()
+    private val colorIndex = Random.nextInt()
     
-    var color = baseColor
+    var color = Color.White
     var x = 0f
     var y = 0f
 
-    fun update(isActive: Boolean, time: Float) {
+    fun update(isActive: Boolean, time: Float, paletteColors: List<Color>) {
+        val baseColor = if (paletteColors.isNotEmpty()) {
+            paletteColors[kotlin.math.abs(colorIndex) % paletteColors.size]
+        } else {
+            Color(0xFF6366F1)
+        }
         val activeSpeedMultiplier = if (isActive) 3f else 1f
         angle += (speed * 0.01f * activeSpeedMultiplier)
         
@@ -132,8 +136,14 @@ private class Ray {
     val lengthScale = Random.nextFloat() * 0.5f + 0.5f
 }
 
-private fun DrawScope.drawRay(ray: Ray, cx: Float, cy: Float, isActive: Boolean) {
-    val color = Color(0xFF6366F1).copy(alpha = if (isActive) 0.15f else 0.05f)
+private fun DrawScope.drawRay(
+    ray: Ray,
+    cx: Float,
+    cy: Float,
+    isActive: Boolean,
+    baseColor: Color
+) {
+    val color = baseColor.copy(alpha = if (isActive) 0.15f else 0.05f)
     drawRect(
         brush = Brush.linearGradient(
             colors = listOf(color, Color.Transparent),

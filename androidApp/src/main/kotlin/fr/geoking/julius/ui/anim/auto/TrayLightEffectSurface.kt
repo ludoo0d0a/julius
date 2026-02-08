@@ -5,6 +5,7 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Shader
+import fr.geoking.julius.ui.anim.AnimationPalette
 import kotlin.math.min
 
 /**
@@ -26,7 +27,8 @@ object TrayLightEffectSurface {
         width: Int,
         height: Int,
         isActive: Boolean,
-        pulse: Float
+        pulse: Float,
+        palette: AnimationPalette
     ) {
         val trayHeight = min(height * TRAY_HEIGHT_FRACTION, 120f).coerceAtLeast(40f)
         val topY = height - trayHeight
@@ -37,9 +39,12 @@ object TrayLightEffectSurface {
         } else {
             0.2f
         }
+        val trayColor = palette.primary
         val color = android.graphics.Color.argb(
             (alpha * 255).toInt().coerceIn(0, 255),
-            0x63, 0x66, 0xF1
+            android.graphics.Color.red(trayColor),
+            android.graphics.Color.green(trayColor),
+            android.graphics.Color.blue(trayColor)
         )
 
         path.reset()

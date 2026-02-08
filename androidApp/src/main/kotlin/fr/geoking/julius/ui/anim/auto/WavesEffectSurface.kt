@@ -6,6 +6,7 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Shader
+import fr.geoking.julius.ui.anim.AnimationPalette
 import kotlin.math.sin
 
 /**
@@ -23,7 +24,8 @@ object WavesEffectSurface {
         centerY: Float,
         isActive: Boolean,
         phaseBase: Float,
-        pulse: Float
+        pulse: Float,
+        palette: AnimationPalette
     ) {
         val amplitudeMult = if (isActive) 1.5f else 1f
 
@@ -42,13 +44,23 @@ object WavesEffectSurface {
             Triple(phaseBase * 0.4f, 50f * amplitudeMult, 0.012f),
             Triple(phaseBase * 0.35f, 45f * amplitudeMult, 0.010f)
         )
-        val waveColors = intArrayOf(0xFF6366F1.toInt(), 0xFFEC4899.toInt(), 0xFF8B5CF6.toInt())
+        val waveColors = intArrayOf(palette.primary, palette.secondary, palette.tertiary)
         val centerYs = floatArrayOf(centerY * 0.3f, centerY * 0.6f, centerY * 0.9f)
         layers.forEachIndexed { i, (phase, amplitude, freq) ->
             drawWaveLayer(canvas, width, height, phase, amplitude, freq, waveColors[i], centerYs[i], 0.5f)
         }
         if (isActive) {
-            drawWaveLayer(canvas, width, height, phaseBase * 0.6f, 35f * amplitudeMult, 0.018f, 0xFF06B6D4.toInt(), centerY * 0.45f, 0.3f)
+            drawWaveLayer(
+                canvas,
+                width,
+                height,
+                phaseBase * 0.6f,
+                35f * amplitudeMult,
+                0.018f,
+                palette.quaternary,
+                centerY * 0.45f,
+                0.3f
+            )
         }
 
         // Radial waves
@@ -57,7 +69,12 @@ object WavesEffectSurface {
         for (i in 0 until waveCount) {
             val radius = (maxRadius / waveCount) * (i + 1) + sin(phaseBase + i) * 20f
             val alpha = (1f - i / waveCount.toFloat()) * 0.15f
-            paint.color = Color.argb((alpha * 255).toInt(), 0x63, 0x66, 0xF1)
+            paint.color = Color.argb(
+                (alpha * 255).toInt(),
+                Color.red(palette.primary),
+                Color.green(palette.primary),
+                Color.blue(palette.primary)
+            )
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = if (isActive) 3f else 2f
             paint.shader = null

@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,8 +15,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.consume
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.consume
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,7 @@ import fr.geoking.julius.shared.ConversationState
 import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.ui.anim.phone.TrayLightEffectCanvas
+import fr.geoking.julius.ui.anim.AnimationPalettes
 import fr.geoking.julius.ui.components.ThemeBackground
 import fr.geoking.julius.ui.components.VoiceControlButton
 import fr.geoking.julius.ui.components.VoiceStatusContent
@@ -69,9 +71,12 @@ fun MainUI(
     var showSettings by remember { mutableStateOf(false) }
     val settings by settingsManager.settings.collectAsState()
     val selectedTheme = settings.selectedTheme
+    val paletteIndex by AnimationPalettes.index.collectAsState()
+    val palette = remember(paletteIndex) { AnimationPalettes.paletteFor(paletteIndex) }
     val currentSettings by rememberUpdatedState(settings)
     val currentTheme by rememberUpdatedState(selectedTheme)
-    val swipeThresholdPx = with(LocalDensity.current) { 80.dp.toPx() }
+    val verticalSwipeThresholdPx = with(LocalDensity.current) { 64.dp.toPx() }
+    val horizontalSwipeThresholdPx = with(LocalDensity.current) { 80.dp.toPx() }
     
     MaterialTheme(
         colorScheme = darkColorScheme(background = Color(0xFF0F172A))
@@ -86,7 +91,24 @@ fun MainUI(
                 BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxSize()
-                        .pointerInput(Unit) {
+                        .pointerInput(verticalSwipeThresholdPx) {
+                            var accumulated = 0f
+                            detectVerticalDragGestures(
+                                onDragEnd = { accumulated = 0f },
+                                onDragCancel = { accumulated = 0f },
+                                onVerticalDrag = { _, dragAmount ->
+                                    accumulated += dragAmount
+                                    if (accumulated <= -verticalSwipeThresholdPx) {
+                                        AnimationPalettes.step(1)
+                                        accumulated = 0f
+                                    } else if (accumulated >= verticalSwipeThresholdPx) {
+                                        AnimationPalettes.step(-1)
+                                        accumulated = 0f
+                                    }
+                                }
+                            )
+                        }
+                        .pointerInput(currentTheme, currentSettings, horizontalSwipeThresholdPx) {
                             var dragAmount = 0f
                             detectHorizontalDragGestures(
                                 onDragStart = { dragAmount = 0f },
@@ -95,7 +117,7 @@ fun MainUI(
                                     change.consume()
                                 },
                                 onDragEnd = {
-                                    if (abs(dragAmount) >= swipeThresholdPx) {
+                                    if (abs(dragAmount) >= horizontalSwipeThresholdPx) {
                                         val themes = AppTheme.entries
                                         val currentIndex = themes.indexOf(currentTheme).let { if (it < 0) 0 else it }
                                         val nextIndex = if (dragAmount < 0f) {
@@ -134,7 +156,8 @@ fun MainUI(
                     key(selectedTheme) {
                         ThemeBackground(
                             theme = selectedTheme,
-                            isActive = state.status == VoiceEvent.Listening || state.status == VoiceEvent.Speaking
+                            isActive = state.status == VoiceEvent.Listening || state.status == VoiceEvent.Speaking,
+                            palette = palette
                         )
                     }
                     
@@ -153,6 +176,7 @@ fun MainUI(
                         )
                         TrayLightEffectCanvas(
                             isActive = state.status == VoiceEvent.Listening,
+                            palette = palette,
                             modifier = Modifier.align(Alignment.BottomCenter)
                         )
                         VoiceControlButton(

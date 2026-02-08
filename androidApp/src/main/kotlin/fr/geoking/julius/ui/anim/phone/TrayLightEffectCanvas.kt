@@ -12,10 +12,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import fr.geoking.julius.ui.anim.AnimationPalette
+import fr.geoking.julius.ui.anim.AnimationPalettes
 
 @Composable
 fun TrayLightEffectCanvas(
     isActive: Boolean,
+    palette: AnimationPalette,
     modifier: Modifier = Modifier
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "tray")
@@ -38,7 +41,7 @@ fun TrayLightEffectCanvas(
                 brush = Brush.verticalGradient(
                     colors = listOf(
                         Color.Transparent,
-                        Color(0xFF6366F1).copy(alpha = if (isActive) alpha else 0.2f)
+                        Color(palette.primary).copy(alpha = if (isActive) alpha else 0.2f)
                     )
                 ),
                 shape = RoundedCornerShape(topStart = 100.dp, topEnd = 100.dp)
@@ -49,12 +52,12 @@ fun TrayLightEffectCanvas(
 @Preview(showBackground = true, backgroundColor = 0xFF0F172A)
 @Composable
 private fun TrayLightEffectCanvasIdlePreview() {
-    TrayLightEffectCanvas(isActive = false)
+    TrayLightEffectCanvas(isActive = false, palette = AnimationPalettes.paletteFor(0))
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF0F172A)
 @Composable
 private fun TrayLightEffectCanvasActivePreview() {
-    TrayLightEffectCanvas(isActive = true)
+    TrayLightEffectCanvas(isActive = true, palette = AnimationPalettes.paletteFor(0))
 }
 
