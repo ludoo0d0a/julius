@@ -106,8 +106,14 @@ fun MainUI(
                             modifier = Modifier.align(Alignment.BottomCenter)
                         )
                         VoiceControlButton(
-                            isListening = state.status == VoiceEvent.Listening,
-                            onClick = { if (state.status == VoiceEvent.Listening) store.stopListening() else store.startListening() },
+                            status = state.status,
+                            onClick = {
+                                when (state.status) {
+                                    VoiceEvent.Speaking -> store.stopSpeaking()
+                                    VoiceEvent.Listening -> store.stopListening()
+                                    else -> store.startListening()
+                                }
+                            },
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .padding(bottom = 40.dp)

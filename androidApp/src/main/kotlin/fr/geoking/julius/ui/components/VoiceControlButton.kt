@@ -15,16 +15,25 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import fr.geoking.julius.R
+import fr.geoking.julius.shared.VoiceEvent
 
 /**
  * Central mic/speaker button: purple circle, red tint when listening.
  */
 @Composable
 fun VoiceControlButton(
-    isListening: Boolean,
+    status: VoiceEvent,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isListening = status == VoiceEvent.Listening
+    val isSpeaking = status == VoiceEvent.Speaking
+    val iconRes = if (isSpeaking) R.drawable.ic_stop else R.drawable.ic_speaker
+    val contentDescription = if (isSpeaking) "Stop" else "Speak"
+    val tint = when {
+        isListening -> Color.Red
+        else -> Color.White
+    }
     IconButton(
         onClick = onClick,
         modifier = modifier.size(64.dp)
@@ -36,9 +45,9 @@ fun VoiceControlButton(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                painter = painterResource(id = R.drawable.ic_speaker),
-                contentDescription = "Speak",
-                tint = if (isListening) Color.Red else Color.White,
+                painter = painterResource(id = iconRes),
+                contentDescription = contentDescription,
+                tint = tint,
                 modifier = Modifier.size(32.dp)
             )
         }
@@ -48,11 +57,11 @@ fun VoiceControlButton(
 @Preview(showBackground = true, backgroundColor = 0xFF0F172A)
 @Composable
 private fun VoiceControlButtonIdlePreview() {
-    VoiceControlButton(isListening = false, onClick = {})
+    VoiceControlButton(status = VoiceEvent.Silence, onClick = {})
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF0F172A)
 @Composable
 private fun VoiceControlButtonListeningPreview() {
-    VoiceControlButton(isListening = true, onClick = {})
+    VoiceControlButton(status = VoiceEvent.Listening, onClick = {})
 }
