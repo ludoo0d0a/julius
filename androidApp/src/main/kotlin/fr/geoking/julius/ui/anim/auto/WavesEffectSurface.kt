@@ -11,7 +11,7 @@ import kotlin.math.sin
 /**
  * Waves effect for Android Auto surface (ported from Compose WavesEffectCanvas).
  */
-object AutoWavesEffect {
+object WavesEffectSurface {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val path = Path()
 

@@ -14,7 +14,7 @@ import kotlin.math.sin
 /**
  * Sphere effect for Android Auto surface (ported from Compose SphereEffectCanvas).
  */
-object AutoSphereEffect {
+object SphereEffectSurface {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val path = Path()
 

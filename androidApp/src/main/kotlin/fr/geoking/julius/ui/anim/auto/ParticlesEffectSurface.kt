@@ -11,9 +11,9 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 /**
- * Particles + rays effect for Android Auto surface (ported from Compose ParticleEffectCanvas).
+ * Particles + rays effect for Android Auto surface (ported from Compose ParticlesEffectCanvas).
  */
-class AutoParticlesEffect(
+class ParticlesEffectSurface(
     particleCount: Int = 50,
     rayCount: Int = 8
 ) {
