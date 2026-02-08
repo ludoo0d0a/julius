@@ -6,6 +6,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RadialGradient
 import android.graphics.Shader
+import fr.geoking.julius.ui.anim.AnimationPalette
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -26,11 +27,15 @@ object SphereEffectSurface {
         centerY: Float,
         isActive: Boolean,
         rotationDeg: Float,
-        pulse: Float
+        pulse: Float,
+        palette: AnimationPalette
     ) {
         val scaleAnim = if (isActive) 1.2f else 1f
         val maxRadius = width.coerceAtMost(height) * 0.25f * scaleAnim
         val activeRadius = if (isActive) maxRadius * (1f + pulse * 0.15f) else maxRadius
+        val primaryColor = palette.primary
+        val secondaryColor = palette.secondary
+        val tertiaryColor = palette.tertiary
 
         // Background
         paint.shader = RadialGradient(
@@ -54,7 +59,7 @@ object SphereEffectSurface {
             paint.style = Paint.Style.FILL
             paint.shader = RadialGradient(
                 centerX, ellipseY, ellipseRadius,
-                if (isActive) Color.WHITE else 0xFF6366F1.toInt(),
+                if (isActive) Color.WHITE else primaryColor,
                 Color.TRANSPARENT,
                 Shader.TileMode.CLAMP
             )
@@ -71,8 +76,18 @@ object SphereEffectSurface {
         paint.shader = RadialGradient(
             centerX - activeRadius * 0.3f, centerY - activeRadius * 0.3f, activeRadius,
             intArrayOf(
-                Color.argb(if (isActive) 153 else 102, 0x63, 0x66, 0xF1),
-                Color.argb(if (isActive) 76 else 51, 0xEC, 0x48, 0x99),
+                Color.argb(
+                    if (isActive) 153 else 102,
+                    Color.red(primaryColor),
+                    Color.green(primaryColor),
+                    Color.blue(primaryColor)
+                ),
+                Color.argb(
+                    if (isActive) 76 else 51,
+                    Color.red(secondaryColor),
+                    Color.green(secondaryColor),
+                    Color.blue(secondaryColor)
+                ),
                 Color.TRANSPARENT
             ),
             floatArrayOf(0f, 0.5f, 1f),
@@ -86,7 +101,7 @@ object SphereEffectSurface {
         for (i in 0 until 3) {
             val ringRadius = activeRadius * (1.3f + i * 0.4f)
             val ringRotation = (rotationDeg * (if (i % 2 == 0) 1f else -1f) + i * 45f) * PI.toFloat() / 180f
-            paint.color = listOf(0xFF6366F1.toInt(), 0xFFEC4899.toInt(), 0xFF8B5CF6.toInt())[i]
+            paint.color = listOf(primaryColor, secondaryColor, tertiaryColor)[i]
             paint.alpha = (if (isActive) 0.4f else 0.2f).times(255).toInt().coerceIn(0, 255)
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = 2f
@@ -110,8 +125,18 @@ object SphereEffectSurface {
             paint.shader = RadialGradient(
                 centerX, centerY, glowRadius,
                 intArrayOf(
-                    Color.argb((0.3f * pulse * 255).toInt(), 0x63, 0x66, 0xF1),
-                    Color.argb((0.1f * pulse * 255).toInt(), 0xEC, 0x48, 0x99),
+                    Color.argb(
+                        (0.3f * pulse * 255).toInt(),
+                        Color.red(primaryColor),
+                        Color.green(primaryColor),
+                        Color.blue(primaryColor)
+                    ),
+                    Color.argb(
+                        (0.1f * pulse * 255).toInt(),
+                        Color.red(secondaryColor),
+                        Color.green(secondaryColor),
+                        Color.blue(secondaryColor)
+                    ),
                     Color.TRANSPARENT
                 ),
                 floatArrayOf(0f, 0.5f, 1f),

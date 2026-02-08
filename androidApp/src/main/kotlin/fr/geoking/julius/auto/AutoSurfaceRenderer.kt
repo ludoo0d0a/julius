@@ -6,6 +6,7 @@ import fr.geoking.julius.ui.anim.auto.ParticlesEffectSurface
 import fr.geoking.julius.ui.anim.auto.SphereEffectSurface
 import fr.geoking.julius.ui.anim.auto.TrayLightEffectSurface
 import fr.geoking.julius.ui.anim.auto.WavesEffectSurface
+import fr.geoking.julius.ui.anim.AnimationPalettes
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -56,26 +57,27 @@ class AutoSurfaceRenderer(
                 val time = (System.currentTimeMillis() % 20_000L) / 20_000f
                 val timeRotation = (System.currentTimeMillis() % 15_000L) / 15_000f * 360f
                 val pulse = 0.5f + 0.5f * sin((System.currentTimeMillis() % 2000L) / 2000f * 2 * PI.toFloat())
+                val palette = AnimationPalettes.currentPalette()
 
                 when (effectIndex) {
                     0 -> particlesEffect.draw(
                         canvas, width, height, centerX, centerY,
-                        isActive, time, timeRotation, pulse
+                        isActive, time, timeRotation, pulse, palette
                     )
                     1 -> SphereEffectSurface.draw(
                         canvas, width, height, centerX, centerY,
-                        isActive, timeRotation, pulse
+                        isActive, timeRotation, pulse, palette
                     )
                     2 -> WavesEffectSurface.draw(
                         canvas, width, height, centerX, centerY,
-                        isActive, elapsed, pulse
+                        isActive, elapsed, pulse, palette
                     )
                     3 -> FractalEffectSurface.draw(
                         canvas, width, height, centerX, centerY,
-                        isActive, elapsed, pulse
+                        isActive, elapsed, pulse, palette
                     )
                 }
-                TrayLightEffectSurface.draw(canvas, width, height, isActive, pulse)
+                TrayLightEffectSurface.draw(canvas, width, height, isActive, pulse, palette)
             } finally {
                 try {
                     surface.unlockCanvasAndPost(canvas)

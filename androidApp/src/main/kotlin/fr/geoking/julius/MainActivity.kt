@@ -5,13 +5,16 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +26,7 @@ import fr.geoking.julius.shared.ConversationState
 import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.ui.anim.phone.TrayLightEffectCanvas
+import fr.geoking.julius.ui.anim.AnimationPalettes
 import fr.geoking.julius.ui.components.ThemeBackground
 import fr.geoking.julius.ui.components.VoiceControlButton
 import fr.geoking.julius.ui.components.VoiceStatusContent
@@ -64,6 +68,9 @@ fun MainUI(
     var showSettings by remember { mutableStateOf(false) }
     val settings by settingsManager.settings.collectAsState()
     val selectedTheme = settings.selectedTheme
+    val paletteIndex by AnimationPalettes.index.collectAsState()
+    val palette = remember(paletteIndex) { AnimationPalettes.paletteFor(paletteIndex) }
+    val swipeThreshold = with(LocalDensity.current) { 64.dp.toPx() }
     
     MaterialTheme(
         colorScheme = darkColorScheme(background = Color(0xFF0F172A))
@@ -76,7 +83,25 @@ fun MainUI(
                 SettingsScreen(settingsManager, state.errorLog) { showSettings = false }
             } else {
                 BoxWithConstraints(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(swipeThreshold) {
+                            var accumulated = 0f
+                            detectVerticalDragGestures(
+                                onDragEnd = { accumulated = 0f },
+                                onDragCancel = { accumulated = 0f },
+                                onVerticalDrag = { _, dragAmount ->
+                                    accumulated += dragAmount
+                                    if (accumulated <= -swipeThreshold) {
+                                        AnimationPalettes.step(1)
+                                        accumulated = 0f
+                                    } else if (accumulated >= swipeThreshold) {
+                                        AnimationPalettes.step(-1)
+                                        accumulated = 0f
+                                    }
+                                }
+                            )
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     // 1. Background Theme Effect (Applied from settings)
@@ -84,7 +109,8 @@ fun MainUI(
                     key(selectedTheme) {
                         ThemeBackground(
                             theme = selectedTheme,
-                            isActive = state.status == VoiceEvent.Listening || state.status == VoiceEvent.Speaking
+                            isActive = state.status == VoiceEvent.Listening || state.status == VoiceEvent.Speaking,
+                            palette = palette
                         )
                     }
                     
@@ -103,6 +129,7 @@ fun MainUI(
                         )
                         TrayLightEffectCanvas(
                             isActive = state.status == VoiceEvent.Listening,
+                            palette = palette,
                             modifier = Modifier.align(Alignment.BottomCenter)
                         )
                         VoiceControlButton(

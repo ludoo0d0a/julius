@@ -13,10 +13,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import kotlin.math.*
 import androidx.compose.ui.graphics.lerp
+import fr.geoking.julius.ui.anim.AnimationPalette
 
 @Composable
 fun SphereEffectCanvas(
     isActive: Boolean,
+    palette: AnimationPalette,
     isLowQuality: Boolean = false
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "sphere_loop")
@@ -50,6 +52,11 @@ fun SphereEffectCanvas(
         label = "scale"
     )
 
+    val paletteColors = remember(palette) { palette.colors.map { Color(it) } }
+    val primaryColor = paletteColors.firstOrNull() ?: Color(0xFF6366F1)
+    val secondaryColor = paletteColors.getOrNull(1) ?: primaryColor
+    val tertiaryColor = paletteColors.getOrNull(2) ?: secondaryColor
+
     Canvas(modifier = Modifier.fillMaxSize()) {
         val centerX = size.width / 2
         val centerY = size.height / 2
@@ -82,7 +89,9 @@ fun SphereEffectCanvas(
             radius = activeRadius,
             rotation = rotation,
             isActive = isActive,
-            pulse = pulse
+            pulse = pulse,
+            primaryColor = primaryColor,
+            secondaryColor = secondaryColor
         )
         
         // Draw orbiting rings for depth
@@ -92,7 +101,8 @@ fun SphereEffectCanvas(
                 baseRadius = activeRadius,
                 rotation = rotation,
                 isActive = isActive,
-                count = 3
+                count = 3,
+                ringColors = listOf(primaryColor, secondaryColor, tertiaryColor)
             )
         }
         
@@ -102,8 +112,8 @@ fun SphereEffectCanvas(
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Color(0xFF6366F1).copy(alpha = 0.3f * pulse),
-                        Color(0xFFEC4899).copy(alpha = 0.1f * pulse),
+                        primaryColor.copy(alpha = 0.3f * pulse),
+                        secondaryColor.copy(alpha = 0.1f * pulse),
                         Color.Transparent
                     ),
                     center = Offset(centerX, centerY),
@@ -121,12 +131,14 @@ private fun DrawScope.drawSphere(
     radius: Float,
     rotation: Float,
     isActive: Boolean,
-    pulse: Float
+    pulse: Float,
+    primaryColor: Color,
+    secondaryColor: Color
 ) {
     // Number of circles to create 3D sphere effect
     val circles = if (isActive) 12 else 8
-    val primaryColor = if (isActive) Color.White else Color(0xFF6366F1)
-    val secondaryColor = if (isActive) Color(0xFFEC4899) else Color(0xFF8B5CF6)
+    val activePrimary = if (isActive) Color.White else primaryColor
+    val activeSecondary = if (isActive) secondaryColor else secondaryColor
     
     for (i in 0 until circles) {
         val angle = (i * 360f / circles + rotation) * PI.toFloat() / 180f
@@ -141,12 +153,12 @@ private fun DrawScope.drawSphere(
         val color = when {
             isActive -> {
                 lerp(
-                    primaryColor.copy(alpha = alpha),
-                    secondaryColor.copy(alpha = alpha),
+                    activePrimary.copy(alpha = alpha),
+                    activeSecondary.copy(alpha = alpha),
                     abs(z) * 0.5f + pulse * 0.3f
                 )
             }
-            else -> primaryColor.copy(alpha = alpha)
+            else -> activePrimary.copy(alpha = alpha)
         }
         
         // Draw ellipse to create sphere illusion
@@ -171,8 +183,8 @@ private fun DrawScope.drawSphere(
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(
-                primaryColor.copy(alpha = if (isActive) 0.6f else 0.4f),
-                secondaryColor.copy(alpha = if (isActive) 0.3f else 0.2f),
+                activePrimary.copy(alpha = if (isActive) 0.6f else 0.4f),
+                activeSecondary.copy(alpha = if (isActive) 0.3f else 0.2f),
                 Color.Transparent
             ),
             center = Offset(center.x - radius * 0.3f, center.y - radius * 0.3f),
@@ -188,14 +200,9 @@ private fun DrawScope.drawOrbitingRings(
     baseRadius: Float,
     rotation: Float,
     isActive: Boolean,
-    count: Int
+    count: Int,
+    ringColors: List<Color>
 ) {
-    val colors = listOf(
-        Color(0xFF6366F1),
-        Color(0xFFEC4899),
-        Color(0xFF8B5CF6)
-    )
-    
     for (i in 0 until count) {
         val ringRadius = baseRadius * (1.3f + i * 0.4f)
         val ringRotation = (rotation * (if (i % 2 == 0) 1f else -1f) + i * 45f) * PI.toFloat() / 180f
@@ -220,7 +227,7 @@ private fun DrawScope.drawOrbitingRings(
         
         drawPath(
             path = ringPath,
-            color = colors[i % colors.size].copy(alpha = alpha),
+            color = ringColors[i % ringColors.size].copy(alpha = alpha),
             style = Stroke(width = 2f, cap = StrokeCap.Round)
         )
     }

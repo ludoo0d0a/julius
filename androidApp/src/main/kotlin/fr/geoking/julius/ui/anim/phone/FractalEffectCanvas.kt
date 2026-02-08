@@ -9,6 +9,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import kotlin.math.*
+import fr.geoking.julius.ui.anim.AnimationPalette
 
 /**
  * Animated fractal background (Mandelbrot set) with a slow infinite zoom-in effect.
@@ -17,6 +18,7 @@ import kotlin.math.*
 @Composable
 fun FractalEffectCanvas(
     isActive: Boolean,
+    palette: AnimationPalette,
     isLowQuality: Boolean = false
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "fractal_zoom")
@@ -45,6 +47,8 @@ fun FractalEffectCanvas(
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "brightness"
     )
+
+    val paletteColors = remember(palette) { palette.colors.map { Color(it) } }
 
     Canvas(modifier = Modifier.fillMaxSize()) {
         val w = size.width
@@ -82,7 +86,7 @@ fun FractalEffectCanvas(
                 val re = cx - halfSpan + (sx / w) * (2f * halfSpan)
                 val im = cy - halfSpan + (1f - sy / h) * (2f * halfSpan)
                 val (escaped, smooth) = mandelbrotSmooth(re, im, if (isLowQuality) 64 else 128)
-                val color = fractalColor(escaped, smooth, phase, brightness, isActive)
+                val color = fractalColor(escaped, smooth, phase, brightness, isActive, paletteColors)
                 drawRect(
                     color = color,
                     topLeft = Offset(ix * cellW, iy * cellH),
@@ -129,26 +133,21 @@ private fun fractalColor(
     smooth: Float,
     phase: Float,
     brightness: Float,
-    isActive: Boolean
+    isActive: Boolean,
+    paletteColors: List<Color>
 ): Color {
     val maxIter = 128
     if (iterations >= maxIter) {
         return Color(0xFF020617) // Inside: dark
     }
     val t = (iterations + smooth) / maxIter.toFloat()
-    // Palette: cycle through indigo, pink, violet, cyan
-    val palette = listOf(
-        Color(0xFF6366F1), // Indigo
-        Color(0xFF8B5CF6), // Violet
-        Color(0xFFEC4899), // Pink
-        Color(0xFF06B6D4)  // Cyan
-    )
-    val idx = ((t * 3f + phase) % 1f) * palette.size
-    val i0 = (idx.toInt() % palette.size).coerceIn(0, palette.size - 1)
-    val i1 = ((idx.toInt() + 1) % palette.size).coerceIn(0, palette.size - 1)
+    val safePalette = if (paletteColors.isNotEmpty()) paletteColors else listOf(Color(0xFF6366F1))
+    val idx = ((t * 3f + phase) % 1f) * safePalette.size
+    val i0 = (idx.toInt() % safePalette.size).coerceIn(0, safePalette.size - 1)
+    val i1 = ((idx.toInt() + 1) % safePalette.size).coerceIn(0, safePalette.size - 1)
     val frac = idx - idx.toInt()
-    val c0 = palette[i0]
-    val c1 = palette[i1]
+    val c0 = safePalette[i0]
+    val c1 = safePalette[i1]
     val r = (c0.red * (1 - frac) + c1.red * frac).coerceIn(0f, 1f)
     val g = (c0.green * (1 - frac) + c1.green * frac).coerceIn(0f, 1f)
     val b = (c0.blue * (1 - frac) + c1.blue * frac).coerceIn(0f, 1f)

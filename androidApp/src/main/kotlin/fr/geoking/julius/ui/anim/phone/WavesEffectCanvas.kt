@@ -11,10 +11,12 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import kotlin.math.*
+import fr.geoking.julius.ui.anim.AnimationPalette
 
 @Composable
 fun WavesEffectCanvas(
     isActive: Boolean,
+    palette: AnimationPalette,
     isLowQuality: Boolean = false
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "waves_loop")
@@ -57,6 +59,13 @@ fun WavesEffectCanvas(
         label = "amplitude"
     )
 
+    val paletteColors = remember(palette) { palette.colors.map { Color(it) } }
+    val primaryColor = paletteColors.firstOrNull() ?: Color(0xFF6366F1)
+    val secondaryColor = paletteColors.getOrNull(1) ?: primaryColor
+    val tertiaryColor = paletteColors.getOrNull(2) ?: secondaryColor
+    val quaternaryColor = paletteColors.getOrNull(3) ?: tertiaryColor
+    val quinaryColor = paletteColors.getOrNull(4) ?: quaternaryColor
+
     Canvas(modifier = Modifier.fillMaxSize()) {
         val centerX = size.width / 2
         val centerY = size.height / 2
@@ -80,7 +89,7 @@ fun WavesEffectCanvas(
             phase = phase1,
             amplitude = 40f * amplitudeAnim,
             frequency = 0.015f,
-            color = Color(0xFF6366F1),
+            color = primaryColor,
             centerY = centerY * 0.3f,
             isActive = isActive,
             alpha = 0.6f
@@ -90,7 +99,7 @@ fun WavesEffectCanvas(
             phase = phase2,
             amplitude = 50f * amplitudeAnim,
             frequency = 0.012f,
-            color = Color(0xFFEC4899),
+            color = secondaryColor,
             centerY = centerY * 0.6f,
             isActive = isActive,
             alpha = 0.5f
@@ -100,7 +109,7 @@ fun WavesEffectCanvas(
             phase = phase3,
             amplitude = 45f * amplitudeAnim,
             frequency = 0.010f,
-            color = Color(0xFF8B5CF6),
+            color = tertiaryColor,
             centerY = centerY * 0.9f,
             isActive = isActive,
             alpha = 0.4f
@@ -112,7 +121,7 @@ fun WavesEffectCanvas(
                 phase = phase1 * 1.3f,
                 amplitude = 35f * amplitudeAnim,
                 frequency = 0.018f,
-                color = Color(0xFF06B6D4),
+                color = quaternaryColor,
                 centerY = centerY * 0.45f,
                 isActive = true,
                 alpha = 0.3f
@@ -122,7 +131,7 @@ fun WavesEffectCanvas(
                 phase = phase2 * 0.8f,
                 amplitude = 55f * amplitudeAnim,
                 frequency = 0.008f,
-                color = Color(0xFF10B981),
+                color = quinaryColor,
                 centerY = centerY * 1.15f,
                 isActive = true,
                 alpha = 0.3f
@@ -134,7 +143,9 @@ fun WavesEffectCanvas(
             drawRadialWaves(
                 center = Offset(centerX, centerY),
                 phase = phase1,
-                isActive = isActive
+                isActive = isActive,
+                primaryColor = primaryColor,
+                secondaryColor = secondaryColor
             )
         }
     }
@@ -213,7 +224,9 @@ private fun DrawScope.drawWaveLayer(
 private fun DrawScope.drawRadialWaves(
     center: Offset,
     phase: Float,
-    isActive: Boolean
+    isActive: Boolean,
+    primaryColor: Color,
+    secondaryColor: Color
 ) {
     val maxRadius = size.width.coerceAtLeast(size.height) * 0.8f
     val waveCount = if (isActive) 8 else 5
@@ -223,8 +236,8 @@ private fun DrawScope.drawRadialWaves(
         val alpha = (1f - (i / waveCount.toFloat())) * 0.15f
         
         val colors = listOf(
-            Color(0xFF6366F1).copy(alpha = alpha),
-            Color(0xFFEC4899).copy(alpha = alpha * 0.7f),
+            primaryColor.copy(alpha = alpha),
+            secondaryColor.copy(alpha = alpha * 0.7f),
             Color.Transparent
         )
         

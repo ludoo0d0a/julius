@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RadialGradient
 import android.graphics.Shader
+import fr.geoking.julius.ui.anim.AnimationPalette
 import kotlin.math.ln
 
 /**
@@ -18,13 +19,6 @@ object FractalEffectSurface {
     private const val PHASE_CYCLE_MS = 20_000L
     private const val MAX_ITER = 128
 
-    private val palette = intArrayOf(
-        0xFF6366F1.toInt(), // Indigo
-        0xFF8B5CF6.toInt(), // Violet
-        0xFFEC4899.toInt(), // Pink
-        0xFF06B6D4.toInt()  // Cyan
-    )
-
     fun draw(
         canvas: Canvas,
         width: Int,
@@ -33,7 +27,8 @@ object FractalEffectSurface {
         centerY: Float,
         isActive: Boolean,
         elapsedSec: Float,
-        pulse: Float
+        pulse: Float,
+        palette: AnimationPalette
     ) {
         val w = width.toFloat()
         val h = height.toFloat()
@@ -69,7 +64,7 @@ object FractalEffectSurface {
                 val re = cx - halfSpan + (sx / w) * (2f * halfSpan)
                 val im = cy - halfSpan + (1f - sy / h) * (2f * halfSpan)
                 val (escaped, smooth) = mandelbrotSmooth(re, im, 64)
-                paint.color = fractalColor(escaped, smooth, phase, brightness, isActive)
+                paint.color = fractalColor(escaped, smooth, phase, brightness, isActive, palette)
                 canvas.drawRect(
                     ix * cellW, iy * cellH,
                     (ix + 1) * cellW + 1f, (iy + 1) * cellH + 1f,
@@ -106,16 +101,18 @@ object FractalEffectSurface {
         smooth: Float,
         phase: Float,
         brightness: Float,
-        isActive: Boolean
+    isActive: Boolean,
+    palette: AnimationPalette
     ): Int {
         if (iterations >= MAX_ITER) return 0xFF020617.toInt()
         val t = (iterations + smooth) / MAX_ITER.toFloat()
-        val idx = ((t * 3f + phase) % 1f) * palette.size
-        val i0 = (idx.toInt() % palette.size).coerceIn(0, palette.size - 1)
-        val i1 = ((idx.toInt() + 1) % palette.size).coerceIn(0, palette.size - 1)
+    val paletteColors = if (palette.colors.isNotEmpty()) palette.colors else listOf(0xFF6366F1.toInt())
+    val idx = ((t * 3f + phase) % 1f) * paletteColors.size
+    val i0 = (idx.toInt() % paletteColors.size).coerceIn(0, paletteColors.size - 1)
+    val i1 = ((idx.toInt() + 1) % paletteColors.size).coerceIn(0, paletteColors.size - 1)
         val frac = idx - idx.toInt()
-        val c0 = palette[i0]
-        val c1 = palette[i1]
+    val c0 = paletteColors[i0]
+    val c1 = paletteColors[i1]
         val r = (Color.red(c0) / 255f * (1 - frac) + Color.red(c1) / 255f * frac).coerceIn(0f, 1f)
         val g = (Color.green(c0) / 255f * (1 - frac) + Color.green(c1) / 255f * frac).coerceIn(0f, 1f)
         val b = (Color.blue(c0) / 255f * (1 - frac) + Color.blue(c1) / 255f * frac).coerceIn(0f, 1f)

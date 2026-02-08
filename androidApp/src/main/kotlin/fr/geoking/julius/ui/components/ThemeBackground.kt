@@ -3,6 +3,8 @@ package fr.geoking.julius.ui.components
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import fr.geoking.julius.AppTheme
+import fr.geoking.julius.ui.anim.AnimationPalette
+import fr.geoking.julius.ui.anim.AnimationPalettes
 import fr.geoking.julius.ui.anim.phone.FractalEffectCanvas
 import fr.geoking.julius.ui.anim.phone.ParticlesEffectCanvas
 import fr.geoking.julius.ui.anim.phone.SphereEffectCanvas
@@ -14,42 +16,63 @@ import fr.geoking.julius.ui.anim.phone.WavesEffectCanvas
 @Composable
 fun ThemeBackground(
     theme: AppTheme,
-    isActive: Boolean
+    isActive: Boolean,
+    palette: AnimationPalette
 ) {
     when (theme) {
-        AppTheme.Particles -> ParticlesEffectCanvas(isActive = isActive)
-        AppTheme.Sphere -> SphereEffectCanvas(isActive = isActive)
-        AppTheme.Waves -> WavesEffectCanvas(isActive = isActive)
-        AppTheme.Fractal -> FractalEffectCanvas(isActive = isActive)
+        AppTheme.Particles -> ParticlesEffectCanvas(isActive = isActive, palette = palette)
+        AppTheme.Sphere -> SphereEffectCanvas(isActive = isActive, palette = palette)
+        AppTheme.Waves -> WavesEffectCanvas(isActive = isActive, palette = palette)
+        AppTheme.Fractal -> FractalEffectCanvas(isActive = isActive, palette = palette)
     }
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun ThemeBackgroundParticlesIdlePreview() {
-    ThemeBackground(theme = AppTheme.Particles, isActive = false)
+    ThemeBackground(
+        theme = AppTheme.Particles,
+        isActive = false,
+        palette = AnimationPalettes.paletteFor(0)
+    )
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun ThemeBackgroundParticlesActivePreview() {
-    ThemeBackground(theme = AppTheme.Particles, isActive = true)
+    ThemeBackground(
+        theme = AppTheme.Particles,
+        isActive = true,
+        palette = AnimationPalettes.paletteFor(0)
+    )
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun ThemeBackgroundSpherePreview() {
-    ThemeBackground(theme = AppTheme.Sphere, isActive = true)
+    ThemeBackground(
+        theme = AppTheme.Sphere,
+        isActive = true,
+        palette = AnimationPalettes.paletteFor(0)
+    )
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun ThemeBackgroundWavesPreview() {
-    ThemeBackground(theme = AppTheme.Waves, isActive = true)
+    ThemeBackground(
+        theme = AppTheme.Waves,
+        isActive = true,
+        palette = AnimationPalettes.paletteFor(0)
+    )
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun ThemeBackgroundFractalPreview() {
-    ThemeBackground(theme = AppTheme.Fractal, isActive = true)
+    ThemeBackground(
+        theme = AppTheme.Fractal,
+        isActive = true,
+        palette = AnimationPalettes.paletteFor(0)
+    )
 }
