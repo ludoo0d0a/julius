@@ -1,5 +1,6 @@
 package fr.geoking.julius.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -34,6 +35,10 @@ fun SettingsScreen(
     onDismiss: () -> Unit
 ) {
     val current by settingsManager.settings.collectAsState()
+
+    BackHandler {
+        onDismiss()
+    }
 
     var openAiKey by remember { mutableStateOf(current.openAiKey) }
     var elevenKey by remember { mutableStateOf(current.elevenLabsKey) }
