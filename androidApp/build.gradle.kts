@@ -14,8 +14,20 @@ configure<ApplicationExtension> {
         applicationId = "fr.geoking.julius"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()
+        val ciRunAttempt = System.getenv("GITHUB_RUN_ATTEMPT")?.toIntOrNull() ?: 1
+        val computedVersionCode = if (ciRunNumber != null) {
+            (ciRunNumber * 10) + ciRunAttempt
+        } else {
+            1
+        }
+        val computedVersionName = if (ciRunNumber != null) {
+            "1.0.$ciRunNumber"
+        } else {
+            "1.0"
+        }
+        versionCode = computedVersionCode
+        versionName = computedVersionName
 
         val elevenLabsKey = project.rootProject.file("local.properties").let { file ->
             if (file.exists()) {
