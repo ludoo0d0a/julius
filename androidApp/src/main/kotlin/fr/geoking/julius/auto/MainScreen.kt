@@ -37,6 +37,7 @@ class MainScreen(
     /** True once we have received a surface (so we don't fall back unnecessarily). */
     private var surfaceReceived: Boolean = false
     private var fallbackCheckJob: Job? = null
+    private var surfaceRenderer: AutoSurfaceRenderer? = null
 
     private val appManager: AppManager
         get() = carContext.getCarService(AppManager::class.java)
@@ -45,6 +46,7 @@ class MainScreen(
         lifecycleScope.launch {
             store.state.collectLatest { state ->
                 isListening = state.status == VoiceEvent.Listening
+                surfaceRenderer?.isActive = isListening
                 currentStatus = state.status.name
                 currentText = if (state.status == VoiceEvent.Listening) {
                     state.currentTranscript.ifBlank { "Listening..." }
@@ -60,11 +62,19 @@ class MainScreen(
         surfaceReceived = true
         fallbackCheckJob?.cancel()
         fallbackCheckJob = null
-        // Surface is ready for custom drawing (e.g. animations) later.
-        // Remember to call surface.release() when done; host may destroy it via onSurfaceDestroyed.
+        surfaceRenderer?.stop()
+        val surface = surfaceContainer.surface ?: return
+        val w = surfaceContainer.width.coerceAtLeast(1)
+        val h = surfaceContainer.height.coerceAtLeast(1)
+        surfaceRenderer = AutoSurfaceRenderer(surface, w, h).apply {
+            isActive = isListening
+            start()
+        }
     }
 
     override fun onSurfaceDestroyed(surfaceContainer: SurfaceContainer) {
+        surfaceRenderer?.stop()
+        surfaceRenderer = null
         surfaceContainer.surface?.release()
         surfaceReceived = false
     }

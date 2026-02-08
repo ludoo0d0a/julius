@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 enum class AgentType { OpenAI, ElevenLabs, Deepgram, Native, Gemini, Genkit, FirebaseAI, Embedded }
-enum class AppTheme { Particles, Sphere, Waves }
+enum class AppTheme { Particles, Sphere, Waves, Fractal }
 enum class IaModel(val modelName: String, val displayName: String) {
     LLAMA_3_1_SONAR_SMALL("llama-3.1-sonar-small-128k-online", "Sonar Small"),
     LLAMA_3_1_SONAR_LARGE("llama-3.1-sonar-large-128k-online", "Sonar Large"),
@@ -62,7 +62,11 @@ open class SettingsManager(context: Context) {
                 android.util.Log.w("SettingsManager", "Invalid agent name in preferences, using default: ${e.message}")
                 AgentType.Deepgram
             },
-            selectedTheme = AppTheme.valueOf(prefs.getString("theme", AppTheme.Particles.name) ?: AppTheme.Particles.name),
+            selectedTheme = try {
+                AppTheme.valueOf(prefs.getString("theme", AppTheme.Particles.name) ?: AppTheme.Particles.name)
+            } catch (e: IllegalArgumentException) {
+                AppTheme.Particles
+            },
             selectedModel = IaModel.valueOf(prefs.getString("model", IaModel.LLAMA_3_1_SONAR_SMALL.name) ?: IaModel.LLAMA_3_1_SONAR_SMALL.name)
         )
     }

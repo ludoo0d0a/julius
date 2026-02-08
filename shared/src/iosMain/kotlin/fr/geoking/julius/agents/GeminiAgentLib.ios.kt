@@ -6,12 +6,17 @@ import fr.geoking.julius.shared.NetworkException
  * iOS implementation of GeminiAgentLib.
  * Google GenAI SDK (Java) is not available on iOS.
  */
-actual class GeminiAgentLib(
-    private val apiKey: String,
-    private val model: String = "gemini-3-flash-preview"
-) : ConversationalAgent {
+actual class GeminiAgentLib : ConversationalAgent {
 
-    actual override suspend fun process(input: String): AgentResponse {
+    private val apiKey: String
+    private val model: String
+
+    actual constructor(apiKey: String, model: String) {
+        this.apiKey = apiKey
+        this.model = model
+    }
+
+    override suspend fun process(input: String): AgentResponse {
         throw NetworkException(
             null,
             "GeminiAgentLib (Google GenAI SDK) is not supported on iOS. Use GeminiAgent (HTTP-based) instead."
