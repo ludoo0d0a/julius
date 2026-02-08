@@ -11,7 +11,7 @@ plugins {
 
 kotlin {
     androidLibrary {
-        namespace = "com.antigravity.voiceai.shared"
+        namespace = "fr.geoking.julius.shared"
         compileSdk = 36
         minSdk = 26
         
@@ -104,7 +104,7 @@ tasks.register<JavaExec>("desktopRunDebug") {
     classpath += mainCompilation.output.allOutputs
     
     // Set main class
-    mainClass.set("com.antigravity.voiceai.debug.GeminiDebugKt")
+    mainClass.set("fr.geoking.julius.debug.GeminiDebugKt")
     
     // Set working directory to project root so it can find local.properties
     workingDir = rootProject.projectDir

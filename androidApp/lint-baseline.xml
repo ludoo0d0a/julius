@@ -7,7 +7,7 @@
         errorLine1="            .commit() // Changed from apply() to commit() for immediate persistence"
         errorLine2="             ~~~~~~~~">
         <location
-            file="src/main/kotlin/com/antigravity/voiceai/SettingsManager.kt"
+            file="src/main/kotlin/fr/geoking/julius/SettingsManager.kt"
             line="99"
             column="14"/>
     </issue>
@@ -161,7 +161,7 @@
         errorLine1="                ) {"
         errorLine2="                  ^">
         <location
-            file="src/main/kotlin/com/antigravity/voiceai/MainActivity.kt"
+            file="src/main/kotlin/fr/geoking/julius/MainActivity.kt"
             line="83"
             column="19"/>
     </issue>
@@ -230,7 +230,7 @@
         errorLine1="                data = Uri.parse(&quot;sms:$phoneNumber&quot;)"
         errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/com/antigravity/voiceai/AndroidActionExecutor.kt"
+            file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
             line="76"
             column="24"/>
     </issue>
@@ -241,7 +241,7 @@
         errorLine1="                data = Uri.parse(&quot;sms:$phoneNumber&quot;)"
         errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/com/antigravity/voiceai/AndroidActionExecutor.kt"
+            file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
             line="76"
             column="24"/>
     </issue>
@@ -252,7 +252,7 @@
         errorLine1="                data = Uri.parse(&quot;tel:$phoneNumber&quot;)"
         errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/com/antigravity/voiceai/AndroidActionExecutor.kt"
+            file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
             line="99"
             column="24"/>
     </issue>
@@ -263,7 +263,7 @@
         errorLine1="                data = Uri.parse(&quot;tel:$phoneNumber&quot;)"
         errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/com/antigravity/voiceai/AndroidActionExecutor.kt"
+            file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
             line="99"
             column="24"/>
     </issue>
@@ -274,7 +274,7 @@
         errorLine1="                this.data = Uri.parse(&quot;geo:0,0?q=$query&quot;)"
         errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/com/antigravity/voiceai/AndroidActionExecutor.kt"
+            file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
             line="148"
             column="29"/>
     </issue>
@@ -285,7 +285,7 @@
         errorLine1="                this.data = Uri.parse(&quot;geo:0,0?q=$query&quot;)"
         errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/com/antigravity/voiceai/AndroidActionExecutor.kt"
+            file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
             line="148"
             column="29"/>
     </issue>
@@ -296,7 +296,7 @@
         errorLine1="                    this.data = Uri.parse(&quot;geo:0,0?q=$query&quot;)"
         errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/com/antigravity/voiceai/AndroidActionExecutor.kt"
+            file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
             line="159"
             column="33"/>
     </issue>
@@ -307,7 +307,7 @@
         errorLine1="                    this.data = Uri.parse(&quot;geo:0,0?q=$query&quot;)"
         errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/com/antigravity/voiceai/AndroidActionExecutor.kt"
+            file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
             line="159"
             column="33"/>
     </issue>
@@ -318,7 +318,7 @@
         errorLine1="        prefs.edit()"
         errorLine2="        ~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/com/antigravity/voiceai/SettingsManager.kt"
+            file="src/main/kotlin/fr/geoking/julius/SettingsManager.kt"
             line="86"
             column="9"/>
     </issue>

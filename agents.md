@@ -22,7 +22,7 @@ Julius is a **Kotlin Multiplatform (KMP)** voice assistant application designed 
 
 #### Key Components
 
-**Agents (`shared/src/commonMain/kotlin/com/antigravity/voiceai/agents/`):**
+**Agents (`shared/src/commonMain/kotlin/fr/geoking/julius/agents/`):**
 - `ConversationalAgent`: Interface for all AI agents
 - `OpenAIAgent`: OpenAI GPT integration
 - `GeminiAgent`: Google Gemini integration
@@ -365,7 +365,7 @@ Julius supports multiple AI agents, each with different capabilities, pricing mo
 ### Development Workflow
 
 **Adding a new agent:**
-1. Create new class in `shared/src/commonMain/kotlin/com/antigravity/voiceai/agents/`
+1. Create new class in `shared/src/commonMain/kotlin/fr/geoking/julius/agents/`
 2. Implement `ConversationalAgent` interface
 3. Add `AgentType` enum value in `SettingsManager.kt`
 4. Update `DynamicAgentWrapper.process()` to handle new agent type
@@ -412,10 +412,10 @@ Julius supports multiple AI agents, each with different capabilities, pricing mo
 
 ### Key Files to Remember
 
-- **`androidApp/src/main/kotlin/com/antigravity/voiceai/di/AppModule.kt`**: DI configuration, agent wrapper setup
-- **`shared/src/commonMain/kotlin/com/antigravity/voiceai/ConversationStore.kt`**: Core conversation logic
-- **`androidApp/src/main/kotlin/com/antigravity/voiceai/SettingsManager.kt`**: Settings and agent type management
-- **`androidApp/src/main/kotlin/com/antigravity/voiceai/AndroidVoiceManager.kt`**: Platform-specific voice implementation
+- **`androidApp/src/main/kotlin/fr/geoking/julius/di/AppModule.kt`**: DI configuration, agent wrapper setup
+- **`shared/src/commonMain/kotlin/fr/geoking/julius/ConversationStore.kt`**: Core conversation logic
+- **`androidApp/src/main/kotlin/fr/geoking/julius/SettingsManager.kt`**: Settings and agent type management
+- **`androidApp/src/main/kotlin/fr/geoking/julius/AndroidVoiceManager.kt`**: Platform-specific voice implementation
 
 ### Technology Versions
 - Kotlin: 2.3.0
@@ -432,11 +432,11 @@ Julius supports multiple AI agents, each with different capabilities, pricing mo
 ### Build Configuration Notes
 - `compileSdk = 36`, `targetSdk = 36`, `minSdk = 26`
 - JVM target: 1.8
-- Application ID: `com.antigravity.voiceai`
-- Package namespace: `com.antigravity.voiceai` (androidApp), `com.antigravity.voiceai.shared` (shared)
+- Application ID: `fr.geoking.julius`
+- Package namespace: `fr.geoking.julius` (androidApp), `fr.geoking.julius.shared` (shared)
 
 ### Android Auto Specifics
-- Service: `VoiceAppService` in `androidApp/src/main/kotlin/com/antigravity/voiceai/auto/`
+- Service: `VoiceAppService` in `androidApp/src/main/kotlin/fr/geoking/julius/auto/`
 - Category: `androidx.car.app.category.MESSAGING`
 - Minimum Car API Level: 1
 - Requires `automotive_app_desc.xml` resource

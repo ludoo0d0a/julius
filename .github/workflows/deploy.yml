@@ -37,7 +37,7 @@ jobs:
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
-          packageName: com.antigravity.voiceai
+          packageName: fr.geoking.julius
           releaseFiles: androidApp/build/outputs/bundle/release/*.aab
           track: internal
           whatsNew: "New release"

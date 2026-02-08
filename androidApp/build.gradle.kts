@@ -7,11 +7,11 @@ plugins {
 }
 
 configure<ApplicationExtension> {
-    namespace = "com.antigravity.voiceai"
+    namespace = "fr.geoking.julius"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.antigravity.voiceai"
+        applicationId = "fr.geoking.julius"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
