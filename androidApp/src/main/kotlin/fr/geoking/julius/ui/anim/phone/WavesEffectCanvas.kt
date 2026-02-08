@@ -1,4 +1,4 @@
-package fr.geoking.julius.ui.components
+package fr.geoking.julius.ui.anim.phone
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -243,4 +243,3 @@ private fun DrawScope.drawRadialWaves(
         )
     }
 }
-

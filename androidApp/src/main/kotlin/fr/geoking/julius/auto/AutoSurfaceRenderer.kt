@@ -1,6 +1,9 @@
 package fr.geoking.julius.auto
 
 import android.view.Surface
+import fr.geoking.julius.ui.anim.auto.AutoParticlesEffect
+import fr.geoking.julius.ui.anim.auto.AutoSphereEffect
+import fr.geoking.julius.ui.anim.auto.AutoWavesEffect
 import kotlin.math.PI
 import kotlin.math.sin
 

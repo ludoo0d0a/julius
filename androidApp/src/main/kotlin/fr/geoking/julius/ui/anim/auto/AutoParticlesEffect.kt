@@ -1,4 +1,4 @@
-package fr.geoking.julius.auto
+package fr.geoking.julius.ui.anim.auto
 
 import android.graphics.Canvas
 import android.graphics.Color

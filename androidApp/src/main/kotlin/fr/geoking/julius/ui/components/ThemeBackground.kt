@@ -3,6 +3,10 @@ package fr.geoking.julius.ui.components
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import fr.geoking.julius.AppTheme
+import fr.geoking.julius.ui.anim.phone.FractalEffectCanvas
+import fr.geoking.julius.ui.anim.phone.ParticleEffectCanvas
+import fr.geoking.julius.ui.anim.phone.SphereEffectCanvas
+import fr.geoking.julius.ui.anim.phone.WavesEffectCanvas
 
 /**
  * Full-screen background effect based on selected theme; intensity follows isActive.

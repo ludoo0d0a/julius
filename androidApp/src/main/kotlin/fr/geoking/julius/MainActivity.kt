@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
@@ -21,8 +22,8 @@ import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.ConversationState
 import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.ui.SettingsScreen
+import fr.geoking.julius.ui.anim.phone.TrayLight
 import fr.geoking.julius.ui.components.ThemeBackground
-import fr.geoking.julius.ui.components.TrayLight
 import fr.geoking.julius.ui.components.VoiceControlButton
 import fr.geoking.julius.ui.components.VoiceStatusContent
 import fr.geoking.julius.ui.components.SettingsButton
@@ -151,7 +152,7 @@ fun MainUIPreview() {
                 override fun startListening() {}
                 override fun stopListening() {}
                 override fun speak(text: String) {}
-                override fun playAudio(data: ByteArray) {}
+                override fun playAudio(bytes: ByteArray) {}
                 override fun stopSpeaking() {}
             },
             actionExecutor = null
@@ -160,8 +161,9 @@ fun MainUIPreview() {
         }
     }
     
-    val mockSettingsManager = remember {
-        object : SettingsManager(null as android.content.Context) {
+    val context = LocalContext.current
+    val mockSettingsManager = remember(context) {
+        object : SettingsManager(context) {
             private val mockSettings = MutableStateFlow(
                 AppSettings()
             )
