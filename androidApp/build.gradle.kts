@@ -16,7 +16,7 @@ configure<ApplicationExtension> {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-        
+
         val elevenLabsKey = project.rootProject.file("local.properties").let { file ->
             if (file.exists()) {
                 val properties = Properties()
@@ -119,6 +119,13 @@ configure<ApplicationExtension> {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    packaging {
+        resources {
+            excludes += "META-INF/INDEX.LIST"
+            excludes += "META-INF/DEPENDENCIES"
+        }
     }
 
     lint {
