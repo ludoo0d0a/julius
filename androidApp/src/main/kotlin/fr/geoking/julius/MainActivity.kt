@@ -5,18 +5,23 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.consume
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlin.math.abs
 
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.ConversationState
@@ -64,6 +69,9 @@ fun MainUI(
     var showSettings by remember { mutableStateOf(false) }
     val settings by settingsManager.settings.collectAsState()
     val selectedTheme = settings.selectedTheme
+    val currentSettings by rememberUpdatedState(settings)
+    val currentTheme by rememberUpdatedState(selectedTheme)
+    val swipeThresholdPx = with(LocalDensity.current) { 80.dp.toPx() }
     
     MaterialTheme(
         colorScheme = darkColorScheme(background = Color(0xFF0F172A))
@@ -76,7 +84,49 @@ fun MainUI(
                 SettingsScreen(settingsManager, state.errorLog) { showSettings = false }
             } else {
                 BoxWithConstraints(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            var dragAmount = 0f
+                            detectHorizontalDragGestures(
+                                onDragStart = { dragAmount = 0f },
+                                onHorizontalDrag = { change, dragAmountX ->
+                                    dragAmount += dragAmountX
+                                    change.consume()
+                                },
+                                onDragEnd = {
+                                    if (abs(dragAmount) >= swipeThresholdPx) {
+                                        val themes = AppTheme.entries
+                                        val currentIndex = themes.indexOf(currentTheme).let { if (it < 0) 0 else it }
+                                        val nextIndex = if (dragAmount < 0f) {
+                                            (currentIndex + 1) % themes.size
+                                        } else {
+                                            (currentIndex - 1 + themes.size) % themes.size
+                                        }
+                                        val nextTheme = themes[nextIndex]
+                                        if (nextTheme != currentTheme) {
+                                            val saved = currentSettings
+                                            settingsManager.saveSettings(
+                                                openAiKey = saved.openAiKey,
+                                                elevenLabsKey = saved.elevenLabsKey,
+                                                perplexityKey = saved.perplexityKey,
+                                                geminiKey = saved.geminiKey,
+                                                deepgramKey = saved.deepgramKey,
+                                                genkitApiKey = saved.genkitApiKey,
+                                                genkitEndpoint = saved.genkitEndpoint,
+                                                firebaseAiKey = saved.firebaseAiKey,
+                                                firebaseAiModel = saved.firebaseAiModel,
+                                                agent = saved.selectedAgent,
+                                                theme = nextTheme,
+                                                model = saved.selectedModel
+                                            )
+                                        }
+                                    }
+                                    dragAmount = 0f
+                                },
+                                onDragCancel = { dragAmount = 0f }
+                            )
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     // 1. Background Theme Effect (Applied from settings)
