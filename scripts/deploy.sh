@@ -64,7 +64,7 @@ if [ $? -eq 0 ]; then
     echo "  3. Enable 'Unknown sources' (if not already enabled)"
     echo "  4. Make sure 'Developer mode' is enabled (you mentioned you already did this)"
     echo "  5. Connect your phone to your car's Android Auto"
-    echo "  6. The app 'Voice AI' should now appear in Android Auto"
+    echo "  6. The app 'Julius' should now appear in Android Auto"
     echo ""
     echo "💡 Tip: If the app doesn't appear, try:"
     echo "  - Restart Android Auto on your phone"
