@@ -21,12 +21,12 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Build with Gradle
-        run: ./gradlew :androidApp:bundleRelease
+        run: ./gradlew :androidApp:bundlePlayRelease
 
       - name: Sign AAB
         uses: r0adkll/sign-android-release@v1
         with:
-          releaseDirectory: androidApp/build/outputs/bundle/release
+          releaseDirectory: androidApp/build/outputs/bundle/playRelease
           signingKeyBase64: ${{ secrets.SIGNING_KEY }}
           alias: ${{ secrets.ALIAS }}
           keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
@@ -37,6 +37,6 @@ jobs:
         with:
           serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
           packageName: fr.geoking.julius
-          releaseFiles: androidApp/build/outputs/bundle/release/*.aab
+          releaseFiles: androidApp/build/outputs/bundle/playRelease/*.aab
           track: test
           whatsNew: "Automated test build #${{ github.run_number }}"

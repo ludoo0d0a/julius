@@ -380,6 +380,26 @@ Julius supports multiple AI agents, each with different capabilities, pricing mo
 - Use Android Auto Desktop Head Unit (AA Desktop Head Unit)
 - Or deploy to a physical device with Android Auto support
 
+**Running on a physical car (phone-projected Android Auto):**  
+Sideloaded/debug builds are hidden from the car launcher unless you allow non-Play apps:
+
+1. **Build the right variant**  
+   Use the **full** flavor so the app has car permissions (`ACCESS_SURFACE`, `NAVIGATION_TEMPLATES`). In Android Studio: **Build > Select Build Variant** → choose `fullDebug` (or `fullRelease` with your keystore). Then install to the phone (Run or `./gradlew :androidApp:installFullDebug`).
+
+2. **Signing**  
+   Debug builds are signed with the debug keystore automatically; no extra config needed for development. For release, configure `signingConfigs` in `androidApp/build.gradle.kts` and use `fullRelease`.
+
+3. **Enable Android Auto developer mode (on the phone)**  
+   - Open **Settings** → search for **Android Auto** (or **Settings > Apps > Android Auto >** “Configure in Android Auto” / “Additional settings”).  
+   - In Android Auto settings, go to **About** and tap **Version** (or “Version and permission info”) **about 10 times** until a toast says you’re a developer.  
+   - Open the **⋮** menu → **Developer settings**.
+
+4. **Allow sideloaded apps in the car launcher**  
+   In **Developer settings**, turn **Unknown sources** (or “Add new apps”) **ON**. By default, only Play-installed apps are shown; this makes your installed Julius build visible in the car.
+
+5. **Connect and check**  
+   Connect the phone to the car (USB or wireless Android Auto). Julius should appear in the car’s app launcher. If it doesn’t, unplug/reconnect or restart Android Auto; some phones (e.g. Samsung) may “sleep” unused apps—open Julius on the phone once and retry.
+
 ## Memories
 
 ### Important Code Patterns
