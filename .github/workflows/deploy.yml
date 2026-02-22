@@ -20,17 +20,17 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Build with Gradle
-        run: ./gradlew :androidApp:bundlePlayRelease
+      - name: Decode signing key
+        run: |
+          echo "${{ secrets.SIGNING_KEY }}" | tr -d '\n' | base64 -d > release.keystore
 
-      - name: Sign AAB
-        uses: r0adkll/sign-android-release@v1
-        with:
-          releaseDirectory: androidApp/build/outputs/bundle/playRelease
-          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
-          alias: ${{ secrets.ALIAS }}
-          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD }}
+      - name: Build and sign with Gradle
+        run: |
+          ./gradlew :androidApp:bundlePlayRelease \
+            -Pandroid.injected.signing.store.file=${{ github.workspace }}/release.keystore \
+            -Pandroid.injected.signing.store.password=${{ secrets.KEY_STORE_PASSWORD }} \
+            -Pandroid.injected.signing.key.alias=${{ secrets.ALIAS }} \
+            -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
 
       - name: Deploy to Google Play
         uses: r0adkll/upload-google-play@v1
