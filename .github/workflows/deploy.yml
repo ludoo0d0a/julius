@@ -21,8 +21,10 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Decode signing key
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
         run: |
-          echo "${{ secrets.SIGNING_KEY }}" | tr -d '\n' | base64 -d > release.keystore
+          printf '%s' "$SIGNING_KEY" | tr -d '\n' | base64 -d > release.keystore
 
       - name: Build and sign with Gradle
         run: |
