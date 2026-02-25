@@ -1,5 +1,7 @@
 # Julius - Voice AI Assistant
 
+**Repository:** https://github.com/ludoo0d0a/julius
+
 Julius is a **Kotlin Multiplatform (KMP)** application designed to provide a seamless voice assistant experience on **Android** and **Android Auto**.
 
 ## Project Structure
