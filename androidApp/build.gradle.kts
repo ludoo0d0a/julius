@@ -16,10 +16,14 @@ configure<ApplicationExtension> {
         targetSdk = 36
         val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()
         val ciRunAttempt = System.getenv("GITHUB_RUN_ATTEMPT")?.toIntOrNull() ?: 1
-        val computedVersionCode = if (ciRunNumber != null) {
-            (ciRunNumber * 10) + ciRunAttempt
-        } else {
-            1
+        val localProps = rootProject.file("local.properties").takeIf { it.exists() }?.let { file ->
+            Properties().apply { file.inputStream().use { load(it) } }
+        }
+        val localVersionCode = localProps?.getProperty("version.code")?.toIntOrNull()
+        val computedVersionCode = when {
+            ciRunNumber != null -> (ciRunNumber * 10) + ciRunAttempt
+            localVersionCode != null -> localVersionCode
+            else -> 2
         }
         val computedVersionName = if (ciRunNumber != null) {
             "1.0.$ciRunNumber"
