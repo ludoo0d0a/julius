@@ -30,32 +30,67 @@ You need to add the following secrets to your GitHub repository to allow the wor
 
 - Go to your repository's **Settings** tab.
 - In the left-hand menu, navigate to **Secrets and variables > Actions**.
-- Click **New repository secret** for each of the following secrets:
+- Click **New repository secret** for each of the following secrets.
 
-1.  **`SERVICE_ACCOUNT_JSON`**:
-    -   Open the JSON file you downloaded when creating the service account.
-    -   Copy the entire content of the file and paste it into the secret's value field.
+See [Encrypted secrets](https://docs.github.com/en/actions/security-guides/encrypted-secrets) in the GitHub Actions documentation for more details.
 
-2.  **`SIGNING_KEY`**:
-    -   This is your application's signing key, base64-encoded. If you don't have a signing key, you can generate one using the following command:
-        ```bash
-        keytool -genkey -v -keystore my-release-key.keystore -alias my-alias -keyalg RSA -keysize 2048 -validity 10000
-        ```
-    -   Once you have the keystore file, you need to base64-encode it. You can do this with the following command:
-        ```bash
-        openssl base64 < my-release-key.keystore | tr -d '\n' | tee my-release-key.keystore.base64.txt
-        ```
-    -   Copy the output and paste it into the secret's value field.
+### 1. `SERVICE_ACCOUNT_JSON`
 
-3.  **`ALIAS`**:
-    -   The alias of your signing key (e.g., `my-alias`).
+- Open the JSON file you downloaded when creating the service account.
+- Copy the **entire** content of the file and paste it into the secret's value field.
 
-4.  **`KEY_STORE_PASSWORD`**:
-    -   The password for your keystore.
+### 2. `SIGNING_KEY`
 
-5.  **`KEY_PASSWORD`**:
-    -   The password for your key.
+This is your Android app signing keystore, **base64-encoded** (single line, no newlines). The workflow decodes it at build time to sign the release bundle.
+
+#### Option A: Generate a new keystore
+
+If you don't have a signing key yet:
+
+1. **Generate the keystore** using `keytool` (included with the JDK):
+
+   ```bash
+   keytool -genkey -v -keystore julius-app.keystore -alias julius-app -keyalg RSA -keysize 2048 -validity 10000
+   ```
+
+   You will be prompted for the keystore password, key password, and certificate details. Remember the **alias** and **passwords** — you'll need them for the other secrets.
+
+   Reference: [Android app signing](https://developer.android.com/studio/publish/app-signing#generate-key) | [keytool documentation](https://docs.oracle.com/javase/8/docs/technotes/tools/unix/keytool.html)
+
+2. **Back up the keystore file** — store it securely. If you lose it, you cannot update your app on the Play Store.
+
+#### Option B: Use an existing keystore
+
+If you already have a `.keystore` or `.jks` file (e.g. from a previous build or Play App Signing setup), use that file.
+
+#### Encode the keystore for GitHub
+
+3. **Base64-encode the keystore** (no line breaks — the workflow expects a single line):
+
+   **macOS / Linux (OpenSSL):**
+   ```bash
+   openssl base64 < julius-app.keystore | tr -d '\n' | tee julius-app.keystore.base64.txt
+   ```
+
+   **Linux (GNU base64):**
+   ```bash
+   base64 -w 0 julius-app.keystore > julius-app.keystore.base64.txt
+   ```
+
+4. **Copy the encoded value** from `julius-app.keystore.base64.txt` and paste it into the `SIGNING_KEY` secret. Do not add spaces, newlines, or quotes.
+
+### 3. `ALIAS`
+
+The alias of your signing key — the value you used with `-alias` when generating the keystore (e.g. `my-alias`).
+
+### 4. `KEY_STORE_PASSWORD`
+
+The password you set for the keystore when generating it.
+
+### 5. `KEY_PASSWORD`
+
+The password for the key itself. For many keystores this is the same as `KEY_STORE_PASSWORD`.
 
 ## Conclusion
 
-Once you have completed these steps, the GitHub Actions workflow will be able to automatically build, sign, and deploy your Android application to the Google Play Store whenever you push to the `main` branch.
+Once you have completed these steps, the GitHub Actions workflow will be able to automatically build, sign, and deploy your Android application to the Google Play Store on every push or when triggered manually via **Actions > Deploy to Google Play Store > Run workflow**.

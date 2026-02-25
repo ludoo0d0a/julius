@@ -31,3 +31,4 @@ androidApp/release/*
 *.apk
 *.aab
 
+julius-app.keystore.base64.txt
