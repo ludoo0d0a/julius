@@ -58,5 +58,5 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
           packageName: fr.geoking.julius
           releaseFiles: androidApp/build/outputs/bundle/playRelease/*.aab
-          track: test
+          track: internal
           whatsNew: "Automated test build #${{ github.run_number }}"
