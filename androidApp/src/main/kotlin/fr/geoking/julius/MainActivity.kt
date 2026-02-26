@@ -29,6 +29,7 @@ import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.ui.anim.phone.TrayLightEffectCanvas
 import fr.geoking.julius.ui.anim.AnimationPalettes
+import fr.geoking.julius.ui.components.MicroMainContent
 import fr.geoking.julius.ui.components.ThemeBackground
 import fr.geoking.julius.ui.components.VoiceControlButton
 import fr.geoking.julius.ui.components.VoiceStatusContent
@@ -71,14 +72,21 @@ fun MainUI(
     val settings by settingsManager.settings.collectAsState()
     val selectedTheme = settings.selectedTheme
     val paletteIndex by AnimationPalettes.index.collectAsState()
-    val palette = remember(paletteIndex) { AnimationPalettes.paletteFor(paletteIndex) }
+    val palette = remember(paletteIndex, selectedTheme) {
+        if (selectedTheme == AppTheme.Micro) {
+            AnimationPalettes.paletteFor(AnimationPalettes.microPaletteIndex)
+        } else {
+            AnimationPalettes.paletteFor(paletteIndex)
+        }
+    }
     val currentSettings by rememberUpdatedState(settings)
     val currentTheme by rememberUpdatedState(selectedTheme)
     val verticalSwipeThresholdPx = with(LocalDensity.current) { 64.dp.toPx() }
     val horizontalSwipeThresholdPx = with(LocalDensity.current) { 80.dp.toPx() }
     
+    val backgroundColor = if (selectedTheme == AppTheme.Micro) Color(0xFF21004C) else Color(0xFF0F172A)
     MaterialTheme(
-        colorScheme = darkColorScheme(background = Color(0xFF0F172A))
+        colorScheme = darkColorScheme(background = backgroundColor)
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -166,37 +174,62 @@ fun MainUI(
                             .widthIn(max = 600.dp)
                             .fillMaxSize()
                     ) {
-                        VoiceStatusContent(
-                            agentName = settings.selectedAgent.name,
-                            status = state.status,
-                            displayText = if (state.status == VoiceEvent.Listening) state.currentTranscript else state.messages.lastOrNull()?.text ?: "Hi, how can I help?",
-                            lastError = state.lastError,
-                            modifier = Modifier.align(Alignment.Center)
-                        )
-                        TrayLightEffectCanvas(
-                            isActive = state.status == VoiceEvent.Listening,
-                            palette = palette,
-                            modifier = Modifier.align(Alignment.BottomCenter)
-                        )
-                        VoiceControlButton(
-                            status = state.status,
-                            onClick = {
-                                when (state.status) {
-                                    VoiceEvent.Speaking -> store.stopSpeaking()
-                                    VoiceEvent.Listening -> store.stopListening()
-                                    else -> store.startListening()
-                                }
-                            },
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(bottom = 40.dp)
-                        )
-                        SettingsButton(
-                            onClick = { showSettings = true },
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(start = 24.dp, bottom = 48.dp)
-                        )
+                        if (selectedTheme == AppTheme.Micro) {
+                            MicroMainContent(
+                                status = state.status,
+                                displayText = if (state.status == VoiceEvent.Listening) state.currentTranscript else state.messages.lastOrNull()?.text ?: "Hi, how can I help?",
+                                lastError = state.lastError,
+                                palette = palette,
+                                onMicClick = {
+                                    when (state.status) {
+                                        VoiceEvent.Speaking -> store.stopSpeaking()
+                                        VoiceEvent.Listening -> store.stopListening()
+                                        else -> store.startListening()
+                                    }
+                                },
+                                onCancelClick = {
+                                    when (state.status) {
+                                        VoiceEvent.Speaking -> store.stopSpeaking()
+                                        VoiceEvent.Listening -> store.stopListening()
+                                        else -> Unit
+                                    }
+                                },
+                                onSettingsClick = { showSettings = true },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            VoiceStatusContent(
+                                agentName = settings.selectedAgent.name,
+                                status = state.status,
+                                displayText = if (state.status == VoiceEvent.Listening) state.currentTranscript else state.messages.lastOrNull()?.text ?: "Hi, how can I help?",
+                                lastError = state.lastError,
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                            TrayLightEffectCanvas(
+                                isActive = state.status == VoiceEvent.Listening,
+                                palette = palette,
+                                modifier = Modifier.align(Alignment.BottomCenter)
+                            )
+                            VoiceControlButton(
+                                status = state.status,
+                                onClick = {
+                                    when (state.status) {
+                                        VoiceEvent.Speaking -> store.stopSpeaking()
+                                        VoiceEvent.Listening -> store.stopListening()
+                                        else -> store.startListening()
+                                    }
+                                },
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(bottom = 40.dp)
+                            )
+                            SettingsButton(
+                                onClick = { showSettings = true },
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(start = 24.dp, bottom = 48.dp)
+                            )
+                        }
                     }
                 }
             }

@@ -82,6 +82,16 @@ object AnimationPalettes {
                 0xFFF472B6.toInt(), // Pink
                 0xFFA855F7.toInt()  // Violet
             )
+        ),
+        AnimationPalette(
+            name = "Micro",
+            colors = listOf(
+                0xFFA732FF.toInt(), // Vibrant lavender
+                0xFFB388FF.toInt(), // Light lavender
+                0xFF7C4DFF.toInt(), // Purple
+                0xFFD1C4E9.toInt(), // Pale lavender
+                0xFF9575CD.toInt()  // Medium purple
+            )
         )
     )
 
@@ -111,4 +121,8 @@ object AnimationPalettes {
         val safeIndex = ((newIndex % palettes.size) + palettes.size) % palettes.size
         _index.value = safeIndex
     }
+
+    /** Index of the Micro palette (last in list). */
+    val microPaletteIndex: Int
+        get() = (palettes.size - 1).coerceAtLeast(0)
 }

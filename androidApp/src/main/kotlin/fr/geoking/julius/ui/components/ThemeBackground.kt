@@ -6,6 +6,7 @@ import fr.geoking.julius.AppTheme
 import fr.geoking.julius.ui.anim.AnimationPalette
 import fr.geoking.julius.ui.anim.AnimationPalettes
 import fr.geoking.julius.ui.anim.phone.FractalEffectCanvas
+import fr.geoking.julius.ui.anim.phone.MicroEffectCanvas
 import fr.geoking.julius.ui.anim.phone.ParticlesEffectCanvas
 import fr.geoking.julius.ui.anim.phone.SphereEffectCanvas
 import fr.geoking.julius.ui.anim.phone.WavesEffectCanvas
@@ -24,6 +25,7 @@ fun ThemeBackground(
         AppTheme.Sphere -> SphereEffectCanvas(isActive = isActive, palette = palette)
         AppTheme.Waves -> WavesEffectCanvas(isActive = isActive, palette = palette)
         AppTheme.Fractal -> FractalEffectCanvas(isActive = isActive, palette = palette)
+        AppTheme.Micro -> MicroEffectCanvas(isActive = isActive, palette = palette)
     }
 }
 
@@ -74,5 +76,15 @@ private fun ThemeBackgroundFractalPreview() {
         theme = AppTheme.Fractal,
         isActive = true,
         palette = AnimationPalettes.paletteFor(0)
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ThemeBackgroundMicroPreview() {
+    ThemeBackground(
+        theme = AppTheme.Micro,
+        isActive = true,
+        palette = AnimationPalettes.paletteFor(AnimationPalettes.microPaletteIndex)
     )
 }
