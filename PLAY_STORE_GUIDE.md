@@ -91,6 +91,22 @@ The password you set for the keystore when generating it.
 
 The password for the key itself. For many keystores this is the same as `KEY_STORE_PASSWORD`.
 
+## Troubleshooting
+
+### "The Android App Bundle was signed with the wrong key"
+
+This error means the keystore in `SIGNING_KEY` does not match the one Google Play expects. **You must use the exact keystore that was used when the app was first published** — Google Play does not accept uploads signed with a different key.
+
+1. **Find your original upload keystore** — the `.jks` or `.keystore` file used for the first Play Store upload.
+2. **Verify the SHA1 fingerprint** matches what Play Console expects:
+   ```bash
+   keytool -list -v -keystore your-release.keystore -alias your-alias
+   ```
+   Compare the SHA1 with the one shown in the error message (the "expected" value).
+3. **Update GitHub secrets** with that keystore: re-encode it, set `SIGNING_KEY`, and ensure `ALIAS`, `KEY_STORE_PASSWORD`, and `KEY_PASSWORD` match.
+
+If you no longer have the original keystore, you cannot update the app. See [Google's key loss guidance](https://support.google.com/googleplay/android-developer/answer/9842756).
+
 ## Conclusion
 
 Once you have completed these steps, the GitHub Actions workflow will be able to automatically build, sign, and deploy your Android application to the Google Play Store on every push or when triggered manually via **Actions > Deploy to Google Play Store > Run workflow**.

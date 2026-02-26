@@ -59,4 +59,5 @@ jobs:
           packageName: fr.geoking.julius
           releaseFiles: androidApp/build/outputs/bundle/playRelease/*.aab
           track: internal
+          status: draft
           whatsNew: "Automated test build #${{ github.run_number }}"
