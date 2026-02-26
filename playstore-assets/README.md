@@ -42,9 +42,20 @@ Perfect for drivers who want a smart assistant in the car, or anyone who prefers
 | **App icon** | `icon-512.png` | 512×512 px | High-resolution icon (required) |
 | **Feature graphic** | `feature-graphic-1024x500.png` | 1024×500 px | Store listing banner (required) |
 
-## Optional Assets (recommended)
+## Phone Screenshots (2–8 required)
 
-- **Phone screenshots**: 320–3840 px on shortest side (e.g. 1080×1920)
+| File | Size | Description |
+|------|------|-------------|
+| `screenshot-1-ready.png` | 1080×1920 | Ready / tap to speak |
+| `screenshot-2-listening.png` | 1080×1920 | Listening state |
+| `screenshot-3-conversation.png` | 1080×1920 | Conversation view |
+| `screenshot-4-settings.png` | 1080×1920 | Settings / agent selection |
+| `screenshot-5-speaking.png` | 1080×1920 | Speaking / response |
+
+Format: PNG, 9:16, 320–3840 px per side, max 8 MB each.
+
+## Optional Assets
+
 - **7" tablet screenshots**: 1200×1920 px
 - **10" tablet screenshots**: 1600×2560 px
 - **TV banner**: 1280×720 px (if targeting Android TV)
@@ -55,7 +66,7 @@ Perfect for drivers who want a smart assistant in the car, or anyone who prefers
 2. Select your app → **Store presence** → **Main store listing**
 3. Upload **icon-512.png** under "App icon"
 4. Upload **feature-graphic-1024x500.png** under "Feature graphic"
-5. Add screenshots by running the app and capturing key screens
+5. Upload **screenshot-1-ready.png** through **screenshot-5-speaking.png** (or replace with real captures)
 
 ## Design Notes
 
