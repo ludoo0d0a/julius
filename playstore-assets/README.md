@@ -54,9 +54,18 @@ Perfect for drivers who want a smart assistant in the car, or anyone who prefers
 
 Format: PNG, 9:16, 320–3840 px per side, max 8 MB each.
 
+## 7" Tablet Screenshots (3 required if supporting tablets)
+
+| File | Size | Description |
+|------|------|-------------|
+| `tablet7-1-ready.png` | 1080×1920 | Ready / tap to speak |
+| `tablet7-2-conversation.png` | 1080×1920 | Conversation view |
+| `tablet7-3-settings.png` | 1080×1920 | Settings |
+
+Format: PNG, 9:16, 320–3840 px per side, max 8 MB each.
+
 ## Optional Assets
 
-- **7" tablet screenshots**: 1200×1920 px
 - **10" tablet screenshots**: 1600×2560 px
 - **TV banner**: 1280×720 px (if targeting Android TV)
 
