@@ -2,6 +2,7 @@ package fr.geoking.julius.ui.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import fr.geoking.julius.AppSettings
 import fr.geoking.julius.AppTheme
 import fr.geoking.julius.ui.anim.AnimationPalette
 import fr.geoking.julius.ui.anim.AnimationPalettes
@@ -18,13 +19,19 @@ import fr.geoking.julius.ui.anim.phone.WavesEffectCanvas
 fun ThemeBackground(
     theme: AppTheme,
     isActive: Boolean,
-    palette: AnimationPalette
+    palette: AnimationPalette,
+    settings: AppSettings = AppSettings()
 ) {
     when (theme) {
         AppTheme.Particles -> ParticlesEffectCanvas(isActive = isActive, palette = palette)
         AppTheme.Sphere -> SphereEffectCanvas(isActive = isActive, palette = palette)
         AppTheme.Waves -> WavesEffectCanvas(isActive = isActive, palette = palette)
-        AppTheme.Fractal -> FractalEffectCanvas(isActive = isActive, palette = palette)
+        AppTheme.Fractal -> FractalEffectCanvas(
+            isActive = isActive,
+            palette = palette,
+            quality = settings.fractalQuality,
+            colorIntensity = settings.fractalColorIntensity
+        )
         AppTheme.Micro -> MicroEffectCanvas(isActive = isActive, palette = palette)
     }
 }
