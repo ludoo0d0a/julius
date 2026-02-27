@@ -67,9 +67,9 @@ open class SettingsManager(context: Context) {
                 AgentType.Deepgram
             },
             selectedTheme = try {
-                AppTheme.valueOf(prefs.getString("theme", AppTheme.Particles.name) ?: AppTheme.Particles.name)
+                AppTheme.valueOf(prefs.getString("theme", AppTheme.Micro.name) ?: AppTheme.Micro.name)
             } catch (e: IllegalArgumentException) {
-                AppTheme.Particles
+                AppTheme.Micro
             },
             selectedModel = IaModel.valueOf(prefs.getString("model", IaModel.LLAMA_3_1_SONAR_SMALL.name) ?: IaModel.LLAMA_3_1_SONAR_SMALL.name),
             fractalQuality = try {
