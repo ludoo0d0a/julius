@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 enum class AgentType { OpenAI, ElevenLabs, Deepgram, Native, Gemini, Genkit, FirebaseAI, Embedded }
-enum class AppTheme { Particles, Sphere, Waves, Fractal, Micro }
+enum class AppTheme { Micro, Particles, Sphere, Waves, Fractal }
 enum class IaModel(val modelName: String, val displayName: String) {
     LLAMA_3_1_SONAR_SMALL("llama-3.1-sonar-small-128k-online", "Sonar Small"),
     LLAMA_3_1_SONAR_LARGE("llama-3.1-sonar-large-128k-online", "Sonar Large"),
@@ -28,7 +28,7 @@ data class AppSettings(
     val firebaseAiKey: String = "",
     val firebaseAiModel: String = "gemini-1.5-flash-latest",
     val selectedAgent: AgentType = AgentType.Deepgram,
-    val selectedTheme: AppTheme = AppTheme.Particles,
+    val selectedTheme: AppTheme = AppTheme.Micro,
     val selectedModel: IaModel = IaModel.LLAMA_3_1_SONAR_SMALL
 )
 
@@ -63,9 +63,9 @@ open class SettingsManager(context: Context) {
                 AgentType.Deepgram
             },
             selectedTheme = try {
-                AppTheme.valueOf(prefs.getString("theme", AppTheme.Particles.name) ?: AppTheme.Particles.name)
+                AppTheme.valueOf(prefs.getString("theme", AppTheme.Micro.name) ?: AppTheme.Micro.name)
             } catch (e: IllegalArgumentException) {
-                AppTheme.Particles
+                AppTheme.Micro
             },
             selectedModel = IaModel.valueOf(prefs.getString("model", IaModel.LLAMA_3_1_SONAR_SMALL.name) ?: IaModel.LLAMA_3_1_SONAR_SMALL.name)
         )

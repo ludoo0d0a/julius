@@ -283,7 +283,7 @@ fun SettingsScreenPreview() {
                     firebaseAiKey = "preview-firebase-key",
                     firebaseAiModel = "gemini-1.5-flash-latest",
                     selectedAgent = AgentType.OpenAI,
-                    selectedTheme = AppTheme.Particles,
+                    selectedTheme = AppTheme.Micro,
                     selectedModel = IaModel.LLAMA_3_1_SONAR_SMALL
                 )
             )
