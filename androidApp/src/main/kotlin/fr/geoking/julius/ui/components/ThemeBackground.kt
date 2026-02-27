@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import fr.geoking.julius.AppSettings
 import fr.geoking.julius.AppTheme
+import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.ui.anim.AnimationPalette
 import fr.geoking.julius.ui.anim.AnimationPalettes
 import fr.geoking.julius.ui.anim.phone.FractalEffectCanvas
@@ -18,10 +19,11 @@ import fr.geoking.julius.ui.anim.phone.WavesEffectCanvas
 @Composable
 fun ThemeBackground(
     theme: AppTheme,
-    isActive: Boolean,
+    status: VoiceEvent,
     palette: AnimationPalette,
     settings: AppSettings = AppSettings()
 ) {
+    val isActive = status == VoiceEvent.Listening || status == VoiceEvent.Speaking
     when (theme) {
         AppTheme.Particles -> ParticlesEffectCanvas(isActive = isActive, palette = palette)
         AppTheme.Sphere -> SphereEffectCanvas(isActive = isActive, palette = palette)
@@ -32,7 +34,7 @@ fun ThemeBackground(
             quality = settings.fractalQuality,
             colorIntensity = settings.fractalColorIntensity
         )
-        AppTheme.Micro -> MicroEffectCanvas(isActive = isActive, palette = palette)
+        AppTheme.Micro -> MicroEffectCanvas(status = status, palette = palette)
     }
 }
 
@@ -41,7 +43,7 @@ fun ThemeBackground(
 private fun ThemeBackgroundParticlesIdlePreview() {
     ThemeBackground(
         theme = AppTheme.Particles,
-        isActive = false,
+        status = VoiceEvent.Silence,
         palette = AnimationPalettes.paletteFor(0)
     )
 }
@@ -51,7 +53,7 @@ private fun ThemeBackgroundParticlesIdlePreview() {
 private fun ThemeBackgroundParticlesActivePreview() {
     ThemeBackground(
         theme = AppTheme.Particles,
-        isActive = true,
+        status = VoiceEvent.Listening,
         palette = AnimationPalettes.paletteFor(0)
     )
 }
@@ -61,7 +63,7 @@ private fun ThemeBackgroundParticlesActivePreview() {
 private fun ThemeBackgroundSpherePreview() {
     ThemeBackground(
         theme = AppTheme.Sphere,
-        isActive = true,
+        status = VoiceEvent.Listening,
         palette = AnimationPalettes.paletteFor(0)
     )
 }
@@ -71,7 +73,7 @@ private fun ThemeBackgroundSpherePreview() {
 private fun ThemeBackgroundWavesPreview() {
     ThemeBackground(
         theme = AppTheme.Waves,
-        isActive = true,
+        status = VoiceEvent.Listening,
         palette = AnimationPalettes.paletteFor(0)
     )
 }
@@ -81,7 +83,7 @@ private fun ThemeBackgroundWavesPreview() {
 private fun ThemeBackgroundFractalPreview() {
     ThemeBackground(
         theme = AppTheme.Fractal,
-        isActive = true,
+        status = VoiceEvent.Listening,
         palette = AnimationPalettes.paletteFor(0)
     )
 }
@@ -91,7 +93,7 @@ private fun ThemeBackgroundFractalPreview() {
 private fun ThemeBackgroundMicroPreview() {
     ThemeBackground(
         theme = AppTheme.Micro,
-        isActive = true,
+        status = VoiceEvent.Listening,
         palette = AnimationPalettes.paletteFor(AnimationPalettes.microPaletteIndex)
     )
 }

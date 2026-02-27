@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -20,7 +21,8 @@ import fr.geoking.julius.ui.anim.AnimationPalettes
 import kotlin.math.sin
 
 /**
- * Micro theme waveform: overlapping fluid waves in accent purple.
+ * Micro theme waveform: Siri-style multi-layered ethereal waves.
+ * Overlapping paths with dynamic movement and color gradients.
  */
 @Composable
 fun MicroWaveformCanvas(
@@ -29,11 +31,13 @@ fun MicroWaveformCanvas(
     modifier: Modifier = Modifier
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "micro_waveform")
+
+    // Multiple phases for layered wave movement
     val phase1 by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 2f * kotlin.math.PI.toFloat(),
         animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
+            animation = tween(1500, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "phase1"
@@ -42,86 +46,125 @@ fun MicroWaveformCanvas(
         initialValue = 0f,
         targetValue = 2f * kotlin.math.PI.toFloat(),
         animationSpec = infiniteRepeatable(
-            animation = tween(2500, easing = LinearEasing),
+            animation = tween(2200, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "phase2"
     )
-    val amplitude by animateFloatAsState(
-        targetValue = if (isActive) 1.2f else 0.4f,
+    val phase3 by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 2f * kotlin.math.PI.toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "phase3"
+    )
+
+    val amplitudeMultiplier by animateFloatAsState(
+        targetValue = if (isActive) 1.0f else 0.15f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "amplitude"
     )
 
-    val accentColor = Color(palette.primary)
+    val primaryColor = Color(palette.primary)
     val secondaryColor = Color(palette.secondary)
+    val tertiaryColor = Color(palette.tertiary)
 
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(80.dp)
+            .height(100.dp)
     ) {
         val centerY = size.height / 2
-        val barCount = 40
-        val barWidth = size.width / (barCount + 1)
-        val maxHeight = size.height * 0.4f * amplitude
+        val maxHeight = size.height * 0.5f * amplitudeMultiplier
 
-        // Draw vertical bars (waveform bars)
-        for (i in 0 until barCount) {
-            val x = barWidth * (i + 1)
-            val barHeight = (sin(phase1 + i * 0.3f) * 0.5f + 0.5f) * maxHeight
-            val alpha = if (isActive) 0.6f + sin(phase2 + i * 0.2f) * 0.2f else 0.3f
+        // Wave 1: Main bold wave
+        drawEtherealWave(
+            phase = phase1,
+            frequency = 0.015f,
+            amplitude = maxHeight * 0.9f,
+            color = primaryColor,
+            alpha = 0.8f,
+            centerY = centerY,
+            strokeWidth = 4f
+        )
 
-            val barW = 4.dp.toPx()
-            drawRect(
-                color = accentColor.copy(alpha = alpha),
-                topLeft = Offset(x - barW / 2, centerY - barHeight / 2),
-                size = androidx.compose.ui.geometry.Size(barW, barHeight)
-            )
-        }
+        // Wave 2: Secondary fluid wave
+        drawEtherealWave(
+            phase = phase2,
+            frequency = 0.022f,
+            amplitude = maxHeight * 0.6f,
+            color = secondaryColor,
+            alpha = 0.5f,
+            centerY = centerY,
+            strokeWidth = 3f
+        )
 
-        // Overlay wave paths
-        if (isActive) {
-            drawMicroWave(
-                phase = phase1,
-                frequency = 0.02f,
-                amplitude = maxHeight * 0.8f,
-                color = accentColor.copy(alpha = 0.5f),
-                centerY = centerY
-            )
-            drawMicroWave(
-                phase = phase2,
-                frequency = 0.015f,
-                amplitude = maxHeight * 0.6f,
-                color = secondaryColor.copy(alpha = 0.35f),
-                centerY = centerY
-            )
-        }
+        // Wave 3: Background subtle wave
+        drawEtherealWave(
+            phase = phase3,
+            frequency = 0.012f,
+            amplitude = maxHeight * 0.4f,
+            color = tertiaryColor,
+            alpha = 0.3f,
+            centerY = centerY,
+            strokeWidth = 2f
+        )
+
+        // Wave 4: Fast, small highlight wave
+        drawEtherealWave(
+            phase = -phase1 * 1.5f,
+            frequency = 0.035f,
+            amplitude = maxHeight * 0.2f,
+            color = Color.White,
+            alpha = 0.4f,
+            centerY = centerY,
+            strokeWidth = 1.5f
+        )
     }
 }
 
-private fun DrawScope.drawMicroWave(
+private fun DrawScope.drawEtherealWave(
     phase: Float,
     frequency: Float,
     amplitude: Float,
     color: Color,
-    centerY: Float
+    alpha: Float,
+    centerY: Float,
+    strokeWidth: Float
 ) {
     val path = Path()
-    val segments = size.width.toInt()
+    val segments = size.width.toInt() / 2
     val step = size.width / segments
 
-    path.moveTo(0f, centerY + sin(phase) * amplitude)
-    for (i in 1..segments) {
+    // Horizontal fade brush
+    val waveBrush = Brush.horizontalGradient(
+        colors = listOf(
+            Color.Transparent,
+            color.copy(alpha = alpha),
+            color.copy(alpha = alpha),
+            Color.Transparent
+        ),
+        startX = 0f,
+        endX = size.width
+    )
+
+    path.moveTo(0f, centerY)
+    for (i in 0..segments) {
         val x = i * step
-        val y = centerY + sin(x * frequency + phase) * amplitude
+        // Apply a Gaussian-like envelope so waves taper at ends
+        val normalizedX = i.toFloat() / segments
+        val envelope = sin(normalizedX * kotlin.math.PI.toFloat())
+
+        val y = centerY + sin(x * frequency + phase) * amplitude * envelope
         path.lineTo(x, y)
     }
 
     drawPath(
         path = path,
-        color = color,
-        style = Stroke(width = 3f, cap = StrokeCap.Round)
+        brush = waveBrush,
+        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
     )
 }
 
@@ -130,6 +173,6 @@ private fun DrawScope.drawMicroWave(
 private fun MicroWaveformCanvasPreview() {
     MicroWaveformCanvas(
         isActive = true,
-        palette = AnimationPalettes.paletteFor(AnimationPalettes.size - 1)
+        palette = AnimationPalettes.paletteFor(AnimationPalettes.microPaletteIndex)
     )
 }

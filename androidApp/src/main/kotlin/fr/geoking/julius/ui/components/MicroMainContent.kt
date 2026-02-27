@@ -1,6 +1,7 @@
 package fr.geoking.julius.ui.components
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -14,7 +15,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -189,30 +192,73 @@ private fun MicroMicButton(
     onClick: () -> Unit
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "micro_mic_glow")
+    val isActive = status == VoiceEvent.Listening || status == VoiceEvent.Speaking
+    val isProcessing = status == VoiceEvent.Processing
+
+    // Continuous glow pulse for background rings
     val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 0.9f,
+        initialValue = 0.3f,
+        targetValue = if (isActive) 0.8f else 0.4f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
+            animation = tween(if (isActive) 1000 else 2000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "glow"
     )
-    val isActive = status == VoiceEvent.Listening || status == VoiceEvent.Speaking
+
+    // Pulsing scale for the button itself
+    val buttonScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = if (isActive) 1.15f else (if (isProcessing) 1.08f else 1f),
+        animationSpec = infiniteRepeatable(
+            animation = tween(if (isActive) 800 else 1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "buttonScale"
+    )
+
+    // Dynamic rotation for processing state
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "processingRotation"
+    )
 
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .size(120.dp)
+            .size(160.dp)
             .drawBehind {
-                if (isActive) {
-                    // Glow rings
-                    for (i in 1..3) {
-                        val radius = 60.dp.toPx() + i * 20.dp.toPx()
+                if (isActive || isProcessing) {
+                    // Volumetric glow rings
+                    val ringCount = if (isActive) 4 else 2
+                    for (i in 1..ringCount) {
+                        val baseRadius = 65.dp.toPx()
+                        // Expanding rings logic
+                        val ringPulse = (glowAlpha * 15.dp.toPx() * i)
+                        val radius = baseRadius + ringPulse + (if (isProcessing) 5.dp.toPx() else 0f)
+
                         drawCircle(
-                            color = accentColor.copy(alpha = glowAlpha * (1f - i * 0.2f)),
+                            brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                                colors = listOf(
+                                    accentColor.copy(alpha = glowAlpha * (1f - i * 0.2f)),
+                                    Color.Transparent
+                                ),
+                                center = center,
+                                radius = radius
+                            ),
+                            radius = radius
+                        )
+
+                        // Thin stroke ring for definition
+                        drawCircle(
+                            color = accentColor.copy(alpha = (glowAlpha * 0.5f) * (1f - i * 0.2f)),
                             radius = radius,
-                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f)
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
                         )
                     }
                 }
@@ -220,28 +266,70 @@ private fun MicroMicButton(
     ) {
         IconButton(
             onClick = onClick,
-            modifier = Modifier.size(96.dp)
+            modifier = Modifier
+                .size(96.dp)
+                .scale(buttonScale)
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
-                        color = accentColor.copy(alpha = if (isActive) 1f else 0.9f),
+                        brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                            colors = listOf(
+                                accentColor,
+                                accentColor.copy(alpha = 0.8f)
+                            )
+                        ),
                         shape = CircleShape
-                    ),
+                    )
+                    .drawBehind {
+                        // Inner glow/highlight
+                        drawCircle(
+                            color = Color.White.copy(alpha = 0.2f),
+                            radius = size.width / 2.2f,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 4f)
+                        )
+                    },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    painter = painterResource(
-                        id = when (status) {
-                            VoiceEvent.Speaking -> R.drawable.ic_stop
-                            else -> R.drawable.ic_speaker
+                if (status == VoiceEvent.Processing) {
+                    // Sophisticated processing spinner
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .graphicsLayer(rotationZ = rotation),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            drawCircle(
+                                color = Color.White.copy(alpha = 0.2f),
+                                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx())
+                            )
+                            drawArc(
+                                color = Color.White,
+                                startAngle = 0f,
+                                sweepAngle = 270f,
+                                useCenter = false,
+                                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                    width = 3.dp.toPx(),
+                                    cap = androidx.compose.ui.graphics.StrokeCap.Round
+                                )
+                            )
                         }
-                    ),
-                    contentDescription = if (status == VoiceEvent.Speaking) "Stop" else "Speak",
-                    tint = Color.White,
-                    modifier = Modifier.size(48.dp)
-                )
+                    }
+                } else {
+                    Icon(
+                        painter = painterResource(
+                            id = when (status) {
+                                VoiceEvent.Speaking -> R.drawable.ic_stop
+                                else -> R.drawable.ic_speaker
+                            }
+                        ),
+                        contentDescription = if (status == VoiceEvent.Speaking) "Stop" else "Speak",
+                        tint = Color.White,
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
             }
         }
     }
