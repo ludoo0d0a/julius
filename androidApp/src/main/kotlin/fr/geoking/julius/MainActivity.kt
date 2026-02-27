@@ -147,7 +147,9 @@ fun MainUI(
                                                 firebaseAiModel = saved.firebaseAiModel,
                                                 agent = saved.selectedAgent,
                                                 theme = nextTheme,
-                                                model = saved.selectedModel
+                                                model = saved.selectedModel,
+                                                fractalQuality = saved.fractalQuality,
+                                                fractalColorIntensity = saved.fractalColorIntensity
                                             )
                                         }
                                     }
@@ -164,7 +166,8 @@ fun MainUI(
                         ThemeBackground(
                             theme = selectedTheme,
                             isActive = state.status == VoiceEvent.Listening || state.status == VoiceEvent.Speaking,
-                            palette = palette
+                            palette = palette,
+                            settings = settings
                         )
                     }
                     
@@ -292,7 +295,9 @@ fun MainUIPreview() {
                 firebaseAiModel: String,
                 agent: AgentType,
                 theme: AppTheme,
-                model: IaModel
+                model: IaModel,
+                fractalQuality: FractalQuality,
+                fractalColorIntensity: FractalColorIntensity
             ) {
                 // No-op for preview
             }

@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.asStateFlow
 
 enum class AgentType { OpenAI, ElevenLabs, Deepgram, Native, Gemini, Genkit, FirebaseAI, Embedded }
 enum class AppTheme { Particles, Sphere, Waves, Fractal, Micro }
+enum class FractalQuality { Low, Medium, High }
+enum class FractalColorIntensity { Low, Medium, High }
 enum class IaModel(val modelName: String, val displayName: String) {
     LLAMA_3_1_SONAR_SMALL("llama-3.1-sonar-small-128k-online", "Sonar Small"),
     LLAMA_3_1_SONAR_LARGE("llama-3.1-sonar-large-128k-online", "Sonar Large"),
@@ -29,7 +31,9 @@ data class AppSettings(
     val firebaseAiModel: String = "gemini-1.5-flash-latest",
     val selectedAgent: AgentType = AgentType.Deepgram,
     val selectedTheme: AppTheme = AppTheme.Particles,
-    val selectedModel: IaModel = IaModel.LLAMA_3_1_SONAR_SMALL
+    val selectedModel: IaModel = IaModel.LLAMA_3_1_SONAR_SMALL,
+    val fractalQuality: FractalQuality = FractalQuality.Medium,
+    val fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium
 )
 
 open class SettingsManager(context: Context) {
@@ -67,7 +71,17 @@ open class SettingsManager(context: Context) {
             } catch (e: IllegalArgumentException) {
                 AppTheme.Particles
             },
-            selectedModel = IaModel.valueOf(prefs.getString("model", IaModel.LLAMA_3_1_SONAR_SMALL.name) ?: IaModel.LLAMA_3_1_SONAR_SMALL.name)
+            selectedModel = IaModel.valueOf(prefs.getString("model", IaModel.LLAMA_3_1_SONAR_SMALL.name) ?: IaModel.LLAMA_3_1_SONAR_SMALL.name),
+            fractalQuality = try {
+                FractalQuality.valueOf(prefs.getString("fractal_quality", FractalQuality.Medium.name) ?: FractalQuality.Medium.name)
+            } catch (e: IllegalArgumentException) {
+                FractalQuality.Medium
+            },
+            fractalColorIntensity = try {
+                FractalColorIntensity.valueOf(prefs.getString("fractal_color_intensity", FractalColorIntensity.Medium.name) ?: FractalColorIntensity.Medium.name)
+            } catch (e: IllegalArgumentException) {
+                FractalColorIntensity.Medium
+            }
         )
     }
 
@@ -83,10 +97,10 @@ open class SettingsManager(context: Context) {
         firebaseAiModel: String,
         agent: AgentType,
         theme: AppTheme,
-        model: IaModel
+        model: IaModel,
+        fractalQuality: FractalQuality = FractalQuality.Medium,
+        fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium
     ) {
-        // Use commit() instead of apply() to ensure settings are persisted immediately
-        // This prevents state desynchronization if the app restarts or crashes
         prefs.edit()
             .putString("openai_key", openAiKey)
             .putString("elevenlabs_key", elevenLabsKey)
@@ -100,7 +114,9 @@ open class SettingsManager(context: Context) {
             .putString("agent", agent.name)
             .putString("theme", theme.name)
             .putString("model", model.name)
-            .commit() // Changed from apply() to commit() for immediate persistence
+            .putString("fractal_quality", fractalQuality.name)
+            .putString("fractal_color_intensity", fractalColorIntensity.name)
+            .apply()
         
         // Update StateFlow immediately with the new values to ensure UI and agent switching update right away
         _settings.value = AppSettings(
@@ -115,7 +131,9 @@ open class SettingsManager(context: Context) {
             firebaseAiModel = firebaseAiModel,
             selectedAgent = agent,
             selectedTheme = theme,
-            selectedModel = model
+            selectedModel = model,
+            fractalQuality = fractalQuality,
+            fractalColorIntensity = fractalColorIntensity
         )
     }
 }

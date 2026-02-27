@@ -17,6 +17,8 @@ import androidx.compose.ui.unit.sp
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.AppSettings
 import fr.geoking.julius.AppTheme
+import fr.geoking.julius.FractalColorIntensity
+import fr.geoking.julius.FractalQuality
 import fr.geoking.julius.IaModel
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.shared.DetailedError
@@ -52,6 +54,8 @@ fun SettingsScreen(
     var selectedAgent by remember { mutableStateOf(current.selectedAgent) }
     var selectedTheme by remember { mutableStateOf(current.selectedTheme) }
     var selectedModel by remember { mutableStateOf(current.selectedModel) }
+    var fractalQuality by remember { mutableStateOf(current.fractalQuality) }
+    var fractalColorIntensity by remember { mutableStateOf(current.fractalColorIntensity) }
 
     Column(
         modifier = Modifier
@@ -116,6 +120,25 @@ fun SettingsScreen(
             getDisplayName = { it.name }
         )
 
+        if (selectedTheme == AppTheme.Fractal) {
+            Spacer(modifier = Modifier.height(16.dp))
+            SectionTitle("Fractal Settings")
+            StyledExposedDropdownMenuBox(
+                label = "Quality",
+                selectedValue = fractalQuality,
+                options = FractalQuality.entries.toList(),
+                onValueChange = { fractalQuality = it },
+                getDisplayName = { it.name }
+            )
+            StyledExposedDropdownMenuBox(
+                label = "Color Intensity",
+                selectedValue = fractalColorIntensity,
+                options = FractalColorIntensity.entries.toList(),
+                onValueChange = { fractalColorIntensity = it },
+                getDisplayName = { it.name }
+            )
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
         SectionTitle("Advanced")
@@ -167,7 +190,9 @@ fun SettingsScreen(
                     firebaseAiModel,
                     selectedAgent,
                     selectedTheme,
-                    selectedModel
+                    selectedModel,
+                    fractalQuality,
+                    fractalColorIntensity
                 )
                 onDismiss()
             },
@@ -284,7 +309,9 @@ fun SettingsScreenPreview() {
                     firebaseAiModel = "gemini-1.5-flash-latest",
                     selectedAgent = AgentType.OpenAI,
                     selectedTheme = AppTheme.Particles,
-                    selectedModel = IaModel.LLAMA_3_1_SONAR_SMALL
+                    selectedModel = IaModel.LLAMA_3_1_SONAR_SMALL,
+                    fractalQuality = FractalQuality.Medium,
+                    fractalColorIntensity = FractalColorIntensity.Medium
                 )
             )
             override val settings: StateFlow<AppSettings> = mockSettings.asStateFlow()
@@ -300,7 +327,9 @@ fun SettingsScreenPreview() {
                 firebaseAiModel: String,
                 agent: AgentType,
                 theme: AppTheme,
-                model: IaModel
+                model: IaModel,
+                fractalQuality: FractalQuality,
+                fractalColorIntensity: FractalColorIntensity
             ) {
                 mockSettings.value = AppSettings(
                     openAiKey,
@@ -312,7 +341,9 @@ fun SettingsScreenPreview() {
                     genkitEndpoint,
                     firebaseAiKey,
                     firebaseAiModel,
-                    agent, theme, model
+                    agent, theme, model,
+                    fractalQuality,
+                    fractalColorIntensity
                 )
             }
         }
