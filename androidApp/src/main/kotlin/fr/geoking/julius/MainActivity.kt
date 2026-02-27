@@ -165,7 +165,7 @@ fun MainUI(
                     key(selectedTheme) {
                         ThemeBackground(
                             theme = selectedTheme,
-                            isActive = state.status == VoiceEvent.Listening || state.status == VoiceEvent.Speaking,
+                            status = state.status,
                             palette = palette,
                             settings = settings
                         )
