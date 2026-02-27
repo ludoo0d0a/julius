@@ -56,6 +56,7 @@ fun SettingsScreen(
     var selectedModel by remember { mutableStateOf(current.selectedModel) }
     var fractalQuality by remember { mutableStateOf(current.fractalQuality) }
     var fractalColorIntensity by remember { mutableStateOf(current.fractalColorIntensity) }
+    var extendedActionsEnabled by remember { mutableStateOf(current.extendedActionsEnabled) }
 
     Column(
         modifier = Modifier
@@ -142,6 +143,25 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         SectionTitle("Advanced")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Enable Extended Actions", color = Color.White, fontSize = 16.sp)
+                Text("Allow AI to access location, battery, and sensors", color = Color(0xFF94A3B8), fontSize = 12.sp)
+            }
+            Switch(
+                checked = extendedActionsEnabled,
+                onCheckedChange = { extendedActionsEnabled = it },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color(0xFF6366F1),
+                    checkedTrackColor = Color(0xFF334155)
+                )
+            )
+        }
         StyledExposedDropdownMenuBox(
             label = "IA Model",
             selectedValue = selectedModel,
@@ -192,7 +212,8 @@ fun SettingsScreen(
                     selectedTheme,
                     selectedModel,
                     fractalQuality,
-                    fractalColorIntensity
+                    fractalColorIntensity,
+                    extendedActionsEnabled
                 )
                 onDismiss()
             },
@@ -329,7 +350,8 @@ fun SettingsScreenPreview() {
                 theme: AppTheme,
                 model: IaModel,
                 fractalQuality: FractalQuality,
-                fractalColorIntensity: FractalColorIntensity
+                fractalColorIntensity: FractalColorIntensity,
+                extendedActionsEnabled: Boolean
             ) {
                 mockSettings.value = AppSettings(
                     openAiKey,
@@ -343,7 +365,8 @@ fun SettingsScreenPreview() {
                     firebaseAiModel,
                     agent, theme, model,
                     fractalQuality,
-                    fractalColorIntensity
+                    fractalColorIntensity,
+                    extendedActionsEnabled
                 )
             }
         }

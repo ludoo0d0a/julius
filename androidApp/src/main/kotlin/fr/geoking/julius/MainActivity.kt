@@ -26,6 +26,7 @@ import kotlin.math.abs
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.ConversationState
 import fr.geoking.julius.shared.VoiceEvent
+import fr.geoking.julius.shared.PermissionManager
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.ui.anim.phone.TrayLightEffectCanvas
 import fr.geoking.julius.ui.anim.AnimationPalettes
@@ -40,15 +41,26 @@ class MainActivity : ComponentActivity() {
 
     private val store: ConversationStore by inject()
     private val settingsManager: SettingsManager by inject()
+    private val permissionManager: PermissionManager by inject()
+
+    private var permissionDeferred: kotlinx.coroutines.CompletableDeferred<Boolean>? = null
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { isGranted -> }
+    ) { isGranted ->
+        permissionDeferred?.complete(isGranted)
+        permissionDeferred = null
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         
+        (permissionManager as? AndroidPermissionManager)?.setOnPermissionRequest { permission, deferred ->
+            permissionDeferred = deferred
+            permissionLauncher.launch(permission)
+        }
+
         setContent {
             val state by store.state.collectAsState()
             MainUI(
@@ -149,7 +161,8 @@ fun MainUI(
                                                 theme = nextTheme,
                                                 model = saved.selectedModel,
                                                 fractalQuality = saved.fractalQuality,
-                                                fractalColorIntensity = saved.fractalColorIntensity
+                                                fractalColorIntensity = saved.fractalColorIntensity,
+                                                extendedActionsEnabled = saved.extendedActionsEnabled
                                             )
                                         }
                                     }
@@ -297,7 +310,8 @@ fun MainUIPreview() {
                 theme: AppTheme,
                 model: IaModel,
                 fractalQuality: FractalQuality,
-                fractalColorIntensity: FractalColorIntensity
+                fractalColorIntensity: FractalColorIntensity,
+                extendedActionsEnabled: Boolean
             ) {
                 // No-op for preview
             }

@@ -1,6 +1,8 @@
 package fr.geoking.julius.shared
 
 import fr.geoking.julius.agents.ConversationalAgent
+import fr.geoking.julius.agents.AgentResponse
+import fr.geoking.julius.agents.ToolCall
 import fr.geoking.julius.shared.ActionParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -82,10 +84,28 @@ open class ConversationStore(
                 // 2. Call AI
                 _state.value = _state.value.copy(status = VoiceEvent.Processing, lastError = null)
                 
-                val contextPrompt = buildContextPrompt(_state.value.messages)
-                val response = agent.process(contextPrompt) // Returns text + audio + action
+                var contextPrompt = buildContextPrompt(_state.value.messages)
+                var response = agent.process(contextPrompt)
                 
-                // 3. Execute action if present (from agent or parsed from response)
+                // 3. Tool Calling Loop (if agent supports it and returned tool calls)
+                // We limit to 5 iterations to avoid infinite loops
+                var toolIteration = 0
+                while (response.toolCalls != null && toolIteration < 5) {
+                    toolIteration++
+
+                    val toolResults = response.toolCalls!!.map { toolCall ->
+                        val result = actionExecutor?.executeAction(toolCall.action)
+                        val status = if (result?.success == true) "SUCCESS" else "FAILED"
+                        val message = result?.message ?: "Action executor not available"
+                        "Tool ${toolCall.action.type} result: $status - $message"
+                    }.joinToString("\n")
+
+                    // Send tool results back to agent
+                    contextPrompt += "\n\nTool Results:\n$toolResults\n\nPlease provide your final response based on these results."
+                    response = agent.process(contextPrompt)
+                }
+
+                // 4. Execute single action if present (from agent or parsed from response)
                 var actionResultMessage = ""
                 val actionToExecute = response.action ?: ActionParser.parseActionFromResponse(response.text)
                 
@@ -102,12 +122,12 @@ open class ConversationStore(
                     }
                 }
                 
-                // 4. Add AI Message (with action result if any)
+                // 5. Add AI Message (with action result if any)
                 val responseText = response.text + actionResultMessage
                 val aiMsg = ChatMessage("a_${getCurrentTimeMillis()}", Role.Assistant, responseText)
                 updateMessages(aiMsg)
                 
-                // 5. Speak (text without action result message for cleaner audio)
+                // 6. Speak (text without action result message for cleaner audio)
                 if (response.audio != null) {
                     voiceManager.playAudio(response.audio)
                 } else {

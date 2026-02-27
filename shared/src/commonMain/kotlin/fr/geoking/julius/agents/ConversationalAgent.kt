@@ -15,10 +15,16 @@ interface ConversationalAgent {
     }
 }
 
+data class ToolCall(
+    val id: String,
+    val action: DeviceAction
+)
+
 data class AgentResponse(
     val text: String,
     val audio: ByteArray? = null,
-    val action: DeviceAction? = null
+    val action: DeviceAction? = null,
+    val toolCalls: List<ToolCall>? = null
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -32,6 +38,7 @@ data class AgentResponse(
             if (!audio.contentEquals(other.audio)) return false
         } else if (other.audio != null) return false
         if (action != other.action) return false
+        if (toolCalls != other.toolCalls) return false
 
         return true
     }
@@ -40,6 +47,7 @@ data class AgentResponse(
         var result = text.hashCode()
         result = 31 * result + (audio?.contentHashCode() ?: 0)
         result = 31 * result + (action?.hashCode() ?: 0)
+        result = 31 * result + (toolCalls?.hashCode() ?: 0)
         return result
     }
 }
