@@ -31,6 +31,9 @@ import fr.geoking.julius.shared.DetailedError
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 private enum class Screen {
     Main,
@@ -94,7 +97,10 @@ fun SettingsScreen(
                 when (currentScreen) {
                     Screen.Main -> MainMenu(
                         settings = current,
-                        onNavigate = { currentScreen = it }
+                        onNavigate = { currentScreen = it },
+                        onToggleExtendedActions = {
+                            save(settingsManager, current.copy(extendedActionsEnabled = it))
+                        }
                     )
                     Screen.Theme -> ThemeSelection(
                         selected = current.selectedTheme,
@@ -135,7 +141,8 @@ private fun save(settingsManager: SettingsManager, s: AppSettings) {
     settingsManager.saveSettings(
         s.openAiKey, s.elevenLabsKey, s.perplexityKey, s.geminiKey, s.deepgramKey,
         s.genkitApiKey, s.genkitEndpoint, s.firebaseAiKey, s.firebaseAiModel,
-        s.selectedAgent, s.selectedTheme, s.selectedModel, s.fractalQuality, s.fractalColorIntensity
+        s.selectedAgent, s.selectedTheme, s.selectedModel, s.fractalQuality, s.fractalColorIntensity,
+        s.extendedActionsEnabled
     )
 }
 
@@ -174,7 +181,8 @@ private fun SettingsHeader(title: String, onBack: () -> Unit) {
 @Composable
 private fun MainMenu(
     settings: AppSettings,
-    onNavigate: (Screen) -> Unit
+    onNavigate: (Screen) -> Unit,
+    onToggleExtendedActions: (Boolean) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -197,6 +205,49 @@ private fun MainMenu(
             value = settings.selectedAgent.name,
             onClick = { onNavigate(Screen.Agent) }
         )
+        
+        // Extended Actions Toggle
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 24.dp, vertical = 24.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Extended Actions",
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "Allow AI to access sensors",
+                        color = Lavender.copy(alpha = 0.7f),
+                        fontSize = 16.sp
+                    )
+                }
+                Switch(
+                    checked = settings.extendedActionsEnabled,
+                    onCheckedChange = onToggleExtendedActions,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Lavender,
+                        checkedTrackColor = DeepPurple,
+                        uncheckedThumbColor = Color.Gray,
+                        uncheckedTrackColor = Color.DarkGray
+                    )
+                )
+            }
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 24.dp),
+                thickness = 0.5.dp,
+                color = SeparatorColor
+            )
+        }
+
         SettingsItem(
             label = "Error Log",
             value = "View recent errors",
@@ -505,4 +556,72 @@ private fun ErrorLog(errorLog: List<DetailedError>) {
             }
         }
     }
+}
+
+@Composable
+fun SettingsScreenPreview() {
+    // Create a mock SettingsManager for preview
+    val mockSettingsManager = remember {
+        object : SettingsManager(null as android.content.Context) {
+            private val mockSettings = MutableStateFlow(
+                AppSettings(
+                    openAiKey = "sk-preview-key-123",
+                    elevenLabsKey = "preview-eleven-key",
+                    perplexityKey = "preview-perplexity-key",
+                    geminiKey = "preview-gemini-key",
+                    deepgramKey = "preview-deepgram-key",
+                    genkitApiKey = "preview-genkit-key",
+                    genkitEndpoint = "https://example.com/genkit",
+                    firebaseAiKey = "preview-firebase-key",
+                    firebaseAiModel = "gemini-1.5-flash-latest",
+                    selectedAgent = AgentType.OpenAI,
+                    selectedTheme = AppTheme.Particles,
+                    selectedModel = IaModel.LLAMA_3_1_SONAR_SMALL,
+                    fractalQuality = FractalQuality.Medium,
+                    fractalColorIntensity = FractalColorIntensity.Medium,
+                    extendedActionsEnabled = false
+                )
+            )
+            override val settings: StateFlow<AppSettings> = mockSettings.asStateFlow()
+            override fun saveSettings(
+                openAiKey: String,
+                elevenLabsKey: String,
+                perplexityKey: String,
+                geminiKey: String,
+                deepgramKey: String,
+                genkitApiKey: String,
+                genkitEndpoint: String,
+                firebaseAiKey: String,
+                firebaseAiModel: String,
+                agent: AgentType,
+                theme: AppTheme,
+                model: IaModel,
+                fractalQuality: FractalQuality,
+                fractalColorIntensity: FractalColorIntensity,
+                extendedActionsEnabled: Boolean
+            ) {
+                mockSettings.value = AppSettings(
+                    openAiKey,
+                    elevenLabsKey,
+                    perplexityKey,
+                    geminiKey,
+                    deepgramKey,
+                    genkitApiKey,
+                    genkitEndpoint,
+                    firebaseAiKey,
+                    firebaseAiModel,
+                    agent, theme, model,
+                    fractalQuality,
+                    fractalColorIntensity,
+                    extendedActionsEnabled
+                )
+            }
+        }
+    }
+    
+    SettingsScreen(
+        settingsManager = mockSettingsManager,
+        errorLog = emptyList(),
+        onDismiss = {}
+    )
 }

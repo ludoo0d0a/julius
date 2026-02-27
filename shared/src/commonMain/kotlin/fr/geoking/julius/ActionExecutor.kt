@@ -11,6 +11,10 @@ enum class ActionType {
     PLAY_MUSIC,
     NAVIGATE,
     SET_ALARM,
+    GET_LOCATION,
+    GET_BATTERY_LEVEL,
+    GET_VOLUME_LEVEL,
+    REQUEST_PERMISSION,
     OTHER
 }
 

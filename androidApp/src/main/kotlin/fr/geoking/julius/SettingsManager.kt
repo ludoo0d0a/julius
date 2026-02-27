@@ -33,7 +33,8 @@ data class AppSettings(
     val selectedTheme: AppTheme = AppTheme.Particles,
     val selectedModel: IaModel = IaModel.LLAMA_3_1_SONAR_SMALL,
     val fractalQuality: FractalQuality = FractalQuality.Medium,
-    val fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium
+    val fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium,
+    val extendedActionsEnabled: Boolean = false
 )
 
 open class SettingsManager(context: Context) {
@@ -81,7 +82,8 @@ open class SettingsManager(context: Context) {
                 FractalColorIntensity.valueOf(prefs.getString("fractal_color_intensity", FractalColorIntensity.Medium.name) ?: FractalColorIntensity.Medium.name)
             } catch (e: IllegalArgumentException) {
                 FractalColorIntensity.Medium
-            }
+            },
+            extendedActionsEnabled = prefs.getBoolean("extended_actions_enabled", false)
         )
     }
 
@@ -99,7 +101,8 @@ open class SettingsManager(context: Context) {
         theme: AppTheme,
         model: IaModel,
         fractalQuality: FractalQuality = FractalQuality.Medium,
-        fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium
+        fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium,
+        extendedActionsEnabled: Boolean = false
     ) {
         prefs.edit()
             .putString("openai_key", openAiKey)
@@ -116,6 +119,7 @@ open class SettingsManager(context: Context) {
             .putString("model", model.name)
             .putString("fractal_quality", fractalQuality.name)
             .putString("fractal_color_intensity", fractalColorIntensity.name)
+            .putBoolean("extended_actions_enabled", extendedActionsEnabled)
             .apply()
         
         // Update StateFlow immediately with the new values to ensure UI and agent switching update right away
@@ -133,7 +137,8 @@ open class SettingsManager(context: Context) {
             selectedTheme = theme,
             selectedModel = model,
             fractalQuality = fractalQuality,
-            fractalColorIntensity = fractalColorIntensity
+            fractalColorIntensity = fractalColorIntensity,
+            extendedActionsEnabled = extendedActionsEnabled
         )
     }
 }

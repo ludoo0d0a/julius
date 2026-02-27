@@ -1,18 +1,25 @@
 package fr.geoking.julius
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.location.LocationManager
+import android.media.AudioManager
 import android.net.Uri
+import android.os.BatteryManager
 import android.provider.AlarmClock
 import android.provider.MediaStore
 import fr.geoking.julius.shared.ActionExecutor
 import fr.geoking.julius.shared.ActionResult
 import fr.geoking.julius.shared.ActionType
 import fr.geoking.julius.shared.DeviceAction
+import fr.geoking.julius.shared.PermissionManager
 
 class AndroidActionExecutor(
-    private val context: Context
+    private val context: Context,
+    private val permissionManager: PermissionManager
 ) : ActionExecutor {
 
     override suspend fun executeAction(action: DeviceAction): ActionResult {
@@ -24,6 +31,10 @@ class AndroidActionExecutor(
                 ActionType.PLAY_MUSIC -> playMusic()
                 ActionType.NAVIGATE -> navigate(action.target, action.data)
                 ActionType.SET_ALARM -> setAlarm(action.data)
+                ActionType.GET_LOCATION -> getLocation()
+                ActionType.GET_BATTERY_LEVEL -> getBatteryLevel()
+                ActionType.GET_VOLUME_LEVEL -> getVolumeLevels()
+                ActionType.REQUEST_PERMISSION -> requestPermission(action.target)
                 ActionType.OTHER -> executeOtherAction(action)
             }
         } catch (e: Exception) {
@@ -191,6 +202,80 @@ class AndroidActionExecutor(
             }
         } catch (e: Exception) {
             return ActionResult(false, "Failed to set alarm: ${e.message}")
+        }
+    }
+
+    private suspend fun getLocation(): ActionResult {
+        if (!permissionManager.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+            return ActionResult(false, "Location permission not granted. Please ask user to allow location access.")
+        }
+
+        return try {
+            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            val location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+
+            if (location != null) {
+                ActionResult(true, "Current location: lat=${location.latitude}, lon=${location.longitude}")
+            } else {
+                ActionResult(false, "Could not determine current location. GPS might be disabled or no fix yet.")
+            }
+        } catch (e: Exception) {
+            ActionResult(false, "Error getting location: ${e.message}")
+        }
+    }
+
+    private fun getBatteryLevel(): ActionResult {
+        return try {
+            val batteryStatus: Intent? = IntentFilter(Intent.ACTION_BATTERY_CHANGED).let { filter ->
+                context.registerReceiver(null, filter)
+            }
+            val level: Int = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale: Int = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+            val batteryPct = level * 100 / scale.toFloat()
+
+            val status = batteryStatus?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+            val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                             status == BatteryManager.BATTERY_STATUS_FULL
+
+            ActionResult(true, "Battery level: ${batteryPct.toInt()}%, Charging: $isCharging")
+        } catch (e: Exception) {
+            ActionResult(false, "Error getting battery level: ${e.message}")
+        }
+    }
+
+    private fun getVolumeLevels(): ActionResult {
+        return try {
+            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            val mediaVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+            val maxMedia = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            val alarmVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
+            val maxAlarm = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+            val ringVolume = audioManager.getStreamVolume(AudioManager.STREAM_RING)
+            val maxRing = audioManager.getStreamMaxVolume(AudioManager.STREAM_RING)
+
+            ActionResult(true, "Volume levels: Media $mediaVolume/$maxMedia, Alarm $alarmVolume/$maxAlarm, Ring $ringVolume/$maxRing")
+        } catch (e: Exception) {
+            ActionResult(false, "Error getting volume levels: ${e.message}")
+        }
+    }
+
+    private suspend fun requestPermission(permission: String?): ActionResult {
+        if (permission == null) return ActionResult(false, "No permission specified")
+
+        // Map simplified names to Android permissions
+        val androidPermission = when (permission.lowercase()) {
+            "location" -> Manifest.permission.ACCESS_FINE_LOCATION
+            "contacts" -> Manifest.permission.READ_CONTACTS
+            "phone" -> Manifest.permission.CALL_PHONE
+            else -> permission
+        }
+
+        val granted = permissionManager.requestPermission(androidPermission)
+        return if (granted) {
+            ActionResult(true, "Permission $permission granted")
+        } else {
+            ActionResult(false, "Permission $permission denied by user")
         }
     }
 

@@ -2,12 +2,14 @@ package fr.geoking.julius.di
 
 import fr.geoking.julius.AndroidVoiceManager
 import fr.geoking.julius.AndroidActionExecutor
+import fr.geoking.julius.AndroidPermissionManager
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.agents.*
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.VoiceManager
 import fr.geoking.julius.shared.ActionExecutor
+import fr.geoking.julius.shared.PermissionManager
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -33,7 +35,7 @@ class DynamicAgentWrapper(
         android.util.Log.d("DynamicAgentWrapper", "Processing with agent: ${settings.selectedAgent.name}")
         
         val agent = when (settings.selectedAgent) {
-            AgentType.OpenAI -> OpenAIAgent(client, apiKey = settings.openAiKey)
+            AgentType.OpenAI -> OpenAIAgent(client, apiKey = settings.openAiKey, toolsEnabled = settings.extendedActionsEnabled)
             AgentType.ElevenLabs -> {
                 // Ensure required keys are present for ElevenLabs
                 if (settings.perplexityKey.isBlank() || settings.elevenLabsKey.isBlank()) {
@@ -46,7 +48,7 @@ class DynamicAgentWrapper(
                 DeepgramAgent(client, deepgramKey = settings.deepgramKey)
             }
             AgentType.Native -> PerplexityAgent(client, apiKey = settings.perplexityKey, model = settings.selectedModel.modelName)
-            AgentType.Gemini -> GeminiAgent(client, apiKey = settings.geminiKey)
+            AgentType.Gemini -> GeminiAgent(client, apiKey = settings.geminiKey, toolsEnabled = settings.extendedActionsEnabled)
             AgentType.Genkit -> GenkitAgent(client, endpoint = settings.genkitEndpoint, apiKey = settings.genkitApiKey)
             AgentType.FirebaseAI -> FirebaseAIAgent(client, apiKey = settings.firebaseAiKey, model = settings.firebaseAiModel)
             AgentType.Embedded -> EmbeddedAgent() // No API key needed - runs offline
@@ -76,9 +78,13 @@ val appModule = module {
     single<VoiceManager> {
         AndroidVoiceManager(androidContext())
     }
+
+    single<PermissionManager> {
+        AndroidPermissionManager(androidContext())
+    }
     
     single<ActionExecutor> {
-        AndroidActionExecutor(androidContext())
+        AndroidActionExecutor(androidContext(), get())
     }
     
     single {
