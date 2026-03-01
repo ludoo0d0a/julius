@@ -93,6 +93,18 @@ The password for the key itself. For many keystores this is the same as `KEY_STO
 
 ## Troubleshooting
 
+### "Only releases with status draft may be created on draft app"
+
+This error occurs when your app has never been published to production. Google Play requires draft releases for apps in draft status.
+
+The workflow uses `status: draft` by default. After the workflow uploads successfully:
+
+1. Go to [Google Play Console](https://play.google.com/console) → your app → **Testing** → **Internal testing**
+2. You should see a new draft release with your uploaded build
+3. Click **Review release** → **Start rollout to Internal testing**
+
+Once your app is published to production at least once, you can change the workflow to `status: completed` if you want releases to roll out automatically without manual review.
+
 ### "The Android App Bundle was signed with the wrong key"
 
 This error means the keystore in `SIGNING_KEY` does not match the one Google Play expects. **You must use the exact keystore that was used when the app was first published** — Google Play does not accept uploads signed with a different key.
