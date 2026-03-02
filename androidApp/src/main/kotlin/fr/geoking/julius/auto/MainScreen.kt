@@ -1,5 +1,6 @@
 package fr.geoking.julius.auto
 
+import android.util.Log
 import androidx.car.app.AppManager
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
@@ -18,6 +19,7 @@ import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.R
 import fr.geoking.julius.shared.ConversationStore
+import fr.geoking.julius.shared.DetailedError
 import fr.geoking.julius.shared.VoiceEvent
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -31,6 +33,7 @@ class MainScreen(
 
     private var currentStatus: String = "Idle"
     private var currentText: String = "Tap mic to start"
+    private var lastError: DetailedError? = null
     private var isListening: Boolean = false
     private var isSpeaking: Boolean = false
 
@@ -51,10 +54,11 @@ class MainScreen(
                 isSpeaking = state.status == VoiceEvent.Speaking
                 surfaceRenderer?.isActive = isListening
                 currentStatus = state.status.name
-                currentText = if (state.status == VoiceEvent.Listening) {
-                    state.currentTranscript.ifBlank { "Listening..." }
-                } else {
-                    state.messages.lastOrNull()?.text ?: "Hello"
+                lastError = state.lastError
+                currentText = when {
+                    state.lastError != null -> state.lastError!!.message
+                    state.status == VoiceEvent.Listening -> state.currentTranscript.ifBlank { "Listening..." }
+                    else -> state.messages.lastOrNull()?.text ?: "Tap mic to start"
                 }
                 invalidate()
             }
@@ -83,19 +87,36 @@ class MainScreen(
     }
 
     override fun onGetTemplate(): Template {
-        // Play Store build: no ACCESS_SURFACE / NAVIGATION_TEMPLATES → use PaneTemplate only
-        if (!BuildConfig.CAR_USE_SURFACE) {
-            appManager.setSurfaceCallback(null)
-            return buildPaneTemplate()
+        return try {
+            // Play Store build: no ACCESS_SURFACE / NAVIGATION_TEMPLATES → use PaneTemplate only
+            if (!BuildConfig.CAR_USE_SURFACE) {
+                appManager.setSurfaceCallback(null)
+                buildPaneTemplate()
+            } else if (usePaneFallback) {
+                appManager.setSurfaceCallback(null)
+                buildPaneTemplate()
+            } else {
+                appManager.setSurfaceCallback(this)
+                scheduleFallbackIfNoSurface()
+                buildNavigationTemplate()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "onGetTemplate failed", e)
+            buildErrorFallbackTemplate(e)
         }
-        if (usePaneFallback) {
-            appManager.setSurfaceCallback(null)
-            return buildPaneTemplate()
-        }
+    }
 
-        appManager.setSurfaceCallback(this)
-        scheduleFallbackIfNoSurface()
-        return buildNavigationTemplate()
+    private fun buildErrorFallbackTemplate(e: Exception): Template {
+        val msg = e.message ?: e.toString()
+        val pane = Pane.Builder()
+            .addRow(
+                Row.Builder()
+                    .setTitle("Error")
+                    .addText(msg.take(300))
+                    .build()
+            )
+            .build()
+        return PaneTemplate.Builder(pane).setTitle("Julius").build()
     }
 
     /** If we never receive a surface after showing NavigationTemplate, switch to PaneTemplate. */
@@ -149,12 +170,26 @@ class MainScreen(
             IconCompat.createWithResource(carContext, actionIconRes)
         ).build()
 
+        val (rowTitle, rowText) = when {
+            lastError != null -> {
+                val errorTitle = when (lastError!!.httpCode) {
+                    401 -> "Auth Error"
+                    403 -> "Permission Denied"
+                    429 -> "Rate Limit"
+                    in 500..599 -> "Server Error"
+                    else -> "Error"
+                }
+                val httpSuffix = lastError!!.httpCode?.let { " (HTTP $it)" } ?: ""
+                "$errorTitle$httpSuffix" to lastError!!.message
+            }
+            else -> currentStatus to currentText
+        }
         val pane = Pane.Builder()
             .setImage(themeCarIcon)
             .addRow(
                 Row.Builder()
-                    .setTitle(currentStatus)
-                    .addText(currentText)
+                    .setTitle(rowTitle)
+                    .addText(rowText)
                     .build()
             )
             .addAction(
@@ -178,6 +213,7 @@ class MainScreen(
     }
 
     companion object {
+        private const val TAG = "MainScreen"
         private const val FALLBACK_DELAY_MS = 3000L
     }
 }

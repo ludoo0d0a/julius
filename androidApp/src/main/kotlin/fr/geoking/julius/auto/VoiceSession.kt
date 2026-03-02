@@ -1,6 +1,7 @@
 package fr.geoking.julius.auto
 
 import android.content.Intent
+import android.util.Log
 import androidx.car.app.Screen
 import androidx.car.app.Session
 import fr.geoking.julius.shared.ConversationStore
@@ -12,6 +13,19 @@ class VoiceSession : Session(), KoinComponent {
     private val store: ConversationStore by inject()
 
     override fun onCreateScreen(intent: Intent): Screen {
-        return MainScreen(carContext, store)
+        return try {
+            MainScreen(carContext, store)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create MainScreen", e)
+            ErrorScreen(
+                carContext,
+                errorMessage = e.message ?: e.toString(),
+                errorDetail = e.stackTraceToString().take(300)
+            )
+        }
+    }
+
+    companion object {
+        private const val TAG = "VoiceSession"
     }
 }

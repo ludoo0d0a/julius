@@ -136,7 +136,9 @@ open class ConversationStore(
                     voiceManager.speak(response.text, speechLanguageTag)
                 }
             } catch (e: NetworkException) {
-                val error = DetailedError(e.httpCode, e.message ?: "Unknown error", getCurrentTimeMillis())
+                val msg = e.message ?: "Unknown network error"
+                log.e(e) { "Network error: $msg (httpCode=${e.httpCode})" }
+                val error = DetailedError(e.httpCode, msg, getCurrentTimeMillis())
                 val newErrorLog = (_state.value.errorLog + error).takeLast(10)
                 _state.value = _state.value.copy(
                     lastError = error,
@@ -144,7 +146,9 @@ open class ConversationStore(
                     status = VoiceEvent.Silence
                 )
             } catch (e: Exception) {
-                val error = DetailedError(null, e.message ?: "Unknown error", getCurrentTimeMillis())
+                val msg = buildDetailedErrorMessage(e)
+                log.e(e) { "Agent/voice error: $msg" }
+                val error = DetailedError(null, msg, getCurrentTimeMillis())
                 val newErrorLog = (_state.value.errorLog + error).takeLast(10)
                 _state.value = _state.value.copy(
                     lastError = error,
@@ -155,6 +159,12 @@ open class ConversationStore(
         }
     }
     
+    private fun buildDetailedErrorMessage(e: Exception): String {
+        val base = e.message?.takeIf { it.isNotBlank() } ?: e.toString()
+        val type = e.javaClass.simpleName
+        return if (type != "Exception" && !base.contains(type)) "$type: $base" else base
+    }
+
     private fun updateMessages(msg: ChatMessage) {
         val current = _state.value.messages
         _state.value = _state.value.copy(messages = current + msg)
