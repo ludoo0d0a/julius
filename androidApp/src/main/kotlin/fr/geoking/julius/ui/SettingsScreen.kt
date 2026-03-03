@@ -462,6 +462,13 @@ private fun AgentConfig(
                     fontSize = 18.sp
                 )
             }
+            AgentType.Test -> {
+                Text(
+                    "Fully offline test agent. Supports: basic math, counting (EN/FR), hangman, quote of the day. No config needed.",
+                    color = Lavender,
+                    fontSize = 18.sp
+                )
+            }
         }
     }
 }

@@ -52,6 +52,7 @@ class DynamicAgentWrapper(
             AgentType.Genkit -> GenkitAgent(client, endpoint = settings.genkitEndpoint, apiKey = settings.genkitApiKey)
             AgentType.FirebaseAI -> FirebaseAIAgent(client, apiKey = settings.firebaseAiKey, model = settings.firebaseAiModel)
             AgentType.Embedded -> EmbeddedAgent() // No API key needed - runs offline
+            AgentType.Test -> TestAgent() // Fully offline test agent - math, counting, hangman, quotes
         }
         
         android.util.Log.d("DynamicAgentWrapper", "Agent created: ${agent::class.simpleName}, processing input...")
