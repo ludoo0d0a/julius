@@ -29,7 +29,7 @@ import kotlinx.coroutines.launch
 class MainScreen(
     carContext: CarContext,
     private val store: ConversationStore
-) : Screen(carContext), SurfaceCallback {
+) : Screen(carContext) {
 
     private var currentStatus: String = "Idle"
     private var currentText: String = "Tap mic to start"
@@ -46,6 +46,31 @@ class MainScreen(
 
     private val appManager: AppManager
         get() = carContext.getCarService(AppManager::class.java)
+
+    private val surfaceCallback = if (BuildConfig.CAR_USE_SURFACE) {
+        object : SurfaceCallback {
+            override fun onSurfaceAvailable(surfaceContainer: SurfaceContainer) {
+                surfaceReceived = true
+                fallbackCheckJob?.cancel()
+                fallbackCheckJob = null
+                surfaceRenderer?.stop()
+                val surface = surfaceContainer.surface ?: return
+                val w = surfaceContainer.width.coerceAtLeast(1)
+                val h = surfaceContainer.height.coerceAtLeast(1)
+                surfaceRenderer = AutoSurfaceRenderer(surface, w, h).apply {
+                    isActive = isListening
+                    start()
+                }
+            }
+
+            override fun onSurfaceDestroyed(surfaceContainer: SurfaceContainer) {
+                surfaceRenderer?.stop()
+                surfaceRenderer = null
+                surfaceContainer.surface?.release()
+                surfaceReceived = false
+            }
+        }
+    } else null
 
     init {
         lifecycleScope.launch {
@@ -65,27 +90,6 @@ class MainScreen(
         }
     }
 
-    override fun onSurfaceAvailable(surfaceContainer: SurfaceContainer) {
-        surfaceReceived = true
-        fallbackCheckJob?.cancel()
-        fallbackCheckJob = null
-        surfaceRenderer?.stop()
-        val surface = surfaceContainer.surface ?: return
-        val w = surfaceContainer.width.coerceAtLeast(1)
-        val h = surfaceContainer.height.coerceAtLeast(1)
-        surfaceRenderer = AutoSurfaceRenderer(surface, w, h).apply {
-            isActive = isListening
-            start()
-        }
-    }
-
-    override fun onSurfaceDestroyed(surfaceContainer: SurfaceContainer) {
-        surfaceRenderer?.stop()
-        surfaceRenderer = null
-        surfaceContainer.surface?.release()
-        surfaceReceived = false
-    }
-
     override fun onGetTemplate(): Template {
         return try {
             // Play Store build: no ACCESS_SURFACE / NAVIGATION_TEMPLATES → use PaneTemplate only
@@ -96,7 +100,8 @@ class MainScreen(
                 appManager.setSurfaceCallback(null)
                 buildPaneTemplate()
             } else {
-                appManager.setSurfaceCallback(this)
+                // If we reach here, BuildConfig.CAR_USE_SURFACE is true
+                surfaceCallback?.let { appManager.setSurfaceCallback(it) }
                 scheduleFallbackIfNoSurface()
                 buildNavigationTemplate()
             }
