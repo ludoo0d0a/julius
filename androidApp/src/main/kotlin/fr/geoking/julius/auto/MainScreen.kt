@@ -9,6 +9,7 @@ import androidx.car.app.SurfaceContainer
 import androidx.car.app.model.Action
 import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.CarIcon
+import androidx.car.app.model.MessageTemplate
 import androidx.car.app.model.Pane
 import androidx.car.app.model.PaneTemplate
 import androidx.car.app.model.Row
@@ -37,8 +38,8 @@ class MainScreen(
     private var isListening: Boolean = false
     private var isSpeaking: Boolean = false
 
-    /** When true, use PaneTemplate (fallback) instead of NavigationTemplate. */
-    private var usePaneFallback: Boolean = false
+    /** When true, use MessageTemplate (fallback) instead of NavigationTemplate. */
+    private var useFallback: Boolean = false
     /** True once we have received a surface (so we don't fall back unnecessarily). */
     private var surfaceReceived: Boolean = false
     private var fallbackCheckJob: Job? = null
@@ -92,13 +93,14 @@ class MainScreen(
 
     override fun onGetTemplate(): Template {
         return try {
-            // Play Store build: no ACCESS_SURFACE / NAVIGATION_TEMPLATES → use PaneTemplate only
+            // Play Store build: no ACCESS_SURFACE / NAVIGATION_TEMPLATES → use MessageTemplate only
             if (!BuildConfig.CAR_USE_SURFACE) {
+                // To avoid "Now display requires permission access Surface", do NOT call setSurfaceCallback(null)
+                // in the Play Store flavor where the permission is not declared in Manifest.
+                buildMessageTemplate()
+            } else if (useFallback) {
                 appManager.setSurfaceCallback(null)
-                buildPaneTemplate()
-            } else if (usePaneFallback) {
-                appManager.setSurfaceCallback(null)
-                buildPaneTemplate()
+                buildMessageTemplate()
             } else {
                 // If we reach here, BuildConfig.CAR_USE_SURFACE is true
                 surfaceCallback?.let { appManager.setSurfaceCallback(it) }
@@ -113,25 +115,20 @@ class MainScreen(
 
     private fun buildErrorFallbackTemplate(e: Exception): Template {
         val msg = e.message ?: e.toString()
-        val pane = Pane.Builder()
-            .addRow(
-                Row.Builder()
-                    .setTitle("Error")
-                    .addText(msg.take(300))
-                    .build()
-            )
+        return MessageTemplate.Builder(msg.take(300))
+            .setTitle("Julius Error")
+            .setHeaderAction(Action.BACK)
             .build()
-        return PaneTemplate.Builder(pane).setTitle("Julius").build()
     }
 
-    /** If we never receive a surface after showing NavigationTemplate, switch to PaneTemplate. */
+    /** If we never receive a surface after showing NavigationTemplate, switch to MessageTemplate. */
     private fun scheduleFallbackIfNoSurface() {
         if (surfaceReceived) return
         fallbackCheckJob?.cancel()
         fallbackCheckJob = lifecycleScope.launch {
             delay(FALLBACK_DELAY_MS)
             if (!surfaceReceived) {
-                usePaneFallback = true
+                useFallback = true
                 invalidate()
             }
         }
@@ -164,7 +161,7 @@ class MainScreen(
             .build()
     }
 
-    private fun buildPaneTemplate(): Template {
+    private fun buildMessageTemplate(): Template {
         val themeImageResId = if (isListening) R.drawable.auto_theme_active else R.drawable.auto_theme_idle
         val themeCarIcon = CarIcon.Builder(
             IconCompat.createWithResource(carContext, themeImageResId)
@@ -175,7 +172,7 @@ class MainScreen(
             IconCompat.createWithResource(carContext, actionIconRes)
         ).build()
 
-        val (rowTitle, rowText) = when {
+        val message = when {
             lastError != null -> {
                 val errorTitle = when (lastError!!.httpCode) {
                     401 -> "Auth Error"
@@ -185,18 +182,14 @@ class MainScreen(
                     else -> "Error"
                 }
                 val httpSuffix = lastError!!.httpCode?.let { " (HTTP $it)" } ?: ""
-                "$errorTitle$httpSuffix" to lastError!!.message
+                "$errorTitle$httpSuffix: ${lastError!!.message}"
             }
-            else -> currentStatus to currentText
+            else -> "$currentStatus: $currentText"
         }
-        val pane = Pane.Builder()
-            .setImage(themeCarIcon)
-            .addRow(
-                Row.Builder()
-                    .setTitle(rowTitle)
-                    .addText(rowText)
-                    .build()
-            )
+
+        return MessageTemplate.Builder(message)
+            .setIcon(themeCarIcon)
+            .setTitle("Julius")
             .addAction(
                 Action.Builder()
                     .setIcon(actionIcon)
@@ -210,10 +203,6 @@ class MainScreen(
                     }
                     .build()
             )
-            .build()
-
-        return PaneTemplate.Builder(pane)
-            .setTitle("Julius")
             .build()
     }
 
