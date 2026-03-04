@@ -13,13 +13,15 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.SimpleBasePlayer
+import androidx.media3.common.SimpleBasePlayer.MediaItemData
+import androidx.media3.common.SimpleBasePlayer.State
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.common.MediaItem
+import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaSession
-import androidx.media3.session.MediaLibraryService
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import fr.geoking.julius.shared.VoiceEvent
