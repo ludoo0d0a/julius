@@ -2,6 +2,7 @@ package fr.geoking.julius.di
 
 import fr.geoking.julius.AndroidVoiceManager
 import fr.geoking.julius.AndroidActionExecutor
+import fr.geoking.julius.AppSettings
 import fr.geoking.julius.AndroidPermissionManager
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.AgentType
@@ -26,15 +27,33 @@ class DynamicAgentWrapper(
     private val client: HttpClient,
     private val settingsManager: SettingsManager
 ) : ConversationalAgent {
+
+    private var cachedAgent: ConversationalAgent? = null
+    private var cachedKey: String? = null
+
+    private fun cacheKey(settings: AppSettings): String = buildString {
+        append(settings.selectedAgent.name)
+        append("|").append(settings.selectedModel.modelName)
+        append("|").append(settings.extendedActionsEnabled)
+        append("|").append(settings.openAiKey.take(8))
+        append("|").append(settings.perplexityKey.take(8))
+        append("|").append(settings.elevenLabsKey.take(8))
+        append("|").append(settings.geminiKey.take(8))
+        append("|").append(settings.deepgramKey.take(8))
+        append("|").append(settings.genkitEndpoint)
+        append("|").append(settings.genkitApiKey.take(8))
+        append("|").append(settings.firebaseAiKey.take(8))
+        append("|").append(settings.firebaseAiModel)
+    }
     
     override suspend fun process(input: String): AgentResponse {
-        // Always read fresh settings value to ensure we use the latest agent selection
         val settings = settingsManager.settings.value
-        
-        // Debug logging to help identify state management issues
-        android.util.Log.d("DynamicAgentWrapper", "Processing with agent: ${settings.selectedAgent.name}")
-        
-        val agent = when (settings.selectedAgent) {
+        val key = cacheKey(settings)
+        val agent = if (cachedKey == key && cachedAgent != null) {
+            cachedAgent!!
+        } else {
+            android.util.Log.d("DynamicAgentWrapper", "Creating agent: ${settings.selectedAgent.name}")
+            val newAgent = when (settings.selectedAgent) {
             AgentType.OpenAI -> OpenAIAgent(client, apiKey = settings.openAiKey, toolsEnabled = settings.extendedActionsEnabled)
             AgentType.ElevenLabs -> {
                 // Ensure required keys are present for ElevenLabs
@@ -53,9 +72,11 @@ class DynamicAgentWrapper(
             AgentType.FirebaseAI -> FirebaseAIAgent(client, apiKey = settings.firebaseAiKey, model = settings.firebaseAiModel)
             AgentType.Embedded -> EmbeddedAgent() // No API key needed - runs offline
             AgentType.Test -> TestAgent() // Fully offline test agent - math, counting, hangman, quotes
+            }
+            cachedAgent = newAgent
+            cachedKey = key
+            newAgent
         }
-        
-        android.util.Log.d("DynamicAgentWrapper", "Agent created: ${agent::class.simpleName}, processing input...")
         return agent.process(input)
     }
 }

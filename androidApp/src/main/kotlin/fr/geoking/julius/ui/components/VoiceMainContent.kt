@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,9 +34,13 @@ fun VoiceMainContent(
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val displayText = when (state.status) {
-        VoiceEvent.Listening -> state.currentTranscript
-        else -> state.messages.lastOrNull()?.text ?: "Hi, how can I help?"
+    val displayText by remember {
+        derivedStateOf {
+            when (state.status) {
+                VoiceEvent.Listening -> state.currentTranscript
+                else -> state.messages.lastOrNull()?.text ?: "Hi, how can I help?"
+            }
+        }
     }
 
     Box(

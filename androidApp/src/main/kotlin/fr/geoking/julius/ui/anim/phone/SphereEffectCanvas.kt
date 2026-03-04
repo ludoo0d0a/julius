@@ -52,7 +52,7 @@ fun SphereEffectCanvas(
         label = "scale"
     )
 
-    val paletteColors = remember(palette) { palette.colors.map { Color(it) } }
+    val paletteColors = palette.colorsAsComposeColor
     val primaryColor = paletteColors.firstOrNull() ?: Color(0xFF6366F1)
     val secondaryColor = paletteColors.getOrNull(1) ?: primaryColor
     val tertiaryColor = paletteColors.getOrNull(2) ?: secondaryColor

@@ -40,7 +40,7 @@ fun ParticlesEffectCanvas(
 
     // Particles State
     val particles = remember { List(if (isLowQuality) 30 else 100) { Particle() } }
-    val paletteColors = remember(palette) { palette.colors.map { Color(it) } }
+    val paletteColors = palette.colorsAsComposeColor
     val rayColor = paletteColors.firstOrNull() ?: Color(0xFF6366F1)
     
     // Rays State

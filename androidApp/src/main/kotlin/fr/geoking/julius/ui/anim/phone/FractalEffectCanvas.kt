@@ -70,7 +70,7 @@ fun FractalEffectCanvas(
         label = "brightness"
     )
 
-    val paletteColors = remember(palette) { palette.colors.map { Color(it) } }
+    val paletteColors = palette.colorsAsComposeColor
 
     Canvas(modifier = Modifier.fillMaxSize()) {
         val w = size.width
@@ -142,9 +142,14 @@ fun FractalEffectCanvas(
     }
 }
 
-/**
- * Mandelbrot iteration with smooth escape.
- */
+private fun smoothEscape(n: Int, zr2: Double, zi2: Double): Pair<Int, Float> {
+    val logZn = ln(zr2 + zi2) / 2.0
+    val nu = ln(logZn / ln(2.0)) / ln(2.0)
+    val smooth = (n + 1 - nu).toFloat().coerceIn(0f, 1f)
+    return n to smooth
+}
+
+/** Mandelbrot iteration with smooth escape. */
 private fun mandelbrotSmooth(cr: Float, ci: Float, maxIter: Int): Pair<Int, Float> {
     var zr = 0.0
     var zi = 0.0
@@ -152,12 +157,7 @@ private fun mandelbrotSmooth(cr: Float, ci: Float, maxIter: Int): Pair<Int, Floa
     while (n < maxIter) {
         val zr2 = zr * zr
         val zi2 = zi * zi
-        if (zr2 + zi2 > 4.0) {
-            val logZn = ln(zr2 + zi2) / 2.0
-            val nu = ln(logZn / ln(2.0)) / ln(2.0)
-            val smooth = (n + 1 - nu).toFloat().coerceIn(0f, 1f)
-            return n to smooth
-        }
+        if (zr2 + zi2 > 4.0) return smoothEscape(n, zr2, zi2)
         val newZi = 2 * zr * zi + ci
         val newZr = zr2 - zi2 + cr
         zi = newZi
@@ -202,12 +202,7 @@ private fun burningShipSmooth(cr: Float, ci: Float, maxIter: Int): Pair<Int, Flo
     while (n < maxIter) {
         val zr2 = zr * zr
         val zi2 = zi * zi
-        if (zr2 + zi2 > 4.0) {
-            val logZn = ln(zr2 + zi2) / 2.0
-            val nu = ln(logZn / ln(2.0)) / ln(2.0)
-            val smooth = (n + 1 - nu).toFloat().coerceIn(0f, 1f)
-            return n to smooth
-        }
+        if (zr2 + zi2 > 4.0) return smoothEscape(n, zr2, zi2)
         // Burning Ship: z = (|Re(z)| + i|Im(z)|)^2 + c
         val newZr = zr2 - zi2 + cr
         val newZi = abs(2.0 * zr * zi) + ci
@@ -228,12 +223,7 @@ private fun tricornSmooth(cr: Float, ci: Float, maxIter: Int): Pair<Int, Float> 
     while (n < maxIter) {
         val zr2 = zr * zr
         val zi2 = zi * zi
-        if (zr2 + zi2 > 4.0) {
-            val logZn = ln(zr2 + zi2) / 2.0
-            val nu = ln(logZn / ln(2.0)) / ln(2.0)
-            val smooth = (n + 1 - nu).toFloat().coerceIn(0f, 1f)
-            return n to smooth
-        }
+        if (zr2 + zi2 > 4.0) return smoothEscape(n, zr2, zi2)
         // conj(z) = (zr, -zi)
         // (zr - i zi)^2 = zr^2 - zi^2 - 2 i zr zi
         val nextZr = zr2 - zi2 + cr

@@ -8,11 +8,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class DetailedError(
     val httpCode: Int?,
@@ -81,28 +83,28 @@ open class ConversationStore(
                 val userMsg = ChatMessage("u_${getCurrentTimeMillis()}", Role.User, text)
                 updateMessages(userMsg)
                 
-                // 2. Call AI
+                // 2. Call AI (offload to Default dispatcher to avoid blocking main thread)
                 _state.value = _state.value.copy(status = VoiceEvent.Processing, lastError = null)
                 
-                var contextPrompt = buildContextPrompt(_state.value.messages)
-                var response = agent.process(contextPrompt)
-                
-                // 3. Tool Calling Loop (if agent supports it and returned tool calls)
-                // We limit to 5 iterations to avoid infinite loops
-                var toolIteration = 0
-                while (response.toolCalls != null && toolIteration < 5) {
-                    toolIteration++
-
-                    val toolResults = response.toolCalls!!.map { toolCall ->
-                        val result = actionExecutor?.executeAction(toolCall.action)
-                        val status = if (result?.success == true) "SUCCESS" else "FAILED"
-                        val message = result?.message ?: "Action executor not available"
-                        "Tool ${toolCall.action.type} result: $status - $message"
-                    }.joinToString("\n")
-
-                    // Send tool results back to agent
-                    contextPrompt += "\n\nTool Results:\n$toolResults\n\nPlease provide your final response based on these results."
-                    response = agent.process(contextPrompt)
+                val response = withContext(Dispatchers.Default) {
+                    var contextPrompt = buildContextPrompt(_state.value.messages)
+                    var resp = agent.process(contextPrompt)
+                    // 3. Tool Calling Loop (if agent supports it and returned tool calls)
+                    var toolIteration = 0
+                    while (resp.toolCalls != null && toolIteration < 5) {
+                        toolIteration++
+                        val toolResults = resp.toolCalls!!.map { toolCall ->
+                            val result = withContext(Dispatchers.Main.immediate) {
+                                actionExecutor?.executeAction(toolCall.action)
+                            }
+                            val status = if (result?.success == true) "SUCCESS" else "FAILED"
+                            val message = result?.message ?: "Action executor not available"
+                            "Tool ${toolCall.action.type} result: $status - $message"
+                        }.joinToString("\n")
+                        contextPrompt += "\n\nTool Results:\n$toolResults\n\nPlease provide your final response based on these results."
+                        resp = agent.process(contextPrompt)
+                    }
+                    resp
                 }
 
                 // 4. Execute single action if present (from agent or parsed from response)

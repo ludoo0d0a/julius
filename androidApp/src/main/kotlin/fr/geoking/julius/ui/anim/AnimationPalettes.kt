@@ -1,5 +1,6 @@
 package fr.geoking.julius.ui.anim
 
+import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -8,6 +9,9 @@ data class AnimationPalette(
     val name: String,
     val colors: List<Int>
 ) {
+    /** Cached Compose Color list to avoid repeated palette.colors.map { Color(it) } in effects. */
+    val colorsAsComposeColor: List<Color> by lazy { colors.map { Color(it) } }
+
     val primary: Int get() = colorAt(0)
     val secondary: Int get() = colorAt(1)
     val tertiary: Int get() = colorAt(2)
