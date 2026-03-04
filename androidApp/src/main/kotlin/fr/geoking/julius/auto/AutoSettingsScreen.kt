@@ -1,0 +1,58 @@
+package fr.geoking.julius.auto
+
+import androidx.car.app.CarContext
+import androidx.car.app.Screen
+import androidx.car.app.model.*
+import fr.geoking.julius.SettingsManager
+
+class AutoSettingsScreen(
+    carContext: CarContext,
+    private val settingsManager: SettingsManager
+) : Screen(carContext) {
+
+    override fun onGetTemplate(): Template {
+        val settings = settingsManager.settings.value
+
+        val listBuilder = ItemList.Builder()
+
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("Agent")
+                .addText(settings.selectedAgent.name)
+                .setOnClickListener {
+                    screenManager.push(AutoAgentSelectionScreen(carContext, settingsManager))
+                }
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("IA Model")
+                .addText(settings.selectedModel.displayName)
+                .setOnClickListener {
+                    screenManager.push(AutoModelSelectionScreen(carContext, settingsManager))
+                }
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("Extended Actions")
+                .addText("Allow AI to access sensors")
+                .setToggle(
+                    Toggle.Builder { checked ->
+                        val current = settingsManager.settings.value
+                        settingsManager.saveSettings(current.copy(extendedActionsEnabled = checked))
+                        invalidate()
+                    }.setChecked(settings.extendedActionsEnabled).build()
+                )
+                .build()
+        )
+
+        return ListTemplate.Builder()
+            .setSingleList(listBuilder.build())
+            .setTitle("Settings")
+            .setHeaderAction(Action.BACK)
+            .build()
+    }
+}
