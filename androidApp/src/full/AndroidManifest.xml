@@ -13,6 +13,9 @@
                 <category android:name="androidx.car.app.category.MESSAGING"/>
                 <category android:name="androidx.car.app.category.NAVIGATION"/>
             </intent-filter>
+            <meta-data
+                android:name="androidx.car.app.CarAppService.MEDIA_BROWSER_SERVICE"
+                android:value="fr.geoking.julius.auto.JuliusMediaService" />
         </service>
     </application>
 </manifest>
