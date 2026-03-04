@@ -179,6 +179,11 @@ dependencies {
     implementation(libs.androidx.car.app)
     implementation(libs.androidx.car.app.projected)
 
+    // Media3 for Dashboard Tile
+    implementation(libs.media3.session)
+    implementation(libs.media3.common)
+    implementation(libs.guava)
+
     // Ktor
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)

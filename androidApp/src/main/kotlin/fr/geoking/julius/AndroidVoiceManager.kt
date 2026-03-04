@@ -3,6 +3,7 @@ package fr.geoking.julius
 import android.content.Context
 import android.content.Intent
 import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.speech.RecognitionListener
@@ -10,6 +11,17 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.common.SimpleBasePlayer
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.MediaItem
+import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaSession
+import androidx.media3.session.MediaLibraryService
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.shared.VoiceManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +31,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
 
+@UnstableApi
 class AndroidVoiceManager(
     private val context: Context
 ) : VoiceManager, RecognitionListener, TextToSpeech.OnInitListener {
@@ -39,7 +52,132 @@ class AndroidVoiceManager(
     private var isRecognizerActive: Boolean = false
     private var isBargeInActive: Boolean = false
     private var bargeInRestartScheduled: Boolean = false
-    
+
+    private val player = object : SimpleBasePlayer(context.mainLooper) {
+        fun notifyStateChanged() {
+            invalidateState()
+        }
+
+        override fun getState(): State {
+            val playbackState = when (_events.value) {
+                VoiceEvent.Listening, VoiceEvent.Speaking, VoiceEvent.Processing -> Player.STATE_READY
+                VoiceEvent.Silence -> Player.STATE_IDLE
+            }
+            val playWhenReady = _events.value != VoiceEvent.Silence
+
+            return State.Builder()
+                .setAvailableCommands(
+                    Player.Commands.Builder()
+                        .add(Player.COMMAND_PLAY_PAUSE)
+                        .add(Player.COMMAND_STOP)
+                        .build()
+                )
+                .setPlaybackState(playbackState)
+                .setPlayWhenReady(playWhenReady, Player.PLAYBACK_SUPPRESSION_REASON_NONE)
+                .setPlaylist(
+                    listOf(
+                        MediaItemData.Builder("julius_voice")
+                            .setMediaMetadata(
+                                MediaMetadata.Builder()
+                                    .setTitle("Julius")
+                                    .setArtist(when (_events.value) {
+                                        VoiceEvent.Listening -> "Listening..."
+                                        VoiceEvent.Speaking -> "Speaking..."
+                                        VoiceEvent.Processing -> "Thinking..."
+                                        VoiceEvent.Silence -> "Idle"
+                                    })
+                                    .setArtworkUri(Uri.parse("android.resource://${context.packageName}/drawable/ic_launcher_foreground"))
+                                    .setIsPlayable(true)
+                                    .build()
+                            )
+                            .build()
+                    )
+                )
+                .build()
+        }
+
+        override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {
+            if (playWhenReady) {
+                startListening()
+            } else {
+                stopSpeaking()
+                stopListening()
+            }
+            return Futures.immediateVoidFuture()
+        }
+
+        override fun handleStop(): ListenableFuture<*> {
+            stopSpeaking()
+            stopListening()
+            return Futures.immediateVoidFuture()
+        }
+    }
+
+    var mediaLibrarySession: MediaLibraryService.MediaLibrarySession? = null
+        private set
+
+    fun releaseMediaSession() {
+        mediaLibrarySession?.release()
+        mediaLibrarySession = null
+    }
+
+    fun initMediaSession(service: MediaLibraryService) {
+        if (mediaLibrarySession != null) return
+
+        mediaLibrarySession = MediaLibraryService.MediaLibrarySession.Builder(
+            service,
+            player,
+            object : MediaLibraryService.MediaLibrarySession.Callback {
+                override fun onGetLibraryRoot(
+                    session: MediaLibraryService.MediaLibrarySession,
+                    browser: MediaSession.ControllerInfo,
+                    params: MediaLibraryService.LibraryParams?
+                ): ListenableFuture<LibraryResult<MediaItem>> {
+                    val rootItem = MediaItem.Builder()
+                        .setMediaId("root")
+                        .setMediaMetadata(
+                            MediaMetadata.Builder()
+                                .setTitle("Julius")
+                                .setIsPlayable(false)
+                                .setIsBrowsable(true)
+                                .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+                                .build()
+                        )
+                        .build()
+                    return Futures.immediateFuture(LibraryResult.ofItem(rootItem, params))
+                }
+
+                override fun onGetItem(
+                    session: MediaLibraryService.MediaLibrarySession,
+                    browser: MediaSession.ControllerInfo,
+                    mediaId: String
+                ): ListenableFuture<LibraryResult<MediaItem>> {
+                    val item = MediaItem.Builder()
+                        .setMediaId("start_julius")
+                        .setMediaMetadata(
+                            MediaMetadata.Builder()
+                                .setTitle("Start Julius")
+                                .setIsPlayable(true)
+                                .setIsBrowsable(false)
+                                .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+                                .build()
+                        )
+                        .build()
+                    return Futures.immediateFuture(LibraryResult.ofItem(item, null))
+                }
+
+                override fun onAddMediaItems(
+                    mediaSession: MediaSession,
+                    controller: MediaSession.ControllerInfo,
+                    mediaItems: MutableList<MediaItem>
+                ): ListenableFuture<List<MediaItem>> {
+                    startListening()
+                    return Futures.immediateFuture(mediaItems)
+                }
+            }
+        ).build()
+    }
+
     init {
         tts = TextToSpeech(context, this)
         tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
@@ -47,6 +185,7 @@ class AndroidVoiceManager(
                 // Keep event in Speaking while TTS is active
                 if (_events.value != VoiceEvent.Speaking) {
                     _events.value = VoiceEvent.Speaking
+                    player.notifyStateChanged()
                 }
             }
 
@@ -54,6 +193,7 @@ class AndroidVoiceManager(
                 mainHandler.post {
                     if (_events.value == VoiceEvent.Speaking) {
                         _events.value = VoiceEvent.Silence
+                        player.notifyStateChanged()
                     }
                     stopBargeInListening()
                 }
@@ -68,6 +208,7 @@ class AndroidVoiceManager(
             // Only reset to Silence if we were speaking, not if we're listening
             if (_events.value == VoiceEvent.Speaking) {
                 _events.value = VoiceEvent.Silence
+                player.notifyStateChanged()
             }
             stopBargeInListening()
         }
@@ -92,12 +233,14 @@ class AndroidVoiceManager(
             isBargeInActive = false
             if (_events.value == VoiceEvent.Listening) {
                 _events.value = VoiceEvent.Silence
+                player.notifyStateChanged()
             }
         }
     }
     
     override fun speak(text: String, languageTag: String?) {
         _events.value = VoiceEvent.Speaking
+        player.notifyStateChanged()
         updateTtsLanguage(languageTag)
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "voice_ai_utterance")
         startBargeInListening()
@@ -105,6 +248,7 @@ class AndroidVoiceManager(
 
     override fun playAudio(bytes: ByteArray) {
         _events.value = VoiceEvent.Speaking
+        player.notifyStateChanged()
         try {
             // Write to temp file
             val tempFile = File.createTempFile("voice_ai_temp", ".mp3", context.cacheDir)
@@ -128,6 +272,7 @@ class AndroidVoiceManager(
         mediaPlayer?.stop()
         stopBargeInListening()
         _events.value = VoiceEvent.Silence
+        player.notifyStateChanged()
     }
 
     private fun updateTtsLanguage(languageTag: String?) {
@@ -182,6 +327,7 @@ class AndroidVoiceManager(
                 if (isBargeInActive == bargeIn) {
                     if (!bargeIn) {
                         _events.value = VoiceEvent.Listening
+                        player.notifyStateChanged()
                     }
                     return@post
                 }
@@ -193,6 +339,7 @@ class AndroidVoiceManager(
             recognizer.startListening(intent)
             if (!bargeIn) {
                 _events.value = VoiceEvent.Listening
+                player.notifyStateChanged()
             }
         }
     }
@@ -243,6 +390,7 @@ class AndroidVoiceManager(
         // Keep Speaking state when listening for barge-in
         if (!(isBargeInActive && _events.value == VoiceEvent.Speaking)) {
             _events.value = VoiceEvent.Listening
+            player.notifyStateChanged()
         }
     }
     override fun onBeginningOfSpeech() {
@@ -252,12 +400,14 @@ class AndroidVoiceManager(
             isBargeInActive = false
         }
         _events.value = VoiceEvent.Listening 
+        player.notifyStateChanged()
     }
     override fun onRmsChanged(rmsdB: Float) {}
     override fun onBufferReceived(buffer: ByteArray?) {}
     override fun onEndOfSpeech() {
         if (!(isBargeInActive && _events.value == VoiceEvent.Speaking)) {
             _events.value = VoiceEvent.Processing
+            player.notifyStateChanged()
         }
     }
     override fun onError(error: Int) {
@@ -268,6 +418,7 @@ class AndroidVoiceManager(
         }
         isBargeInActive = false
         _events.value = VoiceEvent.Silence
+        player.notifyStateChanged()
     }
     override fun onResults(results: Bundle?) {
         isRecognizerActive = false
@@ -279,6 +430,7 @@ class AndroidVoiceManager(
         val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         val text = matches?.firstOrNull() ?: ""
         _transcribedText.value = text 
+        player.notifyStateChanged()
         // Note: ConversationStore observes this flow and triggers processing
     }
     override fun onPartialResults(partialResults: Bundle?) {
