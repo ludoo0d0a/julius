@@ -87,6 +87,15 @@ open class SettingsManager(context: Context) {
         )
     }
 
+    open fun saveSettings(settings: AppSettings) {
+        saveSettings(
+            settings.openAiKey, settings.elevenLabsKey, settings.perplexityKey, settings.geminiKey, settings.deepgramKey,
+            settings.genkitApiKey, settings.genkitEndpoint, settings.firebaseAiKey, settings.firebaseAiModel,
+            settings.selectedAgent, settings.selectedTheme, settings.selectedModel, settings.fractalQuality, settings.fractalColorIntensity,
+            settings.extendedActionsEnabled
+        )
+    }
+
     open fun saveSettings(
         openAiKey: String,
         elevenLabsKey: String,

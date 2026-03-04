@@ -19,6 +19,7 @@ import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.R
+import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.DetailedError
 import fr.geoking.julius.shared.VoiceEvent
@@ -29,7 +30,8 @@ import kotlinx.coroutines.launch
 
 class MainScreen(
     carContext: CarContext,
-    private val store: ConversationStore
+    private val store: ConversationStore,
+    private val settingsManager: SettingsManager
 ) : Screen(carContext) {
 
     private var currentStatus: String = "Idle"
@@ -143,6 +145,18 @@ class MainScreen(
         val actionStrip = ActionStrip.Builder()
             .addAction(
                 Action.Builder()
+                    .setIcon(
+                        CarIcon.Builder(
+                            IconCompat.createWithResource(carContext, R.drawable.ic_settings)
+                        ).build()
+                    )
+                    .setOnClickListener {
+                        screenManager.push(AutoSettingsScreen(carContext, settingsManager))
+                    }
+                    .build()
+            )
+            .addAction(
+                Action.Builder()
                     .setIcon(actionIcon)
                     .setTitle(if (isListening || isSpeaking) "Stop" else "Speak")
                     .setOnClickListener {
@@ -190,6 +204,18 @@ class MainScreen(
         return MessageTemplate.Builder(message)
             .setIcon(themeCarIcon)
             .setTitle("Julius")
+            .addAction(
+                Action.Builder()
+                    .setIcon(
+                        CarIcon.Builder(
+                            IconCompat.createWithResource(carContext, R.drawable.ic_settings)
+                        ).build()
+                    )
+                    .setOnClickListener {
+                        screenManager.push(AutoSettingsScreen(carContext, settingsManager))
+                    }
+                    .build()
+            )
             .addAction(
                 Action.Builder()
                     .setIcon(actionIcon)
