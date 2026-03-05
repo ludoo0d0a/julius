@@ -17,6 +17,7 @@ import androidx.car.app.model.Template
 import androidx.car.app.navigation.model.NavigationTemplate
 import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.lifecycleScope
+import fr.geoking.julius.AgentType
 import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
@@ -39,6 +40,10 @@ class MainScreen(
     private var lastError: DetailedError? = null
     private var isListening: Boolean = false
     private var isSpeaking: Boolean = false
+
+    private var cachedAgent: AgentType? = null
+    private var dynamicIdleIcon: CarIcon? = null
+    private var dynamicActiveIcon: CarIcon? = null
 
     /** When true, use MessageTemplate (fallback) instead of NavigationTemplate. */
     private var useFallback: Boolean = false
@@ -77,6 +82,15 @@ class MainScreen(
 
     init {
         lifecycleScope.launch {
+            settingsManager.settings.collectLatest { settings ->
+                if (settings.selectedAgent != cachedAgent) {
+                    cachedAgent = settings.selectedAgent
+                    refreshDynamicIcons()
+                }
+            }
+        }
+
+        lifecycleScope.launch {
             store.state.collectLatest { state ->
                 isListening = state.status == VoiceEvent.Listening
                 isSpeaking = state.status == VoiceEvent.Speaking
@@ -91,6 +105,13 @@ class MainScreen(
                 invalidate()
             }
         }
+    }
+
+    private fun refreshDynamicIcons() {
+        val agent = cachedAgent ?: settingsManager.settings.value.selectedAgent
+        dynamicIdleIcon = DynamicImageGenerator.generateIcon(agent, false)
+        dynamicActiveIcon = DynamicImageGenerator.generateIcon(agent, true)
+        invalidate()
     }
 
     override fun onGetTemplate(): Template {
@@ -176,10 +197,11 @@ class MainScreen(
     }
 
     private fun buildPaneTemplate(): Template {
-        val themeImageResId = if (isListening) R.drawable.auto_theme_active else R.drawable.auto_theme_idle
-        val themeCarIcon = CarIcon.Builder(
-            IconCompat.createWithResource(carContext, themeImageResId)
-        ).build()
+        val themeCarIcon = if (isListening || isSpeaking) {
+            dynamicActiveIcon ?: CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.auto_theme_active)).build()
+        } else {
+            dynamicIdleIcon ?: CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.auto_theme_idle)).build()
+        }
 
         val actionIconRes = if (isSpeaking) R.drawable.ic_stop else R.drawable.ic_speaker
         val actionIcon = CarIcon.Builder(
@@ -221,6 +243,9 @@ class MainScreen(
             .addRow(
                 Row.Builder()
                     .setTitle(message)
+                    .setOnClickListener {
+                        refreshDynamicIcons()
+                    }
                     .build()
             )
             .addAction(
@@ -245,10 +270,11 @@ class MainScreen(
     }
 
     private fun buildMessageTemplate(): Template {
-        val themeImageResId = if (isListening) R.drawable.auto_theme_active else R.drawable.auto_theme_idle
-        val themeCarIcon = CarIcon.Builder(
-            IconCompat.createWithResource(carContext, themeImageResId)
-        ).build()
+        val themeCarIcon = if (isListening || isSpeaking) {
+            dynamicActiveIcon ?: CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.auto_theme_active)).build()
+        } else {
+            dynamicIdleIcon ?: CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.auto_theme_idle)).build()
+        }
 
         val actionIconRes = if (isSpeaking) R.drawable.ic_stop else R.drawable.ic_speaker
         val actionIcon = CarIcon.Builder(
