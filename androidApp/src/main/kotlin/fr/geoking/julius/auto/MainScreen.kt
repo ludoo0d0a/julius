@@ -16,7 +16,7 @@ import androidx.car.app.model.Pane
 import androidx.car.app.model.PaneTemplate
 import androidx.car.app.model.Row
 import androidx.car.app.model.Tab
-import androidx.car.app.model.TabCallback
+import androidx.car.app.model.TabContents
 import androidx.car.app.model.TabTemplate
 import androidx.car.app.model.Template
 import androidx.car.app.navigation.model.NavigationTemplate
@@ -172,7 +172,7 @@ class MainScreen(
                 else -> buildPaneTemplate()
             }
 
-            TabTemplate.Builder(object : TabCallback {
+            TabTemplate.Builder(object : TabTemplate.TabCallback {
                 override fun onTabSelected(tabContentId: String) {
                     if (tabContentId == TAB_SETTINGS) {
                         screenManager.push(AutoSettingsScreen(carContext, settingsManager))
@@ -187,7 +187,7 @@ class MainScreen(
                 .addTab(historyTab)
                 .addTab(settingsTab)
                 .setActiveTabContentId(activeTabId)
-                .setTemplate(templateToDisplay)
+                .setTabContents(TabContents.Builder(templateToDisplay).build())
                 .build()
 
         } catch (e: Exception) {
@@ -349,12 +349,10 @@ class MainScreen(
                 else -> "Error"
             }
             val httpSuffix = lastError!!.httpCode?.let { " (HTTP $it)" } ?: ""
+            val errorMessage = lastError!!.message + httpSuffix
             paneBuilder.addRow(
                 Row.Builder()
-                    .setTitle(message)
-                    .setOnClickListener {
-                        refreshDynamicIcons()
-                    }
+                    .setTitle(errorMessage)
                     .build()
             )
             .addAction(
@@ -378,13 +376,6 @@ class MainScreen(
             val statusRow = Row.Builder()
                 .setTitle(currentStatus)
                 .addText(currentText) // Current transcript or last overall message
-
-    private fun buildMessageTemplate(): Template {
-        val themeCarIcon = if (isListening || isSpeaking) {
-            dynamicActiveIcon ?: CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.auto_theme_active)).build()
-        } else {
-            dynamicIdleIcon ?: CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.auto_theme_idle)).build()
-        }
 
             paneBuilder.addRow(statusRow.build())
 

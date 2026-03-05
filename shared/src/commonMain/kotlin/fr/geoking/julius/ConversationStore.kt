@@ -163,7 +163,7 @@ open class ConversationStore(
     
     private fun buildDetailedErrorMessage(e: Exception): String {
         val base = e.message?.takeIf { it.isNotBlank() } ?: e.toString()
-        val type = e.javaClass.simpleName
+        val type = e.toString().substringBefore(":").trim().ifBlank { "Exception" }
         return if (type != "Exception" && !base.contains(type)) "$type: $base" else base
     }
 

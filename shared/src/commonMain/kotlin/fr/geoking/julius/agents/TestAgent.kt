@@ -65,6 +65,13 @@ class TestAgent : ConversationalAgent {
     }
 
     // --- Math ---
+    private fun formatTwoDecimals(value: Double): String {
+        val scaled = (value * 100).toLong()
+        val intPart = scaled / 100
+        val frac = kotlin.math.abs(scaled % 100)
+        return "$intPart.${frac.toString().padStart(2, '0')}"
+    }
+
     private fun tryComputeMath(input: String): String? {
         val mathRegex = Regex("""(\d+(?:\.\d+)?)\s*(plus|moins|times|fois|multiplied by|multiplié par|divided by|divisé par|\*|/|\+|-)\s*(\d+(?:\.\d+)?)""", RegexOption.IGNORE_CASE)
         val match = mathRegex.find(input) ?: return null
@@ -80,7 +87,7 @@ class TestAgent : ConversationalAgent {
             else -> return null
         }
         val isInt = result == result.toLong().toDouble()
-        val resultStr = if (isInt) result.toLong().toString() else "%.2f".format(result)
+        val resultStr = if (isInt) result.toLong().toString() else formatTwoDecimals(result)
         val isFrench = input.contains("plus") || input.contains("moins") || input.contains("fois") || input.contains("divisé")
         return if (isFrench) "$a $op $b = $resultStr" else "$a $op $b equals $resultStr"
     }
