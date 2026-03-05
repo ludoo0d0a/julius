@@ -282,6 +282,56 @@ class MainScreen(
             .build()
     }
 
+    private fun buildMessageTemplate(): Template {
+        val themeImageResId = if (isListening) R.drawable.auto_theme_active else R.drawable.auto_theme_idle
+        val themeCarIcon = CarIcon.Builder(
+            IconCompat.createWithResource(carContext, themeImageResId)
+        ).build()
+
+        val actionIconRes = if (isSpeaking) R.drawable.ic_stop else R.drawable.ic_speaker
+        val actionIcon = CarIcon.Builder(
+            IconCompat.createWithResource(carContext, actionIconRes)
+        ).build()
+
+        val message = when {
+            lastError != null -> {
+                val errorTitle = when (lastError!!.httpCode) {
+                    401 -> "Auth Error"
+                    403 -> "Permission Denied"
+                    429 -> "Rate Limit"
+                    in 500..599 -> "Server Error"
+                    else -> "Error"
+                }
+                val httpSuffix = lastError!!.httpCode?.let { " (HTTP $it)" } ?: ""
+                "$errorTitle$httpSuffix: ${lastError!!.message}"
+            }
+            else -> "$currentStatus: $currentText"
+        }
+
+        return MessageTemplate.Builder(message)
+            .setIcon(themeCarIcon)
+            .setTitle("Julius")
+            .addAction(
+                Action.Builder()
+                    .setIcon(actionIcon)
+                    .setTitle(if (isListening || isSpeaking) "Stop" else "Speak")
+                    .setOnClickListener {
+                        when {
+                            isSpeaking -> store.stopSpeaking()
+                            isListening -> store.stopListening()
+                            else -> store.startListening()
+                        }
+                    }
+                    .build()
+            )
+            .build()
+
+        return PaneTemplate.Builder(pane)
+            .setActionStrip(actionStrip)
+            .setTitle("Julius")
+            .build()
+    }
+
     companion object {
         private const val TAG = "MainScreen"
         private const val FALLBACK_DELAY_MS = 3000L
