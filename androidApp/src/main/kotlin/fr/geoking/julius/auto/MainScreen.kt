@@ -95,14 +95,14 @@ class MainScreen(
 
     override fun onGetTemplate(): Template {
         return try {
-            // Play Store build: no ACCESS_SURFACE / NAVIGATION_TEMPLATES → use MessageTemplate only
+            // Play Store build: no ACCESS_SURFACE / NAVIGATION_TEMPLATES → use PaneTemplate
             if (!BuildConfig.CAR_USE_SURFACE) {
                 // To avoid "Now display requires permission access Surface", do NOT call setSurfaceCallback(null)
                 // in the Play Store flavor where the permission is not declared in Manifest.
-                buildMessageTemplate()
+                buildPaneTemplate()
             } else if (useFallback) {
                 appManager.setSurfaceCallback(null)
-                buildMessageTemplate()
+                buildPaneTemplate()
             } else {
                 // If we reach here, BuildConfig.CAR_USE_SURFACE is true
                 surfaceCallback?.let { appManager.setSurfaceCallback(it) }
@@ -175,6 +175,75 @@ class MainScreen(
             .build()
     }
 
+    private fun buildPaneTemplate(): Template {
+        val themeImageResId = if (isListening) R.drawable.auto_theme_active else R.drawable.auto_theme_idle
+        val themeCarIcon = CarIcon.Builder(
+            IconCompat.createWithResource(carContext, themeImageResId)
+        ).build()
+
+        val actionIconRes = if (isSpeaking) R.drawable.ic_stop else R.drawable.ic_speaker
+        val actionIcon = CarIcon.Builder(
+            IconCompat.createWithResource(carContext, actionIconRes)
+        ).build()
+
+        val actionStrip = ActionStrip.Builder()
+            .addAction(
+                Action.Builder()
+                    .setIcon(
+                        CarIcon.Builder(
+                            IconCompat.createWithResource(carContext, R.drawable.ic_settings)
+                        ).build()
+                    )
+                    .setOnClickListener {
+                        screenManager.push(AutoSettingsScreen(carContext, settingsManager))
+                    }
+                    .build()
+            )
+            .build()
+
+        val message = when {
+            lastError != null -> {
+                val errorTitle = when (lastError!!.httpCode) {
+                    401 -> "Auth Error"
+                    403 -> "Permission Denied"
+                    429 -> "Rate Limit"
+                    in 500..599 -> "Server Error"
+                    else -> "Error"
+                }
+                val httpSuffix = lastError!!.httpCode?.let { " (HTTP $it)" } ?: ""
+                "$errorTitle$httpSuffix: ${lastError!!.message}"
+            }
+            else -> "$currentStatus: $currentText"
+        }
+
+        val pane = Pane.Builder()
+            .setImage(themeCarIcon)
+            .addRow(
+                Row.Builder()
+                    .setTitle(message)
+                    .build()
+            )
+            .addAction(
+                Action.Builder()
+                    .setIcon(actionIcon)
+                    .setTitle(if (isListening || isSpeaking) "Stop" else "Speak")
+                    .setOnClickListener {
+                        when {
+                            isSpeaking -> store.stopSpeaking()
+                            isListening -> store.stopListening()
+                            else -> store.startListening()
+                        }
+                    }
+                    .build()
+            )
+            .build()
+
+        return PaneTemplate.Builder(pane)
+            .setActionStrip(actionStrip)
+            .setTitle("Julius")
+            .build()
+    }
+
     private fun buildMessageTemplate(): Template {
         val themeImageResId = if (isListening) R.drawable.auto_theme_active else R.drawable.auto_theme_idle
         val themeCarIcon = CarIcon.Builder(
@@ -204,18 +273,6 @@ class MainScreen(
         return MessageTemplate.Builder(message)
             .setIcon(themeCarIcon)
             .setTitle("Julius")
-            .addAction(
-                Action.Builder()
-                    .setIcon(
-                        CarIcon.Builder(
-                            IconCompat.createWithResource(carContext, R.drawable.ic_settings)
-                        ).build()
-                    )
-                    .setOnClickListener {
-                        screenManager.push(AutoSettingsScreen(carContext, settingsManager))
-                    }
-                    .build()
-            )
             .addAction(
                 Action.Builder()
                     .setIcon(actionIcon)
