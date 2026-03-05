@@ -22,6 +22,7 @@ import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.DetailedError
+import fr.geoking.julius.shared.Role
 import fr.geoking.julius.shared.VoiceEvent
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -39,8 +40,9 @@ class MainScreen(
     private var lastError: DetailedError? = null
     private var isListening: Boolean = false
     private var isSpeaking: Boolean = false
+    private var lastProcessedMessageId: String? = null
 
-    /** When true, use MessageTemplate (fallback) instead of NavigationTemplate. */
+    /** When true, use PaneTemplate (fallback) instead of NavigationTemplate. */
     private var useFallback: Boolean = false
     /** True once we have received a surface (so we don't fall back unnecessarily). */
     private var surfaceReceived: Boolean = false
@@ -88,6 +90,18 @@ class MainScreen(
                     state.status == VoiceEvent.Listening -> state.currentTranscript.ifBlank { "Listening..." }
                     else -> state.messages.lastOrNull()?.text ?: "Tap mic to start"
                 }
+
+                // Voice keyword triggers
+                val lastMsg = state.messages.lastOrNull()
+                if (state.status == VoiceEvent.Silence && lastMsg?.sender == Role.User && lastMsg.id != lastProcessedMessageId) {
+                    lastProcessedMessageId = lastMsg.id
+                    val lastUserMsg = lastMsg.text.lowercase()
+                    val keywords = listOf("display map", "map", "carte", "gas stations", "stations service")
+                    if (keywords.any { lastUserMsg.contains(it) }) {
+                        screenManager.push(MapPoiScreen(carContext))
+                    }
+                }
+
                 invalidate()
             }
         }
@@ -147,6 +161,18 @@ class MainScreen(
                 Action.Builder()
                     .setIcon(
                         CarIcon.Builder(
+                            IconCompat.createWithResource(carContext, R.drawable.ic_map)
+                        ).build()
+                    )
+                    .setOnClickListener {
+                        screenManager.push(MapPoiScreen(carContext))
+                    }
+                    .build()
+            )
+            .addAction(
+                Action.Builder()
+                    .setIcon(
+                        CarIcon.Builder(
                             IconCompat.createWithResource(carContext, R.drawable.ic_settings)
                         ).build()
                     )
@@ -187,6 +213,18 @@ class MainScreen(
         ).build()
 
         val actionStrip = ActionStrip.Builder()
+            .addAction(
+                Action.Builder()
+                    .setIcon(
+                        CarIcon.Builder(
+                            IconCompat.createWithResource(carContext, R.drawable.ic_map)
+                        ).build()
+                    )
+                    .setOnClickListener {
+                        screenManager.push(MapPoiScreen(carContext))
+                    }
+                    .build()
+            )
             .addAction(
                 Action.Builder()
                     .setIcon(
@@ -286,6 +324,11 @@ class MainScreen(
                     }
                     .build()
             )
+            .build()
+
+        return PaneTemplate.Builder(pane)
+            .setActionStrip(actionStrip)
+            .setTitle("Julius")
             .build()
     }
 
