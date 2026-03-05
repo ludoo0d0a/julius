@@ -22,6 +22,7 @@ import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.DetailedError
+import fr.geoking.julius.shared.Role
 import fr.geoking.julius.shared.VoiceEvent
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -41,7 +42,7 @@ class MainScreen(
     private var isSpeaking: Boolean = false
     private var lastProcessedMessageId: String? = null
 
-    /** When true, use MessageTemplate (fallback) instead of NavigationTemplate. */
+    /** When true, use PaneTemplate (fallback) instead of NavigationTemplate. */
     private var useFallback: Boolean = false
     /** True once we have received a surface (so we don't fall back unnecessarily). */
     private var surfaceReceived: Boolean = false
@@ -108,14 +109,14 @@ class MainScreen(
 
     override fun onGetTemplate(): Template {
         return try {
-            // Play Store build: no ACCESS_SURFACE / NAVIGATION_TEMPLATES → use MessageTemplate only
+            // Play Store build: no ACCESS_SURFACE / NAVIGATION_TEMPLATES → use PaneTemplate
             if (!BuildConfig.CAR_USE_SURFACE) {
                 // To avoid "Now display requires permission access Surface", do NOT call setSurfaceCallback(null)
                 // in the Play Store flavor where the permission is not declared in Manifest.
-                buildMessageTemplate()
+                buildPaneTemplate()
             } else if (useFallback) {
                 appManager.setSurfaceCallback(null)
-                buildMessageTemplate()
+                buildPaneTemplate()
             } else {
                 // If we reach here, BuildConfig.CAR_USE_SURFACE is true
                 surfaceCallback?.let { appManager.setSurfaceCallback(it) }
@@ -200,7 +201,7 @@ class MainScreen(
             .build()
     }
 
-    private fun buildMessageTemplate(): Template {
+    private fun buildPaneTemplate(): Template {
         val themeImageResId = if (isListening) R.drawable.auto_theme_active else R.drawable.auto_theme_idle
         val themeCarIcon = CarIcon.Builder(
             IconCompat.createWithResource(carContext, themeImageResId)
@@ -210,21 +211,6 @@ class MainScreen(
         val actionIcon = CarIcon.Builder(
             IconCompat.createWithResource(carContext, actionIconRes)
         ).build()
-
-        val message = when {
-            lastError != null -> {
-                val errorTitle = when (lastError!!.httpCode) {
-                    401 -> "Auth Error"
-                    403 -> "Permission Denied"
-                    429 -> "Rate Limit"
-                    in 500..599 -> "Server Error"
-                    else -> "Error"
-                }
-                val httpSuffix = lastError!!.httpCode?.let { " (HTTP $it)" } ?: ""
-                "$errorTitle$httpSuffix: ${lastError!!.message}"
-            }
-            else -> "$currentStatus: $currentText"
-        }
 
         val actionStrip = ActionStrip.Builder()
             .addAction(
@@ -253,10 +239,28 @@ class MainScreen(
             )
             .build()
 
-        return MessageTemplate.Builder(message)
-            .setIcon(themeCarIcon)
-            .setTitle("Julius")
-            .setActionStrip(actionStrip)
+        val message = when {
+            lastError != null -> {
+                val errorTitle = when (lastError!!.httpCode) {
+                    401 -> "Auth Error"
+                    403 -> "Permission Denied"
+                    429 -> "Rate Limit"
+                    in 500..599 -> "Server Error"
+                    else -> "Error"
+                }
+                val httpSuffix = lastError!!.httpCode?.let { " (HTTP $it)" } ?: ""
+                "$errorTitle$httpSuffix: ${lastError!!.message}"
+            }
+            else -> "$currentStatus: $currentText"
+        }
+
+        val pane = Pane.Builder()
+            .setImage(themeCarIcon)
+            .addRow(
+                Row.Builder()
+                    .setTitle(message)
+                    .build()
+            )
             .addAction(
                 Action.Builder()
                     .setIcon(actionIcon)
@@ -270,6 +274,11 @@ class MainScreen(
                     }
                     .build()
             )
+            .build()
+
+        return PaneTemplate.Builder(pane)
+            .setActionStrip(actionStrip)
+            .setTitle("Julius")
             .build()
     }
 
