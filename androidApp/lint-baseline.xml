@@ -2,19 +2,63 @@
 <issues format="6" by="lint 9.0.0" type="baseline" client="gradle" dependencies="false" name="AGP (9.0.0)" variant="all" version="9.0.0">
 
     <issue
-        id="ApplySharedPref"
-        message="Consider using `apply()` instead; `commit` writes its data to persistent storage immediately, whereas `apply` will handle it in the background"
-        errorLine1="            .commit() // Changed from apply() to commit() for immediate persistence"
-        errorLine2="             ~~~~~~~~">
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            val location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/fr/geoking/julius/SettingsManager.kt"
-            line="99"
-            column="14"/>
+            file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
+            line="215"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Missing permissions required by LocationManager.getLastKnownLocation: android.permission.ACCESS_COARSE_LOCATION or android.permission.ACCESS_FINE_LOCATION"
+        errorLine1="            val location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
+            line="215"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="                ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
+            line="216"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Missing permissions required by LocationManager.getLastKnownLocation: android.permission.ACCESS_COARSE_LOCATION or android.permission.ACCESS_FINE_LOCATION"
+        errorLine1="                ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
+            line="216"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST, Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS, Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY, Player.PLAY_WHEN_READY_CHANGE_REASON_REMOTE, Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM, Player.PLAY_WHEN_READY_CHANGE_REASON_SUPPRESSED_TOO_LONG"
+        errorLine1="                .setPlayWhenReady(playWhenReady, Player.PLAYBACK_SUPPRESSION_REASON_NONE)"
+        errorLine2="                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/fr/geoking/julius/AndroidVoiceManager.kt"
+            line="78"
+            column="50"/>
     </issue>
 
     <issue
         id="AndroidGradlePluginVersion"
-        message="A newer version of Gradle than 9.1.0 is available: 9.3.1"
+        message="A newer version of Gradle than 9.1.0 is available: 9.4.0"
         errorLine1="distributionUrl=https\://services.gradle.org/distributions/gradle-9.1.0-bin.zip"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -24,8 +68,41 @@
     </issue>
 
     <issue
+        id="AndroidGradlePluginVersion"
+        message="A newer version of com.android.application than 9.0.0 is available: 9.1.0. (There is also a newer version of 9.0.𝑥 available, if upgrading to 9.1.0 is difficult: 9.0.1)"
+        errorLine1="agp = &quot;9.0.0&quot;"
+        errorLine2="      ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="2"
+            column="7"/>
+    </issue>
+
+    <issue
+        id="AndroidGradlePluginVersion"
+        message="A newer version of com.android.kotlin.multiplatform.library than 9.0.0 is available: 9.1.0. (There is also a newer version of 9.0.𝑥 available, if upgrading to 9.1.0 is difficult: 9.0.1)"
+        errorLine1="agp = &quot;9.0.0&quot;"
+        errorLine2="      ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="2"
+            column="7"/>
+    </issue>
+
+    <issue
+        id="AndroidGradlePluginVersion"
+        message="A newer version of com.android.library than 9.0.0 is available: 9.1.0. (There is also a newer version of 9.0.𝑥 available, if upgrading to 9.1.0 is difficult: 9.0.1)"
+        errorLine1="agp = &quot;9.0.0&quot;"
+        errorLine2="      ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="2"
+            column="7"/>
+    </issue>
+
+    <issue
         id="GradleDependency"
-        message="A newer version of androidx.compose.ui:ui than 1.10.1 is available: 1.10.2"
+        message="A newer version of androidx.compose.ui:ui than 1.10.1 is available: 1.10.4"
         errorLine1="compose = &quot;1.10.1&quot;"
         errorLine2="          ~~~~~~~~">
         <location
@@ -36,7 +113,7 @@
 
     <issue
         id="GradleDependency"
-        message="A newer version of androidx.compose.ui:ui-tooling than 1.10.1 is available: 1.10.2"
+        message="A newer version of androidx.compose.ui:ui-tooling than 1.10.1 is available: 1.10.4"
         errorLine1="compose = &quot;1.10.1&quot;"
         errorLine2="          ~~~~~~~~">
         <location
@@ -47,7 +124,7 @@
 
     <issue
         id="GradleDependency"
-        message="A newer version of androidx.compose.ui:ui-tooling-preview than 1.10.1 is available: 1.10.2"
+        message="A newer version of androidx.compose.ui:ui-tooling-preview than 1.10.1 is available: 1.10.4"
         errorLine1="compose = &quot;1.10.1&quot;"
         errorLine2="          ~~~~~~~~">
         <location
@@ -69,101 +146,233 @@
 
     <issue
         id="GradleDependency"
-        message="A newer version of androidx.activity:activity-compose than 1.12.2 is available: 1.12.3"
+        message="A newer version of androidx.activity:activity-compose than 1.12.2 is available: 1.12.4"
         errorLine1="androidx-activityCompose = &quot;1.12.2&quot;"
         errorLine2="                           ~~~~~~~~">
         <location
             file="../gradle/libs.versions.toml"
-            line="6"
+            line="7"
             column="28"/>
     </issue>
 
     <issue
+        id="GradleDependency"
+        message="A newer version of androidx.lifecycle:lifecycle-runtime-ktx than 2.9.4 is available: 2.10.0"
+        errorLine1="androidx-lifecycle = &quot;2.9.4&quot;"
+        errorLine2="                     ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="8"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.media3:media3-common than 1.5.1 is available: 1.9.2"
+        errorLine1="media3 = &quot;1.5.1&quot;"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="17"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.media3:media3-session than 1.5.1 is available: 1.9.2"
+        errorLine1="media3 = &quot;1.5.1&quot;"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="17"
+            column="10"/>
+    </issue>
+
+    <issue
         id="NewerVersionAvailable"
-        message="A newer version of io.ktor:ktor-client-content-negotiation than 3.3.3 is available: 3.4.0"
+        message="A newer version of org.jetbrains.kotlin.android than 2.3.0 is available: 2.3.10"
+        errorLine1="kotlin = &quot;2.3.0&quot;"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="3"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlin.multiplatform than 2.3.0 is available: 2.3.10"
+        errorLine1="kotlin = &quot;2.3.0&quot;"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="3"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlin.plugin.compose than 2.3.0 is available: 2.3.10"
+        errorLine1="kotlin = &quot;2.3.0&quot;"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="3"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlin.plugin.serialization than 2.3.0 is available: 2.3.10"
+        errorLine1="kotlin = &quot;2.3.0&quot;"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="3"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.ktor:ktor-client-content-negotiation than 3.3.3 is available: 3.4.1"
         errorLine1="ktor = &quot;3.3.3&quot;"
         errorLine2="       ~~~~~~~">
         <location
             file="../gradle/libs.versions.toml"
-            line="8"
+            line="10"
             column="8"/>
     </issue>
 
     <issue
         id="NewerVersionAvailable"
-        message="A newer version of io.ktor:ktor-client-core than 3.3.3 is available: 3.4.0"
+        message="A newer version of io.ktor:ktor-client-core than 3.3.3 is available: 3.4.1"
         errorLine1="ktor = &quot;3.3.3&quot;"
         errorLine2="       ~~~~~~~">
         <location
             file="../gradle/libs.versions.toml"
-            line="8"
+            line="10"
             column="8"/>
     </issue>
 
     <issue
         id="NewerVersionAvailable"
-        message="A newer version of io.ktor:ktor-client-darwin than 3.3.3 is available: 3.4.0"
+        message="A newer version of io.ktor:ktor-client-darwin than 3.3.3 is available: 3.4.1"
         errorLine1="ktor = &quot;3.3.3&quot;"
         errorLine2="       ~~~~~~~">
         <location
             file="../gradle/libs.versions.toml"
-            line="8"
+            line="10"
             column="8"/>
     </issue>
 
     <issue
         id="NewerVersionAvailable"
-        message="A newer version of io.ktor:ktor-client-okhttp than 3.3.3 is available: 3.4.0"
+        message="A newer version of io.ktor:ktor-client-okhttp than 3.3.3 is available: 3.4.1"
         errorLine1="ktor = &quot;3.3.3&quot;"
         errorLine2="       ~~~~~~~">
         <location
             file="../gradle/libs.versions.toml"
-            line="8"
+            line="10"
             column="8"/>
     </issue>
 
     <issue
         id="NewerVersionAvailable"
-        message="A newer version of io.ktor:ktor-serialization-kotlinx-json than 3.3.3 is available: 3.4.0"
+        message="A newer version of io.ktor:ktor-serialization-kotlinx-json than 3.3.3 is available: 3.4.1"
         errorLine1="ktor = &quot;3.3.3&quot;"
         errorLine2="       ~~~~~~~">
         <location
             file="../gradle/libs.versions.toml"
-            line="8"
+            line="10"
             column="8"/>
     </issue>
 
     <issue
         id="NewerVersionAvailable"
-        message="A newer version of com.llamatik:library than 0.11.0 is available: 0.13.0"
+        message="A newer version of co.touchlab:kermit than 2.0.8 is available: 2.1.0"
+        errorLine1="kermit = &quot;2.0.8&quot;"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="13"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of com.llamatik:library than 0.11.0 is available: 0.16.0"
         errorLine1="llamatik-library = &quot;0.11.0&quot;"
         errorLine2="                   ~~~~~~~~">
         <location
             file="../gradle/libs.versions.toml"
-            line="12"
+            line="14"
             column="20"/>
     </issue>
 
     <issue
         id="NewerVersionAvailable"
-        message="A newer version of com.google.genai:google-genai than 1.35.0 is available: 1.36.0"
+        message="A newer version of org.junit.jupiter:junit-jupiter-api than 6.0.2 is available: 6.0.3"
+        errorLine1="junit-jupiter = &quot;6.0.2&quot;"
+        errorLine2="                ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="15"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.junit.jupiter:junit-jupiter-engine than 6.0.2 is available: 6.0.3"
+        errorLine1="junit-jupiter = &quot;6.0.2&quot;"
+        errorLine2="                ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="15"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of com.google.genai:google-genai than 1.35.0 is available: 1.42.0"
         errorLine1="google-genai = &quot;1.35.0&quot;"
         errorLine2="               ~~~~~~~~">
         <location
             file="../gradle/libs.versions.toml"
-            line="14"
+            line="16"
             column="16"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of com.google.guava:guava than 33.3.1-android is available: 33.5.0-android"
+        errorLine1="guava = &quot;33.3.1-android&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="18"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UnsafeOptInUsageError"
+        message="This declaration is opt-in and its usage should be marked with `@androidx.media3.common.util.UnstableApi` or `@OptIn(markerClass = androidx.media3.common.util.UnstableApi.class)`"
+        errorLine1="        AndroidVoiceManager(androidContext())"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/fr/geoking/julius/di/AppModule.kt"
+            line="101"
+            column="9"/>
     </issue>
 
     <issue
         id="UnusedBoxWithConstraintsScope"
         message="BoxWithConstraints scope is not used"
-        errorLine1="                ) {"
-        errorLine2="                  ^">
+        errorLine1="    ) {"
+        errorLine2="      ^">
         <location
-            file="src/main/kotlin/fr/geoking/julius/MainActivity.kt"
-            line="83"
-            column="19"/>
+            file="src/main/kotlin/fr/geoking/julius/ui/PhoneMainScreen.kt"
+            line="56"
+            column="7"/>
     </issue>
 
     <issue
@@ -208,8 +417,30 @@
         errorLine1="        &lt;service"
         errorLine2="         ~~~~~~~">
         <location
+            file="src/full/AndroidManifest.xml"
+            line="9"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="ExportedService"
+        message="Exported service does not require permission"
+        errorLine1="        &lt;service"
+        errorLine2="         ~~~~~~~">
+        <location
             file="src/main/AndroidManifest.xml"
-            line="30"
+            line="33"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="ExportedService"
+        message="Exported service does not require permission"
+        errorLine1="        &lt;service"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="48"
             column="10"/>
     </issue>
 
@@ -225,13 +456,64 @@
     </issue>
 
     <issue
+        id="ObsoleteSdkInt"
+        message="This folder configuration (`v26`) is unnecessary; `minSdkVersion` is 26. Merge all the resources in this folder into `mipmap-anydpi`.">
+        <location
+            file="src/main/res/mipmap-anydpi-v26"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
+        errorLine1="    var zoomCycleCount by remember { mutableStateOf(0) }"
+        errorLine2="                                     ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/fr/geoking/julius/ui/anim/phone/FractalEffectCanvas.kt"
+            line="43"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
+        errorLine1="    var lastZoomProgress by remember { mutableStateOf(0f) }"
+        errorLine2="                                       ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/fr/geoking/julius/ui/anim/phone/FractalEffectCanvas.kt"
+            line="44"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_history` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_history.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_home` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_home.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
         id="UseKtx"
         message="Use the KTX extension function `String.toUri` instead?"
         errorLine1="                data = Uri.parse(&quot;sms:$phoneNumber&quot;)"
         errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
-            line="76"
+            line="87"
             column="24"/>
     </issue>
 
@@ -242,7 +524,7 @@
         errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
-            line="76"
+            line="87"
             column="24"/>
     </issue>
 
@@ -253,7 +535,7 @@
         errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
-            line="99"
+            line="110"
             column="24"/>
     </issue>
 
@@ -264,7 +546,7 @@
         errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
-            line="99"
+            line="110"
             column="24"/>
     </issue>
 
@@ -275,7 +557,7 @@
         errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
-            line="148"
+            line="159"
             column="29"/>
     </issue>
 
@@ -286,7 +568,7 @@
         errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
-            line="148"
+            line="159"
             column="29"/>
     </issue>
 
@@ -297,7 +579,7 @@
         errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
-            line="159"
+            line="170"
             column="33"/>
     </issue>
 
@@ -308,8 +590,30 @@
         errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/fr/geoking/julius/AndroidActionExecutor.kt"
-            line="159"
+            line="170"
             column="33"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="                                    .setArtworkUri(Uri.parse(&quot;android.resource://${context.packageName}/drawable/ic_launcher_foreground&quot;))"
+        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/fr/geoking/julius/AndroidVoiceManager.kt"
+            line="91"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `Canvas.withRotation` instead?"
+        errorLine1="        canvas.save()"
+        errorLine2="        ~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/fr/geoking/julius/ui/anim/auto/ParticlesEffectSurface.kt"
+            line="52"
+            column="9"/>
     </issue>
 
     <issue
@@ -319,7 +623,7 @@
         errorLine2="        ~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/fr/geoking/julius/SettingsManager.kt"
-            line="86"
+            line="116"
             column="9"/>
     </issue>
 
