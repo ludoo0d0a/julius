@@ -9,10 +9,15 @@ import androidx.car.app.SurfaceContainer
 import androidx.car.app.model.Action
 import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.CarIcon
+import androidx.car.app.model.ItemList
+import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.MessageTemplate
 import androidx.car.app.model.Pane
 import androidx.car.app.model.PaneTemplate
 import androidx.car.app.model.Row
+import androidx.car.app.model.Tab
+import androidx.car.app.model.TabCallback
+import androidx.car.app.model.TabTemplate
 import androidx.car.app.model.Template
 import androidx.car.app.navigation.model.NavigationTemplate
 import androidx.core.graphics.drawable.IconCompat
@@ -23,6 +28,7 @@ import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.DetailedError
+import fr.geoking.julius.shared.Role
 import fr.geoking.julius.shared.VoiceEvent
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -40,6 +46,8 @@ class MainScreen(
     private var lastError: DetailedError? = null
     private var isListening: Boolean = false
     private var isSpeaking: Boolean = false
+    private var lastProcessedMessageId: String? = null
+    private var activeTabId: String = TAB_ASSISTANT
 
     private var cachedAgent: AgentType? = null
     private var dynamicIdleIcon: CarIcon? = null
@@ -102,6 +110,18 @@ class MainScreen(
                     state.status == VoiceEvent.Listening -> state.currentTranscript.ifBlank { "Listening..." }
                     else -> state.messages.lastOrNull()?.text ?: "Tap mic to start"
                 }
+
+                // Voice keyword triggers
+                val lastMsg = state.messages.lastOrNull()
+                if (state.status == VoiceEvent.Silence && lastMsg?.sender == Role.User && lastMsg.id != lastProcessedMessageId) {
+                    lastProcessedMessageId = lastMsg.id
+                    val lastUserMsg = lastMsg.text.lowercase()
+                    val keywords = listOf("display map", "map", "carte", "gas stations", "stations service")
+                    if (keywords.any { lastUserMsg.contains(it) }) {
+                        screenManager.push(MapPoiScreen(carContext))
+                    }
+                }
+
                 invalidate()
             }
         }
@@ -116,31 +136,101 @@ class MainScreen(
 
     override fun onGetTemplate(): Template {
         return try {
-            // Play Store build: no ACCESS_SURFACE / NAVIGATION_TEMPLATES → use PaneTemplate
-            if (!BuildConfig.CAR_USE_SURFACE) {
-                // To avoid "Now display requires permission access Surface", do NOT call setSurfaceCallback(null)
-                // in the Play Store flavor where the permission is not declared in Manifest.
-                buildPaneTemplate()
-            } else if (useFallback) {
-                appManager.setSurfaceCallback(null)
-                buildPaneTemplate()
-            } else {
-                // If we reach here, BuildConfig.CAR_USE_SURFACE is true
+            // NavigationTemplate CANNOT be wrapped in TabTemplate.
+            // If we are in Navigation mode (full build), we return NavigationTemplate directly.
+            if (BuildConfig.CAR_USE_SURFACE && !useFallback) {
                 surfaceCallback?.let { appManager.setSurfaceCallback(it) }
                 scheduleFallbackIfNoSurface()
-                buildNavigationTemplate()
+                return buildNavigationTemplate()
             }
+
+            // Otherwise, we use the Tabbed interface with PaneTemplate
+            val assistantTab = Tab.Builder()
+                .setTitle("Assistant")
+                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_home)).build())
+                .setContentId(TAB_ASSISTANT)
+                .build()
+
+            val historyTab = Tab.Builder()
+                .setTitle("History")
+                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_history)).build())
+                .setContentId(TAB_HISTORY)
+                .build()
+
+            val settingsTab = Tab.Builder()
+                .setTitle("Settings")
+                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_settings)).build())
+                .setContentId(TAB_SETTINGS)
+                .build()
+
+            val templateToDisplay = when (activeTabId) {
+                TAB_ASSISTANT -> {
+                    if (BuildConfig.CAR_USE_SURFACE) appManager.setSurfaceCallback(null)
+                    buildPaneTemplate()
+                }
+                TAB_HISTORY -> buildHistoryTemplate()
+                else -> buildPaneTemplate()
+            }
+
+            TabTemplate.Builder(object : TabCallback {
+                override fun onTabSelected(tabContentId: String) {
+                    if (tabContentId == TAB_SETTINGS) {
+                        screenManager.push(AutoSettingsScreen(carContext, settingsManager))
+                    } else {
+                        activeTabId = tabContentId
+                        invalidate()
+                    }
+                }
+            })
+                .setHeaderAction(Action.APP_ICON)
+                .addTab(assistantTab)
+                .addTab(historyTab)
+                .addTab(settingsTab)
+                .setActiveTabContentId(activeTabId)
+                .setTemplate(templateToDisplay)
+                .build()
+
         } catch (e: Exception) {
             Log.e(TAG, "onGetTemplate failed", e)
             buildErrorFallbackTemplate(e)
         }
     }
 
+    private fun buildHistoryTemplate(): Template {
+        val listBuilder = ItemList.Builder()
+            .setNoItemsMessage("No conversation history")
+
+        val messages = store.state.value.messages
+        // Show last 6 messages to comply with Android Auto list limits
+        messages.takeLast(6).reversed().forEach { msg ->
+            val senderIcon = if (msg.sender == Role.User) R.drawable.ic_speaker else R.drawable.ic_home
+            listBuilder.addItem(
+                Row.Builder()
+                    .setTitle(msg.sender.name)
+                    .addText(msg.text)
+                    .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, senderIcon)).build())
+                    .build()
+            )
+        }
+
+        return ListTemplate.Builder()
+            .setSingleList(listBuilder.build())
+            .setTitle("Conversation History")
+            .build()
+    }
+
+    private fun buildSettingsPlaceholderTemplate(): Template {
+        return MessageTemplate.Builder("Redirecting to Settings...")
+            .setLoading(true)
+            .setTitle("Settings")
+            .build()
+    }
+
     private fun buildErrorFallbackTemplate(e: Exception): Template {
         val msg = e.message ?: e.toString()
         return MessageTemplate.Builder(msg.take(300))
             .setTitle("Julius Error")
-            .setHeaderAction(Action.BACK)
+            .setHeaderAction(Action.APP_ICON)
             .build()
     }
 
@@ -164,6 +254,30 @@ class MainScreen(
         ).build()
 
         val actionStrip = ActionStrip.Builder()
+            .addAction(
+                Action.Builder()
+                    .setIcon(
+                        CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_history)).build()
+                    )
+                    .setOnClickListener {
+                        activeTabId = TAB_HISTORY
+                        useFallback = true // Switch to tabbed view to show history
+                        invalidate()
+                    }
+                    .build()
+            )
+            .addAction(
+                Action.Builder()
+                    .setIcon(
+                        CarIcon.Builder(
+                            IconCompat.createWithResource(carContext, R.drawable.ic_map)
+                        ).build()
+                    )
+                    .setOnClickListener {
+                        screenManager.push(MapPoiScreen(carContext))
+                    }
+                    .build()
+            )
             .addAction(
                 Action.Builder()
                     .setIcon(
@@ -213,34 +327,29 @@ class MainScreen(
                 Action.Builder()
                     .setIcon(
                         CarIcon.Builder(
-                            IconCompat.createWithResource(carContext, R.drawable.ic_settings)
+                            IconCompat.createWithResource(carContext, R.drawable.ic_map)
                         ).build()
                     )
                     .setOnClickListener {
-                        screenManager.push(AutoSettingsScreen(carContext, settingsManager))
+                        screenManager.push(MapPoiScreen(carContext))
                     }
                     .build()
             )
             .build()
 
-        val message = when {
-            lastError != null -> {
-                val errorTitle = when (lastError!!.httpCode) {
-                    401 -> "Auth Error"
-                    403 -> "Permission Denied"
-                    429 -> "Rate Limit"
-                    in 500..599 -> "Server Error"
-                    else -> "Error"
-                }
-                val httpSuffix = lastError!!.httpCode?.let { " (HTTP $it)" } ?: ""
-                "$errorTitle$httpSuffix: ${lastError!!.message}"
-            }
-            else -> "$currentStatus: $currentText"
-        }
-
-        val pane = Pane.Builder()
+        val paneBuilder = Pane.Builder()
             .setImage(themeCarIcon)
-            .addRow(
+
+        if (lastError != null) {
+            val errorTitle = when (lastError!!.httpCode) {
+                401 -> "Auth Error"
+                403 -> "Permission Denied"
+                429 -> "Rate Limit"
+                in 500..599 -> "Server Error"
+                else -> "Error"
+            }
+            val httpSuffix = lastError!!.httpCode?.let { " (HTTP $it)" } ?: ""
+            paneBuilder.addRow(
                 Row.Builder()
                     .setTitle(message)
                     .setOnClickListener {
@@ -261,13 +370,14 @@ class MainScreen(
                     }
                     .build()
             )
-            .build()
+        } else {
+            val messages = store.state.value.messages
+            val lastUserMsg = messages.lastOrNull { it.sender == Role.User }
+            val lastAssistantMsg = messages.lastOrNull { it.sender == Role.Assistant }
 
-        return PaneTemplate.Builder(pane)
-            .setActionStrip(actionStrip)
-            .setTitle("Julius")
-            .build()
-    }
+            val statusRow = Row.Builder()
+                .setTitle(currentStatus)
+                .addText(currentText) // Current transcript or last overall message
 
     private fun buildMessageTemplate(): Template {
         val themeCarIcon = if (isListening || isSpeaking) {
@@ -276,47 +386,51 @@ class MainScreen(
             dynamicIdleIcon ?: CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.auto_theme_idle)).build()
         }
 
-        val actionIconRes = if (isSpeaking) R.drawable.ic_stop else R.drawable.ic_speaker
-        val actionIcon = CarIcon.Builder(
-            IconCompat.createWithResource(carContext, actionIconRes)
-        ).build()
+            paneBuilder.addRow(statusRow.build())
 
-        val message = when {
-            lastError != null -> {
-                val errorTitle = when (lastError!!.httpCode) {
-                    401 -> "Auth Error"
-                    403 -> "Permission Denied"
-                    429 -> "Rate Limit"
-                    in 500..599 -> "Server Error"
-                    else -> "Error"
-                }
-                val httpSuffix = lastError!!.httpCode?.let { " (HTTP $it)" } ?: ""
-                "$errorTitle$httpSuffix: ${lastError!!.message}"
+            if (lastAssistantMsg != null) {
+                paneBuilder.addRow(
+                    Row.Builder()
+                        .setTitle("Julius")
+                        .addText(lastAssistantMsg.text.take(100) + if (lastAssistantMsg.text.length > 100) "..." else "")
+                        .build()
+                )
             }
-            else -> "$currentStatus: $currentText"
         }
 
-        return MessageTemplate.Builder(message)
-            .setIcon(themeCarIcon)
-            .setTitle("Julius")
-            .addAction(
-                Action.Builder()
-                    .setIcon(actionIcon)
-                    .setTitle(if (isListening || isSpeaking) "Stop" else "Speak")
-                    .setOnClickListener {
-                        when {
-                            isSpeaking -> store.stopSpeaking()
-                            isListening -> store.stopListening()
-                            else -> store.startListening()
-                        }
+        paneBuilder.addAction(
+            Action.Builder()
+                .setIcon(actionIcon)
+                .setTitle(if (isListening || isSpeaking) "Stop" else "Speak")
+                .setOnClickListener {
+                    when {
+                        isSpeaking -> store.stopSpeaking()
+                        isListening -> store.stopListening()
+                        else -> store.startListening()
                     }
-                    .build()
-            )
+                }
+                .build()
+        )
+        paneBuilder.addAction(
+            Action.Builder()
+                .setTitle("Clear")
+                .setOnClickListener {
+                    store.clearConversation()
+                }
+                .build()
+        )
+
+        return PaneTemplate.Builder(paneBuilder.build())
+            .setActionStrip(actionStrip)
+            .setTitle("Julius Assistant")
             .build()
     }
 
     companion object {
         private const val TAG = "MainScreen"
         private const val FALLBACK_DELAY_MS = 3000L
+        private const val TAB_ASSISTANT = "assistant"
+        private const val TAB_HISTORY = "history"
+        private const val TAB_SETTINGS = "settings"
     }
 }
