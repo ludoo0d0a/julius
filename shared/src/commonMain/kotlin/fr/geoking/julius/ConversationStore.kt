@@ -205,4 +205,12 @@ open class ConversationStore(
     fun stopSpeaking() {
         voiceManager.stopSpeaking()
     }
+
+    fun clearConversation() {
+        _state.value = _state.value.copy(
+            messages = emptyList(),
+            currentTranscript = "",
+            lastError = null
+        )
+    }
 }
