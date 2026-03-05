@@ -39,6 +39,7 @@ class MainScreen(
     private var lastError: DetailedError? = null
     private var isListening: Boolean = false
     private var isSpeaking: Boolean = false
+    private var lastProcessedMessageId: String? = null
 
     /** When true, use MessageTemplate (fallback) instead of NavigationTemplate. */
     private var useFallback: Boolean = false
@@ -88,6 +89,18 @@ class MainScreen(
                     state.status == VoiceEvent.Listening -> state.currentTranscript.ifBlank { "Listening..." }
                     else -> state.messages.lastOrNull()?.text ?: "Tap mic to start"
                 }
+
+                // Voice keyword triggers
+                val lastMsg = state.messages.lastOrNull()
+                if (state.status == VoiceEvent.Silence && lastMsg?.sender == Role.User && lastMsg.id != lastProcessedMessageId) {
+                    lastProcessedMessageId = lastMsg.id
+                    val lastUserMsg = lastMsg.text.lowercase()
+                    val keywords = listOf("display map", "map", "carte", "gas stations", "stations service")
+                    if (keywords.any { lastUserMsg.contains(it) }) {
+                        screenManager.push(MapPoiScreen(carContext))
+                    }
+                }
+
                 invalidate()
             }
         }
@@ -147,6 +160,18 @@ class MainScreen(
                 Action.Builder()
                     .setIcon(
                         CarIcon.Builder(
+                            IconCompat.createWithResource(carContext, R.drawable.ic_map)
+                        ).build()
+                    )
+                    .setOnClickListener {
+                        screenManager.push(MapPoiScreen(carContext))
+                    }
+                    .build()
+            )
+            .addAction(
+                Action.Builder()
+                    .setIcon(
+                        CarIcon.Builder(
                             IconCompat.createWithResource(carContext, R.drawable.ic_settings)
                         ).build()
                     )
@@ -201,9 +226,19 @@ class MainScreen(
             else -> "$currentStatus: $currentText"
         }
 
-        return MessageTemplate.Builder(message)
-            .setIcon(themeCarIcon)
-            .setTitle("Julius")
+        val actionStrip = ActionStrip.Builder()
+            .addAction(
+                Action.Builder()
+                    .setIcon(
+                        CarIcon.Builder(
+                            IconCompat.createWithResource(carContext, R.drawable.ic_map)
+                        ).build()
+                    )
+                    .setOnClickListener {
+                        screenManager.push(MapPoiScreen(carContext))
+                    }
+                    .build()
+            )
             .addAction(
                 Action.Builder()
                     .setIcon(
@@ -216,6 +251,12 @@ class MainScreen(
                     }
                     .build()
             )
+            .build()
+
+        return MessageTemplate.Builder(message)
+            .setIcon(themeCarIcon)
+            .setTitle("Julius")
+            .setActionStrip(actionStrip)
             .addAction(
                 Action.Builder()
                     .setIcon(actionIcon)
