@@ -230,7 +230,7 @@ class MainScreen(
         val msg = e.message ?: e.toString()
         return MessageTemplate.Builder(msg.take(300))
             .setTitle("Julius Error")
-            .setHeaderAction(Action.APP_ICON)
+            .setHeaderAction(Action.BACK)
             .build()
     }
 
@@ -355,19 +355,6 @@ class MainScreen(
                     .setTitle(errorMessage)
                     .build()
             )
-            .addAction(
-                Action.Builder()
-                    .setIcon(actionIcon)
-                    .setTitle(if (isListening || isSpeaking) "Stop" else "Speak")
-                    .setOnClickListener {
-                        when {
-                            isSpeaking -> store.stopSpeaking()
-                            isListening -> store.stopListening()
-                            else -> store.startListening()
-                        }
-                    }
-                    .build()
-            )
         } else {
             val messages = store.state.value.messages
             val lastUserMsg = messages.lastOrNull { it.sender == Role.User }
@@ -402,15 +389,6 @@ class MainScreen(
                 }
                 .build()
         )
-        paneBuilder.addAction(
-            Action.Builder()
-                .setTitle("Clear")
-                .setOnClickListener {
-                    store.clearConversation()
-                }
-                .build()
-        )
-
         return PaneTemplate.Builder(paneBuilder.build())
             .setActionStrip(actionStrip)
             .setTitle("Julius Assistant")
