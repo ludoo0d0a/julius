@@ -13,7 +13,8 @@ import kotlinx.serialization.json.Json
  * Base for real API tests. API keys and optional model overrides are read from:
  * - System properties (e.g. -Dopenai.key=...)
  * - local.properties in project root (e.g. openai.key=..., gemini.key=..., perplexity.key=...,
- *   elevenlabs.key=..., deepgram.key=..., firebaseai.key=..., firebaseai.model=...)
+ *   elevenlabs.key=..., deepgram.key=..., firebaseai.key=..., firebaseai.model=...,
+ *   completionsme.key=..., completionsme.model=..., apifreellm.key=..., opencodezen.key=..., opencodezen.model=...)
  *
  * Each agent test: checks key (skip if missing), builds agent with key/model, sends a question, asserts non-empty answer.
  */
