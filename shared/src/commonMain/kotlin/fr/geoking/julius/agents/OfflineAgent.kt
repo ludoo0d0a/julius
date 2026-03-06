@@ -3,11 +3,11 @@ package fr.geoking.julius.agents
 import kotlin.random.Random
 
 /**
- * TestAgent - Fully offline agent for testing.
+ * OfflineAgent - Fully offline agent.
  * Supports: basic math, counting (EN/FR), hangman, quote of the day.
  * Implements the same [ConversationalAgent] interface as other agents.
  */
-class TestAgent : ConversationalAgent {
+class OfflineAgent : ConversationalAgent {
 
     override suspend fun process(input: String): AgentResponse {
         val lastUserMessage = extractLastUserMessage(input)
@@ -46,9 +46,9 @@ class TestAgent : ConversationalAgent {
             normalized.contains("français") || normalized.contains("french") || normalized.contains("en français")
         return AgentResponse(
             text = if (isFrench) {
-                "Je suis un agent de test hors ligne. Je peux : calculer (ex: 5 plus 3), compter (ex: compte jusqu'à 10 en français), jouer au pendu (dis \"jouer au pendu\"), ou donner une citation du jour (dis \"citation du jour\")."
+                "Je suis un agent hors ligne. Je peux : calculer (ex: 5 plus 3), compter (ex: compte jusqu'à 10 en français), jouer au pendu (dis \"jouer au pendu\"), ou donner une citation du jour (dis \"citation du jour\")."
             } else {
-                "I'm an offline test agent. I can: compute math (e.g. 5 plus 3), count (e.g. count to 10 in English), play hangman (say \"play hangman\"), or give a quote of the day (say \"quote of the day\")."
+                "I'm an offline agent. I can: compute math (e.g. 5 plus 3), count (e.g. count to 10 in English), play hangman (say \"play hangman\"), or give a quote of the day (say \"quote of the day\")."
             },
             audio = null
         )

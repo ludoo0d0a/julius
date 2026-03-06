@@ -5,7 +5,7 @@ import fr.geoking.julius.shared.NetworkException
 // import com.llamatik.library.LlamaBridge
 
 /**
- * EmbeddedAgent - On-device/offline LLM inference using Llamatik
+ * LocalAgent - On-device/offline LLM inference using Llamatik
  * 
  * This agent runs models locally without requiring API keys or network connectivity.
  * Models must be in GGUF format and placed in the app's assets folder or accessible file path.
@@ -22,13 +22,13 @@ import fr.geoking.julius.shared.NetworkException
  * The library dependency (com.llamatik:library:0.11.0) resolves but LlamaBridge class is not found.
  * This may be due to API changes in version 0.11.0 or packaging issues.
  */
-class EmbeddedAgent(
+class LocalAgent(
     private val modelPath: String = "models/phi-2.Q4_0.gguf"
 ) : ConversationalAgent {
 
     override suspend fun process(input: String): AgentResponse {
         // TODO: Re-enable once LlamaBridge import is fixed
-        throw NetworkException(null, "EmbeddedAgent is currently disabled. LlamaBridge class not found. Please check the com.llamatik:library dependency setup.")
+        throw NetworkException(null, "LocalAgent is currently disabled. LlamaBridge class not found. Please check the com.llamatik:library dependency setup.")
         
         /* Commented out until LlamaBridge is available:
         private var isModelInitialized = false
@@ -83,7 +83,7 @@ class EmbeddedAgent(
     }
 
     /**
-     * Cleanup resources when done. Call this when switching away from EmbeddedAgent
+     * Cleanup resources when done. Call this when switching away from LocalAgent
      * or when the app is closing.
      */
     fun shutdown() {
