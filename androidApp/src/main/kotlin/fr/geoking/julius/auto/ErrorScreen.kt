@@ -30,7 +30,7 @@ class ErrorScreen(
                 ).build()
             )
             .setTitle("Julius Error")
-            .setHeaderAction(Action.APP_ICON)
+            .setHeaderAction(Action.BACK)
             .build()
     }
 }
