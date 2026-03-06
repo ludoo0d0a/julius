@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.SET_ALARM" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:name=".VoiceApplication"
@@ -38,6 +40,7 @@
             <intent-filter>
                 <action android:name="androidx.car.app.CarAppService" />
                 <category android:name="androidx.car.app.category.MESSAGING"/>
+                <category android:name="androidx.car.app.category.POI"/>
             </intent-filter>
             <meta-data
                 android:name="androidx.car.app.CarAppService.MEDIA_BROWSER_SERVICE"
