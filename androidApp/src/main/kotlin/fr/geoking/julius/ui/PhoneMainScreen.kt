@@ -35,6 +35,7 @@ fun PhoneMainScreen(
     settingsManager: SettingsManager,
     store: ConversationStore,
     onSettingsClick: () -> Unit,
+    onMapClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val currentSettings = rememberUpdatedState(settings)
@@ -67,7 +68,8 @@ fun PhoneMainScreen(
             settings = settings,
             palette = palette,
             store = store,
-            onSettingsClick = onSettingsClick
+            onSettingsClick = onSettingsClick,
+            onMapClick = onMapClick
         )
     }
 }
