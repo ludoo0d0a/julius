@@ -28,8 +28,10 @@ object DynamicImageGenerator {
         AgentType.Deepgram to 2,   // Ocean
         AgentType.Native to 3,     // Forest
         AgentType.Gemini to 5,     // Cosmic
-        AgentType.Genkit to 4,     // Ember
         AgentType.FirebaseAI to 4, // Ember
+        AgentType.OpenCodeZen to 1, // Sunset
+        AgentType.CompletionsMe to 0, // Aurora
+        AgentType.ApiFreeLLM to 2, // Ocean
         AgentType.Local to 2,     // Ocean
         AgentType.Offline to 6     // Micro
     )

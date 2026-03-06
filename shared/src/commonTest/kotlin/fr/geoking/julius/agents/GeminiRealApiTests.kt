@@ -1,5 +1,6 @@
 package fr.geoking.julius.agents
 
+import fr.geoking.julius.shared.NetworkException
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
@@ -7,32 +8,51 @@ import kotlinx.coroutines.runBlocking
 class GeminiRealApiTests : RealApiTestBase() {
 
     @Test
-    fun testListModels() = runBlocking {
-        withApiKey("gemini.key", "Gemini") { apiKey ->
-            withGeminiAgent(apiKey) { agent ->
-                val modelsJson = agent.listModels()
-                println("✅ Gemini ListModels Response:")
-                println(modelsJson)
-                assertTrue(modelsJson.isNotEmpty(), "ListModels response should not be empty")
-            }
+    fun testListModels() {
+        runBlocking {
+            withApiKey("gemini.key", "Gemini") { apiKey ->
+                withGeminiAgent(apiKey) { agent ->
+                    testListModels(agent, "Gemini")
+                }
+            } ?: Unit
         }
     }
 
     @Test
-    fun testGeminiAgent_SimplePrompt() = runBlocking {
-        withApiKey("gemini.key", "Gemini") { apiKey ->
-            withGeminiAgent(apiKey) { agent ->
-                testAgent(
-                    agent = agent,
-                    agentName = "Gemini",
-                    additionalAssertions = { response ->
-                        assertTrue(
-                            !response.text.startsWith("Error connecting"),
-                            "Should not return connection error: ${response.text}"
-                        )
-                    }
-                )
+    fun testGeminiAgent_SimplePrompt() {
+        runBlocking {
+            withApiKey("gemini.key", "Gemini") { apiKey ->
+                withGeminiAgent(apiKey) { agent ->
+                    testAgent(
+                        agent = agent,
+                        agentName = "Gemini",
+                        additionalAssertions = { response ->
+                            assertTrue(
+                                !response.text.startsWith("Error connecting"),
+                                "Should not return connection error: ${response.text}"
+                            )
+                        }
+                    )
+                }
+            } ?: Unit
+        }
+    }
+
+    @Test
+    fun testGeminiAgent_EmptyKey() {
+        runBlocking {
+        try {
+            withGeminiAgent("") { agent ->
+                agent.process("Test prompt")
             }
+            throw AssertionError("Expected NetworkException was not thrown.")
+        } catch (e: NetworkException) {
+            assertTrue(
+                e.message?.contains("API key", ignoreCase = true) == true,
+                "Exception message should indicate API key is required: ${e.message}"
+            )
+            println("✅ Gemini empty key test passed")
+        }
         }
     }
 }

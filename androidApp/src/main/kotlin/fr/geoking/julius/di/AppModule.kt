@@ -40,10 +40,13 @@ class DynamicAgentWrapper(
         append("|").append(settings.elevenLabsKey.take(8))
         append("|").append(settings.geminiKey.take(8))
         append("|").append(settings.deepgramKey.take(8))
-        append("|").append(settings.genkitEndpoint)
-        append("|").append(settings.genkitApiKey.take(8))
         append("|").append(settings.firebaseAiKey.take(8))
         append("|").append(settings.firebaseAiModel)
+        append("|").append(settings.opencodeZenKey.take(8))
+        append("|").append(settings.opencodeZenModel)
+        append("|").append(settings.completionsMeKey.take(8))
+        append("|").append(settings.completionsMeModel)
+        append("|").append(settings.apifreellmKey.take(8))
     }
     
     override suspend fun process(input: String): AgentResponse {
@@ -68,8 +71,10 @@ class DynamicAgentWrapper(
             }
             AgentType.Native -> PerplexityAgent(client, apiKey = settings.perplexityKey, model = settings.selectedModel.modelName)
             AgentType.Gemini -> GeminiAgent(client, apiKey = settings.geminiKey, toolsEnabled = settings.extendedActionsEnabled)
-            AgentType.Genkit -> GenkitAgent(client, endpoint = settings.genkitEndpoint, apiKey = settings.genkitApiKey)
             AgentType.FirebaseAI -> FirebaseAIAgent(client, apiKey = settings.firebaseAiKey, model = settings.firebaseAiModel)
+            AgentType.OpenCodeZen -> OpenCodeZenAgent(client, apiKey = settings.opencodeZenKey, model = settings.opencodeZenModel)
+            AgentType.CompletionsMe -> CompletionsMeAgent(client, apiKey = settings.completionsMeKey, model = settings.completionsMeModel)
+            AgentType.ApiFreeLLM -> ApiFreeLLMAgent(client, apiKey = settings.apifreellmKey)
             AgentType.Local -> LocalAgent() // No API key needed - runs offline
             AgentType.Offline -> OfflineAgent() // Fully offline agent - math, counting, hangman, quotes
             }

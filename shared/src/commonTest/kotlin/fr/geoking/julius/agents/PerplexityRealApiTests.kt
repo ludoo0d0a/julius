@@ -1,43 +1,44 @@
 package fr.geoking.julius.agents
 
+import fr.geoking.julius.shared.NetworkException
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
-import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class PerplexityRealApiTests : RealApiTestBase() {
 
     @Test
-    fun testPerplexityAgent_SimplePrompt() = runBlocking {
-        val apiKey = getApiKey("perplexity.key")
-        if (apiKey.isEmpty()) {
-            println("⚠️  Skipping Perplexity test - no API key provided")
-            return@runBlocking
+    fun testPerplexityAgent_SimplePrompt() {
+        runBlocking {
+            withApiKey("perplexity.key", "Perplexity") { apiKey ->
+                withPerplexityAgent(apiKey) { agent ->
+                    testAgent(
+                        agent = agent,
+                        agentName = "Perplexity",
+                        additionalAssertions = { response ->
+                            assertTrue(response.text != "No response", "Should not return 'No response' error")
+                        }
+                    )
+                }
+            } ?: Unit
         }
+    }
 
-        val client = createHttpClient()
-        val model = "llama-3.1-sonar-small-128k-online"
-        val agent = PerplexityAgent(client, apiKey, model)
-
-        val testPrompt = defaultPrompt()
-
+    @Test
+    fun testPerplexityAgent_EmptyKey() {
+        runBlocking {
         try {
-            val response = agent.process(testPrompt)
-            println("✅ Perplexity Response: ${response.text.take(150)}...")
-
-            assertTrue(response.text.isNotEmpty(), "Response text should not be empty")
-            assertNotEquals("No response", response.text, "Should not return 'No response' error")
-        } catch (e: Exception) {
-            println("❌ Perplexity test failed: ${e.message}")
-            e.printStackTrace()
-
-            // Check if it's an API key error or actual API issue
-            if (e.message?.contains("401") == true || e.message?.contains("403") == true) {
-                println("⚠️  This looks like an authentication error - check API key")
+            withPerplexityAgent("", model = "llama-3.1-sonar-small-128k-online") { agent ->
+                agent.process("Test prompt")
             }
-            throw e
-        } finally {
-            client.close()
+            throw AssertionError("Expected NetworkException was not thrown.")
+        } catch (e: NetworkException) {
+            assertTrue(
+                e.message?.contains("API key", ignoreCase = true) == true,
+                "Exception message should indicate API key is required: ${e.message}"
+            )
+            println("✅ Perplexity empty key test passed")
+        }
         }
     }
 }

@@ -23,14 +23,22 @@ import fr.geoking.julius.shared.DeviceAction
  * Pure HTTP-based GeminiAgent implementation using REST API.
  * Works on all platforms (Android, iOS, Desktop) using Ktor HTTP client.
  * Follows the Gemini API REST specification:
- * https://docs.cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference
+ * https://ai.google.dev/api/rest/v1beta/models/generateContent
+ *
+ * Uses system instructions and generation config for voice-assistant-optimized responses.
+ * Supports free-tier models: gemini-1.5-flash, gemini-1.5-pro, gemini-2.0-flash.
  */
 class GeminiAgent(
     private val client: HttpClient,
     private val apiKey: String,
-    private val model: String = "gemini-2.0-flash", // Updated default model
+    private val model: String = "gemini-2.0-flash",
     private val baseUrl: String = "https://generativelanguage.googleapis.com/v1beta",
-    private val toolsEnabled: Boolean = false
+    private val toolsEnabled: Boolean = false,
+    private val systemInstruction: String = "You are Julius, a friendly voice assistant for Android and Android Auto. " +
+        "Keep responses concise and natural for text-to-speech: short sentences, avoid bullet points or long lists. " +
+        "Be helpful, conversational, and direct. When the user asks for device actions (location, battery, volume), use the provided tools.",
+    private val temperature: Float = 0.7f,
+    private val maxOutputTokens: Int = 1024
 ) : ConversationalAgent {
 
     init {
@@ -65,8 +73,22 @@ class GeminiAgent(
     )
 
     @Serializable
+    private data class SystemInstructionPart(val text: String)
+
+    @Serializable
+    private data class SystemInstruction(val parts: List<SystemInstructionPart>)
+
+    @Serializable
+    private data class GenerationConfig(
+        val temperature: Float? = null,
+        val maxOutputTokens: Int? = null
+    )
+
+    @Serializable
     private data class GenerateContentRequest(
         val contents: List<Content>,
+        val systemInstruction: SystemInstruction? = null,
+        val generationConfig: GenerationConfig? = null,
         val tools: List<Tool>? = null
     )
 
@@ -134,6 +156,11 @@ class GeminiAgent(
                         parts = listOf(Part(text = input)),
                         role = "user"
                     )
+                ),
+                systemInstruction = SystemInstruction(parts = listOf(SystemInstructionPart(text = systemInstruction))),
+                generationConfig = GenerationConfig(
+                    temperature = temperature,
+                    maxOutputTokens = maxOutputTokens
                 ),
                 tools = tools
             )

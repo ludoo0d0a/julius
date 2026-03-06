@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-enum class AgentType { OpenAI, ElevenLabs, Deepgram, Native, Gemini, Genkit, FirebaseAI, Local, Offline }
+enum class AgentType { OpenAI, ElevenLabs, Deepgram, Native, Gemini, FirebaseAI, OpenCodeZen, CompletionsMe, ApiFreeLLM, Local, Offline }
 enum class AppTheme { Particles, Sphere, Waves, Fractal, Micro }
 enum class FractalQuality { Low, Medium, High }
 enum class FractalColorIntensity { Low, Medium, High }
@@ -25,10 +25,13 @@ data class AppSettings(
     val perplexityKey: String = "",
     val geminiKey: String = "",
     val deepgramKey: String = "",
-    val genkitApiKey: String = "",
-    val genkitEndpoint: String = "",
     val firebaseAiKey: String = "",
     val firebaseAiModel: String = "gemini-1.5-flash-latest",
+    val opencodeZenKey: String = "",
+    val opencodeZenModel: String = "minimax-m2.5-free",
+    val completionsMeKey: String = "",
+    val completionsMeModel: String = "claude-sonnet-4.5",
+    val apifreellmKey: String = "",
     val selectedAgent: AgentType = AgentType.Deepgram,
     val selectedTheme: AppTheme = AppTheme.Particles,
     val selectedModel: IaModel = IaModel.LLAMA_3_1_SONAR_SMALL,
@@ -51,10 +54,13 @@ open class SettingsManager(context: Context) {
             perplexityKey = prefs.getString("perplexity_key", "") ?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.PERPLEXITY_KEY,
             geminiKey = prefs.getString("gemini_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.GEMINI_KEY,
             deepgramKey = prefs.getString("deepgram_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.DEEPGRAM_KEY,
-            genkitApiKey = prefs.getString("genkit_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.GENKIT_KEY,
-            genkitEndpoint = prefs.getString("genkit_endpoint", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.GENKIT_ENDPOINT,
             firebaseAiKey = prefs.getString("firebase_ai_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.FIREBASE_AI_KEY,
             firebaseAiModel = prefs.getString("firebase_ai_model", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.FIREBASE_AI_MODEL,
+            opencodeZenKey = prefs.getString("opencode_zen_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.OPENCODE_ZEN_KEY,
+            opencodeZenModel = prefs.getString("opencode_zen_model", "minimax-m2.5-free") ?: "minimax-m2.5-free",
+            completionsMeKey = prefs.getString("completions_me_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.COMPLETIONS_ME_KEY,
+            completionsMeModel = prefs.getString("completions_me_model", "claude-sonnet-4.5") ?: "claude-sonnet-4.5",
+            apifreellmKey = prefs.getString("apifreellm_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.APIFREELLM_KEY,
             selectedAgent = try {
                 val agentName = prefs.getString("agent", null)
                 if (agentName != null) {
@@ -62,6 +68,7 @@ open class SettingsManager(context: Context) {
                     when (agentName) {
                         "Test" -> AgentType.Offline
                         "Embedded" -> AgentType.Local
+                        "Genkit" -> AgentType.Deepgram
                         else -> AgentType.valueOf(agentName)
                     }
                 } else {
@@ -95,7 +102,10 @@ open class SettingsManager(context: Context) {
     open fun saveSettings(settings: AppSettings) {
         saveSettings(
             settings.openAiKey, settings.elevenLabsKey, settings.perplexityKey, settings.geminiKey, settings.deepgramKey,
-            settings.genkitApiKey, settings.genkitEndpoint, settings.firebaseAiKey, settings.firebaseAiModel,
+            settings.firebaseAiKey, settings.firebaseAiModel,
+            settings.opencodeZenKey, settings.opencodeZenModel,
+            settings.completionsMeKey, settings.completionsMeModel,
+            settings.apifreellmKey,
             settings.selectedAgent, settings.selectedTheme, settings.selectedModel, settings.fractalQuality, settings.fractalColorIntensity,
             settings.extendedActionsEnabled
         )
@@ -107,10 +117,13 @@ open class SettingsManager(context: Context) {
         perplexityKey: String,
         geminiKey: String,
         deepgramKey: String,
-        genkitApiKey: String,
-        genkitEndpoint: String,
         firebaseAiKey: String,
         firebaseAiModel: String,
+        opencodeZenKey: String = "",
+        opencodeZenModel: String = "minimax-m2.5-free",
+        completionsMeKey: String = "",
+        completionsMeModel: String = "claude-sonnet-4.5",
+        apifreellmKey: String = "",
         agent: AgentType,
         theme: AppTheme,
         model: IaModel,
@@ -124,10 +137,13 @@ open class SettingsManager(context: Context) {
             .putString("perplexity_key", perplexityKey)
             .putString("gemini_key", geminiKey)
             .putString("deepgram_key", deepgramKey)
-            .putString("genkit_key", genkitApiKey)
-            .putString("genkit_endpoint", genkitEndpoint)
             .putString("firebase_ai_key", firebaseAiKey)
             .putString("firebase_ai_model", firebaseAiModel)
+            .putString("opencode_zen_key", opencodeZenKey)
+            .putString("opencode_zen_model", opencodeZenModel)
+            .putString("completions_me_key", completionsMeKey)
+            .putString("completions_me_model", completionsMeModel)
+            .putString("apifreellm_key", apifreellmKey)
             .putString("agent", agent.name)
             .putString("theme", theme.name)
             .putString("model", model.name)
@@ -143,10 +159,13 @@ open class SettingsManager(context: Context) {
             perplexityKey = perplexityKey,
             geminiKey = geminiKey,
             deepgramKey = deepgramKey,
-            genkitApiKey = genkitApiKey,
-            genkitEndpoint = genkitEndpoint,
             firebaseAiKey = firebaseAiKey,
             firebaseAiModel = firebaseAiModel,
+            opencodeZenKey = opencodeZenKey,
+            opencodeZenModel = opencodeZenModel,
+            completionsMeKey = completionsMeKey,
+            completionsMeModel = completionsMeModel,
+            apifreellmKey = apifreellmKey,
             selectedAgent = agent,
             selectedTheme = theme,
             selectedModel = model,

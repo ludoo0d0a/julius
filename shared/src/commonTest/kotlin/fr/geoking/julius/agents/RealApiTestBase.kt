@@ -9,11 +9,22 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 
+/**
+ * Base for real API tests. API keys and optional model overrides are read from:
+ * - System properties (e.g. -Dopenai.key=...)
+ * - local.properties in project root (e.g. openai.key=..., gemini.key=..., perplexity.key=...,
+ *   elevenlabs.key=..., deepgram.key=..., firebaseai.key=..., firebaseai.model=...)
+ *
+ * Each agent test: checks key (skip if missing), builds agent with key/model, sends a question, asserts non-empty answer.
+ */
 open class RealApiTestBase {
     protected fun createHttpClient(): HttpClient {
         return HttpClient(createTestHttpClientEngine()) {
             install(ContentNegotiation) {
-                json(Json { ignoreUnknownKeys = true })
+                json(Json {
+                    ignoreUnknownKeys = true
+                    encodeDefaults = true  // Ensure model and other defaults are sent to APIs (e.g. OpenAI)
+                })
             }
         }
     }
@@ -63,14 +74,44 @@ open class RealApiTestBase {
     }
 
     /**
-     * Executes a block with a GeminiAgent (pure HTTP-based implementation)
+     * Executes a block with a GeminiAgent (pure HTTP-based implementation).
+     * Model can be overridden via getApiKey("gemini.model", "gemini-2.0-flash").
      */
     protected suspend fun <T> withGeminiAgent(
         apiKey: String,
+        model: String = getApiKey("gemini.model", "gemini-2.0-flash"),
         block: suspend (GeminiAgent) -> T
     ): T {
         return withHttpClient { client ->
-            val agent = GeminiAgent(client, apiKey = apiKey)
+            val agent = GeminiAgent(client, apiKey = apiKey, model = model)
+            block(agent)
+        }
+    }
+
+    /**
+     * Executes a block with an OpenAIAgent.
+     */
+    protected suspend fun <T> withOpenAIAgent(
+        apiKey: String,
+        block: suspend (OpenAIAgent) -> T
+    ): T {
+        return withHttpClient { client ->
+            val agent = OpenAIAgent(client, apiKey = apiKey)
+            block(agent)
+        }
+    }
+
+    /**
+     * Executes a block with a PerplexityAgent.
+     * Model can be overridden via getApiKey("perplexity.model", "llama-3.1-sonar-small-128k-online").
+     */
+    protected suspend fun <T> withPerplexityAgent(
+        apiKey: String,
+        model: String = getApiKey("perplexity.model", "llama-3.1-sonar-small-128k-online"),
+        block: suspend (PerplexityAgent) -> T
+    ): T {
+        return withHttpClient { client ->
+            val agent = PerplexityAgent(client, apiKey = apiKey, model = model)
             block(agent)
         }
     }

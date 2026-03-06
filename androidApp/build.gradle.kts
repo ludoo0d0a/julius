@@ -78,24 +78,6 @@ configure<ApplicationExtension> {
                 ""
             }
         }
-        val genkitKey = project.rootProject.file("local.properties").let { file ->
-            if (file.exists()) {
-                val properties = Properties()
-                properties.load(file.inputStream())
-                properties.getProperty("genkit.key") ?: ""
-            } else {
-                ""
-            }
-        }
-        val genkitEndpoint = project.rootProject.file("local.properties").let { file ->
-            if (file.exists()) {
-                val properties = Properties()
-                properties.load(file.inputStream())
-                properties.getProperty("genkit.endpoint") ?: ""
-            } else {
-                ""
-            }
-        }
         val firebaseAiKey = project.rootProject.file("local.properties").let { file ->
             if (file.exists()) {
                 val properties = Properties()
@@ -114,6 +96,27 @@ configure<ApplicationExtension> {
                 "gemini-1.5-flash-latest"
             }
         }
+        val opencodeZenKey = project.rootProject.file("local.properties").let { file ->
+            if (file.exists()) {
+                val properties = Properties()
+                properties.load(file.inputStream())
+                properties.getProperty("opencodezen.key") ?: ""
+            } else ""
+        }
+        val completionsMeKey = project.rootProject.file("local.properties").let { file ->
+            if (file.exists()) {
+                val properties = Properties()
+                properties.load(file.inputStream())
+                properties.getProperty("completionsme.key") ?: ""
+            } else ""
+        }
+        val apifreellmKey = project.rootProject.file("local.properties").let { file ->
+            if (file.exists()) {
+                val properties = Properties()
+                properties.load(file.inputStream())
+                properties.getProperty("apifreellm.key") ?: ""
+            } else ""
+        }
 
         val mapsApiKey = project.rootProject.file("local.properties").let { file ->
             if (file.exists()) {
@@ -131,10 +134,11 @@ configure<ApplicationExtension> {
         buildConfigField("String", "DEEPGRAM_KEY", "\"$deepgramKey\"")
         buildConfigField("String", "OPENAI_KEY", "\"$openaiKey\"")
         buildConfigField("String", "PERPLEXITY_KEY", "\"$perplexityKey\"")
-        buildConfigField("String", "GENKIT_KEY", "\"$genkitKey\"")
-        buildConfigField("String", "GENKIT_ENDPOINT", "\"$genkitEndpoint\"")
         buildConfigField("String", "FIREBASE_AI_KEY", "\"$firebaseAiKey\"")
         buildConfigField("String", "FIREBASE_AI_MODEL", "\"$firebaseAiModel\"")
+        buildConfigField("String", "OPENCODE_ZEN_KEY", "\"$opencodeZenKey\"")
+        buildConfigField("String", "COMPLETIONS_ME_KEY", "\"$completionsMeKey\"")
+        buildConfigField("String", "APIFREELLM_KEY", "\"$apifreellmKey\"")
     }
 
     flavorDimensions += "distribution"

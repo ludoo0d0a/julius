@@ -140,7 +140,10 @@ fun SettingsScreen(
 private fun save(settingsManager: SettingsManager, s: AppSettings) {
     settingsManager.saveSettings(
         s.openAiKey, s.elevenLabsKey, s.perplexityKey, s.geminiKey, s.deepgramKey,
-        s.genkitApiKey, s.genkitEndpoint, s.firebaseAiKey, s.firebaseAiModel,
+        s.firebaseAiKey, s.firebaseAiModel,
+        s.opencodeZenKey, s.opencodeZenModel,
+        s.completionsMeKey, s.completionsMeModel,
+        s.apifreellmKey,
         s.selectedAgent, s.selectedTheme, s.selectedModel, s.fractalQuality, s.fractalColorIntensity,
         s.extendedActionsEnabled
     )
@@ -447,13 +450,20 @@ private fun AgentConfig(
             AgentType.Deepgram -> {
                 ConfigTextField("Deepgram Key", settings.deepgramKey) { onUpdate(settings.copy(deepgramKey = it)) }
             }
-            AgentType.Genkit -> {
-                ConfigTextField("Genkit Endpoint", settings.genkitEndpoint) { onUpdate(settings.copy(genkitEndpoint = it)) }
-                ConfigTextField("Genkit API Key", settings.genkitApiKey) { onUpdate(settings.copy(genkitApiKey = it)) }
-            }
             AgentType.FirebaseAI -> {
                 ConfigTextField("Firebase AI Key", settings.firebaseAiKey) { onUpdate(settings.copy(firebaseAiKey = it)) }
                 ConfigTextField("Firebase AI Model", settings.firebaseAiModel) { onUpdate(settings.copy(firebaseAiModel = it)) }
+            }
+            AgentType.OpenCodeZen -> {
+                ConfigTextField("OpenCode Zen Key", settings.opencodeZenKey) { onUpdate(settings.copy(opencodeZenKey = it)) }
+                ConfigTextField("Model (e.g. minimax-m2.5-free, big-pickle, gpt-5-nano)", settings.opencodeZenModel) { onUpdate(settings.copy(opencodeZenModel = it)) }
+            }
+            AgentType.CompletionsMe -> {
+                ConfigTextField("Completions.me Key", settings.completionsMeKey) { onUpdate(settings.copy(completionsMeKey = it)) }
+                ConfigTextField("Model (e.g. claude-sonnet-4.5, gpt-5.2)", settings.completionsMeModel) { onUpdate(settings.copy(completionsMeModel = it)) }
+            }
+            AgentType.ApiFreeLLM -> {
+                ConfigTextField("ApiFreeLLM Key (sign in with Google at apifreellm.com)", settings.apifreellmKey) { onUpdate(settings.copy(apifreellmKey = it)) }
             }
             AgentType.Local -> {
                 Text(
@@ -577,8 +587,6 @@ fun SettingsScreenPreview() {
                     perplexityKey = "preview-perplexity-key",
                     geminiKey = "preview-gemini-key",
                     deepgramKey = "preview-deepgram-key",
-                    genkitApiKey = "preview-genkit-key",
-                    genkitEndpoint = "https://example.com/genkit",
                     firebaseAiKey = "preview-firebase-key",
                     firebaseAiModel = "gemini-1.5-flash-latest",
                     selectedAgent = AgentType.OpenAI,
@@ -596,10 +604,13 @@ fun SettingsScreenPreview() {
                 perplexityKey: String,
                 geminiKey: String,
                 deepgramKey: String,
-                genkitApiKey: String,
-                genkitEndpoint: String,
                 firebaseAiKey: String,
                 firebaseAiModel: String,
+                opencodeZenKey: String,
+                opencodeZenModel: String,
+                completionsMeKey: String,
+                completionsMeModel: String,
+                apifreellmKey: String,
                 agent: AgentType,
                 theme: AppTheme,
                 model: IaModel,
@@ -613,10 +624,13 @@ fun SettingsScreenPreview() {
                     perplexityKey,
                     geminiKey,
                     deepgramKey,
-                    genkitApiKey,
-                    genkitEndpoint,
                     firebaseAiKey,
                     firebaseAiModel,
+                    opencodeZenKey,
+                    opencodeZenModel,
+                    completionsMeKey,
+                    completionsMeModel,
+                    apifreellmKey,
                     agent, theme, model,
                     fractalQuality,
                     fractalColorIntensity,

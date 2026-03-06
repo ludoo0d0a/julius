@@ -8,9 +8,10 @@ import kotlin.test.assertTrue
 class DeepgramRealApiTests : RealApiTestBase() {
 
     @Test
-    fun testDeepgramAgent_ChatCompletions() = runBlocking {
-        withApiKey("deepgram.key", "Deepgram") { apiKey ->
-            withAgent(createAgent = { client -> DeepgramAgent(client, apiKey) }) { agent ->
+    fun testDeepgramAgent_ChatCompletions() {
+        runBlocking {
+            withApiKey("deepgram.key", "Deepgram") { apiKey ->
+                withAgent(createAgent = { client -> DeepgramAgent(client, apiKey) }) { agent ->
                 testAgent(
                     agent = agent,
                     agentName = "Deepgram",
@@ -25,12 +26,14 @@ class DeepgramRealApiTests : RealApiTestBase() {
                         )
                     }
                 )
-            }
+                }
+            } ?: Unit
         }
     }
 
     @Test
-    fun testDeepgramAgent_EmptyKey() = runBlocking {
+    fun testDeepgramAgent_EmptyKey() {
+        runBlocking {
         try {
             withAgent(createAgent = { client -> DeepgramAgent(client, "") }) { agent ->
                 agent.process("Test prompt")
@@ -42,6 +45,7 @@ class DeepgramRealApiTests : RealApiTestBase() {
                 "Exception message should indicate API key is required: ${e.message}"
             )
             println("✅ Deepgram empty key test passed")
+        }
         }
     }
 }
