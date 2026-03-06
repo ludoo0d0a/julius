@@ -103,7 +103,7 @@ The workflow uses `status: draft` by default. After the workflow uploads success
 2. You should see a new draft release with your uploaded build
 3. Click **Review release** → **Start rollout to Internal testing**
 
-Once your app is published to production at least once, you can change the workflow to `status: completed` if you want releases to roll out automatically without manual review.
+**Note:** For pre-production apps, Google Play often rejects `status: completed` even after the first rollout. Manual validation of each release may be required until the app is published to production.
 
 ### "The Android App Bundle was signed with the wrong key"
 

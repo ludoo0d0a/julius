@@ -52,6 +52,11 @@ jobs:
             -Pandroid.injected.signing.key.alias=${{ secrets.ALIAS }} \
             -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
 
+      - name: Prepare release notes
+        run: |
+          mkdir -p .github/play-release-notes
+          echo "Automated test build #${{ github.run_number }}" > .github/play-release-notes/whatsnew-en-US
+
       - name: Deploy to Google Play
         uses: r0adkll/upload-google-play@v1
         with:
@@ -60,4 +65,4 @@ jobs:
           releaseFiles: androidApp/build/outputs/bundle/playRelease/*.aab
           track: internal
           status: draft
-          whatsNew: "Automated test build #${{ github.run_number }}"
+          whatsNewDirectory: .github/play-release-notes
