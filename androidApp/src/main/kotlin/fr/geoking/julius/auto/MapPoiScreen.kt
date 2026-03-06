@@ -59,51 +59,60 @@ class MapPoiScreen(
     }
 
     override fun onGetTemplate(): Template {
-        val listBuilder = ItemList.Builder()
-            .setNoItemsMessage("No gas stations found")
+        return try {
+            val builder = PlaceListMapTemplate.Builder()
+                .setTitle("Gas Stations")
+                .setHeaderAction(Action.BACK)
 
-        for (poi in pois) {
-            val metadata = Metadata.Builder()
-                .setPlace(
-                    Place.Builder(CarLocation.create(poi.latitude, poi.longitude))
-                        .setMarker(PlaceMarker.Builder().build())
+            if (isLoading) {
+                builder.setLoading(true)
+            } else {
+                val listBuilder = ItemList.Builder()
+                    .setNoItemsMessage("No gas stations found")
+
+                for (poi in pois) {
+                    val metadata = Metadata.Builder()
+                        .setPlace(
+                            Place.Builder(CarLocation.create(poi.latitude, poi.longitude))
+                                .setMarker(PlaceMarker.Builder().build())
+                                .build()
+                        )
                         .build()
-                )
-                .build()
 
-            listBuilder.addItem(
-                Row.Builder()
-                    .setTitle(poi.name)
-                    .addText(poi.address)
-                    .setMetadata(metadata)
-                    .setOnClickListener {
-                        val intent = Intent(CarContext.ACTION_NAVIGATE, Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${poi.name}"))
-                        carContext.startCarApp(intent)
-                    }
+                    listBuilder.addItem(
+                        Row.Builder()
+                            .setTitle(poi.name)
+                            .addText(poi.address)
+                            .setMetadata(metadata)
+                            .setOnClickListener {
+                                val intent = Intent(CarContext.ACTION_NAVIGATE, Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${poi.name}"))
+                                carContext.startCarApp(intent)
+                            }
+                            .build()
+                    )
+                }
+                builder.setItemList(listBuilder.build())
+            }
+
+            builder.setActionStrip(
+                ActionStrip.Builder()
+                    .addAction(
+                        Action.Builder()
+                            .setTitle("Refresh")
+                            .setIcon(CarIcon.Builder(androidx.core.graphics.drawable.IconCompat.createWithResource(carContext, fr.geoking.julius.R.drawable.ic_map)).build())
+                            .setOnClickListener { loadPois() }
+                            .build()
+                    )
                     .build()
             )
-        }
 
-        val builder = PlaceListMapTemplate.Builder()
-            .setTitle("Gas Stations")
-            .setHeaderAction(Action.BACK)
-            .setItemList(listBuilder.build())
-
-        if (isLoading) {
-            builder.setLoading(true)
-        }
-
-        builder.setActionStrip(
-            ActionStrip.Builder()
-                .addAction(
-                    Action.Builder()
-                        .setTitle("Refresh")
-                        .setOnClickListener { loadPois() }
-                        .build()
-                )
+            builder.build()
+        } catch (e: Exception) {
+            Log.e("MapPoiScreen", "Error building template", e)
+            MessageTemplate.Builder("Failed to load map: ${e.message}")
+                .setTitle("Error")
+                .setHeaderAction(Action.BACK)
                 .build()
-        )
-
-        return builder.build()
+        }
     }
 }
