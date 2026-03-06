@@ -34,6 +34,7 @@ fun VoiceMainContent(
     store: ConversationStore,
     onSettingsClick: () -> Unit,
     onMapClick: () -> Unit,
+    onAgentClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val displayText by remember {
@@ -55,6 +56,7 @@ fun VoiceMainContent(
             status = state.status,
             displayText = displayText,
             lastError = state.lastError,
+            onAgentClick = onAgentClick,
             modifier = Modifier.align(Alignment.Center)
         )
         TrayLightEffectCanvas(

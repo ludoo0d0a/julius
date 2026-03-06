@@ -134,6 +134,15 @@ class MainScreen(
         invalidate()
     }
 
+    private fun cycleToNextAgent() {
+        val agents = AgentType.entries
+        val current = settingsManager.settings.value.selectedAgent
+        val currentIndex = agents.indexOf(current).coerceAtLeast(0)
+        val nextIndex = (currentIndex + 1) % agents.size
+        val nextAgent = agents[nextIndex]
+        settingsManager.saveSettings(settingsManager.settings.value.copy(selectedAgent = nextAgent))
+    }
+
     override fun onGetTemplate(): Template {
         return try {
             // NavigationTemplate CANNOT be wrapped in TabTemplate.
@@ -266,6 +275,15 @@ class MainScreen(
             .addAction(
                 Action.Builder()
                     .setIcon(
+                        CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_swap_horiz)).build()
+                    )
+                    .setTitle("Next model")
+                    .setOnClickListener { cycleToNextAgent() }
+                    .build()
+            )
+            .addAction(
+                Action.Builder()
+                    .setIcon(
                         CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_history)).build()
                     )
                     .setOnClickListener {
@@ -358,6 +376,13 @@ class MainScreen(
             }
         }
 
+        paneBuilder.addAction(
+            Action.Builder()
+                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_swap_horiz)).build())
+                .setTitle("Next model")
+                .setOnClickListener { cycleToNextAgent() }
+                .build()
+        )
         paneBuilder.addAction(
             Action.Builder()
                 .setIcon(actionIcon)

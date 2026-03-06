@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import fr.geoking.julius.AgentType
 import fr.geoking.julius.AppSettings
 import fr.geoking.julius.AppTheme
 import fr.geoking.julius.SettingsManager
@@ -69,7 +70,14 @@ fun PhoneMainScreen(
             palette = palette,
             store = store,
             onSettingsClick = onSettingsClick,
-            onMapClick = onMapClick
+            onMapClick = onMapClick,
+            onAgentClick = {
+                val agents = AgentType.entries
+                val currentIndex = agents.indexOf(settings.selectedAgent).coerceAtLeast(0)
+                val nextIndex = (currentIndex + 1) % agents.size
+                val nextAgent = agents[nextIndex]
+                settingsManager.saveSettings(settings.copy(selectedAgent = nextAgent))
+            }
         )
     }
 }
