@@ -151,6 +151,12 @@ class MainScreen(
                 .setContentId(TAB_ASSISTANT)
                 .build()
 
+            val mapTab = Tab.Builder()
+                .setTitle("Map")
+                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
+                .setContentId(TAB_MAP)
+                .build()
+
             val historyTab = Tab.Builder()
                 .setTitle("History")
                 .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_history)).build())
@@ -174,16 +180,19 @@ class MainScreen(
 
             TabTemplate.Builder(object : TabTemplate.TabCallback {
                 override fun onTabSelected(tabContentId: String) {
-                    if (tabContentId == TAB_SETTINGS) {
-                        screenManager.push(AutoSettingsScreen(carContext, settingsManager))
-                    } else {
-                        activeTabId = tabContentId
-                        invalidate()
+                    when (tabContentId) {
+                        TAB_SETTINGS -> screenManager.push(AutoSettingsScreen(carContext, settingsManager))
+                        TAB_MAP -> screenManager.push(MapPoiScreen(carContext))
+                        else -> {
+                            activeTabId = tabContentId
+                            invalidate()
+                        }
                     }
                 }
             })
                 .setHeaderAction(Action.APP_ICON)
                 .addTab(assistantTab)
+                .addTab(mapTab)
                 .addTab(historyTab)
                 .addTab(settingsTab)
                 .setActiveTabContentId(activeTabId)
@@ -270,18 +279,6 @@ class MainScreen(
                 Action.Builder()
                     .setIcon(
                         CarIcon.Builder(
-                            IconCompat.createWithResource(carContext, R.drawable.ic_map)
-                        ).build()
-                    )
-                    .setOnClickListener {
-                        screenManager.push(MapPoiScreen(carContext))
-                    }
-                    .build()
-            )
-            .addAction(
-                Action.Builder()
-                    .setIcon(
-                        CarIcon.Builder(
                             IconCompat.createWithResource(carContext, R.drawable.ic_settings)
                         ).build()
                     )
@@ -321,21 +318,6 @@ class MainScreen(
         val actionIcon = CarIcon.Builder(
             IconCompat.createWithResource(carContext, actionIconRes)
         ).build()
-
-        val actionStrip = ActionStrip.Builder()
-            .addAction(
-                Action.Builder()
-                    .setIcon(
-                        CarIcon.Builder(
-                            IconCompat.createWithResource(carContext, R.drawable.ic_map)
-                        ).build()
-                    )
-                    .setOnClickListener {
-                        screenManager.push(MapPoiScreen(carContext))
-                    }
-                    .build()
-            )
-            .build()
 
         val paneBuilder = Pane.Builder()
             .setImage(themeCarIcon)
@@ -412,7 +394,6 @@ class MainScreen(
         )
 
         return PaneTemplate.Builder(paneBuilder.build())
-            .setActionStrip(actionStrip)
             .setTitle("Julius Assistant")
             .build()
     }
@@ -421,6 +402,7 @@ class MainScreen(
         private const val TAG = "MainScreen"
         private const val FALLBACK_DELAY_MS = 3000L
         private const val TAB_ASSISTANT = "assistant"
+        private const val TAB_MAP = "map"
         private const val TAB_HISTORY = "history"
         private const val TAB_SETTINGS = "settings"
     }
