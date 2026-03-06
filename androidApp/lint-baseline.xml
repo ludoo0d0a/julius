@@ -333,17 +333,6 @@
 
     <issue
         id="NewerVersionAvailable"
-        message="A newer version of com.google.genai:google-genai than 1.35.0 is available: 1.42.0"
-        errorLine1="google-genai = &quot;1.35.0&quot;"
-        errorLine2="               ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="16"
-            column="16"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
         message="A newer version of com.google.guava:guava than 33.3.1-android is available: 33.5.0-android"
         errorLine1="guava = &quot;33.3.1-android&quot;"
         errorLine2="        ~~~~~~~~~~~~~~~~">

@@ -13,7 +13,6 @@ koin = "4.1.1"
 kermit = "2.0.8"
 llamatik-library = "0.11.0"
 junit-jupiter = "6.0.2"
-google-genai = "1.35.0"
 media3 = "1.5.1"
 guava = "33.3.1-android"
 maps-compose = "6.1.0"
@@ -47,7 +46,6 @@ kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutine
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 library = { module = "com.llamatik:library", version.ref = "llamatik-library" }
-google-genai = { module = "com.google.genai:google-genai", version.ref = "google-genai" }
 maps-compose = { module = "com.google.maps.android:maps-compose", version.ref = "maps-compose" }
 media3-session = { module = "androidx.media3:media3-session", version.ref = "media3" }
 media3-common = { module = "androidx.media3:media3-common", version.ref = "media3" }
