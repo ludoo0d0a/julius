@@ -70,8 +70,8 @@ class DynamicAgentWrapper(
             AgentType.Gemini -> GeminiAgent(client, apiKey = settings.geminiKey, toolsEnabled = settings.extendedActionsEnabled)
             AgentType.Genkit -> GenkitAgent(client, endpoint = settings.genkitEndpoint, apiKey = settings.genkitApiKey)
             AgentType.FirebaseAI -> FirebaseAIAgent(client, apiKey = settings.firebaseAiKey, model = settings.firebaseAiModel)
-            AgentType.Embedded -> EmbeddedAgent() // No API key needed - runs offline
-            AgentType.Test -> TestAgent() // Fully offline test agent - math, counting, hangman, quotes
+            AgentType.Local -> LocalAgent() // No API key needed - runs offline
+            AgentType.Offline -> OfflineAgent() // Fully offline agent - math, counting, hangman, quotes
             }
             cachedAgent = newAgent
             cachedKey = key

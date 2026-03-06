@@ -455,16 +455,16 @@ private fun AgentConfig(
                 ConfigTextField("Firebase AI Key", settings.firebaseAiKey) { onUpdate(settings.copy(firebaseAiKey = it)) }
                 ConfigTextField("Firebase AI Model", settings.firebaseAiModel) { onUpdate(settings.copy(firebaseAiModel = it)) }
             }
-            AgentType.Embedded -> {
+            AgentType.Local -> {
                 Text(
-                    "This agent runs offline using an embedded model in assets/models/",
+                    "This agent runs offline using a local model in assets/models/",
                     color = Lavender,
                     fontSize = 18.sp
                 )
             }
-            AgentType.Test -> {
+            AgentType.Offline -> {
                 Text(
-                    "Fully offline test agent. Supports: basic math, counting (EN/FR), hangman, quote of the day. No config needed.",
+                    "Fully offline agent. Supports: basic math, counting (EN/FR), hangman, quote of the day. No config needed.",
                     color = Lavender,
                     fontSize = 18.sp
                 )

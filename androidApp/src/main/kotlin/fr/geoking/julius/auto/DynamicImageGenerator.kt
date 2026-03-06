@@ -30,8 +30,8 @@ object DynamicImageGenerator {
         AgentType.Gemini to 5,     // Cosmic
         AgentType.Genkit to 4,     // Ember
         AgentType.FirebaseAI to 4, // Ember
-        AgentType.Embedded to 2,   // Ocean
-        AgentType.Test to 6        // Micro
+        AgentType.Local to 2,     // Ocean
+        AgentType.Offline to 6     // Micro
     )
 
     fun generateIcon(agentType: AgentType, isActive: Boolean): CarIcon {

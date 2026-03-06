@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-enum class AgentType { OpenAI, ElevenLabs, Deepgram, Native, Gemini, Genkit, FirebaseAI, Embedded, Test }
+enum class AgentType { OpenAI, ElevenLabs, Deepgram, Native, Gemini, Genkit, FirebaseAI, Local, Offline }
 enum class AppTheme { Particles, Sphere, Waves, Fractal, Micro }
 enum class FractalQuality { Low, Medium, High }
 enum class FractalColorIntensity { Low, Medium, High }
@@ -58,7 +58,12 @@ open class SettingsManager(context: Context) {
             selectedAgent = try {
                 val agentName = prefs.getString("agent", null)
                 if (agentName != null) {
-                    AgentType.valueOf(agentName)
+                    // Migrate legacy agent names
+                    when (agentName) {
+                        "Test" -> AgentType.Offline
+                        "Embedded" -> AgentType.Local
+                        else -> AgentType.valueOf(agentName)
+                    }
                 } else {
                     AgentType.Deepgram // Default fallback
                 }
