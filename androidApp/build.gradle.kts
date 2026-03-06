@@ -114,6 +114,18 @@ configure<ApplicationExtension> {
                 "gemini-1.5-flash-latest"
             }
         }
+
+        val mapsApiKey = project.rootProject.file("local.properties").let { file ->
+            if (file.exists()) {
+                val properties = Properties()
+                properties.load(file.inputStream())
+                properties.getProperty("google.maps.key") ?: ""
+            } else {
+                ""
+            }
+        }
+        manifestPlaceholders["googleMapsApiKey"] = mapsApiKey
+
         buildConfigField("String", "ELEVENLABS_KEY", "\"$elevenLabsKey\"")
         buildConfigField("String", "GEMINI_KEY", "\"$geminiKey\"")
         buildConfigField("String", "DEEPGRAM_KEY", "\"$deepgramKey\"")
@@ -178,6 +190,9 @@ dependencies {
     // Android Auto
     implementation(libs.androidx.car.app)
     implementation(libs.androidx.car.app.projected)
+
+    // Maps
+    implementation(libs.maps.compose)
 
     // Media3 for Dashboard Tile
     implementation(libs.media3.session)

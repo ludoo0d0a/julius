@@ -33,6 +33,7 @@ fun VoiceMainContent(
     palette: AnimationPalette,
     store: ConversationStore,
     onSettingsClick: () -> Unit,
+    onMapClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val displayText by remember {
@@ -91,6 +92,12 @@ fun VoiceMainContent(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(start = 24.dp, bottom = 48.dp)
+        )
+        MapButton(
+            onClick = onMapClick,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 24.dp, bottom = 48.dp)
         )
     }
 }

@@ -23,6 +23,7 @@ import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.ConversationState
 import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.shared.PermissionManager
+import fr.geoking.julius.ui.MapScreen
 import fr.geoking.julius.ui.PhoneMainScreen
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.ui.anim.AnimationPalettes
@@ -70,23 +71,31 @@ fun MainUI(
     settingsManager: SettingsManager
 ) {
     var showSettings by remember { mutableStateOf(false) }
+    var showMap by remember { mutableStateOf(false) }
     val settings by settingsManager.settings.collectAsState()
     val paletteIndex by AnimationPalettes.index.collectAsState()
     val palette = remember(paletteIndex) { AnimationPalettes.paletteFor(paletteIndex) }
 
     MaterialTheme(colorScheme = darkColorScheme(background = Color(0xFF0F172A))) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            if (showSettings) {
-                SettingsScreen(settingsManager, state.errorLog) { showSettings = false }
-            } else {
-                PhoneMainScreen(
-                    state = state,
-                    settings = settings,
-                    palette = palette,
-                    settingsManager = settingsManager,
-                    store = store,
-                    onSettingsClick = { showSettings = true }
-                )
+            when {
+                showSettings -> {
+                    SettingsScreen(settingsManager, state.errorLog) { showSettings = false }
+                }
+                showMap -> {
+                    MapScreen(onBack = { showMap = false })
+                }
+                else -> {
+                    PhoneMainScreen(
+                        state = state,
+                        settings = settings,
+                        palette = palette,
+                        settingsManager = settingsManager,
+                        store = store,
+                        onSettingsClick = { showSettings = true },
+                        onMapClick = { showMap = true }
+                    )
+                }
             }
         }
     }
