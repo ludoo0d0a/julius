@@ -17,7 +17,11 @@ class EtalabProvider(
 
     private val etalabClient = EtalabClient(client)
 
-    override suspend fun getGasStations(latitude: Double, longitude: Double): List<Poi> {
+    override suspend fun getGasStations(
+        latitude: Double,
+        longitude: Double,
+        viewport: MapViewport?
+    ): List<Poi> {
         val stations = etalabClient.getStations(latitude, longitude, radiusKm, limit)
         return stations.map { station ->
             Poi(

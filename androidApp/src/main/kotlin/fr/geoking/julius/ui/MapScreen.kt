@@ -12,12 +12,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
+import fr.geoking.julius.providers.MapViewport
 import fr.geoking.julius.providers.Poi
 import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.providers.PoiProviderType
@@ -40,7 +43,6 @@ fun MapScreen(
 ) {
     val context = LocalContext.current
     var pois by remember { mutableStateOf<List<Poi>>(emptyList()) }
-    val scope = rememberCoroutineScope()
     val settings by settingsManager.settings.collectAsState()
     val selectedProvider = settings.selectedPoiProvider
     var providerDropdownExpanded by remember { mutableStateOf(false) }
@@ -61,18 +63,27 @@ fun MapScreen(
         }
     )
 
-    val centerLat = 48.8566
-    val centerLng = 2.3522
+    val defaultLat = 48.8566
+    val defaultLng = 2.3522
 
-    LaunchedEffect(selectedProvider) {
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(LatLng(defaultLat, defaultLng), 12f)
+    }
+
+    var mapSizePx by remember { mutableStateOf(IntSize.Zero) }
+
+    LaunchedEffect(selectedProvider, cameraPositionState.position, mapSizePx) {
         if (!hasLocationPermission) {
             launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
-        pois = poiProvider.getGasStations(centerLat, centerLng)
-    }
-
-    val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(LatLng(centerLat, centerLng), 12f)
+        val center = cameraPositionState.position.target
+        val centerLat = center.latitude
+        val centerLng = center.longitude
+        val zoom = cameraPositionState.position.zoom
+        val viewport = if (mapSizePx.width > 0 && mapSizePx.height > 0) {
+            MapViewport(zoom = zoom, mapWidthPx = mapSizePx.width, mapHeightPx = mapSizePx.height)
+        } else null
+        pois = poiProvider.getGasStations(centerLat, centerLng, viewport)
     }
 
     Scaffold(
@@ -146,7 +157,11 @@ fun MapScreen(
                     }
                 }
             }
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onSizeChanged { mapSizePx = it }
+            ) {
                 GoogleMap(
                     modifier = Modifier.fillMaxSize(),
                     cameraPositionState = cameraPositionState,

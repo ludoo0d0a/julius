@@ -20,7 +20,11 @@ class DataGouvProvider(
 
     private val dataGouvClient = DataGouvClient(client)
 
-    override suspend fun getGasStations(latitude: Double, longitude: Double): List<Poi> {
+    override suspend fun getGasStations(
+        latitude: Double,
+        longitude: Double,
+        viewport: MapViewport?
+    ): List<Poi> {
         val stations = dataGouvClient.getStations(
             latitude = latitude,
             longitude = longitude,

@@ -18,9 +18,37 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 /** Maximum number of POIs to return per getResults call. */
 const val ROUTEX_MAX_POIS = 20
+
+/**
+ * Computes the search radius in km that covers the visible map area from center, zoom and size.
+ * Uses Web Mercator: at zoom z the world is 256*2^z pixels wide; latitude scale varies with cos(lat).
+ * Returns half the diagonal of the visible rectangle in km, so the API scope matches the view.
+ */
+fun radiusKmFromMapViewport(
+    centerLat: Double,
+    centerLng: Double,
+    zoom: Float,
+    mapWidthPx: Int,
+    mapHeightPx: Int
+): Int {
+    val z = zoom.toDouble().coerceIn(0.0, 24.0)
+    val scale = 256.0 * 2.0.pow(z)
+    val latRad = centerLat * PI / 180.0
+    val cosLat = cos(latRad).coerceIn(0.01, 1.0)
+    // Visible span in degrees (Web Mercator)
+    val halfLngDeg = (mapWidthPx / 2.0) * 360.0 / scale
+    val halfLatDeg = (mapHeightPx / 2.0) * 360.0 * cosLat / scale
+    // Convert to km at center latitude (1° lat ≈ 111 km, 1° lng ≈ 111*cos(lat) km)
+    val halfLngKm = halfLngDeg * 111.0 * cosLat
+    val halfLatKm = halfLatDeg * 111.0
+    val radiusKm = sqrt(halfLngKm * halfLngKm + halfLatKm * halfLatKm)
+    return radiusKm.toInt().coerceAtLeast(1)
+}
 
 /**
  * Client for the Routex (Wigeogis) SiteFinder API.
@@ -268,7 +296,8 @@ class RoutexClient(
      * a "results"/"sites" array or GeoJSON-style "features".
      */
     suspend fun getResults(latitude: Double, longitude: Double, radiusKm: Int = 5): List<RoutexSite> {
-        val bounds = boundsFromCenter(latitude, longitude, radiusKm)
+        val box = boundsBoxFromCenter(latitude, longitude, radiusKm)
+        val bounds = "${box.minLng}, ${box.minLat}, ${box.maxLng}, ${box.maxLat}"
         val request = RoutexRequest(
             bounds = bounds,
             locations = RoutexLocations(
@@ -292,7 +321,6 @@ class RoutexClient(
         }
 
         val all = RoutexClient.parseResults(body)
-        val box = boundsBoxFromCenter(latitude, longitude, radiusKm)
         val results = RoutexClient.filterInBoundsAndLimit(
             all,
             box.minLng,

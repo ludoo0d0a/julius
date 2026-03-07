@@ -30,12 +30,35 @@ data class Poi(
     val fuelPrices: List<FuelPrice>? = null
 )
 
+/**
+ * Optional map viewport to scope the POI search to the visible area (e.g. for Routex API).
+ * When provided, radius is derived from zoom and map size instead of a fixed default.
+ */
+data class MapViewport(
+    val zoom: Float,
+    val mapWidthPx: Int,
+    val mapHeightPx: Int
+)
+
 interface PoiProvider {
-    suspend fun getGasStations(latitude: Double, longitude: Double): List<Poi>
+    /**
+     * Fetches gas stations near the given center.
+     * When [viewport] is non-null, providers may use it to limit the search to the visible map
+     * (e.g. Routex uses zoom + size to compute API radius from the visible diameter).
+     */
+    suspend fun getGasStations(
+        latitude: Double,
+        longitude: Double,
+        viewport: MapViewport? = null
+    ): List<Poi>
 }
 
 class MockPoiProvider : PoiProvider {
-    override suspend fun getGasStations(latitude: Double, longitude: Double): List<Poi> {
+    override suspend fun getGasStations(
+        latitude: Double,
+        longitude: Double,
+        viewport: MapViewport?
+    ): List<Poi> {
         // Mock data around some common coordinates or relative to input
         return listOf(
             Poi("1", "BP Paris Sud", "123 Avenue du Maine, Paris", latitude + 0.01, longitude + 0.01, "BP"),

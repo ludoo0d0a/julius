@@ -110,4 +110,60 @@ class RoutexClientTest {
     fun routexMaxPoisConstant_is20() {
         assertEquals(20, ROUTEX_MAX_POIS)
     }
+
+    @Test
+    fun radiusKmFromMapViewport_zoom12_approxParisView() {
+        // Zoom 12, 400x400 px view at Paris: radius in reasonable range (tens of km)
+        val r = radiusKmFromMapViewport(48.8566, 2.3522, 12f, 400, 400)
+        assertTrue(r in 1..100, "radius $r km should be in reasonable range")
+    }
+
+    @Test
+    fun radiusKmFromMapViewport_higherZoom_smallerRadius() {
+        val r12 = radiusKmFromMapViewport(48.0, 2.0, 12f, 256, 256)
+        val r14 = radiusKmFromMapViewport(48.0, 2.0, 14f, 256, 256)
+        assertTrue(r14 < r12, "higher zoom (14) should give smaller radius than zoom 12")
+    }
+
+    /**
+     * Bounds from curl to getResults (Lorraine area); user confirmed 8 stations for this request.
+     * Format: minLng, minLat, maxLng, maxLat
+     */
+    private val CURL_BOUNDS_MIN_LNG = 6.658489491904622
+    private val CURL_BOUNDS_MIN_LAT = 49.186270440448844
+    private val CURL_BOUNDS_MAX_LNG = 7.273723866904622
+    private val CURL_BOUNDS_MAX_LAT = 49.23763054241187
+
+    @Test
+    fun boundsRestrictScope_curlFixture_returns8StationsInBounds() {
+        // Simulated API response: 8 stations inside curl bounds (x=lng, y=lat) + 2 outside to prove filtering
+        val body = """
+            [
+                {"id":"1","x":6.75,"y":49.21,"brand_id":"A"},
+                {"id":"2","x":6.82,"y":49.20,"brand_id":"B"},
+                {"id":"3","x":6.90,"y":49.22,"brand_id":"C"},
+                {"id":"4","x":6.95,"y":49.19,"brand_id":"D"},
+                {"id":"5","x":7.05,"y":49.23,"brand_id":"E"},
+                {"id":"6","x":7.12,"y":49.21,"brand_id":"F"},
+                {"id":"7","x":7.18,"y":49.22,"brand_id":"G"},
+                {"id":"8","x":7.22,"y":49.20,"brand_id":"H"},
+                {"id":"out1","x":5.0,"y":49.0,"brand_id":"X"},
+                {"id":"out2","x":8.0,"y":50.0,"brand_id":"Y"}
+            ]
+        """.trimIndent()
+        val all = RoutexClient.parseResults(body)
+        assertEquals(10, all.size, "parse should return all 10 items")
+
+        val inBounds = RoutexClient.filterInBoundsAndLimit(
+            all,
+            CURL_BOUNDS_MIN_LNG,
+            CURL_BOUNDS_MIN_LAT,
+            CURL_BOUNDS_MAX_LNG,
+            CURL_BOUNDS_MAX_LAT,
+            maxPois = 20
+        )
+        assertEquals(8, inBounds.size, "bounds must restrict to 8 stations inside curl bounds")
+        assertTrue(inBounds.all { it.id in listOf("1", "2", "3", "4", "5", "6", "7", "8") })
+    }
+
 }

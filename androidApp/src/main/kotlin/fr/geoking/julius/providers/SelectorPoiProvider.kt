@@ -24,9 +24,13 @@ class SelectorPoiProvider(
         PoiProviderType.DataGouvElec -> dataGouvElec
     }
 
-    override suspend fun getGasStations(latitude: Double, longitude: Double): List<Poi> {
+    override suspend fun getGasStations(
+        latitude: Double,
+        longitude: Double,
+        viewport: MapViewport?
+    ): List<Poi> {
         val provider = settingsManager.settings.value.selectedPoiProvider
-        val result = currentProvider().getGasStations(latitude, longitude)
+        val result = currentProvider().getGasStations(latitude, longitude, viewport)
         Log.d("SelectorPoiProvider", "selected=$provider lat=$latitude lon=$longitude -> ${result.size} pois")
         return result
     }

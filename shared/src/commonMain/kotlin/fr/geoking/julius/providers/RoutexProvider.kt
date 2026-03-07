@@ -5,6 +5,8 @@ import io.ktor.client.HttpClient
 
 /**
  * [PoiProvider] implementation that fetches gas stations from the Routex (Wigeogis) SiteFinder API.
+ * When [viewport] is provided, the API radius is derived from the visible map (zoom + size);
+ * otherwise [radiusKm] is used.
  */
 class RoutexProvider(
     private val client: HttpClient,
@@ -13,9 +15,24 @@ class RoutexProvider(
 
     private val routexClient = RoutexClient(client)
 
-    override suspend fun getGasStations(latitude: Double, longitude: Double): List<Poi> {
-        val sites = routexClient.getResults(latitude, longitude, radiusKm)
-        log.d { "[RoutexProvider] getGasStations lat=$latitude lon=$longitude radius=$radiusKm -> ${sites.size} sites" }
+    override suspend fun getGasStations(
+        latitude: Double,
+        longitude: Double,
+        viewport: MapViewport?
+    ): List<Poi> {
+        val radius = if (viewport != null) {
+            radiusKmFromMapViewport(
+                latitude,
+                longitude,
+                viewport.zoom,
+                viewport.mapWidthPx,
+                viewport.mapHeightPx
+            )
+        } else {
+            radiusKm
+        }
+        val sites = routexClient.getResults(latitude, longitude, radius)
+        log.d { "[RoutexProvider] getGasStations lat=$latitude lon=$longitude radius=$radius -> ${sites.size} sites" }
         return sites.map { site ->
             Poi(
                 id = site.id,
