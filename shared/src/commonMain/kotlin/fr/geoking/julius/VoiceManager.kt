@@ -12,6 +12,7 @@ enum class VoiceEvent {
 interface VoiceManager {
     val events: Flow<VoiceEvent>
     val transcribedText: Flow<String>
+    val partialText: Flow<String>
 
     fun startListening()
     fun stopListening()

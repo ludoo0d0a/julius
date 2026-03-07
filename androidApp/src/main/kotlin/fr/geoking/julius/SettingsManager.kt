@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 enum class AgentType { OpenAI, ElevenLabs, Deepgram, Native, Gemini, FirebaseAI, OpenCodeZen, CompletionsMe, ApiFreeLLM, Local, Offline }
 enum class AppTheme { Particles, Sphere, Waves, Fractal, Micro }
+enum class TextAnimation { None, Genie, Blur, Fade, Zoom, Falling }
 enum class FractalQuality { Low, Medium, High }
 enum class FractalColorIntensity { Low, Medium, High }
 enum class IaModel(val modelName: String, val displayName: String) {
@@ -37,7 +38,8 @@ data class AppSettings(
     val selectedModel: IaModel = IaModel.LLAMA_3_1_SONAR_SMALL,
     val fractalQuality: FractalQuality = FractalQuality.Medium,
     val fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium,
-    val extendedActionsEnabled: Boolean = false
+    val extendedActionsEnabled: Boolean = false,
+    val textAnimation: TextAnimation = TextAnimation.Fade
 )
 
 open class SettingsManager(context: Context) {
@@ -95,20 +97,54 @@ open class SettingsManager(context: Context) {
             } catch (e: IllegalArgumentException) {
                 FractalColorIntensity.Medium
             },
-            extendedActionsEnabled = prefs.getBoolean("extended_actions_enabled", false)
+            extendedActionsEnabled = prefs.getBoolean("extended_actions_enabled", false),
+            textAnimation = try {
+                TextAnimation.valueOf(prefs.getString("text_animation", TextAnimation.Fade.name) ?: TextAnimation.Fade.name)
+            } catch (e: IllegalArgumentException) {
+                TextAnimation.Fade
+            }
         )
     }
 
     open fun saveSettings(settings: AppSettings) {
-        saveSettings(
-            settings.openAiKey, settings.elevenLabsKey, settings.perplexityKey, settings.geminiKey, settings.deepgramKey,
-            settings.firebaseAiKey, settings.firebaseAiModel,
-            settings.opencodeZenKey, settings.opencodeZenModel,
-            settings.completionsMeKey, settings.completionsMeModel,
-            settings.apifreellmKey,
-            settings.selectedAgent, settings.selectedTheme, settings.selectedModel, settings.fractalQuality, settings.fractalColorIntensity,
-            settings.extendedActionsEnabled
-        )
+        var currentSettings = _settings.value
+        var finalSettings = settings
+
+        if (settings.selectedTheme != currentSettings.selectedTheme) {
+            // Theme changed, pick a random animation
+            val animations = TextAnimation.entries.filter { it != TextAnimation.None }
+            val randomAnimation = animations.random()
+            finalSettings = settings.copy(textAnimation = randomAnimation)
+        }
+
+        saveSettingsInternal(finalSettings)
+    }
+
+    private fun saveSettingsInternal(settings: AppSettings) {
+        prefs.edit()
+            .putString("openai_key", settings.openAiKey)
+            .putString("elevenlabs_key", settings.elevenLabsKey)
+            .putString("perplexity_key", settings.perplexityKey)
+            .putString("gemini_key", settings.geminiKey)
+            .putString("deepgram_key", settings.deepgramKey)
+            .putString("firebase_ai_key", settings.firebaseAiKey)
+            .putString("firebase_ai_model", settings.firebaseAiModel)
+            .putString("opencode_zen_key", settings.opencodeZenKey)
+            .putString("opencode_zen_model", settings.opencodeZenModel)
+            .putString("completions_me_key", settings.completionsMeKey)
+            .putString("completions_me_model", settings.completionsMeModel)
+            .putString("apifreellm_key", settings.apifreellmKey)
+            .putString("agent", settings.selectedAgent.name)
+            .putString("theme", settings.selectedTheme.name)
+            .putString("model", settings.selectedModel.name)
+            .putString("fractal_quality", settings.fractalQuality.name)
+            .putString("fractal_color_intensity", settings.fractalColorIntensity.name)
+            .putBoolean("extended_actions_enabled", settings.extendedActionsEnabled)
+            .putString("text_animation", settings.textAnimation.name)
+            .apply()
+
+        // Update StateFlow immediately with the new values to ensure UI and agent switching update right away
+        _settings.value = settings
     }
 
     open fun saveSettings(
@@ -131,29 +167,7 @@ open class SettingsManager(context: Context) {
         fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium,
         extendedActionsEnabled: Boolean = false
     ) {
-        prefs.edit()
-            .putString("openai_key", openAiKey)
-            .putString("elevenlabs_key", elevenLabsKey)
-            .putString("perplexity_key", perplexityKey)
-            .putString("gemini_key", geminiKey)
-            .putString("deepgram_key", deepgramKey)
-            .putString("firebase_ai_key", firebaseAiKey)
-            .putString("firebase_ai_model", firebaseAiModel)
-            .putString("opencode_zen_key", opencodeZenKey)
-            .putString("opencode_zen_model", opencodeZenModel)
-            .putString("completions_me_key", completionsMeKey)
-            .putString("completions_me_model", completionsMeModel)
-            .putString("apifreellm_key", apifreellmKey)
-            .putString("agent", agent.name)
-            .putString("theme", theme.name)
-            .putString("model", model.name)
-            .putString("fractal_quality", fractalQuality.name)
-            .putString("fractal_color_intensity", fractalColorIntensity.name)
-            .putBoolean("extended_actions_enabled", extendedActionsEnabled)
-            .apply()
-        
-        // Update StateFlow immediately with the new values to ensure UI and agent switching update right away
-        _settings.value = AppSettings(
+        val newSettings = AppSettings(
             openAiKey = openAiKey,
             elevenLabsKey = elevenLabsKey,
             perplexityKey = perplexityKey,
@@ -171,7 +185,9 @@ open class SettingsManager(context: Context) {
             selectedModel = model,
             fractalQuality = fractalQuality,
             fractalColorIntensity = fractalColorIntensity,
-            extendedActionsEnabled = extendedActionsEnabled
+            extendedActionsEnabled = extendedActionsEnabled,
+            textAnimation = _settings.value.textAnimation
         )
+        saveSettings(newSettings)
     }
 }

@@ -22,6 +22,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.AgentType
+import fr.geoking.julius.TextAnimation
 import fr.geoking.julius.shared.DetailedError
 import fr.geoking.julius.shared.VoiceEvent
 
@@ -42,6 +43,7 @@ fun VoiceStatusContent(
     status: VoiceEvent,
     displayText: String,
     lastError: DetailedError?,
+    textAnimation: TextAnimation = TextAnimation.Fade,
     onAgentClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -80,16 +82,18 @@ fun VoiceStatusContent(
         Spacer(modifier = Modifier.height(20.dp))
 
         // Main display text — larger, better line height, centered
-        Text(
+        AnimatedLetterText(
             text = displayText.ifEmpty { " " },
+            animation = textAnimation,
             color = Color.White,
-            fontSize = DisplayTextFontSize,
-            lineHeight = DisplayTextLineHeight,
-            fontWeight = FontWeight.Normal,
-            letterSpacing = 0.15.sp,
+            style = TextStyle(
+                fontSize = DisplayTextFontSize,
+                lineHeight = DisplayTextLineHeight,
+                fontWeight = FontWeight.Normal,
+                letterSpacing = 0.15.sp
+            ),
             textAlign = TextAlign.Center,
-            maxLines = 4,
-            overflow = TextOverflow.Ellipsis
+            modifier = Modifier.fillMaxWidth()
         )
 
         lastError?.let { error ->
