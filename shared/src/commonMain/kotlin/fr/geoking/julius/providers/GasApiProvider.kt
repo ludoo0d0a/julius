@@ -9,7 +9,7 @@ import io.ktor.client.HttpClient
  *
  * No API key required. Returns [Poi] with [Poi.fuelPrices] populated when available.
  */
-class DataGouvProvider(
+class GasApiProvider(
     private val client: HttpClient,
     private val radiusKm: Int = 10,
     private val limit: Int = 20
