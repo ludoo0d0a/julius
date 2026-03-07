@@ -1,4 +1,4 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.providers
 
 import io.ktor.client.HttpClient
 

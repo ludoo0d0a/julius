@@ -1,4 +1,21 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.providers
+
+/** Source of gas station data shown on the map. */
+enum class PoiProviderType {
+    Routex,   // Wigeogis SiteFinder
+    Etalab,   // data.economie.gouv.fr / donnees.roulez-eco.fr
+    DataGouv  // data.gouv.fr / gas-api.ovh
+}
+
+/**
+ * Fuel type and price at a gas station (e.g. from data.gouv.fr / gas-api.ovh).
+ */
+data class FuelPrice(
+    val fuelName: String,
+    val price: Double,
+    val updatedAt: String? = null,
+    val outOfStock: Boolean = false
+)
 
 data class Poi(
     val id: String,
@@ -6,7 +23,9 @@ data class Poi(
     val address: String,
     val latitude: Double,
     val longitude: Double,
-    val brand: String? = null
+    val brand: String? = null,
+    /** When provided by the provider (e.g. DataGouv), lists fuel types and prices. */
+    val fuelPrices: List<FuelPrice>? = null
 )
 
 interface PoiProvider {

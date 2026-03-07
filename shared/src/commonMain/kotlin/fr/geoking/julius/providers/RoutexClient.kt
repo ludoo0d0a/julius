@@ -1,4 +1,4 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.providers
 
 import fr.geoking.julius.shared.NetworkException
 import io.ktor.client.HttpClient

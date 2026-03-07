@@ -23,7 +23,8 @@ import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.ConversationState
 import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.shared.PermissionManager
-import fr.geoking.julius.shared.PoiProvider
+import fr.geoking.julius.providers.MockPoiProvider
+import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.ui.MapScreen
 import fr.geoking.julius.ui.PhoneMainScreen
 import fr.geoking.julius.ui.SettingsScreen
@@ -87,7 +88,11 @@ fun MainUI(
                     SettingsScreen(settingsManager, state.errorLog) { showSettings = false }
                 }
                 showMap -> {
-                    MapScreen(poiProvider = poiProvider, onBack = { showMap = false })
+                    MapScreen(
+                        poiProvider = poiProvider,
+                        settingsManager = settingsManager,
+                        onBack = { showMap = false }
+                    )
                 }
                 else -> {
                     PhoneMainScreen(
@@ -121,7 +126,17 @@ fun MainUIPreview() {
         state = mockState,
         store = mockStore,
         settingsManager = mockSettingsManager,
-        poiProvider = remember { fr.geoking.julius.shared.MockPoiProvider() }
+        poiProvider = remember { MockPoiProvider() }
+    )
+}
+
+@Composable
+private fun MapScreenPreview() {
+    val mockSettingsManager = rememberMockSettingsManager()
+    MapScreen(
+        poiProvider = remember { MockPoiProvider() },
+        settingsManager = mockSettingsManager,
+        onBack = {}
     )
 }
 
@@ -156,6 +171,9 @@ private fun rememberMockSettingsManager(): SettingsManager {
         object : SettingsManager(context) {
             private val mockSettings = kotlinx.coroutines.flow.MutableStateFlow(AppSettings())
             override val settings = mockSettings
+            override fun setPoiProviderType(type: fr.geoking.julius.providers.PoiProviderType) {
+                mockSettings.value = mockSettings.value.copy(selectedPoiProvider = type)
+            }
             override fun saveSettings(
                 openAiKey: String,
                 elevenLabsKey: String,

@@ -1,5 +1,6 @@
 package fr.geoking.julius.shared
 
+import fr.geoking.julius.providers.MockPoiProvider
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals

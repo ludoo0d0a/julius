@@ -6,7 +6,7 @@ import androidx.car.app.Screen
 import androidx.car.app.Session
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.shared.ConversationStore
-import fr.geoking.julius.shared.PoiProvider
+import fr.geoking.julius.providers.PoiProvider
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 

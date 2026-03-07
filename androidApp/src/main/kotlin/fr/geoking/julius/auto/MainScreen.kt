@@ -28,7 +28,7 @@ import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.DetailedError
-import fr.geoking.julius.shared.PoiProvider
+import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.shared.Role
 import fr.geoking.julius.shared.VoiceEvent
 import kotlinx.coroutines.Job

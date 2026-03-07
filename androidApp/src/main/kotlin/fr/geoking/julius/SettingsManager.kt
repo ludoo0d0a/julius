@@ -21,6 +21,7 @@ enum class IaModel(val modelName: String, val displayName: String) {
 }
 
 data class AppSettings(
+    val selectedPoiProvider: fr.geoking.julius.providers.PoiProviderType = fr.geoking.julius.providers.PoiProviderType.Routex,
     val openAiKey: String = "",
     val elevenLabsKey: String = "",
     val perplexityKey: String = "",
@@ -51,6 +52,13 @@ open class SettingsManager(context: Context) {
 
     private fun loadSettings(): AppSettings {
         return AppSettings(
+            selectedPoiProvider = try {
+                fr.geoking.julius.providers.PoiProviderType.valueOf(
+                    prefs.getString("poi_provider", fr.geoking.julius.providers.PoiProviderType.Routex.name) ?: fr.geoking.julius.providers.PoiProviderType.Routex.name
+                )
+            } catch (e: IllegalArgumentException) {
+                fr.geoking.julius.providers.PoiProviderType.Routex
+            },
             openAiKey = prefs.getString("openai_key", "") ?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.OPENAI_KEY,
             elevenLabsKey = prefs.getString("elevenlabs_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.ELEVENLABS_KEY,
             perplexityKey = prefs.getString("perplexity_key", "") ?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.PERPLEXITY_KEY,
@@ -106,6 +114,11 @@ open class SettingsManager(context: Context) {
         )
     }
 
+    fun setPoiProviderType(type: fr.geoking.julius.providers.PoiProviderType) {
+        prefs.edit().putString("poi_provider", type.name).apply()
+        _settings.value = _settings.value.copy(selectedPoiProvider = type)
+    }
+
     open fun saveSettings(settings: AppSettings) {
         var currentSettings = _settings.value
         var finalSettings = settings
@@ -122,6 +135,7 @@ open class SettingsManager(context: Context) {
 
     private fun saveSettingsInternal(settings: AppSettings) {
         prefs.edit()
+            .putString("poi_provider", settings.selectedPoiProvider.name)
             .putString("openai_key", settings.openAiKey)
             .putString("elevenlabs_key", settings.elevenLabsKey)
             .putString("perplexity_key", settings.perplexityKey)
@@ -168,6 +182,7 @@ open class SettingsManager(context: Context) {
         extendedActionsEnabled: Boolean = false
     ) {
         val newSettings = AppSettings(
+            selectedPoiProvider = _settings.value.selectedPoiProvider,
             openAiKey = openAiKey,
             elevenLabsKey = elevenLabsKey,
             perplexityKey = perplexityKey,

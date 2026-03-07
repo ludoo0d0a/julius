@@ -11,8 +11,12 @@ import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.VoiceManager
 import fr.geoking.julius.shared.ActionExecutor
 import fr.geoking.julius.shared.PermissionManager
-import fr.geoking.julius.shared.PoiProvider
-import fr.geoking.julius.shared.RoutexProvider
+import fr.geoking.julius.providers.DataGouvProvider
+import fr.geoking.julius.providers.EtalabProvider
+import fr.geoking.julius.providers.PoiProvider
+import fr.geoking.julius.providers.RoutexProvider
+import fr.geoking.julius.providers.SelectorPoiProvider
+import org.koin.core.qualifier.named
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -112,8 +116,23 @@ val appModule = module {
         AndroidPermissionManager(androidContext())
     }
 
-    single<PoiProvider> {
+    // Map data source: Routex (default), Etalab, or DataGouv; selected in map screen.
+    single<PoiProvider>(named("routex")) {
         RoutexProvider(get(), radiusKm = 5)
+    }
+    single<PoiProvider>(named("etalab")) {
+        EtalabProvider(get(), radiusKm = 10, limit = 100)
+    }
+    single<PoiProvider>(named("datagouv")) {
+        DataGouvProvider(get(), radiusKm = 10, limit = 20)
+    }
+    single<PoiProvider> {
+        SelectorPoiProvider(
+            routex = get(named("routex")),
+            etalab = get(named("etalab")),
+            dataGouv = get(named("datagouv")),
+            settingsManager = get()
+        )
     }
     
     single<ActionExecutor> {

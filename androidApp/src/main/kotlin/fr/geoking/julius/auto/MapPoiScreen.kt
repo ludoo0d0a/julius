@@ -12,8 +12,8 @@ import androidx.car.app.model.*
 import androidx.car.app.model.Distance
 import androidx.car.app.model.Place
 import androidx.lifecycle.lifecycleScope
-import fr.geoking.julius.shared.Poi
-import fr.geoking.julius.shared.PoiProvider
+import fr.geoking.julius.providers.Poi
+import fr.geoking.julius.providers.PoiProvider
 import kotlinx.coroutines.launch
 
 class MapPoiScreen(
