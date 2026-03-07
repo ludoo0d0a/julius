@@ -19,17 +19,17 @@ import androidx.core.content.ContextCompat
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
-import fr.geoking.julius.shared.MockPoiProvider
 import fr.geoking.julius.shared.Poi
+import fr.geoking.julius.shared.PoiProvider
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(
+    poiProvider: PoiProvider,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val poiProvider = remember { MockPoiProvider() }
     var pois by remember { mutableStateOf<List<Poi>>(emptyList()) }
     val scope = rememberCoroutineScope()
 

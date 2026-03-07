@@ -78,6 +78,8 @@ fun VoiceMainContent(
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(16.dp))
+            StatusChip(status = state.status)
+            Spacer(modifier = Modifier.height(8.dp))
             MicroMicButton(
                 status = state.status,
                 accentColor = Color(palette.primary),

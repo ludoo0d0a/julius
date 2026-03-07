@@ -30,6 +30,25 @@ import fr.geoking.julius.shared.VoiceEvent
 
 private val AgentLabelFontSize = 11.sp
 private val StatusBadgeFontSize = 12.sp
+
+/** Reusable status pill (Silence, Listening, Processing, Speaking). */
+@Composable
+fun StatusChip(
+    status: VoiceEvent,
+    modifier: Modifier = Modifier
+) {
+    Text(
+        text = status.name,
+        color = Color.White.copy(alpha = 0.6f),
+        fontSize = StatusBadgeFontSize,
+        fontWeight = FontWeight.Medium,
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color.White.copy(alpha = 0.08f))
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+    )
+}
+
 private val DisplayTextFontSize = 26.sp
 private val DisplayTextLineHeight = 36.sp
 private val ErrorTitleFontSize = 15.sp
@@ -67,19 +86,6 @@ fun VoiceStatusContent(
                 ) { onAgentClick() }
                 else Modifier
             )
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Status badge — pill with subtle background
-        Text(
-            text = status.name,
-            color = Color.White.copy(alpha = 0.6f),
-            fontSize = StatusBadgeFontSize,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color.White.copy(alpha = 0.08f))
-                .padding(horizontal = 14.dp, vertical = 6.dp)
         )
         Spacer(modifier = Modifier.height(20.dp))
 

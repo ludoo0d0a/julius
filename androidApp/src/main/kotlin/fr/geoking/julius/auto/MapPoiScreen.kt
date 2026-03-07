@@ -14,12 +14,11 @@ import androidx.car.app.model.Place
 import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.shared.Poi
 import fr.geoking.julius.shared.PoiProvider
-import fr.geoking.julius.shared.MockPoiProvider
 import kotlinx.coroutines.launch
 
 class MapPoiScreen(
     carContext: CarContext,
-    private val poiProvider: PoiProvider = MockPoiProvider()
+    private val poiProvider: PoiProvider
 ) : Screen(carContext) {
 
     private var pois: List<Poi> = emptyList()

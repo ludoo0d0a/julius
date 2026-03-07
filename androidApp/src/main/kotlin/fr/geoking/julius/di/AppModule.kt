@@ -11,6 +11,8 @@ import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.VoiceManager
 import fr.geoking.julius.shared.ActionExecutor
 import fr.geoking.julius.shared.PermissionManager
+import fr.geoking.julius.shared.PoiProvider
+import fr.geoking.julius.shared.RoutexProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -108,6 +110,10 @@ val appModule = module {
 
     single<PermissionManager> {
         AndroidPermissionManager(androidContext())
+    }
+
+    single<PoiProvider> {
+        RoutexProvider(get(), radiusKm = 5)
     }
     
     single<ActionExecutor> {

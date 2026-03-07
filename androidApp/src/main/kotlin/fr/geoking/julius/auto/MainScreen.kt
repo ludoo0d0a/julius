@@ -28,6 +28,7 @@ import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.DetailedError
+import fr.geoking.julius.shared.PoiProvider
 import fr.geoking.julius.shared.Role
 import fr.geoking.julius.shared.VoiceEvent
 import kotlinx.coroutines.Job
@@ -38,7 +39,8 @@ import kotlinx.coroutines.launch
 class MainScreen(
     carContext: CarContext,
     private val store: ConversationStore,
-    private val settingsManager: SettingsManager
+    private val settingsManager: SettingsManager,
+    private val poiProvider: PoiProvider
 ) : Screen(carContext) {
 
     private var currentStatus: String = "Idle"
@@ -191,7 +193,7 @@ class MainScreen(
                 override fun onTabSelected(tabContentId: String) {
                     when (tabContentId) {
                         TAB_SETTINGS -> screenManager.push(AutoSettingsScreen(carContext, settingsManager))
-                        TAB_MAP -> screenManager.push(MapPoiScreen(carContext))
+                        TAB_MAP -> screenManager.push(MapPoiScreen(carContext, poiProvider))
                         else -> {
                             activeTabId = tabContentId
                             invalidate()

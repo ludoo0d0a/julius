@@ -23,6 +23,7 @@ import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.ConversationState
 import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.shared.PermissionManager
+import fr.geoking.julius.shared.PoiProvider
 import fr.geoking.julius.ui.MapScreen
 import fr.geoking.julius.ui.PhoneMainScreen
 import fr.geoking.julius.ui.SettingsScreen
@@ -34,6 +35,7 @@ class MainActivity : ComponentActivity() {
     private val store: ConversationStore by inject()
     private val settingsManager: SettingsManager by inject()
     private val permissionManager: PermissionManager by inject()
+    private val poiProvider: PoiProvider by inject()
 
     private var permissionDeferred: kotlinx.coroutines.CompletableDeferred<Boolean>? = null
 
@@ -58,7 +60,8 @@ class MainActivity : ComponentActivity() {
             MainUI(
                 state = state,
                 store = store,
-                settingsManager = settingsManager
+                settingsManager = settingsManager,
+                poiProvider = poiProvider
             )
         }
     }
@@ -68,7 +71,8 @@ class MainActivity : ComponentActivity() {
 fun MainUI(
     state: ConversationState,
     store: ConversationStore,
-    settingsManager: SettingsManager
+    settingsManager: SettingsManager,
+    poiProvider: PoiProvider
 ) {
     var showSettings by remember { mutableStateOf(false) }
     var showMap by remember { mutableStateOf(false) }
@@ -83,7 +87,7 @@ fun MainUI(
                     SettingsScreen(settingsManager, state.errorLog) { showSettings = false }
                 }
                 showMap -> {
-                    MapScreen(onBack = { showMap = false })
+                    MapScreen(poiProvider = poiProvider, onBack = { showMap = false })
                 }
                 else -> {
                     PhoneMainScreen(
@@ -116,7 +120,8 @@ fun MainUIPreview() {
     MainUI(
         state = mockState,
         store = mockStore,
-        settingsManager = mockSettingsManager
+        settingsManager = mockSettingsManager,
+        poiProvider = remember { fr.geoking.julius.shared.MockPoiProvider() }
     )
 }
 
