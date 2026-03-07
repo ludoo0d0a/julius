@@ -60,6 +60,12 @@ open class ConversationStore(
             _state.value = _state.value.copy(status = event)
         }.launchIn(scope)
 
+        voiceManager.partialText.onEach { text ->
+            if (text.isNotBlank() && _state.value.status == VoiceEvent.Listening) {
+                _state.value = _state.value.copy(currentTranscript = text)
+            }
+        }.launchIn(scope)
+
         voiceManager.transcribedText.onEach { text ->
              // If we get a final transcription (simplification for now), we send it
              if (text.isNotBlank() && _state.value.status != VoiceEvent.Speaking) {

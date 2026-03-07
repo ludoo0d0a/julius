@@ -16,6 +16,7 @@ junit-jupiter = "6.0.2"
 media3 = "1.5.1"
 guava = "33.3.1-android"
 maps-compose = "6.1.0"
+flowlayout = "0.28.0"
 
 [libraries]
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
@@ -47,6 +48,7 @@ koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 library = { module = "com.llamatik:library", version.ref = "llamatik-library" }
 maps-compose = { module = "com.google.maps.android:maps-compose", version.ref = "maps-compose" }
+accompanist-flowlayout = { module = "com.google.accompanist:accompanist-flowlayout", version.ref = "flowlayout" }
 media3-session = { module = "androidx.media3:media3-session", version.ref = "media3" }
 media3-common = { module = "androidx.media3:media3-common", version.ref = "media3" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }

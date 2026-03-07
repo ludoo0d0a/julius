@@ -56,6 +56,7 @@ fun VoiceMainContent(
             status = state.status,
             displayText = displayText,
             lastError = state.lastError,
+            textAnimation = settings.textAnimation,
             onAgentClick = onAgentClick,
             modifier = Modifier.align(Alignment.Center)
         )

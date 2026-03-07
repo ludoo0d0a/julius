@@ -44,6 +44,9 @@ class AndroidVoiceManager(
     private val _transcribedText = MutableStateFlow("")
     override val transcribedText: StateFlow<String> = _transcribedText.asStateFlow()
 
+    private val _partialText = MutableStateFlow("")
+    override val partialText: StateFlow<String> = _partialText.asStateFlow()
+
     private var speechRecognizer: SpeechRecognizer? = null
     private var tts: TextToSpeech? = null
     private var mediaPlayer: MediaPlayer? = null
@@ -439,7 +442,7 @@ class AndroidVoiceManager(
         if (isBargeInActive && _events.value == VoiceEvent.Speaking) return
         val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         val text = matches?.firstOrNull() ?: ""
-        // Optional: emit partials
+        _partialText.value = text
     }
     override fun onEvent(eventType: Int, params: Bundle?) {}
 
