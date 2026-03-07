@@ -4,7 +4,9 @@ package fr.geoking.julius.providers
 enum class PoiProviderType {
     Routex,   // Wigeogis SiteFinder
     Etalab,   // data.economie.gouv.fr / donnees.roulez-eco.fr
-    DataGouv  // data.gouv.fr / gas-api.ovh
+    GasApi,  //  gas-api.ovh
+    DataGouv, // data.gouv.fr (fuel)
+    DataGouvElec // data.gouv.fr IRVE (EV charging)
 }
 
 /**

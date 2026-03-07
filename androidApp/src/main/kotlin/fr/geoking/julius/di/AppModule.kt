@@ -11,8 +11,10 @@ import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.VoiceManager
 import fr.geoking.julius.shared.ActionExecutor
 import fr.geoking.julius.shared.PermissionManager
-import fr.geoking.julius.providers.DataGouvProvider
+import fr.geoking.julius.providers.GasApiProvider
 import fr.geoking.julius.providers.EtalabProvider
+import fr.geoking.julius.providers.DataGouvProvider
+import fr.geoking.julius.providers.DataGouvElecProvider
 import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.providers.RoutexProvider
 import fr.geoking.julius.providers.SelectorPoiProvider
@@ -123,14 +125,22 @@ val appModule = module {
     single<PoiProvider>(named("etalab")) {
         EtalabProvider(get(), radiusKm = 10, limit = 100)
     }
+    single<PoiProvider>(named("gasapi")) {
+        GasApiProvider(get(), radiusKm = 10, limit = 20)
+    }
     single<PoiProvider>(named("datagouv")) {
-        DataGouvProvider(get(), radiusKm = 10, limit = 20)
+        DataGouvProvider(get(), radiusKm = 10, limit = 100)
+    }
+    single<PoiProvider>(named("datagouvelec")) {
+        DataGouvElecProvider(get(), radiusKm = 10, limit = 100)
     }
     single<PoiProvider> {
         SelectorPoiProvider(
             routex = get(named("routex")),
             etalab = get(named("etalab")),
+            gasapi = get(named("gasapi")),
             dataGouv = get(named("datagouv")),
+            dataGouvElec = get(named("datagouvelec")),
             settingsManager = get()
         )
     }

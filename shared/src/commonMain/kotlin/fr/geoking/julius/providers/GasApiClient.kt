@@ -22,7 +22,7 @@ import kotlinx.serialization.json.jsonPrimitive
  *
  * No authentication required. Base URL: https://gas-api.ovh
  */
-class DataGouvClient(
+class GasApiClient(
     private val client: HttpClient,
     private val baseUrl: String = "https://gas-api.ovh"
 ) {
@@ -56,7 +56,7 @@ class DataGouvClient(
         radiusKm: Int = 10,
         limit: Int = 20,
         offset: Int = 0
-    ): List<DataGouvStation> {
+    ): List<GasApiStation> {
         val request = StationSearchRequest(
             latitude = latitude,
             longitude = longitude,
@@ -81,7 +81,7 @@ class DataGouvClient(
     /**
      * Parse API response: accepts root array, single station object, or "hydra:member" / "data" array.
      */
-    private fun parseStationsResponse(body: String): List<DataGouvStation> {
+    private fun parseStationsResponse(body: String): List<GasApiStation> {
         val element = json.parseToJsonElement(body)
 
         when (element) {
@@ -104,7 +104,7 @@ class DataGouvClient(
         return emptyList()
     }
 
-    private fun parseStationElement(element: JsonElement): DataGouvStation? {
+    private fun parseStationElement(element: JsonElement): GasApiStation? {
         val obj = element as? JsonObject ?: return null
         val id = obj["id"]?.jsonPrimitive?.content ?: return null
         val latStr = obj["latitude"]?.jsonPrimitive?.content ?: return null
@@ -133,7 +133,7 @@ class DataGouvClient(
             }
         }
 
-        return DataGouvStation(
+        return GasApiStation(
             id = id,
             name = name,
             address = fullAddress.ifBlank { address ?: "" },
@@ -149,7 +149,7 @@ class DataGouvClient(
  * Station as returned by the Gas API (gas-api.ovh).
  */
 @Serializable
-data class DataGouvStation(
+data class GasApiStation(
     val id: String,
     val name: String,
     val address: String,

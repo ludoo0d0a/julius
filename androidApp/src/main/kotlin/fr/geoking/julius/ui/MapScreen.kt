@@ -26,7 +26,9 @@ import kotlinx.coroutines.launch
 private val PROVIDER_OPTIONS = listOf(
     PoiProviderType.Routex to "Routex (SiteFinder)",
     PoiProviderType.Etalab to "Etalab (open data)",
-    PoiProviderType.DataGouv to "data.gouv.fr"
+    PoiProviderType.GasApi to "gas-api.ovh",
+    PoiProviderType.DataGouv to "data.gouv.fr (fuel)",
+    PoiProviderType.DataGouvElec to "data.gouv.fr (IRVE)"
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
