@@ -27,7 +27,15 @@ data class Poi(
     val longitude: Double,
     val brand: String? = null,
     /** When provided by the provider (e.g. DataGouv), lists fuel types and prices. */
-    val fuelPrices: List<FuelPrice>? = null
+    val fuelPrices: List<FuelPrice>? = null,
+    /** Site name (e.g. Routex site_name) for title. */
+    val siteName: String? = null,
+    val postcode: String? = null,
+    val addressLocal: String? = null,
+    val countryLocal: String? = null,
+    val townLocal: String? = null,
+    /** Routex-only: amenities and opening hours for fullscreen details. */
+    val routexDetails: RoutexSiteDetails? = null
 )
 
 /**

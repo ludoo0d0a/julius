@@ -40,7 +40,13 @@ class RoutexProvider(
                 address = site.address,
                 latitude = site.latitude,
                 longitude = site.longitude,
-                brand = site.brand
+                brand = site.brand,
+                siteName = site.siteName,
+                postcode = site.postcode,
+                addressLocal = site.addressLocal,
+                countryLocal = site.countryLocal,
+                townLocal = site.townLocal,
+                routexDetails = site.details
             )
         }
     }

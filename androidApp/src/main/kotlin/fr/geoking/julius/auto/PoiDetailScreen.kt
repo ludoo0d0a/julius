@@ -23,18 +23,19 @@ class PoiDetailScreen(
 ) : Screen(carContext) {
 
     override fun onGetTemplate(): Template {
+        val title = poi.siteName?.takeIf { it.isNotBlank() } ?: poi.name
         val body = buildDetailMessage(poi)
         val navigateIntent = Intent(CarContext.ACTION_NAVIGATE).apply {
-            data = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${Uri.encode(poi.name)}")
+            data = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${Uri.encode(title)}")
         }
         return MessageTemplate.Builder(body)
-            .setTitle(poi.name)
+            .setTitle(title)
             .setHeaderAction(Action.BACK)
             .setActionStrip(
                 ActionStrip.Builder()
                     .addAction(
                         Action.Builder()
-                            .setTitle("Go to this station")
+                            .setTitle("Navigate to")
                             .setIcon(
                                 CarIcon.Builder(
                                     IconCompat.createWithResource(carContext, R.drawable.ic_poi_gas)
@@ -52,13 +53,11 @@ class PoiDetailScreen(
 
     private fun buildDetailMessage(poi: Poi): String {
         val lines = mutableListOf<String>()
-        val brand = poi.brand
-        if (!brand.isNullOrBlank()) {
-            lines.add(brand)
-        }
-        if (poi.address.isNotBlank()) {
-            lines.add(poi.address)
-        }
+        poi.brand?.takeIf { it.isNotBlank() }?.let { lines.add(it) }
+        poi.addressLocal?.takeIf { it.isNotBlank() }?.let { lines.add(it) }
+        listOf(poi.townLocal, poi.postcode).filter { !it.isNullOrBlank() }.joinToString(", ").takeIf { it.isNotBlank() }?.let { lines.add(it) }
+        poi.countryLocal?.takeIf { it.isNotBlank() }?.let { lines.add(it) }
+        if (lines.isEmpty() && poi.address.isNotBlank()) lines.add(poi.address)
         poi.fuelPrices?.let { prices ->
             if (prices.isNotEmpty()) {
                 lines.add("")

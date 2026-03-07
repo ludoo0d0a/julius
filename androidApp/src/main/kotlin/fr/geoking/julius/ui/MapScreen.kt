@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Directions
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +29,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
@@ -40,6 +44,7 @@ import fr.geoking.julius.providers.MapViewport
 import fr.geoking.julius.providers.Poi
 import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.providers.PoiProviderType
+import fr.geoking.julius.providers.RoutexSiteDetails
 import kotlinx.coroutines.launch
 
 private val PROVIDER_OPTIONS = listOf(
@@ -102,6 +107,7 @@ fun MapScreen(
 
     var mapSizePx by remember { mutableStateOf(IntSize.Zero) }
     var selectedPoi by remember { mutableStateOf<Poi?>(null) }
+    var poiForDetailsDialog by remember { mutableStateOf<Poi?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val scope = rememberCoroutineScope()
 
@@ -249,11 +255,19 @@ fun MapScreen(
                         onNavigate = {
                             val uri = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${Uri.encode(poi.name)}")
                             context.startActivity(Intent(Intent.ACTION_VIEW, uri))
-                        }
+                        },
+                        onShowDetails = poi.routexDetails?.let { { poiForDetailsDialog = poi } }
                     )
                 }
             }
         }
+    }
+
+    poiForDetailsDialog?.routexDetails?.let { details ->
+        RoutexDetailsFullscreenDialog(
+            details = details,
+            onDismiss = { poiForDetailsDialog = null }
+        )
     }
 }
 
@@ -261,8 +275,18 @@ fun MapScreen(
 private fun PoiDetailCard(
     poi: Poi,
     onNavigate: () -> Unit,
+    onShowDetails: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val title = poi.siteName?.takeIf { it.isNotBlank() } ?: poi.name
+    val addressLines = buildList {
+        poi.addressLocal?.takeIf { it.isNotBlank() }?.let { add(it) }
+        listOf(poi.townLocal, poi.postcode).filter { !it.isNullOrBlank() }.joinToString(", ").takeIf { it.isNotBlank() }?.let { add(it) }
+        poi.countryLocal?.takeIf { it.isNotBlank() }?.let { add(it) }
+        if (isEmpty() && poi.address.isNotBlank()) add(poi.address)
+    }
+    val brandInfo = BrandHelper.getBrandInfo(poi.brand)
+
     Card(
         modifier = modifier.widthIn(min = 280.dp, max = 340.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF334155)),
@@ -274,28 +298,43 @@ private fun PoiDetailCard(
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp)
         ) {
-            Text(
-                text = poi.name,
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-            val brand = poi.brand
-            if (!brand.isNullOrBlank()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                brandInfo?.let { info ->
+                    Icon(
+                        painter = painterResource(id = info.iconResId),
+                        contentDescription = info.displayName,
+                        modifier = Modifier.size(32.dp),
+                        tint = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                }
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            brandInfo?.let { info ->
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = brand,
+                    text = info.displayName,
                     color = Color.White.copy(alpha = 0.8f),
                     fontSize = 14.sp
                 )
             }
-            if (poi.address.isNotBlank()) {
+            if (addressLines.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = poi.address,
-                    color = Color.White.copy(alpha = 0.9f),
-                    fontSize = 14.sp
-                )
+                addressLines.forEach { line ->
+                    Text(
+                        text = line,
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 14.sp
+                    )
+                }
             }
             poi.fuelPrices?.let { prices ->
                 if (prices.isNotEmpty()) {
@@ -337,6 +376,24 @@ private fun PoiDetailCard(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
+            if (onShowDetails != null) {
+                OutlinedButton(
+                    onClick = onShowDetails,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                    contentPadding = PaddingValues(vertical = 12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Station details")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
             Button(
                 onClick = onNavigate,
                 modifier = Modifier.fillMaxWidth(),
@@ -350,7 +407,124 @@ private fun PoiDetailCard(
                     tint = Color.White
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Go to this station")
+                Text("Navigate to")
+            }
+        }
+    }
+}
+
+@Composable
+private fun RoutexDetailRow(label: String, value: Boolean?) {
+    if (value == null) return
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, color = Color.White.copy(alpha = 0.9f), fontSize = 14.sp)
+        Text(
+            if (value) "Yes" else "No",
+            color = if (value) Color(0xFF22C55E) else Color.White.copy(alpha = 0.6f),
+            fontSize = 14.sp
+        )
+    }
+}
+
+@Composable
+private fun RoutexDetailRowStr(label: String, value: String?) {
+    if (value.isNullOrBlank()) return
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp)
+    ) {
+        Text(label, color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp, modifier = Modifier.width(120.dp))
+        Text(value, color = Color.White, fontSize = 14.sp)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RoutexDetailsFullscreenDialog(
+    details: RoutexSiteDetails,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        )
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = Color(0xFF1E293B)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                TopAppBar(
+                    title = { Text("Station details", color = Color.White) },
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Close",
+                                tint = Color.White
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0F172A))
+                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(20.dp)
+                ) {
+                    Text("Services & amenities", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    RoutexDetailRow("Manned 24h", details.manned24h)
+                    RoutexDetailRow("Manned / automat 24h", details.mannedAutomat24h)
+                    RoutexDetailRow("Automat", details.automat)
+                    RoutexDetailRow("Motorway", details.motorwayIndicator)
+                    RoutexDetailRow("Restaurant", details.restaurant)
+                    RoutexDetailRow("Shop", details.shop)
+                    RoutexDetailRow("Snackbar", details.snackbar)
+                    RoutexDetailRow("Car wash", details.carWash)
+                    RoutexDetailRow("Showers", details.showers)
+                    RoutexDetailRow("AdBlue pump", details.adBluePump)
+                    RoutexDetailRow("R4T network", details.r4tNetwork)
+                    RoutexDetailRow("Car vignette", details.carVignette)
+                    RoutexDetailRow("High-speed diesel", details.highspeedDiesel)
+                    RoutexDetailRow("Truck station", details.truckIndicator)
+                    RoutexDetailRow("Truck parking", details.truckParking)
+                    RoutexDetailRow("Truck diesel", details.truckDiesel)
+                    RoutexDetailRow("Truck lane", details.truckLane)
+                    RoutexDetailRow("Diesel bio", details.dieselBio)
+                    RoutexDetailRow("HVO100", details.hvo100)
+                    RoutexDetailRow("LNG", details.lng)
+                    RoutexDetailRow("LPG", details.lpg)
+                    RoutexDetailRow("CNG", details.cng)
+                    RoutexDetailRow("AdBlue canister", details.adBlueCanister)
+                    RoutexDetailRow("Open 24h", details.open24h)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Fuel opening hours", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    RoutexDetailRowStr("Mon", details.monOpenFuel?.let { o -> details.monCloseFuel?.let { c -> "$o – $c" } ?: o })
+                    RoutexDetailRowStr("Tue", details.tueOpenFuel?.let { o -> details.tueCloseFuel?.let { c -> "$o – $c" } ?: o })
+                    RoutexDetailRowStr("Wed", details.wedOpenFuel?.let { o -> details.wedCloseFuel?.let { c -> "$o – $c" } ?: o })
+                    RoutexDetailRowStr("Thu", details.thuOpenFuel?.let { o -> details.thuCloseFuel?.let { c -> "$o – $c" } ?: o })
+                    RoutexDetailRowStr("Fri", details.friOpenFuel?.let { o -> details.friCloseFuel?.let { c -> "$o – $c" } ?: o })
+                    RoutexDetailRowStr("Sat", details.satOpenFuel?.let { o -> details.satCloseFuel?.let { c -> "$o – $c" } ?: o })
+                    RoutexDetailRowStr("Sun", details.sunOpenFuel?.let { o -> details.sunCloseFuel?.let { c -> "$o – $c" } ?: o })
+                    if (details.openingHoursFuel.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        details.openingHoursFuel.forEach { line ->
+                            Text(line, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
+                        }
+                    }
+                }
             }
         }
     }

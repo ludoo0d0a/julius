@@ -193,6 +193,69 @@ class RoutexClient(
             return results
         }
 
+        private fun parseBoolOrNull(e: JsonElement?): Boolean? {
+            when (e) {
+                is JsonPrimitive -> {
+                    val c = e.content
+                    if (c == "true") return true
+                    if (c == "false") return false
+                    c.toIntOrNull()?.let { if (it != 0) true else false }?.let { return it }
+                }
+                else -> {}
+            }
+            return null
+        }
+
+        private fun parseStringList(e: JsonElement?): List<String> {
+            val arr = e?.jsonArray ?: return emptyList()
+            return arr.mapNotNull { (it as? JsonPrimitive)?.content }
+        }
+
+        private fun parseDetails(props: JsonObject): RoutexSiteDetails {
+            fun get(key: String): JsonElement? = props[key]
+            return RoutexSiteDetails(
+                manned24h = parseBoolOrNull(get("manned_24h")),
+                mannedAutomat24h = parseBoolOrNull(get("manned_automat_24h")),
+                automat = parseBoolOrNull(get("automat")),
+                motorwayIndicator = parseBoolOrNull(get("motorway_indicator")),
+                restaurant = parseBoolOrNull(get("restaurant")),
+                shop = parseBoolOrNull(get("shop")),
+                snackbar = parseBoolOrNull(get("snackbar")),
+                carWash = parseBoolOrNull(get("car_wash")),
+                showers = parseBoolOrNull(get("showers")),
+                adBluePump = parseBoolOrNull(get("ad_blue_pump")),
+                r4tNetwork = parseBoolOrNull(get("r4t_network")),
+                carVignette = parseBoolOrNull(get("car_vignette")),
+                highspeedDiesel = parseBoolOrNull(get("highspeed_diesel")),
+                truckIndicator = parseBoolOrNull(get("truck_indicator")),
+                truckParking = parseBoolOrNull(get("truck_parking")),
+                truckDiesel = parseBoolOrNull(get("truck_diesel")),
+                truckLane = parseBoolOrNull(get("truck_lane")),
+                dieselBio = parseBoolOrNull(get("diesel_bio")),
+                hvo100 = parseBoolOrNull(get("hvo100")),
+                lng = parseBoolOrNull(get("lng")),
+                lpg = parseBoolOrNull(get("lpg")),
+                cng = parseBoolOrNull(get("cng")),
+                adBlueCanister = parseBoolOrNull(get("ad_blue_canister")),
+                monOpenFuel = (get("mon_open_fuel") as? JsonPrimitive)?.content,
+                monCloseFuel = (get("mon_close_fuel") as? JsonPrimitive)?.content,
+                tueOpenFuel = (get("tue_open_fuel") as? JsonPrimitive)?.content,
+                tueCloseFuel = (get("tue_close_fuel") as? JsonPrimitive)?.content,
+                wedOpenFuel = (get("wed_open_fuel") as? JsonPrimitive)?.content,
+                wedCloseFuel = (get("wed_close_fuel") as? JsonPrimitive)?.content,
+                thuOpenFuel = (get("thu_open_fuel") as? JsonPrimitive)?.content,
+                thuCloseFuel = (get("thu_close_fuel") as? JsonPrimitive)?.content,
+                friOpenFuel = (get("fri_open_fuel") as? JsonPrimitive)?.content,
+                friCloseFuel = (get("fri_close_fuel") as? JsonPrimitive)?.content,
+                satOpenFuel = (get("sat_open_fuel") as? JsonPrimitive)?.content,
+                satCloseFuel = (get("sat_close_fuel") as? JsonPrimitive)?.content,
+                sunOpenFuel = (get("sun_open_fuel") as? JsonPrimitive)?.content,
+                sunCloseFuel = (get("sun_close_fuel") as? JsonPrimitive)?.content,
+                open24h = parseBoolOrNull(get("open_24h")),
+                openingHoursFuel = parseStringList(get("opening_hours_fuel"))
+            )
+        }
+
         private fun parseSiteFromObject(obj: JsonObject): RoutexSite? {
             val coords = obj["geometry"]?.jsonObject?.get("coordinates")?.jsonArray
             fun parseDouble(e: JsonElement): Double? =
@@ -230,9 +293,12 @@ class RoutexClient(
             }
 
             val props = obj["properties"]?.jsonObject ?: obj
+            val siteName = props["site_name"]?.jsonPrimitive?.content
+                ?: obj["site_name"]?.jsonPrimitive?.content
             val name = props["name"]?.jsonPrimitive?.content
                 ?: obj["name"]?.jsonPrimitive?.content
                 ?: props["title"]?.jsonPrimitive?.content
+                ?: siteName
                 ?: ""
             val address = props["address"]?.jsonPrimitive?.content
                 ?: obj["address"]?.jsonPrimitive?.content
@@ -244,6 +310,15 @@ class RoutexClient(
                 ?: obj["brand"]?.jsonPrimitive?.content
                 ?: obj["brand_id"]?.jsonPrimitive?.content
                 ?: props["brand_id"]?.jsonPrimitive?.content
+            val postcode = props["postcode"]?.jsonPrimitive?.content
+                ?: obj["postcode"]?.jsonPrimitive?.content
+            val addressLocal = props["address_local"]?.jsonPrimitive?.content
+                ?: obj["address_local"]?.jsonPrimitive?.content
+            val countryLocal = props["country_local"]?.jsonPrimitive?.content
+                ?: obj["country_local"]?.jsonPrimitive?.content
+            val townLocal = props["town_local"]?.jsonPrimitive?.content
+                ?: obj["town_local"]?.jsonPrimitive?.content
+            val details = parseDetails(props)
 
             return RoutexSite(
                 id = id,
@@ -251,7 +326,13 @@ class RoutexClient(
                 address = address,
                 latitude = lat,
                 longitude = lng,
-                brand = brand
+                brand = brand,
+                siteName = siteName,
+                postcode = postcode,
+                addressLocal = addressLocal,
+                countryLocal = countryLocal,
+                townLocal = townLocal,
+                details = details
             )
         }
 
@@ -354,6 +435,53 @@ class RoutexClient(
 }
 
 /**
+ * Amenities and opening info for a Routex site (from API).
+ * All fields are optional; null means unknown, 0/1 or false/true from API.
+ */
+@Serializable
+data class RoutexSiteDetails(
+    val manned24h: Boolean? = null,
+    val mannedAutomat24h: Boolean? = null,
+    val automat: Boolean? = null,
+    val motorwayIndicator: Boolean? = null,
+    val restaurant: Boolean? = null,
+    val shop: Boolean? = null,
+    val snackbar: Boolean? = null,
+    val carWash: Boolean? = null,
+    val showers: Boolean? = null,
+    val adBluePump: Boolean? = null,
+    val r4tNetwork: Boolean? = null,
+    val carVignette: Boolean? = null,
+    val highspeedDiesel: Boolean? = null,
+    val truckIndicator: Boolean? = null,
+    val truckParking: Boolean? = null,
+    val truckDiesel: Boolean? = null,
+    val truckLane: Boolean? = null,
+    val dieselBio: Boolean? = null,
+    val hvo100: Boolean? = null,
+    val lng: Boolean? = null,
+    val lpg: Boolean? = null,
+    val cng: Boolean? = null,
+    val adBlueCanister: Boolean? = null,
+    val monOpenFuel: String? = null,
+    val monCloseFuel: String? = null,
+    val tueOpenFuel: String? = null,
+    val tueCloseFuel: String? = null,
+    val wedOpenFuel: String? = null,
+    val wedCloseFuel: String? = null,
+    val thuOpenFuel: String? = null,
+    val thuCloseFuel: String? = null,
+    val friOpenFuel: String? = null,
+    val friCloseFuel: String? = null,
+    val satOpenFuel: String? = null,
+    val satCloseFuel: String? = null,
+    val sunOpenFuel: String? = null,
+    val sunCloseFuel: String? = null,
+    val open24h: Boolean? = null,
+    val openingHoursFuel: List<String> = emptyList()
+)
+
+/**
  * Parsed gas station / site from Routex API.
  */
 @Serializable
@@ -363,5 +491,11 @@ data class RoutexSite(
     val address: String,
     val latitude: Double,
     val longitude: Double,
-    val brand: String? = null
+    val brand: String? = null,
+    val siteName: String? = null,
+    val postcode: String? = null,
+    val addressLocal: String? = null,
+    val countryLocal: String? = null,
+    val townLocal: String? = null,
+    val details: RoutexSiteDetails? = null
 )
