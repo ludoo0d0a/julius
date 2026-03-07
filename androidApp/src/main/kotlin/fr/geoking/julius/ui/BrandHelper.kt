@@ -4,7 +4,7 @@ import fr.geoking.julius.R
 
 /**
  * Maps Routex brand_id to company display name and icon for gas station detail.
- * Uses default gas icon when no brand-specific drawable exists.
+ * Uses brand-specific drawable when available, otherwise default gas icon.
  */
 object BrandHelper {
 
@@ -39,6 +39,22 @@ object BrandHelper {
         "migros" to "Migros",
     )
 
+    /** brand_id (lowercase) -> brand icon drawable. Unlisted brands use ic_poi_gas. */
+    private val brandIcons = mapOf(
+        "total" to R.drawable.ic_brand_total,
+        "totalenergies" to R.drawable.ic_brand_total,
+        "bp" to R.drawable.ic_brand_bp,
+        "shell" to R.drawable.ic_brand_shell,
+        "esso" to R.drawable.ic_brand_esso,
+        "esso express" to R.drawable.ic_brand_esso,
+        "eni" to R.drawable.ic_brand_eni,
+        "repsol" to R.drawable.ic_brand_repsol,
+        "omv" to R.drawable.ic_brand_omv,
+        "rel" to R.drawable.ic_brand_rel,
+        "rel.metz" to R.drawable.ic_brand_rel,
+        "circle k" to R.drawable.ic_brand_circlek,
+    )
+
     data class BrandInfo(
         val displayName: String,
         val iconResId: Int
@@ -49,9 +65,10 @@ object BrandHelper {
         val normalized = brandId.trim().lowercase()
         val name = brandNames[normalized] ?: brandId.trim().takeIf { it.isNotBlank() }
             ?: return null
+        val iconResId = brandIcons[normalized] ?: R.drawable.ic_poi_gas
         return BrandInfo(
             displayName = name,
-            iconResId = R.drawable.ic_poi_gas
+            iconResId = iconResId
         )
     }
 }

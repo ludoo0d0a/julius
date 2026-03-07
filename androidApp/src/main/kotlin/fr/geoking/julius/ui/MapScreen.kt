@@ -207,18 +207,24 @@ fun MapScreen(
                     properties = MapProperties(isMyLocationEnabled = hasLocationPermission),
                     uiSettings = MapUiSettings(myLocationButtonEnabled = hasLocationPermission)
                 ) {
-                    // Vector drawable must be converted to Bitmap; fromResource() only supports raster drawables
                     val mapContext = LocalContext.current
-                    val poiMarkerIcon = remember(mapContext) {
+                    val defaultMarkerIcon = remember(mapContext) {
                         vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_gas)
                             ?: BitmapDescriptorFactory.defaultMarker()
                     }
+                    val iconCache = remember(mapContext) {
+                        mutableMapOf(R.drawable.ic_poi_gas to defaultMarkerIcon)
+                    }
                     pois.forEach { poi ->
+                        val iconResId = BrandHelper.getBrandInfo(poi.brand)?.iconResId ?: R.drawable.ic_poi_gas
+                        val markerIcon = iconCache.getOrPut(iconResId) {
+                            vectorDrawableToBitmapDescriptor(mapContext, iconResId) ?: defaultMarkerIcon
+                        }
                         Marker(
                             state = MarkerState(position = LatLng(poi.latitude, poi.longitude)),
                             title = poi.name,
                             snippet = poi.address,
-                            icon = poiMarkerIcon,
+                            icon = markerIcon,
                             onClick = {
                                 selectedPoi = poi
                                 scope.launch { sheetState.show() }
@@ -278,12 +284,12 @@ private fun PoiDetailCard(
     onShowDetails: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val title = poi.siteName?.takeIf { it.isNotBlank() } ?: poi.name
+    val siteName = poi.siteName?.takeIf { it.isNotBlank() } ?: poi.name
+    val addressForTitle = poi.addressLocal?.takeIf { it.isNotBlank() } ?: poi.address.takeIf { it.isNotBlank() }
     val addressLines = buildList {
-        poi.addressLocal?.takeIf { it.isNotBlank() }?.let { add(it) }
         listOf(poi.townLocal, poi.postcode).filter { !it.isNullOrBlank() }.joinToString(", ").takeIf { it.isNotBlank() }?.let { add(it) }
         poi.countryLocal?.takeIf { it.isNotBlank() }?.let { add(it) }
-        if (isEmpty() && poi.address.isNotBlank()) add(poi.address)
+        if (isEmpty() && addressForTitle == null && poi.address.isNotBlank()) add(poi.address)
     }
     val brandInfo = BrandHelper.getBrandInfo(poi.brand)
 
@@ -311,12 +317,22 @@ private fun PoiDetailCard(
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                 }
-                Text(
-                    text = title,
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = siteName,
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (!addressForTitle.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = addressForTitle,
+                            color = Color.White.copy(alpha = 0.9f),
+                            fontSize = 14.sp
+                        )
+                    }
+                }
             }
             brandInfo?.let { info ->
                 Spacer(modifier = Modifier.height(4.dp))
