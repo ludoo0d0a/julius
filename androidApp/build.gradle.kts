@@ -18,8 +18,8 @@ configure<ApplicationExtension> {
         val ciRunAttempt = System.getenv("GITHUB_RUN_ATTEMPT")?.toIntOrNull() ?: 1
         val localProps = rootProject.file("local.properties").takeIf { it.exists() }?.let { file ->
             Properties().apply { file.inputStream().use { load(it) } }
-        }
-        val localVersionCode = localProps?.getProperty("version.code")?.toIntOrNull()
+        } ?: Properties()
+        val localVersionCode = localProps.getProperty("version.code")?.toIntOrNull()
         val computedVersionCode = when {
             ciRunNumber != null -> (ciRunNumber * 10) + ciRunAttempt
             localVersionCode != null -> localVersionCode
@@ -33,100 +33,17 @@ configure<ApplicationExtension> {
         versionCode = computedVersionCode
         versionName = computedVersionName
 
-        val elevenLabsKey = project.rootProject.file("local.properties").let { file ->
-            if (file.exists()) {
-                val properties = Properties()
-                properties.load(file.inputStream())
-                properties.getProperty("elevenlabs.key") ?: ""
-            } else {
-                ""
-            }
-        }
-        val geminiKey = project.rootProject.file("local.properties").let { file ->
-            if (file.exists()) {
-                val properties = Properties()
-                properties.load(file.inputStream())
-                properties.getProperty("gemini.key") ?: ""
-            } else {
-                ""
-            }
-        }
-        val deepgramKey = project.rootProject.file("local.properties").let { file ->
-            if (file.exists()) {
-                val properties = Properties()
-                properties.load(file.inputStream())
-                properties.getProperty("deepgram.key") ?: ""
-            } else {
-                ""
-            }
-        }
-        val openaiKey = project.rootProject.file("local.properties").let { file ->
-            if (file.exists()) {
-                val properties = Properties()
-                properties.load(file.inputStream())
-                properties.getProperty("openai.key") ?: ""
-            } else {
-                ""
-            }
-        }
-        val perplexityKey = project.rootProject.file("local.properties").let { file ->
-            if (file.exists()) {
-                val properties = Properties()
-                properties.load(file.inputStream())
-                properties.getProperty("perplexity.key") ?: ""
-            } else {
-                ""
-            }
-        }
-        val firebaseAiKey = project.rootProject.file("local.properties").let { file ->
-            if (file.exists()) {
-                val properties = Properties()
-                properties.load(file.inputStream())
-                properties.getProperty("firebaseai.key") ?: ""
-            } else {
-                ""
-            }
-        }
-        val firebaseAiModel = project.rootProject.file("local.properties").let { file ->
-            if (file.exists()) {
-                val properties = Properties()
-                properties.load(file.inputStream())
-                properties.getProperty("firebaseai.model") ?: "gemini-1.5-flash-latest"
-            } else {
-                "gemini-1.5-flash-latest"
-            }
-        }
-        val opencodeZenKey = project.rootProject.file("local.properties").let { file ->
-            if (file.exists()) {
-                val properties = Properties()
-                properties.load(file.inputStream())
-                properties.getProperty("opencodezen.key") ?: ""
-            } else ""
-        }
-        val completionsMeKey = project.rootProject.file("local.properties").let { file ->
-            if (file.exists()) {
-                val properties = Properties()
-                properties.load(file.inputStream())
-                properties.getProperty("completionsme.key") ?: ""
-            } else ""
-        }
-        val apifreellmKey = project.rootProject.file("local.properties").let { file ->
-            if (file.exists()) {
-                val properties = Properties()
-                properties.load(file.inputStream())
-                properties.getProperty("apifreellm.key") ?: ""
-            } else ""
-        }
-
-        val mapsApiKey = project.rootProject.file("local.properties").let { file ->
-            if (file.exists()) {
-                val properties = Properties()
-                properties.load(file.inputStream())
-                properties.getProperty("google.maps.key") ?: ""
-            } else {
-                ""
-            }
-        }
+        val elevenLabsKey = localProps.getProperty("elevenlabs.key") ?: ""
+        val geminiKey = localProps.getProperty("gemini.key") ?: ""
+        val deepgramKey = localProps.getProperty("deepgram.key") ?: ""
+        val openaiKey = localProps.getProperty("openai.key") ?: ""
+        val perplexityKey = localProps.getProperty("perplexity.key") ?: ""
+        val firebaseAiKey = localProps.getProperty("firebaseai.key") ?: ""
+        val firebaseAiModel = localProps.getProperty("firebaseai.model") ?: "gemini-1.5-flash-latest"
+        val opencodeZenKey = localProps.getProperty("opencodezen.key") ?: ""
+        val completionsMeKey = localProps.getProperty("completionsme.key") ?: ""
+        val apifreellmKey = localProps.getProperty("apifreellm.key") ?: ""
+        val mapsApiKey = localProps.getProperty("google.maps.key") ?: ""
         manifestPlaceholders["googleMapsApiKey"] = mapsApiKey
 
         buildConfigField("String", "ELEVENLABS_KEY", "\"$elevenLabsKey\"")
