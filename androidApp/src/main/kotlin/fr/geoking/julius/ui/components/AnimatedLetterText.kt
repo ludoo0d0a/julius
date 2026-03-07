@@ -1,6 +1,8 @@
 package fr.geoking.julius.ui.components
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
@@ -33,12 +35,12 @@ fun AnimatedLetterText(
     // For simplicity, let's split the text into words and then letters to allow wrapping
     val words = remember(text) { text.split(" ") }
 
-    com.google.accompanist.flowlayout.FlowRow(
+    FlowRow(
         modifier = modifier,
-        mainAxisAlignment = when (textAlign) {
-            TextAlign.Center -> com.google.accompanist.flowlayout.MainAxisAlignment.Center
-            TextAlign.End -> com.google.accompanist.flowlayout.MainAxisAlignment.End
-            else -> com.google.accompanist.flowlayout.MainAxisAlignment.Start
+        horizontalArrangement = when (textAlign) {
+            TextAlign.Center -> Arrangement.Center
+            TextAlign.End -> Arrangement.End
+            else -> Arrangement.Start
         }
     ) {
         words.forEachIndexed { wordIndex, word ->

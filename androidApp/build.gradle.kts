@@ -103,6 +103,7 @@ dependencies {
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.foundation)
+    implementation(libs.compose.foundation.layout)
     implementation(libs.compose.material3)
     implementation(libs.compose.material.icons.core)
     implementation(libs.compose.material.icons.extended)
@@ -114,7 +115,6 @@ dependencies {
 
     // Maps
     implementation(libs.maps.compose)
-    implementation(libs.accompanist.flowlayout)
 
     // Media3 for Dashboard Tile
     implementation(libs.media3.session)
