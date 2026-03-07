@@ -88,10 +88,6 @@ fun MapScreen(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val scope = rememberCoroutineScope()
 
-    val poiMarkerIcon = remember {
-        BitmapDescriptorFactory.fromResource(R.drawable.ic_poi_gas)
-    }
-
     LaunchedEffect(selectedProvider, cameraPositionState.position, mapSizePx) {
         if (!hasLocationPermission) {
             launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -188,6 +184,10 @@ fun MapScreen(
                     properties = MapProperties(isMyLocationEnabled = hasLocationPermission),
                     uiSettings = MapUiSettings(myLocationButtonEnabled = hasLocationPermission)
                 ) {
+                    // Create icon inside map content so BitmapDescriptorFactory is initialized (map is ready)
+                    val poiMarkerIcon = remember {
+                        BitmapDescriptorFactory.fromResource(R.drawable.ic_poi_gas)
+                    }
                     pois.forEach { poi ->
                         Marker(
                             state = MarkerState(position = LatLng(poi.latitude, poi.longitude)),
