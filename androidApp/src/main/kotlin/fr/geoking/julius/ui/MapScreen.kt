@@ -3,6 +3,8 @@ package fr.geoking.julius.ui
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,6 +29,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -46,6 +49,20 @@ private val PROVIDER_OPTIONS = listOf(
     PoiProviderType.DataGouv to "data.gouv.fr (fuel)",
     PoiProviderType.DataGouvElec to "data.gouv.fr (IRVE)"
 )
+
+/** Converts a vector drawable to a BitmapDescriptor for map markers (fromResource only supports bitmaps). */
+private fun vectorDrawableToBitmapDescriptor(
+    context: android.content.Context,
+    drawableResId: Int,
+    sizePx: Int = 96
+): BitmapDescriptor? {
+    val drawable = ContextCompat.getDrawable(context, drawableResId) ?: return null
+    val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    drawable.setBounds(0, 0, sizePx, sizePx)
+    drawable.draw(canvas)
+    return BitmapDescriptorFactory.fromBitmap(bitmap)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -184,9 +201,11 @@ fun MapScreen(
                     properties = MapProperties(isMyLocationEnabled = hasLocationPermission),
                     uiSettings = MapUiSettings(myLocationButtonEnabled = hasLocationPermission)
                 ) {
-                    // Create icon inside map content so BitmapDescriptorFactory is initialized (map is ready)
-                    val poiMarkerIcon = remember {
-                        BitmapDescriptorFactory.fromResource(R.drawable.ic_poi_gas)
+                    // Vector drawable must be converted to Bitmap; fromResource() only supports raster drawables
+                    val mapContext = LocalContext.current
+                    val poiMarkerIcon = remember(mapContext) {
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_gas)
+                            ?: BitmapDescriptorFactory.defaultMarker()
                     }
                     pois.forEach { poi ->
                         Marker(

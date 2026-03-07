@@ -221,7 +221,8 @@ class RoutexClient(
                             if (coordList != null && coordList.size >= 2) {
                                 val first = parseDouble(coordList[0]) ?: return null
                                 val second = parseDouble(coordList[1]) ?: return null
-                                Pair(first, second)
+                                // GeoJSON and many APIs use [longitude, latitude]
+                                Pair(second, first)
                             } else return null
                         }
                     }
@@ -312,7 +313,9 @@ class RoutexClient(
     suspend fun getResults(latitude: Double, longitude: Double, radiusKm: Int = 5): List<RoutexSite> {
         val requestRadiusKm = maxOf(radiusKm, ROUTEX_MIN_REQUEST_RADIUS_KM)
         val requestBox = boundsBoxFromCenter(latitude, longitude, requestRadiusKm)
-        val filterBox = boundsBoxFromCenter(latitude, longitude, radiusKm)
+        // Filter using the same box we requested so we don't drop stations the API returned
+        // (e.g. edge stations like Terville that fall just outside a tight viewport radius).
+        val filterBox = requestBox
 
         val request = RoutexRequest(
             bounds = "${requestBox.minLng}, ${requestBox.minLat}, ${requestBox.maxLng}, ${requestBox.maxLat}",
@@ -331,7 +334,7 @@ class RoutexClient(
         }
 
         val body = response.bodyAsText()
-        log.d { "[RoutexClient] getResults lat=$latitude lon=$longitude requestRadius=$requestRadiusKm filterRadius=$radiusKm status=${response.status.value} bodyLength=${body.length}" }
+        log.d { "[RoutexClient] getResults lat=$latitude lon=$longitude requestRadius=$requestRadiusKm status=${response.status.value} bodyLength=${body.length}" }
         if (response.status.value != 200) {
             throw NetworkException(response.status.value, "Routex API error: $body")
         }
