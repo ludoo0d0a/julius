@@ -159,23 +159,28 @@ class RoutexClient(
 
     /**
      * Parses API response into a list of sites.
-     * Tries: results[], sites[], or GeoJSON features[].
+     * Handles: root array [...], or object with results[], sites[], or GeoJSON features[].
      */
     private fun parseResults(body: String): List<RoutexSite> {
         val element = json.parseToJsonElement(body)
-        val obj = element.jsonObject
 
-        // Try "results" or "sites" array
-        val array = obj["results"]?.jsonArray
-            ?: obj["sites"]?.jsonArray
-            ?: obj["data"]?.jsonObject?.get("results")?.jsonArray
-            ?: obj["data"]?.jsonObject?.get("sites")?.jsonArray
-            ?: obj["features"]?.jsonArray
+        // Root may be an array (e.g. [{...}, {...}]) or an object
+        val array = when (element) {
+            is JsonObject -> {
+                element["results"]?.jsonArray
+                    ?: element["sites"]?.jsonArray
+                    ?: element["data"]?.jsonObject?.get("results")?.jsonArray
+                    ?: element["data"]?.jsonObject?.get("sites")?.jsonArray
+                    ?: element["features"]?.jsonArray
+            }
+            is kotlinx.serialization.json.JsonArray -> element
+            else -> null
+        }
 
         if (array == null) return emptyList()
 
-        return array.mapNotNull { element ->
-            when (val item = element) {
+        return array.mapNotNull { item ->
+            when (item) {
                 is JsonObject -> parseSiteFromObject(item)
                 else -> null
             }

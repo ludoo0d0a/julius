@@ -466,4 +466,5 @@ Sideloaded/debug builds are hidden from the car launcher unless you allow non-Pl
 - **Android Auto not appearing**: Ensure device/emulator has Android Auto support and app is properly signed
 - **Voice not working**: Check `RECORD_AUDIO` permission is granted
 - **Agent switching not working**: Verify `DynamicAgentWrapper` is being used and settings are saved
+- **"GoogleCertificatesRslt: not allowed" / "Unable to update local snapshot for consentverifier"**: Google Play Services (e.g. Maps) verifies your app's signing certificate. For **debug** builds, add your debug keystore SHA-1 and SHA-256 in [Google Cloud Console](https://console.cloud.google.com/) → your project → **APIs & Services** → **Credentials** → your Android API key → **Application restrictions** → add the fingerprint(s). Get them with `./gradlew signingReport` or from `~/.android/debug.keystore`. This warning is harmless for development; Maps still works. Release builds must use the keystore registered for your Play app.
 
