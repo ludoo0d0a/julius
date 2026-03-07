@@ -24,6 +24,9 @@ import kotlin.math.sqrt
 /** Maximum number of POIs to return per getResults call. */
 const val ROUTEX_MAX_POIS = 20
 
+/** Minimum radius (km) sent to the API so edge stations (e.g. Terville) are returned and not dropped by tight viewport. */
+const val ROUTEX_MIN_REQUEST_RADIUS_KM = 3
+
 /**
  * Computes the search radius in km that covers the visible map area from center, zoom and size.
  * Uses Web Mercator: at zoom z the world is 256*2^z pixels wide; latitude scale varies with cos(lat).
@@ -252,7 +255,8 @@ class RoutexClient(
         }
 
         /**
-         * Filters sites to those inside the bounding box and limits to maxPois. Visible for testing.
+         * Filters sites to those inside the bounding box, sorts by distance to box center (so closest
+         * stations are kept when capping), and limits to maxPois. Visible for testing.
          */
         internal fun filterInBoundsAndLimit(
             sites: List<RoutexSite>,
@@ -261,9 +265,19 @@ class RoutexClient(
             maxLng: Double,
             maxLat: Double,
             maxPois: Int = ROUTEX_MAX_POIS
-        ): List<RoutexSite> = sites
-            .filter { it.latitude in minLat..maxLat && it.longitude in minLng..maxLng }
-            .take(maxPois)
+        ): List<RoutexSite> {
+            val centerLat = (minLat + maxLat) / 2.0
+            val centerLng = (minLng + maxLng) / 2.0
+            fun distSq(s: RoutexSite): Double {
+                val dlat = s.latitude - centerLat
+                val dlng = s.longitude - centerLng
+                return dlat * dlat + dlng * dlng
+            }
+            return sites
+                .filter { it.latitude in minLat..maxLat && it.longitude in minLng..maxLng }
+                .sortedBy { distSq(it) }
+                .take(maxPois)
+        }
     }
 
     /**
@@ -296,17 +310,19 @@ class RoutexClient(
      * a "results"/"sites" array or GeoJSON-style "features".
      */
     suspend fun getResults(latitude: Double, longitude: Double, radiusKm: Int = 5): List<RoutexSite> {
-        val box = boundsBoxFromCenter(latitude, longitude, radiusKm)
-        val bounds = "${box.minLng}, ${box.minLat}, ${box.maxLng}, ${box.maxLat}"
+        val requestRadiusKm = maxOf(radiusKm, ROUTEX_MIN_REQUEST_RADIUS_KM)
+        val requestBox = boundsBoxFromCenter(latitude, longitude, requestRadiusKm)
+        val filterBox = boundsBoxFromCenter(latitude, longitude, radiusKm)
+
         val request = RoutexRequest(
-            bounds = bounds,
+            bounds = "${requestBox.minLng}, ${requestBox.minLat}, ${requestBox.maxLng}, ${requestBox.maxLat}",
             locations = RoutexLocations(
                 loc = RoutexLoc(
                     coordinates = listOf(latitude, longitude),
-                    radius = radiusKm
+                    radius = requestRadiusKm
                 )
             ),
-            radius = radiusKm
+            radius = requestRadiusKm
         )
 
         val response = client.post("$baseUrl/getResults") {
@@ -315,7 +331,7 @@ class RoutexClient(
         }
 
         val body = response.bodyAsText()
-        log.d { "[RoutexClient] getResults lat=$latitude lon=$longitude radiusKm=$radiusKm status=${response.status.value} bodyLength=${body.length}" }
+        log.d { "[RoutexClient] getResults lat=$latitude lon=$longitude requestRadius=$requestRadiusKm filterRadius=$radiusKm status=${response.status.value} bodyLength=${body.length}" }
         if (response.status.value != 200) {
             throw NetworkException(response.status.value, "Routex API error: $body")
         }
@@ -323,10 +339,10 @@ class RoutexClient(
         val all = RoutexClient.parseResults(body)
         val results = RoutexClient.filterInBoundsAndLimit(
             all,
-            box.minLng,
-            box.minLat,
-            box.maxLng,
-            box.maxLat,
+            filterBox.minLng,
+            filterBox.minLat,
+            filterBox.maxLng,
+            filterBox.maxLat,
             ROUTEX_MAX_POIS
         )
         log.d { "[RoutexClient] parseResults -> ${all.size} sites, ${results.size} in bounds (max $ROUTEX_MAX_POIS)" }

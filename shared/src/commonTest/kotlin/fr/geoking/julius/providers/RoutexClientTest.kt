@@ -166,4 +166,66 @@ class RoutexClientTest {
         assertTrue(inBounds.all { it.id in listOf("1", "2", "3", "4", "5", "6", "7", "8") })
     }
 
+    /**
+     * Terville (Moselle, France) ~ 49.323°N, 6.134°E.
+     * When using location (center + radius) the API returns this station; it must not be dropped
+     * by overly tight bounds or by taking first 20 without sorting by distance.
+     */
+    private val TERVILLE_LAT = 49.323
+    private val TERVILLE_LNG = 6.134
+
+    @Test
+    fun locationBasedRequest_tervilleStation_includedWhenInRadius() {
+        // Location-based request: center such that Terville is within radius (e.g. Metz area, radius 15 km).
+        // API returns stations by location/radius; Terville must be in the box and in results.
+        val centerLat = 49.25
+        val centerLng = 6.14
+        val radiusKm = 15
+        val body = """
+            [
+                {"id":"near1","x":6.14,"y":49.21,"brand_id":"A"},
+                {"id":"near2","x":6.15,"y":49.20,"brand_id":"B"},
+                {"id":"terville","x":${TERVILLE_LNG},"y":${TERVILLE_LAT},"brand_id":"Terville"},
+                {"id":"near3","x":6.13,"y":49.22,"brand_id":"C"}
+            ]
+        """.trimIndent()
+        val all = RoutexClient.parseResults(body)
+        assertEquals(4, all.size)
+        val box = boundsBoxFromCenterForTest(centerLat, centerLng, radiusKm)
+        val filtered = RoutexClient.filterInBoundsAndLimit(
+            all,
+            box.minLng,
+            box.minLat,
+            box.maxLng,
+            box.maxLat,
+            maxPois = 20
+        )
+        assertTrue(
+            filtered.any { it.id == "terville" },
+            "Terville station (in radius) must be in results when using location-based box"
+        )
+        val tervilleSite = filtered.find { it.id == "terville" }
+        assertTrue(kotlin.math.abs(tervilleSite!!.latitude - TERVILLE_LAT) < 0.001)
+        assertTrue(kotlin.math.abs(tervilleSite.longitude - TERVILLE_LNG) < 0.001)
+    }
+
+    /** Same formula as RoutexClient.boundsBoxFromCenter for test use. */
+    private fun boundsBoxFromCenterForTest(lat: Double, lng: Double, radiusKm: Int): BoundsBoxForTest {
+        val latDelta = radiusKm / 111.0
+        val lngDelta = radiusKm / (111.0 * kotlin.math.cos(lat * kotlin.math.PI / 180).coerceIn(0.01, 1.0))
+        return BoundsBoxForTest(
+            minLng = lng - lngDelta,
+            minLat = lat - latDelta,
+            maxLng = lng + lngDelta,
+            maxLat = lat + latDelta
+        )
+    }
+
+    private data class BoundsBoxForTest(
+        val minLng: Double,
+        val minLat: Double,
+        val maxLng: Double,
+        val maxLat: Double
+    )
 }
+

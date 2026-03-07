@@ -1,17 +1,26 @@
 package fr.geoking.julius.auto
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
-import android.net.Uri
 import android.util.Log
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
-import androidx.car.app.model.*
-import androidx.car.app.model.Distance
+import androidx.car.app.model.Action
+import androidx.car.app.model.ActionStrip
+import androidx.car.app.model.CarIcon
+import androidx.car.app.model.CarLocation
+import androidx.car.app.model.ItemList
+import androidx.car.app.model.Metadata
+import androidx.car.app.model.MessageTemplate
 import androidx.car.app.model.Place
+import androidx.car.app.model.PlaceListMapTemplate
+import androidx.car.app.model.PlaceMarker
+import androidx.car.app.model.Row
+import androidx.car.app.model.Template
+import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.lifecycleScope
+import fr.geoking.julius.R
 import fr.geoking.julius.providers.Poi
 import fr.geoking.julius.providers.PoiProvider
 import kotlinx.coroutines.launch
@@ -102,18 +111,21 @@ class MapPoiScreen(
                         )
                         .build()
 
-                    listBuilder.addItem(
-                        Row.Builder()
-                            .setTitle(poi.name)
-                            .addText(poi.address.ifBlank { " " })
-                            .setMetadata(metadata)
-                            .setBrowsable(true)
-                            .setOnClickListener {
-                                val intent = Intent(CarContext.ACTION_NAVIGATE, Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${poi.name}"))
-                                carContext.startCarApp(intent)
-                            }
-                            .build()
-                    )
+                    val rowBuilder = Row.Builder()
+                        .setTitle(poi.name)
+                        .addText(poi.address.ifBlank { " " })
+                        .setMetadata(metadata)
+                        .setBrowsable(true)
+                        .setOnClickListener { screenManager.push(PoiDetailScreen(carContext, poi)) }
+
+                    poi.fuelPrices?.takeIf { it.isNotEmpty() }?.let { prices ->
+                        val priceLine = prices.joinToString(" · ") { fp ->
+                            if (fp.outOfStock) "${fp.fuelName}: —" else "${fp.fuelName}: €%.3f".format(fp.price)
+                        }
+                        rowBuilder.addText(priceLine)
+                    }
+
+                    listBuilder.addItem(rowBuilder.build())
                 }
                 builder.setItemList(listBuilder.build())
             }
