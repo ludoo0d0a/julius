@@ -23,6 +23,9 @@ class MapPoiScreen(
 
     private var pois: List<Poi> = emptyList()
     private var isLoading = true
+    /** Search center (user location or default) for anchor and POI fetch. */
+    private var searchLat: Double = 48.8566
+    private var searchLon: Double = 2.3522
 
     init {
         loadPois()
@@ -51,7 +54,17 @@ class MapPoiScreen(
                 }
             }
 
-            pois = poiProvider.getGasStations(lat, lon)
+            searchLat = lat
+            searchLon = lon
+            Log.d("MapPoiScreen", "loadPois search center lat=$lat lon=$lon")
+
+            try {
+                pois = poiProvider.getGasStations(lat, lon)
+                Log.d("MapPoiScreen", "pois loaded: ${pois.size}")
+            } catch (e: Exception) {
+                Log.e("MapPoiScreen", "getGasStations failed", e)
+                pois = emptyList()
+            }
             isLoading = false
             invalidate()
         }
@@ -62,10 +75,21 @@ class MapPoiScreen(
             val builder = PlaceListMapTemplate.Builder()
                 .setTitle("Gas Stations")
                 .setHeaderAction(Action.BACK)
+                .setCurrentLocationEnabled(
+                    carContext.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                    carContext.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                )
 
             if (isLoading) {
                 builder.setLoading(true)
             } else {
+                // Anchor at search center so the map shows both user area and POI markers
+                builder.setAnchor(
+                    Place.Builder(CarLocation.create(searchLat, searchLon))
+                        .setMarker(PlaceMarker.Builder().build())
+                        .build()
+                )
+
                 val listBuilder = ItemList.Builder()
                     .setNoItemsMessage("No gas stations found")
 
@@ -81,8 +105,9 @@ class MapPoiScreen(
                     listBuilder.addItem(
                         Row.Builder()
                             .setTitle(poi.name)
-                            .addText(poi.address)
+                            .addText(poi.address.ifBlank { " " })
                             .setMetadata(metadata)
+                            .setBrowsable(true)
                             .setOnClickListener {
                                 val intent = Intent(CarContext.ACTION_NAVIGATE, Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${poi.name}"))
                                 carContext.startCarApp(intent)

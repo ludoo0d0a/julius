@@ -14,6 +14,7 @@ class RoutexProvider(
 
     override suspend fun getGasStations(latitude: Double, longitude: Double): List<Poi> {
         val sites = routexClient.getResults(latitude, longitude, radiusKm)
+        println("[RoutexProvider] getGasStations lat=$latitude lon=$longitude radius=$radiusKm -> ${sites.size} sites")
         return sites.map { site ->
             Poi(
                 id = site.id,

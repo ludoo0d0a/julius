@@ -150,11 +150,14 @@ class RoutexClient(
         }
 
         val body = response.bodyAsText()
+        println("[RoutexClient] getResults lat=$latitude lon=$longitude radiusKm=$radiusKm status=${response.status.value} bodyLength=${body.length}")
         if (response.status.value != 200) {
             throw NetworkException(response.status.value, "Routex API error: $body")
         }
 
-        return parseResults(body)
+        val results = parseResults(body)
+        println("[RoutexClient] parseResults -> ${results.size} sites")
+        return results
     }
 
     /**
@@ -177,14 +180,24 @@ class RoutexClient(
             else -> null
         }
 
-        if (array == null) return emptyList()
+        if (array == null) {
+            val keys = (element as? JsonObject)?.keys?.joinToString(",") ?: "not-an-object"
+            println("[RoutexClient] parseResults: no results/sites/features array; root keys=$keys bodyPreview=${body.take(400)}")
+            return emptyList()
+        }
 
-        return array.mapNotNull { item ->
+        val results = array.mapNotNull { item ->
             when (item) {
                 is JsonObject -> parseSiteFromObject(item)
                 else -> null
             }
         }
+        if (results.isEmpty() && array.isNotEmpty()) {
+            val first = array.firstOrNull()
+            val firstKeys = (first as? JsonObject)?.keys?.joinToString(",") ?: "not-json-object"
+            println("[RoutexClient] parseResults: array has ${array.size} items but parsed 0; first item keys=$firstKeys")
+        }
+        return results
     }
 
     private fun parseSiteFromObject(obj: JsonObject): RoutexSite? {

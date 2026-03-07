@@ -24,6 +24,9 @@ class SelectorPoiProvider(
     }
 
     override suspend fun getGasStations(latitude: Double, longitude: Double): List<Poi> {
-        return currentProvider().getGasStations(latitude, longitude)
+        val provider = settingsManager.settings.value.selectedPoiProvider
+        val result = currentProvider().getGasStations(latitude, longitude)
+        println("[SelectorPoiProvider] selected=$provider lat=$latitude lon=$longitude -> ${result.size} pois")
+        return result
     }
 }
