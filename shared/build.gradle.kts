@@ -46,6 +46,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            compileOnly(libs.compose.runtime)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)

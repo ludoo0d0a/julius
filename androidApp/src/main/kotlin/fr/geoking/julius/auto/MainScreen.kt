@@ -120,7 +120,7 @@ class MainScreen(
                     val lastUserMsg = lastMsg.text.lowercase()
                     val keywords = listOf("display map", "map", "carte", "gas stations", "stations service")
                     if (keywords.any { lastUserMsg.contains(it) }) {
-                        screenManager.push(MapPoiScreen(carContext))
+                        screenManager.push(MapPoiScreen(carContext, poiProvider))
                     }
                 }
 

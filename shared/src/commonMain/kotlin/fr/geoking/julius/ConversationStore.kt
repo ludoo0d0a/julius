@@ -1,5 +1,6 @@
 package fr.geoking.julius.shared
 
+import androidx.compose.runtime.Stable
 import fr.geoking.julius.agents.ConversationalAgent
 import fr.geoking.julius.agents.AgentResponse
 import fr.geoking.julius.agents.ToolCall
@@ -22,6 +23,7 @@ data class DetailedError(
     val timestamp: Long
 )
 
+@Stable
 data class ConversationState(
     val messages: List<ChatMessage> = emptyList(),
     val status: VoiceEvent = VoiceEvent.Silence,
@@ -40,6 +42,7 @@ enum class Role {
     User, Assistant
 }
 
+@Stable
 open class ConversationStore(
     private val scope: CoroutineScope,
     private val agent: ConversationalAgent, // Swapped ChatService for Agent

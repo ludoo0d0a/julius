@@ -114,7 +114,7 @@ open class SettingsManager(context: Context) {
         )
     }
 
-    fun setPoiProviderType(type: fr.geoking.julius.providers.PoiProviderType) {
+    open fun setPoiProviderType(type: fr.geoking.julius.providers.PoiProviderType) {
         prefs.edit().putString("poi_provider", type.name).apply()
         _settings.value = _settings.value.copy(selectedPoiProvider = type)
     }

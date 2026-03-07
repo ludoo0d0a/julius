@@ -27,6 +27,8 @@ import fr.geoking.julius.FractalColorIntensity
 import fr.geoking.julius.FractalQuality
 import fr.geoking.julius.IaModel
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.providers.PoiProviderType
+import fr.geoking.julius.TextAnimation
 import fr.geoking.julius.shared.DetailedError
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -582,6 +584,7 @@ fun SettingsScreenPreview() {
         object : SettingsManager(null as android.content.Context) {
             private val mockSettings = MutableStateFlow(
                 AppSettings(
+                    selectedPoiProvider = PoiProviderType.Routex,
                     openAiKey = "sk-preview-key-123",
                     elevenLabsKey = "preview-eleven-key",
                     perplexityKey = "preview-perplexity-key",
@@ -594,7 +597,8 @@ fun SettingsScreenPreview() {
                     selectedModel = IaModel.LLAMA_3_1_SONAR_SMALL,
                     fractalQuality = FractalQuality.Medium,
                     fractalColorIntensity = FractalColorIntensity.Medium,
-                    extendedActionsEnabled = false
+                    extendedActionsEnabled = false,
+                    textAnimation = TextAnimation.Fade
                 )
             )
             override val settings: StateFlow<AppSettings> = mockSettings.asStateFlow()
@@ -618,23 +622,25 @@ fun SettingsScreenPreview() {
                 fractalColorIntensity: FractalColorIntensity,
                 extendedActionsEnabled: Boolean
             ) {
-                mockSettings.value = AppSettings(
-                    openAiKey,
-                    elevenLabsKey,
-                    perplexityKey,
-                    geminiKey,
-                    deepgramKey,
-                    firebaseAiKey,
-                    firebaseAiModel,
-                    opencodeZenKey,
-                    opencodeZenModel,
-                    completionsMeKey,
-                    completionsMeModel,
-                    apifreellmKey,
-                    agent, theme, model,
-                    fractalQuality,
-                    fractalColorIntensity,
-                    extendedActionsEnabled
+                mockSettings.value = mockSettings.value.copy(
+                    openAiKey = openAiKey,
+                    elevenLabsKey = elevenLabsKey,
+                    perplexityKey = perplexityKey,
+                    geminiKey = geminiKey,
+                    deepgramKey = deepgramKey,
+                    firebaseAiKey = firebaseAiKey,
+                    firebaseAiModel = firebaseAiModel,
+                    opencodeZenKey = opencodeZenKey,
+                    opencodeZenModel = opencodeZenModel,
+                    completionsMeKey = completionsMeKey,
+                    completionsMeModel = completionsMeModel,
+                    apifreellmKey = apifreellmKey,
+                    selectedAgent = agent,
+                    selectedTheme = theme,
+                    selectedModel = model,
+                    fractalQuality = fractalQuality,
+                    fractalColorIntensity = fractalColorIntensity,
+                    extendedActionsEnabled = extendedActionsEnabled
                 )
             }
         }
