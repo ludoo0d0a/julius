@@ -56,6 +56,9 @@ configure<ApplicationExtension> {
         buildConfigField("String", "OPENCODE_ZEN_KEY", "\"$opencodeZenKey\"")
         buildConfigField("String", "COMPLETIONS_ME_KEY", "\"$completionsMeKey\"")
         buildConfigField("String", "APIFREELLM_KEY", "\"$apifreellmKey\"")
+
+        // Required for Google Play Services Maps (references legacy Apache HTTP classes removed from Android 9+)
+        useLibrary("org.apache.http.legacy")
     }
 
     flavorDimensions += "distribution"
