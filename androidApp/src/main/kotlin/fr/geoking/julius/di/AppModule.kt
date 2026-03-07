@@ -138,7 +138,7 @@ val appModule = module {
         SelectorPoiProvider(
             routex = get(named("routex")),
             etalab = get(named("etalab")),
-            gasapi = get(named("gasapi")),
+            gasApi = get(named("gasapi")),
             dataGouv = get(named("datagouv")),
             dataGouvElec = get(named("datagouvelec")),
             settingsManager = get()

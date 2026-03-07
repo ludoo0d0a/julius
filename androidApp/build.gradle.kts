@@ -118,6 +118,8 @@ dependencies {
 
     // Maps
     implementation(libs.maps.compose)
+    // Bundle Apache HTTP legacy classes for Play Services Maps Dynamite (removed from Android 9+ bootclasspath)
+    implementation(libs.httpclient.android)
 
     // Media3 for Dashboard Tile
     implementation(libs.media3.session)
