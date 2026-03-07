@@ -130,8 +130,10 @@ private fun rememberMockStore(): ConversationStore = remember {
         voiceManager = object : fr.geoking.julius.shared.VoiceManager {
             private val _events = kotlinx.coroutines.flow.MutableStateFlow(VoiceEvent.Silence)
             private val _transcribedText = kotlinx.coroutines.flow.MutableStateFlow("")
+            private val _partialText = kotlinx.coroutines.flow.MutableStateFlow("")
             override val events = _events
             override val transcribedText = _transcribedText
+            override val partialText = _partialText
             override fun startListening() {}
             override fun stopListening() {}
             override fun speak(text: String, languageTag: String?) {}

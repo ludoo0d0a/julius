@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -22,6 +24,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.AgentType
+import fr.geoking.julius.TextAnimation
 import fr.geoking.julius.shared.DetailedError
 import fr.geoking.julius.shared.VoiceEvent
 
@@ -42,6 +45,7 @@ fun VoiceStatusContent(
     status: VoiceEvent,
     displayText: String,
     lastError: DetailedError?,
+    textAnimation: TextAnimation = TextAnimation.Fade,
     onAgentClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -80,16 +84,18 @@ fun VoiceStatusContent(
         Spacer(modifier = Modifier.height(20.dp))
 
         // Main display text — larger, better line height, centered
-        Text(
+        AnimatedLetterText(
             text = displayText.ifEmpty { " " },
+            animation = textAnimation,
             color = Color.White,
-            fontSize = DisplayTextFontSize,
-            lineHeight = DisplayTextLineHeight,
-            fontWeight = FontWeight.Normal,
-            letterSpacing = 0.15.sp,
+            style = TextStyle(
+                fontSize = DisplayTextFontSize,
+                lineHeight = DisplayTextLineHeight,
+                fontWeight = FontWeight.Normal,
+                letterSpacing = 0.15.sp
+            ),
             textAlign = TextAlign.Center,
-            maxLines = 4,
-            overflow = TextOverflow.Ellipsis
+            modifier = Modifier.fillMaxWidth()
         )
 
         lastError?.let { error ->

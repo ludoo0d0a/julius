@@ -114,6 +114,7 @@ dependencies {
 
     // Maps
     implementation(libs.maps.compose)
+    implementation(libs.accompanist.flowlayout)
 
     // Media3 for Dashboard Tile
     implementation(libs.media3.session)
