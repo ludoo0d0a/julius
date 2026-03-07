@@ -1,5 +1,6 @@
 package fr.geoking.julius.providers
 
+import android.util.Log
 import fr.geoking.julius.SettingsManager
 
 /**
@@ -26,7 +27,7 @@ class SelectorPoiProvider(
     override suspend fun getGasStations(latitude: Double, longitude: Double): List<Poi> {
         val provider = settingsManager.settings.value.selectedPoiProvider
         val result = currentProvider().getGasStations(latitude, longitude)
-        println("[SelectorPoiProvider] selected=$provider lat=$latitude lon=$longitude -> ${result.size} pois")
+        Log.d("SelectorPoiProvider", "selected=$provider lat=$latitude lon=$longitude -> ${result.size} pois")
         return result
     }
 }

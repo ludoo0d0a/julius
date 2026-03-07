@@ -1,6 +1,7 @@
 package fr.geoking.julius.providers
 
 import fr.geoking.julius.shared.NetworkException
+import fr.geoking.julius.shared.log
 import io.ktor.client.HttpClient
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -15,17 +16,26 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlin.math.PI
 import kotlin.math.cos
+
+/** Maximum number of POIs to return per getResults call. */
+const val ROUTEX_MAX_POIS = 20
 
 /**
  * Client for the Routex (Wigeogis) SiteFinder API.
  * Fetches gas station results from https://app.wigeogis.com/kunden/routex-sitefinder/backend/getResults
+ * Results are restricted to the requested map bounds and limited to [ROUTEX_MAX_POIS].
  */
 class RoutexClient(
     private val client: HttpClient,
     private val baseUrl: String = "https://app.wigeogis.com/kunden/routex-sitefinder/backend"
 ) {
-    private val json = Json { ignoreUnknownKeys = true }
+
+    private data class BoundsBox(val minLng: Double, val minLat: Double, val maxLng: Double, val maxLat: Double) {
+        fun contains(lat: Double, lng: Double): Boolean =
+            lat in minLat..maxLat && lng in minLng..maxLng
+    }
 
     /**
      * Request body for getResults (siteFinder section).
@@ -109,6 +119,138 @@ class RoutexClient(
                 visible = i < 2
             )
         }
+
+        private val json = Json { ignoreUnknownKeys = true }
+
+        /**
+         * Parses API response into a list of sites. Visible for testing.
+         * Handles: root array [...], or object with results[], sites[], or GeoJSON features[].
+         * Supports item format: id, x (lng), y (lat), brand_id.
+         */
+        internal fun parseResults(body: String): List<RoutexSite> {
+            val element = json.parseToJsonElement(body)
+
+            val array = when (element) {
+                is JsonObject -> {
+                    element["results"]?.jsonArray
+                        ?: element["sites"]?.jsonArray
+                        ?: element["data"]?.jsonObject?.get("results")?.jsonArray
+                        ?: element["data"]?.jsonObject?.get("sites")?.jsonArray
+                        ?: element["features"]?.jsonArray
+                }
+                is kotlinx.serialization.json.JsonArray -> element
+                else -> null
+            }
+
+            if (array == null) {
+                val keys = (element as? JsonObject)?.keys?.joinToString(",") ?: "not-an-object"
+                log.w { "[RoutexClient] parseResults: no results/sites/features array; root keys=$keys bodyPreview=${body.take(400)}" }
+                return emptyList()
+            }
+
+            val results = array.mapNotNull { item ->
+                when (item) {
+                    is JsonObject -> parseSiteFromObject(item)
+                    else -> null
+                }
+            }
+            if (results.isEmpty() && array.isNotEmpty()) {
+                val first = array.firstOrNull()
+                val firstKeys = (first as? JsonObject)?.keys?.joinToString(",") ?: "not-json-object"
+                log.w { "[RoutexClient] parseResults: array has ${array.size} items but parsed 0; first item keys=$firstKeys" }
+            }
+            return results
+        }
+
+        private fun parseSiteFromObject(obj: JsonObject): RoutexSite? {
+            val coords = obj["geometry"]?.jsonObject?.get("coordinates")?.jsonArray
+            fun parseDouble(e: JsonElement): Double? =
+                (e as? JsonPrimitive)?.content?.toDoubleOrNull()
+
+            val (lat, lng) = when {
+                coords != null && coords.size >= 2 -> {
+                    val a = parseDouble(coords[0]) ?: return null
+                    val b = parseDouble(coords[1]) ?: return null
+                    Pair(b, a)
+                }
+                else -> {
+                    val latVal = obj["lat"]?.jsonPrimitive?.content?.toDoubleOrNull()
+                        ?: obj["latitude"]?.jsonPrimitive?.content?.toDoubleOrNull()
+                    val lngVal = obj["lng"]?.jsonPrimitive?.content?.toDoubleOrNull()
+                        ?: obj["longitude"]?.jsonPrimitive?.content?.toDoubleOrNull()
+                    if (latVal != null && lngVal != null) {
+                        Pair(latVal, lngVal)
+                    } else {
+                        val xVal = obj["x"]?.jsonPrimitive?.content?.toDoubleOrNull()
+                        val yVal = obj["y"]?.jsonPrimitive?.content?.toDoubleOrNull()
+                        if (xVal != null && yVal != null) {
+                            Pair(yVal, xVal)
+                        } else {
+                            val coordList = obj["coordinates"]?.jsonArray
+                            if (coordList != null && coordList.size >= 2) {
+                                val first = parseDouble(coordList[0]) ?: return null
+                                val second = parseDouble(coordList[1]) ?: return null
+                                Pair(first, second)
+                            } else return null
+                        }
+                    }
+                }
+            }
+
+            val props = obj["properties"]?.jsonObject ?: obj
+            val name = props["name"]?.jsonPrimitive?.content
+                ?: obj["name"]?.jsonPrimitive?.content
+                ?: props["title"]?.jsonPrimitive?.content
+                ?: ""
+            val address = props["address"]?.jsonPrimitive?.content
+                ?: obj["address"]?.jsonPrimitive?.content
+                ?: ""
+            val id = obj["id"]?.jsonPrimitive?.content
+                ?: props["id"]?.jsonPrimitive?.content
+                ?: "${lat}_${lng}"
+            val brand = props["brand"]?.jsonPrimitive?.content
+                ?: obj["brand"]?.jsonPrimitive?.content
+                ?: obj["brand_id"]?.jsonPrimitive?.content
+                ?: props["brand_id"]?.jsonPrimitive?.content
+
+            return RoutexSite(
+                id = id,
+                name = name.ifBlank { "Gas station" },
+                address = address,
+                latitude = lat,
+                longitude = lng,
+                brand = brand
+            )
+        }
+
+        /**
+         * Filters sites to those inside the bounding box and limits to maxPois. Visible for testing.
+         */
+        internal fun filterInBoundsAndLimit(
+            sites: List<RoutexSite>,
+            minLng: Double,
+            minLat: Double,
+            maxLng: Double,
+            maxLat: Double,
+            maxPois: Int = ROUTEX_MAX_POIS
+        ): List<RoutexSite> = sites
+            .filter { it.latitude in minLat..maxLat && it.longitude in minLng..maxLng }
+            .take(maxPois)
+    }
+
+    /**
+     * Build bounding box from center (lat, lng) and radius in km.
+     */
+    private fun boundsBoxFromCenter(lat: Double, lng: Double, radiusKm: Int): BoundsBox {
+        // Approximate: 1° lat ≈ 111 km, 1° lng ≈ 111 * cos(lat) km
+        val latDelta = radiusKm / 111.0
+        val lngDelta = radiusKm / (111.0 * cos(lat * PI / 180).coerceIn(0.01, 1.0))
+        return BoundsBox(
+            minLng = lng - lngDelta,
+            minLat = lat - latDelta,
+            maxLng = lng + lngDelta,
+            maxLat = lat + latDelta
+        )
     }
 
     /**
@@ -116,14 +258,8 @@ class RoutexClient(
      * Format: "minLng, minLat, maxLng, maxLat"
      */
     fun boundsFromCenter(lat: Double, lng: Double, radiusKm: Int): String {
-        // Approximate: 1° lat ≈ 111 km, 1° lng ≈ 111 * cos(lat) km
-        val latDelta = radiusKm / 111.0
-        val lngDelta = radiusKm / (111.0 * cos(Math.toRadians(lat)).coerceIn(0.01, 1.0))
-        val minLng = lng - lngDelta
-        val maxLng = lng + lngDelta
-        val minLat = lat - latDelta
-        val maxLat = lat + latDelta
-        return "$minLng, $minLat, $maxLng, $maxLat"
+        val box = boundsBoxFromCenter(lat, lng, radiusKm)
+        return "${box.minLng}, ${box.minLat}, ${box.maxLng}, ${box.maxLat}"
     }
 
     /**
@@ -150,105 +286,23 @@ class RoutexClient(
         }
 
         val body = response.bodyAsText()
-        println("[RoutexClient] getResults lat=$latitude lon=$longitude radiusKm=$radiusKm status=${response.status.value} bodyLength=${body.length}")
+        log.d { "[RoutexClient] getResults lat=$latitude lon=$longitude radiusKm=$radiusKm status=${response.status.value} bodyLength=${body.length}" }
         if (response.status.value != 200) {
             throw NetworkException(response.status.value, "Routex API error: $body")
         }
 
-        val results = parseResults(body)
-        println("[RoutexClient] parseResults -> ${results.size} sites")
-        return results
-    }
-
-    /**
-     * Parses API response into a list of sites.
-     * Handles: root array [...], or object with results[], sites[], or GeoJSON features[].
-     */
-    private fun parseResults(body: String): List<RoutexSite> {
-        val element = json.parseToJsonElement(body)
-
-        // Root may be an array (e.g. [{...}, {...}]) or an object
-        val array = when (element) {
-            is JsonObject -> {
-                element["results"]?.jsonArray
-                    ?: element["sites"]?.jsonArray
-                    ?: element["data"]?.jsonObject?.get("results")?.jsonArray
-                    ?: element["data"]?.jsonObject?.get("sites")?.jsonArray
-                    ?: element["features"]?.jsonArray
-            }
-            is kotlinx.serialization.json.JsonArray -> element
-            else -> null
-        }
-
-        if (array == null) {
-            val keys = (element as? JsonObject)?.keys?.joinToString(",") ?: "not-an-object"
-            println("[RoutexClient] parseResults: no results/sites/features array; root keys=$keys bodyPreview=${body.take(400)}")
-            return emptyList()
-        }
-
-        val results = array.mapNotNull { item ->
-            when (item) {
-                is JsonObject -> parseSiteFromObject(item)
-                else -> null
-            }
-        }
-        if (results.isEmpty() && array.isNotEmpty()) {
-            val first = array.firstOrNull()
-            val firstKeys = (first as? JsonObject)?.keys?.joinToString(",") ?: "not-json-object"
-            println("[RoutexClient] parseResults: array has ${array.size} items but parsed 0; first item keys=$firstKeys")
-        }
-        return results
-    }
-
-    private fun parseSiteFromObject(obj: JsonObject): RoutexSite? {
-        // GeoJSON: geometry.coordinates [lng, lat], properties.name, properties.address
-        val coords = obj["geometry"]?.jsonObject?.get("coordinates")?.jsonArray
-        fun parseDouble(e: JsonElement): Double? =
-            (e as? JsonPrimitive)?.content?.toDoubleOrNull()
-
-        val (lat, lng) = if (coords != null && coords.size >= 2) {
-            val a = parseDouble(coords[0]) ?: return null
-            val b = parseDouble(coords[1]) ?: return null
-            // GeoJSON is [lng, lat]
-            Pair(b, a)
-        } else {
-            val latVal = obj["lat"]?.jsonPrimitive?.content?.toDoubleOrNull()
-                ?: obj["latitude"]?.jsonPrimitive?.content?.toDoubleOrNull()
-            val lngVal = obj["lng"]?.jsonPrimitive?.content?.toDoubleOrNull()
-                ?: obj["longitude"]?.jsonPrimitive?.content?.toDoubleOrNull()
-            if (latVal == null || lngVal == null) {
-                val coordList = obj["coordinates"]?.jsonArray
-                if (coordList != null && coordList.size >= 2) {
-                    val first = parseDouble(coordList[0]) ?: return null
-                    val second = parseDouble(coordList[1]) ?: return null
-                    // Request uses [lat, lng]; assume response may use same
-                    Pair(first, second)
-                } else return null
-            } else Pair(latVal, lngVal)
-        }
-
-        val props = obj["properties"]?.jsonObject ?: obj
-        val name = props["name"]?.jsonPrimitive?.content
-            ?: obj["name"]?.jsonPrimitive?.content
-            ?: props["title"]?.jsonPrimitive?.content
-            ?: ""
-        val address = props["address"]?.jsonPrimitive?.content
-            ?: obj["address"]?.jsonPrimitive?.content
-            ?: ""
-        val id = obj["id"]?.jsonPrimitive?.content
-            ?: props["id"]?.jsonPrimitive?.content
-            ?: "${lat}_${lng}"
-        val brand = props["brand"]?.jsonPrimitive?.content
-            ?: obj["brand"]?.jsonPrimitive?.content
-
-        return RoutexSite(
-            id = id,
-            name = name.ifBlank { "Gas station" },
-            address = address,
-            latitude = lat,
-            longitude = lng,
-            brand = brand
+        val all = RoutexClient.parseResults(body)
+        val box = boundsBoxFromCenter(latitude, longitude, radiusKm)
+        val results = RoutexClient.filterInBoundsAndLimit(
+            all,
+            box.minLng,
+            box.minLat,
+            box.maxLng,
+            box.maxLat,
+            ROUTEX_MAX_POIS
         )
+        log.d { "[RoutexClient] parseResults -> ${all.size} sites, ${results.size} in bounds (max $ROUTEX_MAX_POIS)" }
+        return results
     }
 }
 
