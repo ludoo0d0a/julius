@@ -44,7 +44,11 @@ data class AppSettings(
     val fractalQuality: FractalQuality = FractalQuality.Medium,
     val fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium,
     val extendedActionsEnabled: Boolean = false,
-    val textAnimation: TextAnimation = TextAnimation.Fade
+    val textAnimation: TextAnimation = TextAnimation.Fade,
+    /** Path to local GGUF model: asset-relative (e.g. "models/phi-2.Q4_0.gguf") or absolute path after download. */
+    val localModelPath: String = "models/phi-2.Q4_0.gguf",
+    /** Selected local model variant for download UI; must match [fr.geoking.julius.ui.LocalModelVariant].name (e.g. Phi2Q4_0). */
+    val selectedLocalModelVariant: String = "Phi2Q4_0"
 )
 
 open class SettingsManager(context: Context) {
@@ -126,7 +130,9 @@ open class SettingsManager(context: Context) {
                 TextAnimation.valueOf(prefs.getString("text_animation", TextAnimation.Fade.name) ?: TextAnimation.Fade.name)
             } catch (e: IllegalArgumentException) {
                 TextAnimation.Fade
-            }
+            },
+            localModelPath = prefs.getString("local_model_path", "models/phi-2.Q4_0.gguf") ?: "models/phi-2.Q4_0.gguf",
+            selectedLocalModelVariant = prefs.getString("selected_local_model_variant", "Phi2Q4_0") ?: "Phi2Q4_0"
         )
     }
 
@@ -208,6 +214,8 @@ open class SettingsManager(context: Context) {
             .putString("fractal_color_intensity", settings.fractalColorIntensity.name)
             .putBoolean("extended_actions_enabled", settings.extendedActionsEnabled)
             .putString("text_animation", settings.textAnimation.name)
+            .putString("local_model_path", settings.localModelPath)
+            .putString("selected_local_model_variant", settings.selectedLocalModelVariant)
             .apply()
 
         // Update StateFlow immediately with the new values to ensure UI and agent switching update right away
@@ -233,7 +241,9 @@ open class SettingsManager(context: Context) {
         model: IaModel,
         fractalQuality: FractalQuality = FractalQuality.Medium,
         fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium,
-        extendedActionsEnabled: Boolean = false
+        extendedActionsEnabled: Boolean = false,
+        localModelPath: String = _settings.value.localModelPath,
+        selectedLocalModelVariant: String = _settings.value.selectedLocalModelVariant
     ) {
         val newSettings = AppSettings(
             selectedPoiProvider = _settings.value.selectedPoiProvider,
@@ -256,7 +266,9 @@ open class SettingsManager(context: Context) {
             fractalQuality = fractalQuality,
             fractalColorIntensity = fractalColorIntensity,
             extendedActionsEnabled = extendedActionsEnabled,
-            textAnimation = _settings.value.textAnimation
+            textAnimation = _settings.value.textAnimation,
+            localModelPath = localModelPath,
+            selectedLocalModelVariant = selectedLocalModelVariant
         )
         saveSettings(newSettings)
     }

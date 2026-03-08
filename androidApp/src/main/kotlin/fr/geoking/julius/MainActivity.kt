@@ -258,7 +258,9 @@ private fun rememberMockSettingsManager(): SettingsManager {
                 model: IaModel,
                 fractalQuality: FractalQuality,
                 fractalColorIntensity: FractalColorIntensity,
-                extendedActionsEnabled: Boolean
+                extendedActionsEnabled: Boolean,
+                localModelPath: String,
+                selectedLocalModelVariant: String
             ) {}
         }
     }

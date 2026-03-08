@@ -3,22 +3,92 @@ package fr.geoking.julius.agents
 import fr.geoking.julius.shared.NetworkException
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class LocalAgentTests {
 
     @Test
-    fun testLocalAgent_ThrowsWhenDisabled() = runBlocking {
-        val agent = LocalAgent()
+    fun process_usesFakeBackend_returnsBackendResponse() = runBlocking {
+        val backend = FakeLlamaBackend(response = "Hello from local model.")
+        val agent = LocalAgent(modelPath = "models/test.gguf", backend = backend)
+        val response = agent.process("Hi")
+        assertEquals("Hello from local model.", response.text)
+        assertTrue(response.audio == null)
+        assertEquals(listOf("models/test.gguf"), backend.getModelPathCalls)
+        assertEquals(1, backend.initGenerateModelCalls.size)
+        assertEquals(1, backend.generateWithContextCalls.size)
+        val (system, context, user) = backend.generateWithContextCalls.single()
+        assertTrue(system.contains("voice assistant"))
+        assertEquals("", context)
+        assertEquals("Hi", user)
+    }
+
+    @Test
+    fun process_initFails_throwsNetworkException() = runBlocking {
+        val backend = FakeLlamaBackend(initResult = false)
+        val agent = LocalAgent(backend = backend)
         try {
-            agent.process("test prompt")
-            throw AssertionError("Expected NetworkException was not thrown.")
+            agent.process("Hi")
+            throw AssertionError("Expected NetworkException")
         } catch (e: NetworkException) {
-            assertTrue(
-                e.message?.contains("disabled", ignoreCase = true) == true ||
-                    e.message?.contains("LlamaBridge", ignoreCase = true) == true,
-                "Exception should mention disabled or LlamaBridge: ${e.message}"
-            )
+            assertNotNull(e.message)
+            assertTrue(e.message!!.contains("Failed to load") || e.message!!.contains("initialize"))
+        }
+    }
+
+    @Test
+    fun process_initThrows_throwsNetworkExceptionWithCause() = runBlocking {
+        val backend = FakeLlamaBackend(initThrow = RuntimeException("No model file"))
+        val agent = LocalAgent(backend = backend)
+        try {
+            agent.process("Hi")
+            throw AssertionError("Expected NetworkException")
+        } catch (e: NetworkException) {
+            assertNotNull(e.message)
+            assertTrue(e.message!!.contains("Failed to load") || e.message!!.contains("No model file"))
+        }
+    }
+
+    @Test
+    fun process_generateThrows_throwsNetworkException() = runBlocking {
+        val backend = FakeLlamaBackend(generateThrow = IllegalStateException("Inference error"))
+        val agent = LocalAgent(backend = backend)
+        try {
+            agent.process("Hi")
+            throw AssertionError("Expected NetworkException")
+        } catch (e: NetworkException) {
+            assertNotNull(e.message)
+            assertTrue(e.message!!.contains("Error with embedded") || e.message!!.contains("Inference error"))
+        }
+    }
+
+    @Test
+    fun process_usesDefaultModelPath() = runBlocking {
+        val backend = FakeLlamaBackend(response = "Ok")
+        val agent = LocalAgent(backend = backend)
+        agent.process("test")
+        assertEquals(listOf("models/phi-2.Q4_0.gguf"), backend.getModelPathCalls)
+    }
+
+    @Test
+    fun shutdown_callsBackendShutdown() {
+        val backend = FakeLlamaBackend(response = "Ok")
+        val agent = LocalAgent(backend = backend)
+        runBlocking { agent.process("Hi") }
+        agent.shutdown()
+        assertEquals(1, backend.shutdownCalls)
+    }
+
+    @Test
+    fun listModels_throwsUnsupportedOperation() = runBlocking {
+        val agent = LocalAgent(backend = FakeLlamaBackend())
+        try {
+            agent.listModels()
+            throw AssertionError("Expected UnsupportedOperationException")
+        } catch (e: UnsupportedOperationException) {
+            assertTrue(e.message!!.contains("does not support listing models"))
         }
     }
 }

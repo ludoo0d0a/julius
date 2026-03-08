@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -31,6 +32,9 @@ import fr.geoking.julius.providers.PoiProviderType
 import fr.geoking.julius.TextAnimation
 import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.shared.DetailedError
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -158,7 +162,9 @@ private fun save(settingsManager: SettingsManager, s: AppSettings) {
         s.apifreellmKey,
         s.julesKey,
         s.selectedAgent, s.selectedTheme, s.selectedModel, s.fractalQuality, s.fractalColorIntensity,
-        s.extendedActionsEnabled
+        s.extendedActionsEnabled,
+        s.localModelPath,
+        s.selectedLocalModelVariant
     )
 }
 
@@ -532,11 +538,127 @@ private fun AgentConfig(
                 ConfigTextField("ApiFreeLLM Key (sign in with Google at apifreellm.com)", settings.apifreellmKey) { onUpdate(settings.copy(apifreellmKey = it)) }
             }
             AgentType.Local -> {
+                val context = LocalContext.current
+                val helper = remember(context) { LocalModelHelper(context) }
+                val scope = rememberCoroutineScope()
+                var downloadProgress by remember { mutableStateOf<Pair<Long, Long?>?>(null) }
+                var downloadError by remember { mutableStateOf<String?>(null) }
+
+                val selectedVariant = remember(settings.selectedLocalModelVariant) {
+                    LocalModelVariant.entries.find { it.name == settings.selectedLocalModelVariant } ?: LocalModelVariant.Phi2Q4_0
+                }
+                val downloaded = helper.isModelDownloaded(settings)
+                val variantDownloaded = helper.isVariantDownloaded(selectedVariant)
+                val displayPath = helper.getDisplayPath(settings)
+
                 Text(
-                    "This agent runs offline using a local model in assets/models/",
+                    "This agent runs offline using a local GGUF model. Choose a variant below and download, or use a model in assets.",
                     color = Lavender,
-                    fontSize = 18.sp
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(bottom = 12.dp)
                 )
+                Text(
+                    text = "Model variant",
+                    color = Lavender,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                LocalModelVariant.entries.forEach { variant ->
+                    val isSelected = variant == selectedVariant
+                    val isVariantDown = helper.isVariantDownloaded(variant)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clickable { onUpdate(settings.copy(selectedLocalModelVariant = variant.name)) }
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = isSelected,
+                            onClick = { onUpdate(settings.copy(selectedLocalModelVariant = variant.name)) },
+                            colors = RadioButtonDefaults.colors(selectedColor = Lavender, unselectedColor = Lavender)
+                        )
+                        Column(modifier = Modifier.padding(start = 8.dp)) {
+                            Text(
+                                text = variant.displayName,
+                                color = Color.White,
+                                fontSize = 15.sp
+                            )
+                            Text(
+                                text = variant.sizeDescription,
+                                color = Lavender,
+                                fontSize = 12.sp
+                            )
+                            if (isVariantDown) {
+                                Text(
+                                    text = "Downloaded",
+                                    color = Color(0xFF7FFF7F),
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = if (downloaded) "Current model: Downloaded" else "Current model: Not downloaded",
+                    color = if (downloaded) Color(0xFF7FFF7F) else Color(0xFFFFB366),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(bottom = 2.dp)
+                )
+                Text(
+                    text = "Path: $displayPath",
+                    color = Lavender,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                when (val progress = downloadProgress) {
+                    null -> {
+                        if (!variantDownloaded) {
+                            Button(
+                                onClick = {
+                                    downloadError = null
+                                    downloadProgress = 0L to null
+                                    scope.launch {
+                                        val result = helper.download(selectedVariant) { bytes, total ->
+                                            scope.launch(Dispatchers.Main) {
+                                                downloadProgress = bytes to total
+                                            }
+                                        }
+                                        withContext(Dispatchers.Main) { downloadProgress = null }
+                                        result.fold(
+                                            onSuccess = { path -> withContext(Dispatchers.Main) { onUpdate(settings.copy(localModelPath = path)) } },
+                                            onFailure = { e -> withContext(Dispatchers.Main) { downloadError = e.message ?: "Download failed" } }
+                                        )
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Lavender, contentColor = DeepPurple)
+                            ) {
+                                Text("Download ${selectedVariant.displayName} (${selectedVariant.sizeDescription})")
+                            }
+                        }
+                    }
+                    else -> {
+                        val (bytes, total) = progress
+                        val pct = if (total != null && total > 0) (100 * bytes / total).toInt() else null
+                        Text(
+                            text = if (pct != null) "Downloading… $pct%" else "Downloading… ${bytes / (1024 * 1024)} MB",
+                            color = Lavender,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+                downloadError?.let { err ->
+                    Text(
+                        text = "Error: $err",
+                        color = Color(0xFFFF6B6B),
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
             }
             AgentType.Offline -> {
                 Text(
@@ -706,7 +828,9 @@ fun SettingsScreenPreview() {
                 model: IaModel,
                 fractalQuality: FractalQuality,
                 fractalColorIntensity: FractalColorIntensity,
-                extendedActionsEnabled: Boolean
+                extendedActionsEnabled: Boolean,
+                localModelPath: String,
+                selectedLocalModelVariant: String
             ) {
                 mockSettings.value = mockSettings.value.copy(
                     openAiKey = openAiKey,
@@ -726,7 +850,9 @@ fun SettingsScreenPreview() {
                     selectedModel = model,
                     fractalQuality = fractalQuality,
                     fractalColorIntensity = fractalColorIntensity,
-                    extendedActionsEnabled = extendedActionsEnabled
+                    extendedActionsEnabled = extendedActionsEnabled,
+                    localModelPath = localModelPath,
+                    selectedLocalModelVariant = selectedLocalModelVariant
                 )
             }
         }

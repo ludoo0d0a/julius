@@ -56,6 +56,7 @@ class DynamicAgentWrapper(
         append("|").append(settings.completionsMeKey.take(8))
         append("|").append(settings.completionsMeModel)
         append("|").append(settings.apifreellmKey.take(8))
+        append("|").append(settings.localModelPath)
     }
     
     override suspend fun process(input: String): AgentResponse {
@@ -84,7 +85,7 @@ class DynamicAgentWrapper(
             AgentType.OpenCodeZen -> OpenCodeZenAgent(client, apiKey = settings.opencodeZenKey, model = settings.opencodeZenModel)
             AgentType.CompletionsMe -> CompletionsMeAgent(client, apiKey = settings.completionsMeKey, model = settings.completionsMeModel)
             AgentType.ApiFreeLLM -> ApiFreeLLMAgent(client, apiKey = settings.apifreellmKey)
-            AgentType.Local -> LocalAgent() // No API key needed - runs offline
+            AgentType.Local -> LocalAgent(modelPath = settings.localModelPath) // No API key needed - runs offline
             AgentType.Offline -> OfflineAgent() // Fully offline agent - math, counting, hangman, quotes
             }
             cachedAgent = newAgent
