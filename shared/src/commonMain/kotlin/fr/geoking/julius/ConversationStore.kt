@@ -222,4 +222,14 @@ open class ConversationStore(
             lastError = null
         )
     }
+
+    /** Records an error into [ConversationState.errorLog] and [lastError] for later debugging (e.g. map provider failures). */
+    fun recordError(httpCode: Int?, message: String) {
+        val error = DetailedError(httpCode, message, getCurrentTimeMillis())
+        val newErrorLog = (_state.value.errorLog + error).takeLast(10)
+        _state.value = _state.value.copy(
+            lastError = error,
+            errorLog = newErrorLog
+        )
+    }
 }

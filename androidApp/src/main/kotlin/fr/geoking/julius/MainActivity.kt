@@ -145,7 +145,15 @@ fun MainUI(
                     MapScreen(
                         poiProvider = poiProvider,
                         settingsManager = settingsManager,
+                        store = store,
                         onBack = { showMap = false }
+                    )
+                }
+                showJules -> {
+                    JulesScreen(
+                        onBack = { showJules = false },
+                        julesClient = julesClient,
+                        settingsManager = settingsManager
                     )
                 }
                 else -> {
@@ -156,7 +164,8 @@ fun MainUI(
                         settingsManager = settingsManager,
                         store = store,
                         onSettingsClick = { showSettings = true },
-                        onMapClick = { showMap = true }
+                        onMapClick = { showMap = true },
+                        onJulesClick = { showJules = true }
                     )
                 }
             }
@@ -191,6 +200,7 @@ private fun MapScreenPreview() {
     MapScreen(
         poiProvider = remember { MockPoiProvider() },
         settingsManager = mockSettingsManager,
+        store = rememberMockStore(),
         onBack = {}
     )
 }

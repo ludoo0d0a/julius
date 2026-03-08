@@ -29,6 +29,7 @@ import fr.geoking.julius.IaModel
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.providers.PoiProviderType
 import fr.geoking.julius.TextAnimation
+import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.shared.DetailedError
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -45,7 +46,8 @@ private enum class Screen {
     AgentConfig,
     FractalConfig,
     JulesConfig,
-    ErrorLog
+    ErrorLog,
+    About
 }
 
 private val Lavender = Color(0xFFD1D5FF)
@@ -90,6 +92,7 @@ fun SettingsScreen(
                     Screen.FractalConfig -> "Fractal Settings"
                     Screen.JulesConfig -> "Jules API"
                     Screen.ErrorLog -> "Error Log"
+                    Screen.About -> "About"
                 },
                 onBack = {
                     if (currentScreen == Screen.Main) onDismiss()
@@ -139,6 +142,7 @@ fun SettingsScreen(
                         onUpdate = { save(settingsManager, it) }
                     )
                     Screen.ErrorLog -> ErrorLog(errorLog)
+                    Screen.About -> AboutContent()
                 }
             }
         }
@@ -269,6 +273,54 @@ private fun MainMenu(
             label = "Error Log",
             value = "View recent errors",
             onClick = { onNavigate(Screen.ErrorLog) }
+        )
+        SettingsItem(
+            label = "About",
+            value = "Version & build info",
+            onClick = { onNavigate(Screen.About) }
+        )
+    }
+}
+
+@Composable
+private fun AboutContent() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp)
+    ) {
+        Text(
+            text = "Julius",
+            color = Color.White,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        AboutRow("Version name", BuildConfig.VERSION_NAME)
+        AboutRow("Version code", BuildConfig.VERSION_CODE.toString())
+        AboutRow("Build date", BuildConfig.BUILD_DATE)
+    }
+}
+
+@Composable
+private fun AboutRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            color = Lavender.copy(alpha = 0.8f),
+            fontSize = 16.sp
+        )
+        Text(
+            text = value,
+            color = Color.White,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium
         )
     }
 }

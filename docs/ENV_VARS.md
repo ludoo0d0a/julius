@@ -27,7 +27,10 @@ Use these names in `local.properties` or set the same name as an env var (e.g. f
 | `OPENCODE_ZEN_KEY` | OpenCode Zen API key. |
 | `COMPLETIONS_ME_KEY` | Completions.me API key. |
 | `APIFREELLM_KEY` | ApiFreeLLM API key. |
-| `GOOGLE_MAPS_KEY` | Google Maps API key. |
+| `JULES_KEY` | Jules (jules.google.com) API key for the Jules screen. |
+| `GOOGLE_MAPS_KEY` | Google Maps API key. **Required for map screen** (tiles); without it the map stays grey. |
+
+Keys are read at **build time** in this order: `local.properties` then environment variables. In CI, set env vars on the step that runs Gradle (e.g. `env:` in the build job). Build-time values are baked into the app and, on first run, persisted into app settings so they appear in Settings and are reused.
 
 ## Example local.properties
 
@@ -40,18 +43,27 @@ GOOGLE_MAPS_KEY=...
 
 ## GitHub Actions example
 
+Set **both** `JULES_KEY` and `GOOGLE_MAPS_KEY` in CI if you use the Jules screen and the map; otherwise the Jules key will appear empty in settings and the map will show no tiles (grey with Google logo).
+
 ```yaml
 - name: Set up local.properties for SDK
   run: echo "sdk.dir=$ANDROID_HOME" >> local.properties
 
 - name: Build
   env:
+    VERSION_CODE: ${{ secrets.VERSION_CODE }}
     ELEVENLABS_KEY: ${{ secrets.ELEVENLABS_KEY }}
     GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+    DEEPGRAM_KEY: ${{ secrets.DEEPGRAM_KEY }}
     OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
     PERPLEXITY_KEY: ${{ secrets.PERPLEXITY_KEY }}
+    FIREBASE_AI_KEY: ${{ secrets.FIREBASE_AI_KEY }}
+    FIREBASE_AI_MODEL: ${{ secrets.FIREBASE_AI_MODEL }}
+    OPENCODE_ZEN_KEY: ${{ secrets.OPENCODE_ZEN_KEY }}
+    COMPLETIONS_ME_KEY: ${{ secrets.COMPLETIONS_ME_KEY }}
+    APIFREELLM_KEY: ${{ secrets.APIFREELLM_KEY }}
+    JULES_KEY: ${{ secrets.JULES_KEY }}
     GOOGLE_MAPS_KEY: ${{ secrets.GOOGLE_MAPS_KEY }}
-    # Add only the secrets you use
   run: ./gradlew :androidApp:assembleFullRelease
 ```
 

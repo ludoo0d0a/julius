@@ -1,4 +1,7 @@
 import com.android.build.api.dsl.ApplicationExtension
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.Properties
 
 plugins {
@@ -19,7 +22,7 @@ configure<ApplicationExtension> {
         val localProps = rootProject.file("local.properties").takeIf { it.exists() }?.let { file ->
             Properties().apply { file.inputStream().use { load(it) } }
         } ?: Properties()
-        // Same key in local.properties and env (e.g. OPENAI_KEY)
+        // Keys: local.properties first, then env (CI must set env on the step that runs Gradle, e.g. JULES_KEY, GOOGLE_MAPS_KEY)
         fun prop(key: String, default: String = "") =
             localProps.getProperty(key) ?: System.getenv(key) ?: default
         val localVersionCode = prop("VERSION_CODE").takeIf { it.isNotEmpty() }?.toIntOrNull()
@@ -35,6 +38,8 @@ configure<ApplicationExtension> {
         }
         versionCode = computedVersionCode
         versionName = computedVersionName
+        val buildDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        buildConfigField("String", "BUILD_DATE", "\"$buildDate\"")
 
         val elevenLabsKey = prop("ELEVENLABS_KEY")
         val geminiKey = prop("GEMINI_KEY")

@@ -45,6 +45,7 @@ import fr.geoking.julius.providers.Poi
 import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.providers.PoiProviderType
 import fr.geoking.julius.providers.RoutexSiteDetails
+import fr.geoking.julius.shared.ConversationStore
 import kotlinx.coroutines.launch
 
 private val PROVIDER_OPTIONS = listOf(
@@ -74,10 +75,12 @@ private fun vectorDrawableToBitmapDescriptor(
 fun MapScreen(
     poiProvider: PoiProvider,
     settingsManager: fr.geoking.julius.SettingsManager,
+    store: ConversationStore,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
     var pois by remember { mutableStateOf<List<Poi>>(emptyList()) }
+    var mapErrorMessage by remember { mutableStateOf<String?>(null) }
     val settings by settingsManager.settings.collectAsState()
     val selectedProvider = settings.selectedPoiProvider
     var providerDropdownExpanded by remember { mutableStateOf(false) }
@@ -115,6 +118,7 @@ fun MapScreen(
         if (!hasLocationPermission) {
             launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
+        mapErrorMessage = null
         val center = cameraPositionState.position.target
         val centerLat = center.latitude
         val centerLng = center.longitude
@@ -122,7 +126,14 @@ fun MapScreen(
         val viewport = if (mapSizePx.width > 0 && mapSizePx.height > 0) {
             MapViewport(zoom = zoom, mapWidthPx = mapSizePx.width, mapHeightPx = mapSizePx.height)
         } else null
-        pois = poiProvider.getGasStations(centerLat, centerLng, viewport)
+        try {
+            pois = poiProvider.getGasStations(centerLat, centerLng, viewport)
+        } catch (e: Exception) {
+            val msg = e.message?.takeIf { it.isNotBlank() } ?: e.toString()
+            mapErrorMessage = msg
+            store.recordError((e as? fr.geoking.julius.shared.NetworkException)?.httpCode, "Map ($selectedProvider): $msg")
+            pois = emptyList()
+        }
     }
 
     Scaffold(
@@ -194,6 +205,20 @@ fun MapScreen(
                             )
                         }
                     }
+                }
+            }
+            mapErrorMessage?.let { msg ->
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shadowElevation = 2.dp
+                ) {
+                    Text(
+                        text = msg,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                    )
                 }
             }
             Box(
