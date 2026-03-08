@@ -7,6 +7,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 enum class AgentType { OpenAI, ElevenLabs, Deepgram, Native, Gemini, FirebaseAI, OpenCodeZen, CompletionsMe, ApiFreeLLM, Local, Offline }
+
+val DEFAULT_AGENT = AgentType.Gemini
+
 enum class AppTheme { Particles, Sphere, Waves, Fractal, Micro }
 enum class TextAnimation { None, Genie, Blur, Fade, Zoom, Falling }
 enum class FractalQuality { Low, Medium, High }
@@ -35,7 +38,7 @@ data class AppSettings(
     val completionsMeModel: String = "claude-sonnet-4.5",
     val apifreellmKey: String = "",
     val julesKey: String = "",
-    val selectedAgent: AgentType = AgentType.Deepgram,
+    val selectedAgent: AgentType = DEFAULT_AGENT,
     val selectedTheme: AppTheme = AppTheme.Particles,
     val selectedModel: IaModel = IaModel.LLAMA_3_1_SONAR_SMALL,
     val fractalQuality: FractalQuality = FractalQuality.Medium,
@@ -97,10 +100,10 @@ open class SettingsManager(context: Context) {
             selectedAgent = try {
                 val agentName = prefs.getString("agent", null)
                 if (agentName != null) AgentType.valueOf(agentName)
-                else AgentType.Deepgram
+                else DEFAULT_AGENT
             } catch (e: IllegalArgumentException) {
                 android.util.Log.w("SettingsManager", "Invalid agent name in preferences, using default: ${e.message}")
-                AgentType.Deepgram
+                DEFAULT_AGENT
             },
             selectedTheme = try {
                 AppTheme.valueOf(prefs.getString("theme", AppTheme.Micro.name) ?: AppTheme.Micro.name)
