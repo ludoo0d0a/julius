@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity() {
         permissionDeferred = null
     }
 
-    private val inAppUpdateHelper = InAppUpdateHelper(applicationContext)
+    private val inAppUpdateHelper by lazy { InAppUpdateHelper(applicationContext) }
     private val updateResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
