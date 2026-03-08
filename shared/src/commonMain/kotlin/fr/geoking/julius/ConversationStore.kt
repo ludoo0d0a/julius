@@ -60,10 +60,13 @@ open class ConversationStore(
 
     init {
         voiceManager.events.onEach { event ->
-            _state.value = _state.value.copy(status = event)
+            // Clear transcript when entering Listening so partial results show with fresh letter-by-letter animation
+            val nextTranscript = if (event == VoiceEvent.Listening) "" else _state.value.currentTranscript
+            _state.value = _state.value.copy(status = event, currentTranscript = nextTranscript)
         }.launchIn(scope)
 
         voiceManager.partialText.onEach { text ->
+            // Update live transcript while listening (and allow early partials that may arrive right after Listening)
             if (text.isNotBlank() && _state.value.status == VoiceEvent.Listening) {
                 _state.value = _state.value.copy(currentTranscript = text)
             }

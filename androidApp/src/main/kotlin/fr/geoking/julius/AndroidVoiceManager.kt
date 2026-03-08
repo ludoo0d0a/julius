@@ -341,6 +341,8 @@ class AndroidVoiceManager(
             isRecognizerActive = true
             isBargeInActive = bargeIn
             bargeInRestartScheduled = false
+            _partialText.value = ""
+            _transcribedText.value = ""
             recognizer.startListening(intent)
             if (!bargeIn) {
                 _events.value = VoiceEvent.Listening

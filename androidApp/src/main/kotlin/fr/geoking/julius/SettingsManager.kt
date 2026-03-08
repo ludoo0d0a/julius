@@ -96,19 +96,9 @@ open class SettingsManager(context: Context) {
             julesKey = julesKey,
             selectedAgent = try {
                 val agentName = prefs.getString("agent", null)
-                if (agentName != null) {
-                    // Migrate legacy agent names
-                    when (agentName) {
-                        "Test" -> AgentType.Offline
-                        "Embedded" -> AgentType.Local
-                        "Genkit" -> AgentType.Deepgram
-                        else -> AgentType.valueOf(agentName)
-                    }
-                } else {
-                    AgentType.Deepgram // Default fallback
-                }
+                if (agentName != null) AgentType.valueOf(agentName)
+                else AgentType.Deepgram
             } catch (e: IllegalArgumentException) {
-                // Invalid agent name in preferences, use default
                 android.util.Log.w("SettingsManager", "Invalid agent name in preferences, using default: ${e.message}")
                 AgentType.Deepgram
             },
