@@ -1,6 +1,7 @@
 package fr.geoking.julius
 
 import android.Manifest
+import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -10,11 +11,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,8 +32,13 @@ import fr.geoking.julius.ui.MapScreen
 import fr.geoking.julius.ui.PhoneMainScreen
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.providers.JulesClient
+import fr.geoking.julius.ui.UpdateAvailableDialog
+import fr.geoking.julius.ui.UpdateDownloadedDialog
 import fr.geoking.julius.ui.anim.AnimationPalettes
+import com.google.android.play.core.appupdate.AppUpdateInfo
+import fr.geoking.julius.update.InAppUpdateHelper
 import io.ktor.client.HttpClient
+import kotlinx.coroutines.flow.MutableStateFlow
 import io.ktor.client.engine.okhttp.OkHttp
 import org.koin.android.ext.android.inject
 
@@ -52,6 +59,15 @@ class MainActivity : ComponentActivity() {
         permissionDeferred = null
     }
 
+    private val inAppUpdateHelper = InAppUpdateHelper(applicationContext)
+    private val updateResultLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode != Activity.RESULT_OK) {
+            // User cancelled or update failed; can check again later
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
@@ -68,9 +84,16 @@ class MainActivity : ComponentActivity() {
                 store = store,
                 settingsManager = settingsManager,
                 poiProvider = poiProvider,
-                julesClient = julesClient
+                julesClient = julesClient,
+                inAppUpdateHelper = inAppUpdateHelper,
+                onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) }
             )
         }
+    }
+
+    override fun onDestroy() {
+        inAppUpdateHelper.unregister()
+        super.onDestroy()
     }
 }
 
@@ -80,7 +103,9 @@ fun MainUI(
     store: ConversationStore,
     settingsManager: SettingsManager,
     poiProvider: PoiProvider,
-    julesClient: JulesClient
+    julesClient: JulesClient,
+    inAppUpdateHelper: InAppUpdateHelper? = null,
+    onStartUpdate: (AppUpdateInfo) -> Unit = {}
 ) {
     var showSettings by remember { mutableStateOf(false) }
     var showMap by remember { mutableStateOf(false) }
@@ -88,6 +113,27 @@ fun MainUI(
     val settings by settingsManager.settings.collectAsState()
     val paletteIndex by AnimationPalettes.index.collectAsState()
     val palette = remember(paletteIndex) { AnimationPalettes.paletteFor(paletteIndex) }
+    val fallbackUpdateFlow = remember { MutableStateFlow<AppUpdateInfo?>(null) }
+    val updateAvailable by (inAppUpdateHelper?.updateAvailable ?: fallbackUpdateFlow).collectAsState(initial = null)
+
+    if (inAppUpdateHelper != null) {
+        LaunchedEffect(Unit) {
+            inAppUpdateHelper.checkForUpdate()
+        }
+    }
+    if (updateAvailable != null) {
+        UpdateAvailableDialog(
+            onCancel = { inAppUpdateHelper?.dismissUpdate() },
+            onUpdate = { updateAvailable?.let { onStartUpdate(it) } }
+        )
+    }
+    val fallbackDownloadedFlow = remember { MutableStateFlow(false) }
+    val updateDownloaded by (inAppUpdateHelper?.updateDownloaded ?: fallbackDownloadedFlow).collectAsState(initial = false)
+    if (updateDownloaded) {
+        UpdateDownloadedDialog(
+            onRestart = { inAppUpdateHelper?.completeUpdate() }
+        )
+    }
 
     MaterialTheme(colorScheme = darkColorScheme(background = Color(0xFF0F172A))) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {

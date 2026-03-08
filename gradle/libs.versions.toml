@@ -17,6 +17,7 @@ media3 = "1.9.2"
 guava = "33.5.0-android"
 maps-compose = "8.2.0"
 httpclient-android = "4.3.5.1"
+play-app-update = "2.1.0"
 
 [libraries]
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
@@ -54,6 +55,8 @@ httpclient-android = { module = "org.apache.httpcomponents:httpclient-android", 
 media3-session = { module = "androidx.media3:media3-session", version.ref = "media3" }
 media3-common = { module = "androidx.media3:media3-common", version.ref = "media3" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
+play-app-update = { module = "com.google.android.play:app-update", version.ref = "play-app-update" }
+play-app-update-ktx = { module = "com.google.android.play:app-update-ktx", version.ref = "play-app-update" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

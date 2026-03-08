@@ -139,6 +139,10 @@ dependencies {
 
     // DI
     implementation(libs.koin.android)
+
+    // Play In-App Update (warns when update available; flexible flow)
+    implementation(libs.play.app.update)
+    implementation(libs.play.app.update.ktx)
 }
 
 kotlin {
