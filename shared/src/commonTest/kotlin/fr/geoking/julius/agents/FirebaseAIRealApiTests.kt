@@ -8,12 +8,12 @@ class FirebaseAIRealApiTests : RealApiTestBase() {
 
     @Test
     fun testFirebaseAIAgent_SimplePrompt() = runBlocking {
-        val apiKey = getApiKey("firebaseai.key")
+        val apiKey = getApiKey("FIREBASE_AI_KEY")
         if (apiKey.isEmpty()) {
-            println("⚠️  Skipping Firebase AI test - no firebaseai.key provided")
+            println("⚠️  Skipping Firebase AI test - no FIREBASE_AI_KEY provided")
             return@runBlocking
         }
-        val model = getApiKey("firebaseai.model", "gemini-1.5-flash-latest")
+        val model = getApiKey("FIREBASE_AI_MODEL", "gemini-1.5-flash-latest")
         withAgent(createAgent = { client -> FirebaseAIAgent(client, apiKey = apiKey, model = model) }) { agent ->
             testAgent(
                 agent = agent,

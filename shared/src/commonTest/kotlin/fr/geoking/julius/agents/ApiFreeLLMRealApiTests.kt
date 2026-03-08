@@ -10,7 +10,7 @@ class ApiFreeLLMRealApiTests : RealApiTestBase() {
     @Test
     fun testApiFreeLLMAgent_SimplePrompt() {
         runBlocking {
-            withApiKey("apifreellm.key", "ApiFreeLLM") { apiKey ->
+            withApiKey("APIFREELLM_KEY", "ApiFreeLLM") { apiKey ->
                 withAgent(createAgent = { client -> ApiFreeLLMAgent(client, apiKey = apiKey) }) { agent ->
                     testAgent(agent = agent, agentName = "ApiFreeLLM")
                 }

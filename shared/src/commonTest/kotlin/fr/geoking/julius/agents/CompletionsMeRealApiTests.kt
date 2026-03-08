@@ -10,7 +10,7 @@ class CompletionsMeRealApiTests : RealApiTestBase() {
     @Test
     fun testCompletionsMeAgent_SimplePrompt() {
         runBlocking {
-            withApiKey("completionsme.key", "CompletionsMe") { apiKey ->
+            withApiKey("COMPLETIONS_ME_KEY", "CompletionsMe") { apiKey ->
                 val model = getApiKey("completionsme.model", "claude-sonnet-4.5")
                 withAgent(createAgent = { client -> CompletionsMeAgent(client, apiKey = apiKey, model = model) }) { agent ->
                     testAgent(agent = agent, agentName = "CompletionsMe")

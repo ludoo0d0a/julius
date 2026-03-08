@@ -19,7 +19,10 @@ configure<ApplicationExtension> {
         val localProps = rootProject.file("local.properties").takeIf { it.exists() }?.let { file ->
             Properties().apply { file.inputStream().use { load(it) } }
         } ?: Properties()
-        val localVersionCode = localProps.getProperty("version.code")?.toIntOrNull()
+        // Same key in local.properties and env (e.g. OPENAI_KEY)
+        fun prop(key: String, default: String = "") =
+            localProps.getProperty(key) ?: System.getenv(key) ?: default
+        val localVersionCode = prop("VERSION_CODE").takeIf { it.isNotEmpty() }?.toIntOrNull()
         val computedVersionCode = when {
             ciRunNumber != null -> (ciRunNumber * 10) + ciRunAttempt
             localVersionCode != null -> localVersionCode
@@ -33,17 +36,17 @@ configure<ApplicationExtension> {
         versionCode = computedVersionCode
         versionName = computedVersionName
 
-        val elevenLabsKey = localProps.getProperty("elevenlabs.key") ?: ""
-        val geminiKey = localProps.getProperty("gemini.key") ?: ""
-        val deepgramKey = localProps.getProperty("deepgram.key") ?: ""
-        val openaiKey = localProps.getProperty("openai.key") ?: ""
-        val perplexityKey = localProps.getProperty("perplexity.key") ?: ""
-        val firebaseAiKey = localProps.getProperty("firebaseai.key") ?: ""
-        val firebaseAiModel = localProps.getProperty("firebaseai.model") ?: "gemini-1.5-flash-latest"
-        val opencodeZenKey = localProps.getProperty("opencodezen.key") ?: ""
-        val completionsMeKey = localProps.getProperty("completionsme.key") ?: ""
-        val apifreellmKey = localProps.getProperty("apifreellm.key") ?: ""
-        val mapsApiKey = localProps.getProperty("google.maps.key") ?: ""
+        val elevenLabsKey = prop("ELEVENLABS_KEY")
+        val geminiKey = prop("GEMINI_KEY")
+        val deepgramKey = prop("DEEPGRAM_KEY")
+        val openaiKey = prop("OPENAI_KEY")
+        val perplexityKey = prop("PERPLEXITY_KEY")
+        val firebaseAiKey = prop("FIREBASE_AI_KEY")
+        val firebaseAiModel = prop("FIREBASE_AI_MODEL", "gemini-1.5-flash-latest")
+        val opencodeZenKey = prop("OPENCODE_ZEN_KEY")
+        val completionsMeKey = prop("COMPLETIONS_ME_KEY")
+        val apifreellmKey = prop("APIFREELLM_KEY")
+        val mapsApiKey = prop("GOOGLE_MAPS_KEY")
         manifestPlaceholders["googleMapsApiKey"] = mapsApiKey
 
         buildConfigField("String", "ELEVENLABS_KEY", "\"$elevenLabsKey\"")

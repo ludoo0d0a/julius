@@ -10,7 +10,7 @@ class PerplexityRealApiTests : RealApiTestBase() {
     @Test
     fun testPerplexityAgent_SimplePrompt() {
         runBlocking {
-            withApiKey("perplexity.key", "Perplexity") { apiKey ->
+            withApiKey("PERPLEXITY_KEY", "Perplexity") { apiKey ->
                 withPerplexityAgent(apiKey) { agent ->
                     testAgent(
                         agent = agent,

@@ -11,10 +11,11 @@ import kotlinx.serialization.json.Json
 
 /**
  * Base for real API tests. API keys and optional model overrides are read from:
- * - System properties (e.g. -Dopenai.key=...)
- * - local.properties in project root (e.g. openai.key=..., gemini.key=..., perplexity.key=...,
- *   elevenlabs.key=..., deepgram.key=..., firebaseai.key=..., firebaseai.model=...,
- *   completionsme.key=..., completionsme.model=..., apifreellm.key=..., opencodezen.key=..., opencodezen.model=...)
+ * - System properties (e.g. -DOPENAI_KEY=...)
+ * - Environment variables (e.g. OPENAI_KEY=...)
+ * - local.properties in project root (same keys: OPENAI_KEY, GEMINI_KEY, PERPLEXITY_KEY,
+ *   ELEVENLABS_KEY, DEEPGRAM_KEY, FIREBASE_AI_KEY, FIREBASE_AI_MODEL, COMPLETIONS_ME_KEY,
+ *   COMPLETIONS_ME_MODEL, APIFREELLM_KEY, OPENCODE_ZEN_KEY, OPENCODE_ZEN_MODEL, etc.)
  *
  * Each agent test: checks key (skip if missing), builds agent with key/model, sends a question, asserts non-empty answer.
  */
@@ -76,11 +77,11 @@ open class RealApiTestBase {
 
     /**
      * Executes a block with a GeminiAgent (pure HTTP-based implementation).
-     * Model can be overridden via getApiKey("gemini.model", "gemini-2.0-flash").
+     * Model can be overridden via getApiKey("GEMINI_MODEL", "gemini-2.0-flash").
      */
     protected suspend fun <T> withGeminiAgent(
         apiKey: String,
-        model: String = getApiKey("gemini.model", "gemini-2.0-flash"),
+        model: String = getApiKey("GEMINI_MODEL", "gemini-2.0-flash"),
         block: suspend (GeminiAgent) -> T
     ): T {
         return withHttpClient { client ->
@@ -104,11 +105,11 @@ open class RealApiTestBase {
 
     /**
      * Executes a block with a PerplexityAgent.
-     * Model can be overridden via getApiKey("perplexity.model", "llama-3.1-sonar-small-128k-online").
+     * Model can be overridden via getApiKey("PERPLEXITY_MODEL", "llama-3.1-sonar-small-128k-online").
      */
     protected suspend fun <T> withPerplexityAgent(
         apiKey: String,
-        model: String = getApiKey("perplexity.model", "llama-3.1-sonar-small-128k-online"),
+        model: String = getApiKey("PERPLEXITY_MODEL", "llama-3.1-sonar-small-128k-online"),
         block: suspend (PerplexityAgent) -> T
     ): T {
         return withHttpClient { client ->

@@ -13,6 +13,8 @@ actual object TestPropertyReader {
     actual fun getProperty(propertyName: String): String? {
         // Try system property first
         System.getProperty(propertyName)?.let { return it }
+        // Same key for env (e.g. OPENAI_KEY)
+        System.getenv(propertyName)?.let { return it }
 
         // Try to read from local.properties - look in project root
         try {

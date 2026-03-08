@@ -10,7 +10,7 @@ class DeepgramRealApiTests : RealApiTestBase() {
     @Test
     fun testDeepgramAgent_ChatCompletions() {
         runBlocking {
-            withApiKey("deepgram.key", "Deepgram") { apiKey ->
+            withApiKey("DEEPGRAM_KEY", "Deepgram") { apiKey ->
                 withAgent(createAgent = { client -> DeepgramAgent(client, apiKey) }) { agent ->
                 testAgent(
                     agent = agent,

@@ -10,7 +10,7 @@ class OpenAIRealApiTests : RealApiTestBase() {
     @Test
     fun testOpenAIAgent_SimplePrompt() {
         runBlocking {
-            withApiKey("openai.key", "OpenAI") { apiKey ->
+            withApiKey("OPENAI_KEY", "OpenAI") { apiKey ->
                 withOpenAIAgent(apiKey) { agent ->
                     testAgent(
                         agent = agent,

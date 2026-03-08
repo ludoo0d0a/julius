@@ -4,10 +4,10 @@ Julius uses **Google Maps** for the map screen (mobile and Android Auto). You ne
 
 ## Quick Setup
 
-Add to `local.properties` in the project root:
+Add to `local.properties` in the project root (same key name as env var):
 
 ```properties
-google.maps.key=YOUR_GOOGLE_MAPS_API_KEY
+GOOGLE_MAPS_KEY=YOUR_GOOGLE_MAPS_API_KEY
 ```
 
 ## Step-by-Step Guide
@@ -33,7 +33,7 @@ Direct link: [Enable Maps SDK for Android](https://console.cloud.google.com/apis
 - Go to **APIs & Services** → **Credentials**
 - Click **Create credentials** → **API key**
 - Copy the generated key
-- Add it to `local.properties` as `google.maps.key=YOUR_KEY`
+- Add it to `local.properties` as `GOOGLE_MAPS_KEY=YOUR_KEY`
 
 Direct link: [Create API Key](https://console.cloud.google.com/apis/credentials)
 
@@ -62,7 +62,7 @@ Or in Android Studio: **Gradle** → **androidApp** → **Tasks** → **android*
 
 | Item | Value |
 |------|-------|
-| Property in `local.properties` | `google.maps.key` |
+| Property in `local.properties` / env | `GOOGLE_MAPS_KEY` |
 | App package name | `fr.geoking.julius` |
 | Google Cloud Console | https://console.cloud.google.com/ |
 | Enable Maps SDK for Android | https://console.cloud.google.com/apis/library/maps-android-backend.googleapis.com |
@@ -72,6 +72,6 @@ Or in Android Studio: **Gradle** → **androidApp** → **Tasks** → **android*
 
 ## Troubleshooting
 
-- **Map shows blank/gray**: API key missing or invalid. Check `local.properties` and that Maps SDK for Android is enabled.
+- **Map shows blank/gray**: API key missing or invalid. Check `local.properties` (key `GOOGLE_MAPS_KEY`) and that Maps SDK for Android is enabled.
 - **Map works in debug but not release**: Add your release keystore SHA-1 to the API key restrictions.
 - **Billing**: Google Maps requires a billing account, but includes a free monthly credit (as of 2024: $200/month).

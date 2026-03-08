@@ -28,9 +28,9 @@ fun main() = runBlocking {
     if (apiKey.isBlank()) {
         println("❌ ERROR: No API key found!")
         println("💡 Options:")
-        println("   1. Add 'gemini.key=your_key' to local.properties in project root")
-        println("   2. Set system property: -Dgemini.key=your_key")
-        println("   3. Set environment variable: export gemini.key=your_key")
+        println("   1. Add 'GEMINI_KEY=your_key' to local.properties in project root")
+        println("   2. Set system property: -DGEMINI_KEY=your_key")
+        println("   3. Set environment variable: export GEMINI_KEY=your_key")
         return@runBlocking
     }
     
@@ -93,12 +93,12 @@ fun main() = runBlocking {
 
 /**
  * Reads API key from:
- * 1. System property (e.g., -Dgemini.key=...)
- * 2. Environment variable (e.g., export gemini.key=...)
- * 3. local.properties file in project root
+ * 1. System property (e.g., -DGEMINI_KEY=...)
+ * 2. Environment variable (e.g., export GEMINI_KEY=...)
+ * 3. local.properties file in project root (same key: GEMINI_KEY)
  */
 private fun getApiKey(): String {
-    val keyName = "gemini.key"
+    val keyName = "GEMINI_KEY"
     
     // Try system property first
     System.getProperty(keyName)?.let { return it.trim() }

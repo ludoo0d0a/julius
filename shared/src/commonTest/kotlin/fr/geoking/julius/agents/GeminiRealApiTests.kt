@@ -10,7 +10,7 @@ class GeminiRealApiTests : RealApiTestBase() {
     @Test
     fun testListModels() {
         runBlocking {
-            withApiKey("gemini.key", "Gemini") { apiKey ->
+            withApiKey("GEMINI_KEY", "Gemini") { apiKey ->
                 withGeminiAgent(apiKey) { agent ->
                     testListModels(agent, "Gemini")
                 }
@@ -21,7 +21,7 @@ class GeminiRealApiTests : RealApiTestBase() {
     @Test
     fun testGeminiAgent_SimplePrompt() {
         runBlocking {
-            withApiKey("gemini.key", "Gemini") { apiKey ->
+            withApiKey("GEMINI_KEY", "Gemini") { apiKey ->
                 withGeminiAgent(apiKey) { agent ->
                     testAgent(
                         agent = agent,

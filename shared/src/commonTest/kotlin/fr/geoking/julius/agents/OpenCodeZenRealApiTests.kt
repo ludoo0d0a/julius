@@ -10,7 +10,7 @@ class OpenCodeZenRealApiTests : RealApiTestBase() {
     @Test
     fun testOpenCodeZenAgent_SimplePrompt() {
         runBlocking {
-            withApiKey("opencodezen.key", "OpenCodeZen") { apiKey ->
+            withApiKey("OPENCODE_ZEN_KEY", "OpenCodeZen") { apiKey ->
                 val model = getApiKey("opencodezen.model", "minimax-m2.5-free")
                 withAgent(createAgent = { client -> OpenCodeZenAgent(client, apiKey = apiKey, model = model) }) { agent ->
                     testAgent(agent = agent, agentName = "OpenCodeZen")

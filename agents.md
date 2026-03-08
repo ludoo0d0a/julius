@@ -54,9 +54,7 @@ Julius is a **Kotlin Multiplatform (KMP)** voice assistant application designed 
 - Configured in `AndroidManifest.xml` with appropriate metadata
 
 #### API Keys & Configuration
-- API keys stored in `local.properties`:
-  - `elevenlabs.key`
-  - `gemini.key`
+- API keys in `local.properties` or env use the same key name (e.g. `OPENAI_KEY`, `GEMINI_KEY`, `ELEVENLABS_KEY`)
 - Keys are read at build time and exposed via `BuildConfig`
 - Settings can be overridden at runtime via `SettingsManager`
 
@@ -332,10 +330,10 @@ Julius supports multiple AI agents, each with different capabilities, pricing mo
    ```
 
 3. **Add API Keys** (optional, can be set later in app settings)
-   - Add to `local.properties`:
+   - Add to `local.properties` (same names as env vars):
    ```properties
-   elevenlabs.key=your_elevenlabs_api_key
-   gemini.key=your_gemini_api_key
+   ELEVENLABS_KEY=your_elevenlabs_api_key
+   GEMINI_KEY=your_gemini_api_key
    ```
    - Note: These are used as defaults but can be overridden in app settings
 

@@ -14,7 +14,7 @@ actual object TestPropertyReader {
     // On iOS, we can't easily read from local.properties files
     // So we support environment variables (set before running tests)
     // To run tests with API key:
-    // export gemini.key=your_api_key
+    // export GEMINI_KEY=your_api_key
     // ./gradlew :shared:iosX64Test
     @OptIn(ExperimentalForeignApi::class)
     actual fun getProperty(propertyName: String): String? {
