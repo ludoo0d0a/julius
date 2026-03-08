@@ -40,15 +40,21 @@ import fr.geoking.julius.update.InAppUpdateHelper
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import io.ktor.client.engine.okhttp.OkHttp
-import org.koin.android.ext.android.inject
+import org.koin.android.ext.android.get
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 class MainActivity : ComponentActivity() {
-
-    private val store: ConversationStore by inject()
-    private val settingsManager: SettingsManager by inject()
-    private val permissionManager: PermissionManager by inject()
-    private val poiProvider: PoiProvider by inject()
-    private val julesClient: JulesClient by inject()
 
     private var permissionDeferred: kotlinx.coroutines.CompletableDeferred<Boolean>? = null
 
@@ -70,24 +76,41 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
 
-        (permissionManager as? AndroidPermissionManager)?.setOnPermissionRequest { permission, deferred ->
-            permissionDeferred = deferred
-            permissionLauncher.launch(permission)
+        val appError = VoiceApplication.initError
+        if (appError != null) {
+            setContent { StartupErrorContent(appError) }
+            return
         }
 
-        setContent {
-            val state by store.state.collectAsState()
-            MainUI(
-                state = state,
-                store = store,
-                settingsManager = settingsManager,
-                poiProvider = poiProvider,
-                julesClient = julesClient,
-                inAppUpdateHelper = inAppUpdateHelper,
-                onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) }
-            )
+        try {
+            val store: ConversationStore = get()
+            val settingsManager: SettingsManager = get()
+            val permissionManager: PermissionManager = get()
+            val poiProvider: PoiProvider = get()
+            val julesClient: JulesClient = get()
+
+            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            (permissionManager as? AndroidPermissionManager)?.setOnPermissionRequest { permission, deferred ->
+                permissionDeferred = deferred
+                permissionLauncher.launch(permission)
+            }
+
+            setContent {
+                val state by store.state.collectAsState()
+                MainUI(
+                    state = state,
+                    store = store,
+                    settingsManager = settingsManager,
+                    poiProvider = poiProvider,
+                    julesClient = julesClient,
+                    inAppUpdateHelper = inAppUpdateHelper,
+                    onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) }
+                )
+            }
+        } catch (e: Throwable) {
+            android.util.Log.e("MainActivity", "Startup failed", e)
+            setContent { StartupErrorContent(e) }
         }
     }
 
@@ -167,6 +190,46 @@ fun MainUI(
                         onMapClick = { showMap = true },
                         onJulesClick = { showJules = true }
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StartupErrorContent(error: Throwable) {
+    val message = error.message ?: error.toString()
+    val detail = error.stackTraceToString().take(800)
+    MaterialTheme(colorScheme = darkColorScheme(background = Color(0xFF0F172A))) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Box(Modifier.fillMaxSize().padding(24.dp)) {
+                Column(
+                    Modifier
+                        .align(Alignment.Center)
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "Startup error",
+                        color = Color(0xFFF87171),
+                        fontSize = 20.sp
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        message,
+                        color = Color(0xFFE2E8F0),
+                        fontSize = 14.sp
+                    )
+                    if (detail.isNotEmpty()) {
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            detail,
+                            color = Color(0xFF94A3B8),
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             }
         }

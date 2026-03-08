@@ -6,12 +6,24 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 
 class VoiceApplication : Application() {
+
     override fun onCreate() {
         super.onCreate()
-        
-        startKoin {
-            androidContext(this@VoiceApplication)
-            modules(appModule)
+        try {
+            startKoin {
+                androidContext(this@VoiceApplication)
+                modules(appModule)
+            }
+        } catch (e: Throwable) {
+            initError = e
+            android.util.Log.e("VoiceApplication", "Koin/DI init failed", e)
         }
+    }
+
+    companion object {
+        /** Set when startKoin or module init fails; MainActivity shows this instead of crashing. */
+        @Volatile
+        var initError: Throwable? = null
+            private set
     }
 }
