@@ -22,6 +22,7 @@ import fr.geoking.julius.shared.ConversationState
 import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.ui.anim.AnimationPalette
 import fr.geoking.julius.ui.anim.phone.TrayLightEffectCanvas
+import fr.geoking.julius.ui.components.JulesButton
 
 /**
  * Main voice UI: status content, tray effect, waveform, mic button, settings.
@@ -34,6 +35,7 @@ fun VoiceMainContent(
     store: ConversationStore,
     onSettingsClick: () -> Unit,
     onMapClick: () -> Unit,
+    onJulesClick: () -> Unit = {},
     onAgentClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -97,6 +99,12 @@ fun VoiceMainContent(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(start = 24.dp, bottom = 48.dp)
+        )
+        JulesButton(
+            onClick = onJulesClick,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 72.dp, bottom = 48.dp)
         )
         MapButton(
             onClick = onMapClick,

@@ -37,6 +37,7 @@ fun PhoneMainScreen(
     store: ConversationStore,
     onSettingsClick: () -> Unit,
     onMapClick: () -> Unit,
+    onJulesClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val currentSettings = rememberUpdatedState(settings)
@@ -71,6 +72,7 @@ fun PhoneMainScreen(
             store = store,
             onSettingsClick = onSettingsClick,
             onMapClick = onMapClick,
+            onJulesClick = onJulesClick,
             onAgentClick = {
                 val agents = AgentType.entries
                 val currentIndex = agents.indexOf(settings.selectedAgent).coerceAtLeast(0)

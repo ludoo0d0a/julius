@@ -46,10 +46,12 @@ configure<ApplicationExtension> {
         val opencodeZenKey = prop("OPENCODE_ZEN_KEY")
         val completionsMeKey = prop("COMPLETIONS_ME_KEY")
         val apifreellmKey = prop("APIFREELLM_KEY")
+        val julesKey = prop("JULES_KEY")
         val mapsApiKey = prop("GOOGLE_MAPS_KEY")
         manifestPlaceholders["googleMapsApiKey"] = mapsApiKey
 
         buildConfigField("String", "ELEVENLABS_KEY", "\"$elevenLabsKey\"")
+        buildConfigField("String", "JULES_KEY", "\"$julesKey\"")
         buildConfigField("String", "GEMINI_KEY", "\"$geminiKey\"")
         buildConfigField("String", "DEEPGRAM_KEY", "\"$deepgramKey\"")
         buildConfigField("String", "OPENAI_KEY", "\"$openaiKey\"")

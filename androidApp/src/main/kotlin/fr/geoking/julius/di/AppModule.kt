@@ -17,6 +17,7 @@ import fr.geoking.julius.providers.DataGouvProvider
 import fr.geoking.julius.providers.DataGouvElecProvider
 import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.providers.RoutexProvider
+import fr.geoking.julius.providers.JulesClient
 import fr.geoking.julius.providers.SelectorPoiProvider
 import org.koin.core.qualifier.named
 import io.ktor.client.HttpClient
@@ -103,6 +104,7 @@ val appModule = module {
         }
     }
 
+    single { JulesClient(get()) }
     single { SettingsManager(androidContext()) }
     
     // Use the dynamic wrapper instead of a static agent

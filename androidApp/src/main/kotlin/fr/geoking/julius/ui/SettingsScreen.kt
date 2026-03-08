@@ -44,6 +44,7 @@ private enum class Screen {
     Agent,
     AgentConfig,
     FractalConfig,
+    JulesConfig,
     ErrorLog
 }
 
@@ -87,6 +88,7 @@ fun SettingsScreen(
                     Screen.Agent -> "Agent"
                     Screen.AgentConfig -> "${current.selectedAgent.name} Config"
                     Screen.FractalConfig -> "Fractal Settings"
+                    Screen.JulesConfig -> "Jules API"
                     Screen.ErrorLog -> "Error Log"
                 },
                 onBack = {
@@ -128,6 +130,10 @@ fun SettingsScreen(
                         settings = current,
                         onUpdate = { save(settingsManager, it) }
                     )
+                    Screen.JulesConfig -> JulesConfig(
+                        settings = current,
+                        onUpdate = { save(settingsManager, it) }
+                    )
                     Screen.FractalConfig -> FractalConfig(
                         settings = current,
                         onUpdate = { save(settingsManager, it) }
@@ -146,6 +152,7 @@ private fun save(settingsManager: SettingsManager, s: AppSettings) {
         s.opencodeZenKey, s.opencodeZenModel,
         s.completionsMeKey, s.completionsMeModel,
         s.apifreellmKey,
+        s.julesKey,
         s.selectedAgent, s.selectedTheme, s.selectedModel, s.fractalQuality, s.fractalColorIntensity,
         s.extendedActionsEnabled
     )
@@ -253,6 +260,11 @@ private fun MainMenu(
             )
         }
 
+        SettingsItem(
+            label = "Jules API Key",
+            value = if (settings.julesKey.isNotEmpty()) "••••••••" else "Not set",
+            onClick = { onNavigate(Screen.JulesConfig) }
+        )
         SettingsItem(
             label = "Error Log",
             value = "View recent errors",
@@ -486,6 +498,27 @@ private fun AgentConfig(
 }
 
 @Composable
+private fun JulesConfig(
+    settings: AppSettings,
+    onUpdate: (AppSettings) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp)
+    ) {
+        Text(
+            "Jules (jules.google.com) suggests code changes via the Jules screen. Get an API key in Jules Settings.",
+            color = Lavender,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+        ConfigTextField("Jules API Key", settings.julesKey) { onUpdate(settings.copy(julesKey = it)) }
+    }
+}
+
+@Composable
 private fun FractalConfig(
     settings: AppSettings,
     onUpdate: (AppSettings) -> Unit
@@ -615,6 +648,7 @@ fun SettingsScreenPreview() {
                 completionsMeKey: String,
                 completionsMeModel: String,
                 apifreellmKey: String,
+                julesKey: String,
                 agent: AgentType,
                 theme: AppTheme,
                 model: IaModel,

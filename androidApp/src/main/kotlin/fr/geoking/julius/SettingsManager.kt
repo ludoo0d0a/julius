@@ -34,6 +34,7 @@ data class AppSettings(
     val completionsMeKey: String = "",
     val completionsMeModel: String = "claude-sonnet-4.5",
     val apifreellmKey: String = "",
+    val julesKey: String = "",
     val selectedAgent: AgentType = AgentType.Deepgram,
     val selectedTheme: AppTheme = AppTheme.Particles,
     val selectedModel: IaModel = IaModel.LLAMA_3_1_SONAR_SMALL,
@@ -71,6 +72,7 @@ open class SettingsManager(context: Context) {
             completionsMeKey = prefs.getString("completions_me_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.COMPLETIONS_ME_KEY,
             completionsMeModel = prefs.getString("completions_me_model", "claude-sonnet-4.5") ?: "claude-sonnet-4.5",
             apifreellmKey = prefs.getString("apifreellm_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.APIFREELLM_KEY,
+            julesKey = prefs.getString("jules_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.JULES_KEY,
             selectedAgent = try {
                 val agentName = prefs.getString("agent", null)
                 if (agentName != null) {
@@ -148,6 +150,7 @@ open class SettingsManager(context: Context) {
             .putString("completions_me_key", settings.completionsMeKey)
             .putString("completions_me_model", settings.completionsMeModel)
             .putString("apifreellm_key", settings.apifreellmKey)
+            .putString("jules_key", settings.julesKey)
             .putString("agent", settings.selectedAgent.name)
             .putString("theme", settings.selectedTheme.name)
             .putString("model", settings.selectedModel.name)
@@ -174,6 +177,7 @@ open class SettingsManager(context: Context) {
         completionsMeKey: String = "",
         completionsMeModel: String = "claude-sonnet-4.5",
         apifreellmKey: String = "",
+        julesKey: String = "",
         agent: AgentType,
         theme: AppTheme,
         model: IaModel,
@@ -195,6 +199,7 @@ open class SettingsManager(context: Context) {
             completionsMeKey = completionsMeKey,
             completionsMeModel = completionsMeModel,
             apifreellmKey = apifreellmKey,
+            julesKey = julesKey.ifBlank { _settings.value.julesKey },
             selectedAgent = agent,
             selectedTheme = theme,
             selectedModel = model,

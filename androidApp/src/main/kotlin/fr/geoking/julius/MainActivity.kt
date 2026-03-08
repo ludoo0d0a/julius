@@ -25,10 +25,14 @@ import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.shared.PermissionManager
 import fr.geoking.julius.providers.MockPoiProvider
 import fr.geoking.julius.providers.PoiProvider
+import fr.geoking.julius.ui.JulesScreen
 import fr.geoking.julius.ui.MapScreen
 import fr.geoking.julius.ui.PhoneMainScreen
 import fr.geoking.julius.ui.SettingsScreen
+import fr.geoking.julius.providers.JulesClient
 import fr.geoking.julius.ui.anim.AnimationPalettes
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.okhttp.OkHttp
 import org.koin.android.ext.android.inject
 
 class MainActivity : ComponentActivity() {
@@ -37,6 +41,7 @@ class MainActivity : ComponentActivity() {
     private val settingsManager: SettingsManager by inject()
     private val permissionManager: PermissionManager by inject()
     private val poiProvider: PoiProvider by inject()
+    private val julesClient: JulesClient by inject()
 
     private var permissionDeferred: kotlinx.coroutines.CompletableDeferred<Boolean>? = null
 
@@ -62,7 +67,8 @@ class MainActivity : ComponentActivity() {
                 state = state,
                 store = store,
                 settingsManager = settingsManager,
-                poiProvider = poiProvider
+                poiProvider = poiProvider,
+                julesClient = julesClient
             )
         }
     }
@@ -73,10 +79,12 @@ fun MainUI(
     state: ConversationState,
     store: ConversationStore,
     settingsManager: SettingsManager,
-    poiProvider: PoiProvider
+    poiProvider: PoiProvider,
+    julesClient: JulesClient
 ) {
     var showSettings by remember { mutableStateOf(false) }
     var showMap by remember { mutableStateOf(false) }
+    var showJules by remember { mutableStateOf(false) }
     val settings by settingsManager.settings.collectAsState()
     val paletteIndex by AnimationPalettes.index.collectAsState()
     val palette = remember(paletteIndex) { AnimationPalettes.paletteFor(paletteIndex) }
@@ -126,7 +134,8 @@ fun MainUIPreview() {
         state = mockState,
         store = mockStore,
         settingsManager = mockSettingsManager,
-        poiProvider = remember { MockPoiProvider() }
+        poiProvider = remember { MockPoiProvider() },
+        julesClient = remember { JulesClient(HttpClient(OkHttp) {}) }
     )
 }
 
@@ -187,6 +196,7 @@ private fun rememberMockSettingsManager(): SettingsManager {
                 completionsMeKey: String,
                 completionsMeModel: String,
                 apifreellmKey: String,
+                julesKey: String,
                 agent: AgentType,
                 theme: AppTheme,
                 model: IaModel,
