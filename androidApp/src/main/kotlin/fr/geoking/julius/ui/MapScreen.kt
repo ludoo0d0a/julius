@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -317,9 +318,10 @@ private fun PoiDetailCard(
         if (isEmpty() && addressForTitle == null && poi.address.isNotBlank()) add(poi.address)
     }
     val brandInfo = BrandHelper.getBrandInfo(poi.brand)
+    val hasLocation = !addressForTitle.isNullOrBlank() || addressLines.isNotEmpty()
 
     Card(
-        modifier = modifier.widthIn(min = 280.dp, max = 340.dp),
+        modifier = modifier.widthIn(min = 300.dp, max = 360.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF334155)),
         shape = MaterialTheme.shapes.large
     ) {
@@ -329,56 +331,91 @@ private fun PoiDetailCard(
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp)
         ) {
+            // Header: icon + name + brand
             Row(
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.Top,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                brandInfo?.let { info ->
-                    Icon(
-                        painter = painterResource(id = info.iconResId),
-                        contentDescription = info.displayName,
-                        modifier = Modifier.size(32.dp),
-                        tint = Color.White
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    color = Color(0xFF475569)
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(56.dp)
+                            .padding(12.dp)
+                    ) {
+                        (brandInfo?.iconResId ?: R.drawable.ic_poi_gas).let { resId ->
+                            Icon(
+                                painter = painterResource(id = resId),
+                                contentDescription = brandInfo?.displayName ?: "Gas station",
+                                modifier = Modifier.size(32.dp),
+                                tint = Color.White
+                            )
+                        }
+                    }
                 }
-                Column(modifier = Modifier.fillMaxWidth()) {
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = siteName,
                         color = Color.White,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold
                     )
-                    if (!addressForTitle.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(2.dp))
+                    brandInfo?.let { info ->
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = addressForTitle,
-                            color = Color.White.copy(alpha = 0.9f),
-                            fontSize = 14.sp
+                            text = info.displayName,
+                            color = Color.White.copy(alpha = 0.75f),
+                            fontSize = 13.sp
                         )
                     }
                 }
             }
-            brandInfo?.let { info ->
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = info.displayName,
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontSize = 14.sp
-                )
-            }
-            if (addressLines.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                addressLines.forEach { line ->
-                    Text(
-                        text = line,
-                        color = Color.White.copy(alpha = 0.9f),
-                        fontSize = 14.sp
+
+            // Location block
+            if (hasLocation) {
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.15f))
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    verticalAlignment = Alignment.Top,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = Color.White.copy(alpha = 0.6f)
                     )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        if (!addressForTitle.isNullOrBlank()) {
+                            Text(
+                                text = addressForTitle,
+                                color = Color.White.copy(alpha = 0.95f),
+                                fontSize = 14.sp
+                            )
+                            if (addressLines.isNotEmpty()) Spacer(modifier = Modifier.height(2.dp))
+                        }
+                        addressLines.forEach { line ->
+                            Text(
+                                text = line,
+                                color = Color.White.copy(alpha = 0.8f),
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
                 }
             }
+
+            // Prices
             poi.fuelPrices?.let { prices ->
                 if (prices.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.15f))
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = "Prices",
@@ -386,7 +423,7 @@ private fun PoiDetailCard(
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     prices.forEach { fp ->
                         Column(modifier = Modifier.padding(vertical = 2.dp)) {
                             Row(
@@ -416,7 +453,9 @@ private fun PoiDetailCard(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+
+            // Actions
+            Spacer(modifier = Modifier.height(20.dp))
             if (onShowDetails != null) {
                 OutlinedButton(
                     onClick = onShowDetails,
