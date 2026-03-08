@@ -26,9 +26,13 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.shared.VoiceManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
@@ -184,18 +188,45 @@ class AndroidVoiceManager(
     }
 
     init {
-        tts = TextToSpeech(context, this)
-        tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-            override fun onStart(utteranceId: String?) {
-                // Keep event in Speaking while TTS is active
-                if (_events.value != VoiceEvent.Speaking) {
-                    _events.value = VoiceEvent.Speaking
-                    player.notifyStateChanged()
+        // Defer TTS and MediaPlayer creation off the main thread to avoid ANR.
+        // TextToSpeech constructor can block for several seconds on first use.
+        GlobalScope.launch(Dispatchers.IO) {
+            val newTts = TextToSpeech(context) { status ->
+                if (status == TextToSpeech.SUCCESS) {
+                    mainHandler.post {
+                        ttsReady = true
+                        setTtsLanguage(pendingLanguageTag)
+                        pendingLanguageTag = null
+                    }
                 }
             }
+            val newMediaPlayer = MediaPlayer()
+            withContext(Dispatchers.Main) {
+                tts = newTts
+                tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                    override fun onStart(utteranceId: String?) {
+                        if (_events.value != VoiceEvent.Speaking) {
+                            _events.value = VoiceEvent.Speaking
+                            player.notifyStateChanged()
+                        }
+                    }
 
-            override fun onDone(utteranceId: String?) {
-                mainHandler.post {
+                    override fun onDone(utteranceId: String?) {
+                        mainHandler.post {
+                            if (_events.value == VoiceEvent.Speaking) {
+                                _events.value = VoiceEvent.Silence
+                                player.notifyStateChanged()
+                            }
+                            stopBargeInListening()
+                        }
+                    }
+
+                    override fun onError(utteranceId: String?) {
+                        onDone(utteranceId)
+                    }
+                })
+                mediaPlayer = newMediaPlayer
+                mediaPlayer?.setOnCompletionListener {
                     if (_events.value == VoiceEvent.Speaking) {
                         _events.value = VoiceEvent.Silence
                         player.notifyStateChanged()
@@ -203,19 +234,6 @@ class AndroidVoiceManager(
                     stopBargeInListening()
                 }
             }
-
-            override fun onError(utteranceId: String?) {
-                onDone(utteranceId)
-            }
-        })
-        mediaPlayer = MediaPlayer()
-        mediaPlayer?.setOnCompletionListener { 
-            // Only reset to Silence if we were speaking, not if we're listening
-            if (_events.value == VoiceEvent.Speaking) {
-                _events.value = VoiceEvent.Silence
-                player.notifyStateChanged()
-            }
-            stopBargeInListening()
         }
     }
 
