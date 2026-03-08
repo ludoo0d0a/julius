@@ -53,6 +53,7 @@ object BrandHelper {
         "rel" to R.drawable.ic_brand_rel,
         "rel.metz" to R.drawable.ic_brand_rel,
         "circle k" to R.drawable.ic_brand_circlek,
+        "aral" to R.drawable.ic_brand_aral,
     )
 
     data class BrandInfo(
