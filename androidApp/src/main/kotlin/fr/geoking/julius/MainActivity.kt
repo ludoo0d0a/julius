@@ -302,29 +302,7 @@ private fun rememberMockSettingsManager(): SettingsManager {
             override fun setPoiProviderType(type: fr.geoking.julius.providers.PoiProviderType) {
                 mockSettings.value = mockSettings.value.copy(selectedPoiProvider = type)
             }
-            override fun saveSettings(
-                openAiKey: String,
-                elevenLabsKey: String,
-                perplexityKey: String,
-                geminiKey: String,
-                deepgramKey: String,
-                firebaseAiKey: String,
-                firebaseAiModel: String,
-                opencodeZenKey: String,
-                opencodeZenModel: String,
-                completionsMeKey: String,
-                completionsMeModel: String,
-                apifreellmKey: String,
-                julesKey: String,
-                agent: AgentType,
-                theme: AppTheme,
-                model: IaModel,
-                fractalQuality: FractalQuality,
-                fractalColorIntensity: FractalColorIntensity,
-                extendedActionsEnabled: Boolean,
-                localModelPath: String,
-                selectedLocalModelVariant: String
-            ) {}
+            override fun saveSettings(settings: AppSettings) {}
         }
     }
 }

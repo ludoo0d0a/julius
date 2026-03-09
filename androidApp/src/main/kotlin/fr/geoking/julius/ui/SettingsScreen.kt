@@ -154,18 +154,7 @@ fun SettingsScreen(
 }
 
 private fun save(settingsManager: SettingsManager, s: AppSettings) {
-    settingsManager.saveSettings(
-        s.openAiKey, s.elevenLabsKey, s.perplexityKey, s.geminiKey, s.deepgramKey,
-        s.firebaseAiKey, s.firebaseAiModel,
-        s.opencodeZenKey, s.opencodeZenModel,
-        s.completionsMeKey, s.completionsMeModel,
-        s.apifreellmKey,
-        s.julesKey,
-        s.selectedAgent, s.selectedTheme, s.selectedModel, s.fractalQuality, s.fractalColorIntensity,
-        s.extendedActionsEnabled,
-        s.localModelPath,
-        s.selectedLocalModelVariant
-    )
+    settingsManager.saveSettings(s)
 }
 
 @Composable
@@ -809,51 +798,8 @@ fun SettingsScreenPreview() {
                 )
             )
             override val settings: StateFlow<AppSettings> = mockSettings.asStateFlow()
-            override fun saveSettings(
-                openAiKey: String,
-                elevenLabsKey: String,
-                perplexityKey: String,
-                geminiKey: String,
-                deepgramKey: String,
-                firebaseAiKey: String,
-                firebaseAiModel: String,
-                opencodeZenKey: String,
-                opencodeZenModel: String,
-                completionsMeKey: String,
-                completionsMeModel: String,
-                apifreellmKey: String,
-                julesKey: String,
-                agent: AgentType,
-                theme: AppTheme,
-                model: IaModel,
-                fractalQuality: FractalQuality,
-                fractalColorIntensity: FractalColorIntensity,
-                extendedActionsEnabled: Boolean,
-                localModelPath: String,
-                selectedLocalModelVariant: String
-            ) {
-                mockSettings.value = mockSettings.value.copy(
-                    openAiKey = openAiKey,
-                    elevenLabsKey = elevenLabsKey,
-                    perplexityKey = perplexityKey,
-                    geminiKey = geminiKey,
-                    deepgramKey = deepgramKey,
-                    firebaseAiKey = firebaseAiKey,
-                    firebaseAiModel = firebaseAiModel,
-                    opencodeZenKey = opencodeZenKey,
-                    opencodeZenModel = opencodeZenModel,
-                    completionsMeKey = completionsMeKey,
-                    completionsMeModel = completionsMeModel,
-                    apifreellmKey = apifreellmKey,
-                    selectedAgent = agent,
-                    selectedTheme = theme,
-                    selectedModel = model,
-                    fractalQuality = fractalQuality,
-                    fractalColorIntensity = fractalColorIntensity,
-                    extendedActionsEnabled = extendedActionsEnabled,
-                    localModelPath = localModelPath,
-                    selectedLocalModelVariant = selectedLocalModelVariant
-                )
+            override fun saveSettings(settings: AppSettings) {
+                mockSettings.value = settings
             }
         }
     }

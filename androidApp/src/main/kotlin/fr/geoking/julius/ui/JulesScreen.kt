@@ -23,18 +23,23 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -64,6 +69,7 @@ private val JulesErrorBg = Color(0xFF7F1D1D)
 private val JulesHeaderBg = Color(0xFF1E293B)
 private val JulesListBg = Color(0xFF1E293B)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JulesScreen(
     onBack: () -> Unit,
@@ -82,8 +88,11 @@ fun JulesScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var inputText by remember { mutableStateOf("") }
     var newSessionPrompt by remember { mutableStateOf("") }
-    var selectedSourceName by remember { mutableStateOf<String?>(null) }
+    var selectedSourceName by remember { mutableStateOf(settings.lastJulesRepoId.takeIf { it.isNotBlank() }) }
+    var selectedSourceDisplayName by remember { mutableStateOf(settings.lastJulesRepoName.takeIf { it.isNotBlank() } ?: "Select repository") }
     var sourcesLoaded by remember { mutableStateOf(false) }
+    var showRepoSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val sessionsListState = rememberLazyListState()
@@ -99,8 +108,13 @@ fun JulesScreen(
                 val resp = julesClient.listSources(apiKey)
                 sources = resp.sources
                 sourcesLoaded = true
-                if (resp.sources.isNotEmpty() && selectedSourceName == null) {
-                    selectedSourceName = resp.sources.first().name
+
+                // Update display name if we already had an ID
+                selectedSourceName?.let { id ->
+                    val found = resp.sources.find { it.name == id }
+                    if (found != null) {
+                        selectedSourceDisplayName = found.githubRepo?.let { "${it.owner}/${it.repo}" } ?: found.name
+                    }
                 }
             } catch (e: Exception) {
                 sourcesLoaded = true
@@ -163,8 +177,18 @@ fun JulesScreen(
     }
 
     LaunchedEffect(selectedSourceName) {
-        if (selectedSourceName != null && apiKey.isNotBlank()) loadSessions()
-        else sessions = emptyList()
+        if (selectedSourceName != null && apiKey.isNotBlank()) {
+            loadSessions()
+            // Persist selection
+            val source = sources.find { it.name == selectedSourceName }
+            if (source != null) {
+                val displayName = source.githubRepo?.let { "${it.owner}/${it.repo}" } ?: source.name
+                selectedSourceDisplayName = displayName
+                settingsManager.saveSettings(settings.copy(lastJulesRepoId = source.name, lastJulesRepoName = displayName))
+            }
+        } else {
+            sessions = emptyList()
+        }
     }
 
     LaunchedEffect(currentSession?.id) {
@@ -177,7 +201,7 @@ fun JulesScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(JulesHeaderBg)
-                    .padding(horizontal = 8.dp, vertical = 12.dp),
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBack) {
@@ -190,6 +214,35 @@ fun JulesScreen(
                     fontSize = 22.sp,
                     modifier = Modifier.weight(1f)
                 )
+            }
+
+            // Repository link row
+            if (apiKey.isNotBlank() && currentSession == null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(JulesHeaderBg.copy(alpha = 0.8f))
+                        .clickable {
+                            showRepoSheet = true
+                            if (!sourcesLoaded) loadSources()
+                        }
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = selectedSourceDisplayName,
+                        color = JulesAccent,
+                        fontSize = 14.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = JulesAccent,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
             }
 
             when {
@@ -237,14 +290,10 @@ fun JulesScreen(
                     } else {
                         RepoAndSessionsContent(
                             apiKey = apiKey,
-                            sources = sources,
                             sessions = sessions,
                             selectedSourceName = selectedSourceName,
-                            onSelectSource = { selectedSourceName = it },
-                            onRefreshSources = { loadSources() },
                             loading = loading,
                             loadingSessions = loadingSessions,
-                            sourcesLoaded = sourcesLoaded,
                             newSessionPrompt = newSessionPrompt,
                             onNewSessionPromptChange = { newSessionPrompt = it },
                             onCreateSession = {
@@ -285,6 +334,81 @@ fun JulesScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             CircularProgressIndicator(color = JulesAccent, modifier = Modifier.size(24.dp))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showRepoSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showRepoSheet = false },
+            sheetState = sheetState,
+            containerColor = JulesBg,
+            contentColor = Color.White
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 32.dp)
+            ) {
+                Text(
+                    "Select Repository",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    modifier = Modifier.padding(16.dp)
+                )
+                if (!sourcesLoaded && loading) {
+                    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = JulesAccent)
+                    }
+                } else if (sources.isEmpty() && sourcesLoaded) {
+                    Text(
+                        "No repositories found. Connect one at jules.google.com.",
+                        color = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(16.dp)
+                    )
+                    OutlinedButton(
+                        onClick = { loadSources() },
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    ) {
+                        Text("Retry")
+                    }
+                } else {
+                    LazyColumn {
+                        items(sources) { src ->
+                            val displayName = src.githubRepo?.let { "${it.owner}/${it.repo}" } ?: src.name
+                            val isSelected = src.name == selectedSourceName
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        selectedSourceName = src.name
+                                        selectedSourceDisplayName = displayName
+                                        showRepoSheet = false
+                                    }
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = displayName,
+                                    color = if (isSelected) JulesAccent else Color.White,
+                                    fontSize = 16.sp,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                if (isSelected) {
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = JulesAccent)
+                                }
+                            }
+                        }
+                        item {
+                            OutlinedButton(
+                                onClick = { loadSources() },
+                                modifier = Modifier.padding(16.dp)
+                            ) {
+                                Text("Refresh list")
+                            }
                         }
                     }
                 }
@@ -335,19 +459,24 @@ private fun InConversationContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(JulesListBg)
-                .padding(horizontal = 8.dp, vertical = 6.dp),
+                .background(JulesListBg.copy(alpha = 0.5f))
+                .clickable { onBackToList() }
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = null,
+                tint = JulesAccent,
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(modifier = Modifier.size(8.dp))
             Text(
                 text = currentSession.title.ifBlank { currentSession.prompt.take(40) }.ifBlank { "Conversation" },
-                color = Color.White.copy(alpha = 0.9f),
-                fontSize = 14.sp,
+                color = JulesAccent,
+                fontSize = 13.sp,
                 modifier = Modifier.weight(1f)
             )
-            OutlinedButton(onClick = onBackToList) {
-                Text("Back to list", fontSize = 12.sp)
-            }
         }
         LazyColumn(
             state = listState,
@@ -429,14 +558,10 @@ private fun InConversationContent(
 @Composable
 private fun RepoAndSessionsContent(
     apiKey: String,
-    sources: List<JulesClient.JulesSource>,
     sessions: List<JulesClient.JulesSession>,
     selectedSourceName: String?,
-    onSelectSource: (String) -> Unit,
-    onRefreshSources: () -> Unit,
     loading: Boolean,
     loadingSessions: Boolean,
-    sourcesLoaded: Boolean,
     newSessionPrompt: String,
     onNewSessionPromptChange: (String) -> Unit,
     onCreateSession: () -> Unit,
@@ -445,136 +570,101 @@ private fun RepoAndSessionsContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(horizontal = 16.dp)
     ) {
-        Text("Repository", color = JulesAccent, fontSize = 14.sp)
-        Spacer(modifier = Modifier.height(8.dp))
-        if (!sourcesLoaded) {
-            Text("Loading repositories…", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
-        } else if (sources.isEmpty()) {
-            Text(
-                "No repositories connected. Install the Jules GitHub app and connect a repo at jules.google.com.",
-                color = Color.White.copy(alpha = 0.8f),
-                fontSize = 14.sp
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedButton(onClick = onRefreshSources) { Text("Retry") }
-        } else {
-            sources.forEach { src ->
-                val selected = selectedSourceName == src.name
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onSelectSource(src.name) }
-                        .padding(vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(20.dp)
-                            .background(
-                                if (selected) JulesAccent else Color.White.copy(alpha = 0.2f),
-                                RoundedCornerShape(4.dp)
-                            )
-                    )
-                    Spacer(modifier = Modifier.size(12.dp))
-                    Text(
-                        text = src.githubRepo?.let { "${it.owner}/${it.repo}" } ?: src.name,
-                        color = if (selected) Color.White else Color.White.copy(alpha = 0.8f),
-                        fontSize = 16.sp
-                    )
-                }
-            }
-            OutlinedButton(onClick = onRefreshSources, modifier = Modifier.padding(top = 8.dp)) {
-                Text("Refresh repositories")
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-        HorizontalDivider(color = Color.White.copy(alpha = 0.2f))
-        Spacer(modifier = Modifier.height(16.dp))
-
         if (selectedSourceName == null) {
-            Text(
-                "Select a repository above to see conversations and start a new one.",
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 14.sp
-            )
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    "Select a repository above to see conversations and start a new one.",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(32.dp)
+                )
+            }
             return@Column
         }
 
-        Text("Conversations", color = JulesAccent, fontSize = 14.sp)
-        Spacer(modifier = Modifier.height(8.dp))
-
         var showNewForm by remember { mutableStateOf(false) }
-        if (showNewForm) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = JulesListBg),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("New conversation", color = Color.White, fontSize = 16.sp)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = newSessionPrompt,
-                        onValueChange = onNewSessionPromptChange,
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("What should Jules do? (e.g. Add dark mode)") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = JulesAccent,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
-                            focusedLabelColor = JulesAccent,
-                            cursorColor = JulesAccent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        )
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.End) {
-                        OutlinedButton(onClick = { showNewForm = false }) { Text("Cancel") }
-                        Spacer(modifier = Modifier.size(8.dp))
-                        OutlinedButton(
-                            onClick = {
-                                if (newSessionPrompt.isNotBlank()) {
-                                    onCreateSession()
-                                    showNewForm = false
-                                }
-                            },
-                            enabled = newSessionPrompt.isNotBlank() && !loading
-                        ) { Text("Create") }
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)
+        ) {
+            item {
+                if (showNewForm) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = JulesListBg),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("New conversation", color = Color.White, fontSize = 16.sp)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedTextField(
+                                value = newSessionPrompt,
+                                onValueChange = onNewSessionPromptChange,
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("What should Jules do? (e.g. Add dark mode)") },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = JulesAccent,
+                                    unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
+                                    focusedLabelColor = JulesAccent,
+                                    cursorColor = JulesAccent,
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                                OutlinedButton(onClick = { showNewForm = false }) { Text("Cancel") }
+                                Spacer(modifier = Modifier.size(8.dp))
+                                OutlinedButton(
+                                    onClick = {
+                                        if (newSessionPrompt.isNotBlank()) {
+                                            onCreateSession()
+                                            showNewForm = false
+                                        }
+                                    },
+                                    enabled = newSessionPrompt.isNotBlank() && !loading
+                                ) { Text("Create") }
+                            }
+                        }
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
+                } else {
+                    FilledTonalButton(
+                        onClick = { showNewForm = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = JulesAccent.copy(alpha = 0.3f))
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
+                        Spacer(modifier = Modifier.size(8.dp))
+                        Text("New conversation")
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
-        }
 
-        FilledTonalButton(
-            onClick = { showNewForm = !showNewForm },
-            modifier = Modifier.fillMaxWidth(),
-            colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = JulesAccent.copy(alpha = 0.3f))
-        ) {
-            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
-            Spacer(modifier = Modifier.size(8.dp))
-            Text(if (showNewForm) "Cancel new conversation" else "New conversation")
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (loadingSessions) {
-            Text("Loading conversations…", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
-        } else if (sessions.isEmpty()) {
-            Text(
-                "No conversations yet for this repository. Tap \"New conversation\" to start.",
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 14.sp
-            )
-        } else {
-            sessions.forEach { session ->
-                SessionRow(
-                    session = session,
-                    onClick = { onOpenSession(session) }
-                )
+            if (loadingSessions && sessions.isEmpty()) {
+                item {
+                    Text("Loading conversations…", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+                }
+            } else if (sessions.isEmpty()) {
+                item {
+                    Text(
+                        "No conversations yet for this repository. Tap \"New conversation\" to start.",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 14.sp
+                    )
+                }
+            } else {
+                items(sessions) { session ->
+                    SessionRow(
+                        session = session,
+                        onClick = { onOpenSession(session) }
+                    )
+                }
             }
         }
     }
