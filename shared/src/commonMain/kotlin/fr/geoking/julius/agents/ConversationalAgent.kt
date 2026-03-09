@@ -3,6 +3,8 @@ package fr.geoking.julius.agents
 import fr.geoking.julius.shared.DeviceAction
 
 interface ConversationalAgent {
+    val rateLimitDelayMs: Long get() = 0L
+
     suspend fun process(input: String): AgentResponse
     
     /**

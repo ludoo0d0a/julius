@@ -9,6 +9,8 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.client.call.body
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -22,6 +24,8 @@ class OpenAIAgent(
     private val baseUrl: String = "https://api.openai.com/v1",
     private val toolsEnabled: Boolean = false
 ) : ConversationalAgent {
+
+    private val mutex = Mutex()
 
     @Serializable private data class Msg(
         val role: String,
@@ -47,7 +51,7 @@ class OpenAIAgent(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun process(input: String): AgentResponse {
+    override suspend fun process(input: String): AgentResponse = mutex.withLock {
         if (apiKey.isBlank()) {
             throw NetworkException(null, "OpenAI API key is required. Please set it in settings.")
         }
