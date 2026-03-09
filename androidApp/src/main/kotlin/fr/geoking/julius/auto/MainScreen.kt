@@ -110,7 +110,11 @@ class MainScreen(
                 currentText = when {
                     state.lastError != null -> state.lastError!!.message
                     state.status == VoiceEvent.Listening -> state.currentTranscript.ifBlank { "Listening..." }
-                    else -> state.messages.lastOrNull()?.text ?: "Tap mic to start"
+                    else -> {
+                        val userName = settingsManager.settings.value.googleUserName
+                        val defaultGreeting = if (userName != null) "Hello $userName, how can I help?" else "Tap mic to start"
+                        state.messages.lastOrNull()?.text ?: defaultGreeting
+                    }
                 }
 
                 // Voice keyword triggers

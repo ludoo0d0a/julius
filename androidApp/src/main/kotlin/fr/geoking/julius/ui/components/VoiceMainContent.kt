@@ -41,9 +41,10 @@ fun VoiceMainContent(
 ) {
     val displayText by remember {
         derivedStateOf {
+            val defaultGreeting = if (settings.googleUserName != null) "Hello ${settings.googleUserName}, how can I help?" else "Hi, how can I help?"
             when (state.status) {
                 VoiceEvent.Listening -> state.currentTranscript
-                else -> state.messages.lastOrNull()?.text ?: "Hi, how can I help?"
+                else -> state.messages.lastOrNull()?.text ?: defaultGreeting
             }
         }
     }

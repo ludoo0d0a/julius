@@ -52,10 +52,12 @@ configure<ApplicationExtension> {
         val completionsMeKey = prop("COMPLETIONS_ME_KEY")
         val apifreellmKey = prop("APIFREELLM_KEY")
         val julesKey = prop("JULES_KEY")
+        val googleWebClientId = prop("GOOGLE_WEB_CLIENT_ID", "your_web_client_id_placeholder")
         val mapsApiKey = prop("GOOGLE_MAPS_KEY")
         manifestPlaceholders["googleMapsApiKey"] = mapsApiKey
 
         buildConfigField("String", "ELEVENLABS_KEY", "\"$elevenLabsKey\"")
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
         buildConfigField("String", "JULES_KEY", "\"$julesKey\"")
         buildConfigField("String", "GEMINI_KEY", "\"$geminiKey\"")
         buildConfigField("String", "DEEPGRAM_KEY", "\"$deepgramKey\"")
@@ -148,6 +150,11 @@ dependencies {
     // Play In-App Update (warns when update available; flexible flow)
     implementation(libs.play.app.update)
     implementation(libs.play.app.update.ktx)
+
+    // Google Auth / Credentials
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
 }
 
 kotlin {

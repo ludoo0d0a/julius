@@ -47,6 +47,7 @@ private enum class Screen {
     Theme,
     Model,
     Agent,
+    GoogleAccount,
     AgentConfig,
     FractalConfig,
     JulesConfig,
@@ -97,6 +98,7 @@ fun SettingsScreen(
                     Screen.JulesConfig -> "Jules API"
                     Screen.ErrorLog -> "Error Log"
                     Screen.About -> "About"
+                    Screen.GoogleAccount -> "Google Account"
                 },
                 onBack = {
                     if (currentScreen == Screen.Main) onDismiss()
@@ -147,6 +149,10 @@ fun SettingsScreen(
                     )
                     Screen.ErrorLog -> ErrorLog(errorLog)
                     Screen.About -> AboutContent()
+                    Screen.GoogleAccount -> GoogleAccount(
+                        settings = current,
+                        settingsManager = settingsManager
+                    )
                 }
             }
         }
@@ -215,6 +221,12 @@ private fun MainMenu(
             label = "Agent",
             value = settings.selectedAgent.name,
             onClick = { onNavigate(Screen.Agent) }
+        )
+
+        SettingsItem(
+            label = "Google Account",
+            value = settings.googleUserName ?: "Not connected",
+            onClick = { onNavigate(Screen.GoogleAccount) }
         )
         
         // Extended Actions Toggle
@@ -708,6 +720,60 @@ private fun FractalConfig(
                 isSelected = intensity == settings.fractalColorIntensity,
                 onSelect = { onUpdate(settings.copy(fractalColorIntensity = intensity)) }
             )
+        }
+    }
+}
+
+@Composable
+private fun GoogleAccount(
+    settings: AppSettings,
+    settingsManager: SettingsManager
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val authManager = remember { GoogleAuthManager(context, settingsManager) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        if (settings.googleUserName != null) {
+            Text(
+                "Connected as ${settings.googleUserName}",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = { authManager.signOut() },
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.7f), contentColor = Color.White),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Logout")
+            }
+        } else {
+            Text(
+                "Sign in to personalize your experience.",
+                color = Lavender,
+                fontSize = 16.sp,
+                modifier = Modifier.padding(bottom = 24.dp)
+            )
+            Button(
+                onClick = {
+                    scope.launch {
+                        authManager.signIn().onFailure { e ->
+                            android.util.Log.e("GoogleAuth", "Sign-in failed", e)
+                        }
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Lavender, contentColor = DeepPurple),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Sign in with Google")
+            }
         }
     }
 }
