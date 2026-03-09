@@ -250,7 +250,7 @@ class MainScreen(
         val msg = e.message ?: e.toString()
         return MessageTemplate.Builder(msg.take(300))
             .setTitle("Julius Error")
-            .setHeaderAction(Action.BACK)
+            .setHeaderAction(Action.APP_ICON)
             .build()
     }
 
