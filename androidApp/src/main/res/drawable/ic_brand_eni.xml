@@ -1,10 +1,10 @@
-<!-- Eni: flame (placeholder; no CC0 SVG found) -->
+<!-- Eni: flame shape, brand blue -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
   <path
-      android:fillColor="#FFFFFF"
+      android:fillColor="#0072BC"
       android:pathData="M12,23 C12,23 16,19 16,13 C16,10 14,8 12,6 C10,8 8,10 8,13 C8,19 12,23 12,23 Z M12,21 C10,19 10,15 10,13 C10,11 11,10 12,9 C13,10 14,11 14,13 C14,15 14,19 12,21 Z"/>
 </vector>

@@ -1,10 +1,10 @@
-<!-- Total / TotalEnergies: hexagon (placeholder; no CC0 SVG found) -->
+<!-- TotalEnergies: hexagon, brand green (CC0-style shape) -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
   <path
-      android:fillColor="#FFFFFF"
+      android:fillColor="#004638"
       android:pathData="M12,2 L21,7 L21,17 L12,22 L3,17 L3,7 Z"/>
 </vector>
