@@ -375,7 +375,7 @@ Julius supports multiple AI agents, each with different capabilities, pricing mo
 - State handling: `ConversationStore.kt`
 
 **Testing Android Auto:**
-- Use Android Auto Desktop Head Unit (AA Desktop Head Unit)
+- Use Android Auto Desktop Head Unit (AA Desktop Head Unit) — see `docs/ANDROID_AUTO_DHU_DEBUG.md` for a step‑by‑step DHU + debugger setup using `scripts/run-dhu.sh`.
 - Or deploy to a physical device with Android Auto support
 
 **Running on a physical car (phone-projected Android Auto):**  

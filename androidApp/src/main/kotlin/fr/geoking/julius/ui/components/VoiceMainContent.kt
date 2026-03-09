@@ -41,8 +41,9 @@ fun VoiceMainContent(
 ) {
     val displayText by remember {
         derivedStateOf {
-            when (state.status) {
-                VoiceEvent.Listening -> state.currentTranscript
+            when {
+                state.currentTranscript.isNotBlank() -> state.currentTranscript
+                state.status == VoiceEvent.Listening -> "Listening..."
                 else -> state.messages.lastOrNull()?.text ?: "Hi, how can I help?"
             }
         }

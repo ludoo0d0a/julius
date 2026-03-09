@@ -47,7 +47,8 @@ open class ConversationStore(
     private val scope: CoroutineScope,
     private val agent: ConversationalAgent, // Swapped ChatService for Agent
     private val voiceManager: VoiceManager,
-    private val actionExecutor: ActionExecutor? = null
+    private val actionExecutor: ActionExecutor? = null,
+    private val initialSpeechLanguageTag: String? = null
 ) {
     private val _state = MutableStateFlow(ConversationState())
     val state: StateFlow<ConversationState> = _state.asStateFlow()
@@ -56,7 +57,7 @@ open class ConversationStore(
     
     // Configurable prompt or context
     var systemPrompt: String = "You are a helpful driving assistant. Keep answers short."
-    private var preferredSpeechLanguageTag: String? = null
+    private var preferredSpeechLanguageTag: String? = initialSpeechLanguageTag
 
     init {
         voiceManager.events.onEach { event ->

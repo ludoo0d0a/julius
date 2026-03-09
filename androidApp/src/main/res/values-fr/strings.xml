@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Julius</string>
-    <string name="hi_how_can_i_help">Hi, how can I help?</string>
+    <string name="hi_how_can_i_help">Bonjour, comment puis-je vous aider ?</string>
 </resources>
+

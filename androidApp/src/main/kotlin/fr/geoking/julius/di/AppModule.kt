@@ -30,6 +30,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
+import java.util.Locale
 
 // Wrapper to switch agents at runtime without Koin reload
 class DynamicAgentWrapper(
@@ -157,7 +158,28 @@ val appModule = module {
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             agent = get(),
             voiceManager = get(),
-            actionExecutor = get()
+            actionExecutor = get(),
+            initialSpeechLanguageTag = resolveInitialSpeechLanguageTag()
         )
+    }
+}
+
+private fun resolveInitialSpeechLanguageTag(): String {
+    val locale = Locale.getDefault()
+    val lang = locale.language.lowercase(Locale.ROOT)
+    return when (lang) {
+        "en",
+        "fr",
+        "es",
+        "de",
+        "it",
+        "pt",
+        "ar",
+        "ja",
+        "ko",
+        "zh",
+        "ru",
+        "hi" -> lang
+        else -> "en"
     }
 }

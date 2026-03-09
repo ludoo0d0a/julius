@@ -109,7 +109,8 @@ class MainScreen(
                 lastError = state.lastError
                 currentText = when {
                     state.lastError != null -> state.lastError!!.message
-                    state.status == VoiceEvent.Listening -> state.currentTranscript.ifBlank { "Listening..." }
+                    state.currentTranscript.isNotBlank() -> state.currentTranscript
+                    state.status == VoiceEvent.Listening -> "Listening..."
                     else -> state.messages.lastOrNull()?.text ?: "Tap mic to start"
                 }
 
