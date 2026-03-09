@@ -4,6 +4,7 @@ import fr.geoking.julius.shared.NetworkException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.encodeURLParameter
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -39,7 +40,8 @@ class EtalabClient(
         // ODSQL: within_distance(geo_field, GEOM'POINT(lng lat)', Xkm)
         // POINT is (longitude, latitude) in WGS84.
         val where = "within_distance(geolocation, geom'POINT($longitude $latitude)', ${radiusKm}km)"
-        val url = "$baseUrl/records?where=${java.net.URLEncoder.encode(where, "UTF-8")}&limit=$limit"
+        val encodedWhere = where.encodeURLParameter()
+        val url = "$baseUrl/records?where=$encodedWhere&limit=$limit"
 
         val response = client.get(url)
         val body = response.bodyAsText()
