@@ -280,7 +280,7 @@ class MainScreen(
                     .setIcon(
                         CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_swap_horiz)).build()
                     )
-                    .setTitle("Next model")
+                    .setTitle(settingsManager.settings.value.selectedAgent.name)
                     .setOnClickListener { cycleToNextAgent() }
                     .build()
             )
@@ -382,7 +382,7 @@ class MainScreen(
         paneBuilder.addAction(
             Action.Builder()
                 .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_swap_horiz)).build())
-                .setTitle("Next model")
+                .setTitle(settingsManager.settings.value.selectedAgent.name)
                 .setOnClickListener { cycleToNextAgent() }
                 .build()
         )
