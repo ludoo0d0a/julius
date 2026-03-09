@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
@@ -79,6 +80,8 @@ fun MapScreen(
     store: ConversationStore,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     val context = LocalContext.current
     var pois by remember { mutableStateOf<List<Poi>>(emptyList()) }
     var mapErrorMessage by remember { mutableStateOf<String?>(null) }
