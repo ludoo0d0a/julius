@@ -80,10 +80,12 @@ fun MapScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    var pois by remember { mutableStateOf<List<Poi>>(emptyList()) }
-    var mapErrorMessage by remember { mutableStateOf<String?>(null) }
     val settings by settingsManager.settings.collectAsState()
     val selectedProvider = settings.selectedPoiProvider
+    var pois by remember { mutableStateOf<List<Poi>>(emptyList()) }
+    var mapErrorMessage by remember(selectedProvider) { mutableStateOf<String?>(null) }
+    var isErrorPaused by remember(selectedProvider) { mutableStateOf(false) }
+    var retryCount by remember { mutableStateOf(0) }
     var providerDropdownExpanded by remember { mutableStateOf(false) }
 
     var hasLocationPermission by remember {
@@ -115,10 +117,12 @@ fun MapScreen(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(selectedProvider, cameraPositionState.position, mapSizePx) {
+    LaunchedEffect(selectedProvider, cameraPositionState.position, mapSizePx, retryCount) {
         if (!hasLocationPermission) {
             launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
+        if (isErrorPaused) return@LaunchedEffect
+
         mapErrorMessage = null
         val center = cameraPositionState.position.target
         val centerLat = center.latitude
@@ -132,6 +136,7 @@ fun MapScreen(
         } catch (e: Exception) {
             val msg = e.message?.takeIf { it.isNotBlank() } ?: e.toString()
             mapErrorMessage = msg
+            isErrorPaused = true
             store.recordError((e as? fr.geoking.julius.shared.NetworkException)?.httpCode, "Map ($selectedProvider): $msg")
             pois = emptyList()
         }
@@ -214,12 +219,35 @@ fun MapScreen(
                     color = MaterialTheme.colorScheme.errorContainer,
                     shadowElevation = 2.dp
                 ) {
-                    Text(
-                        text = msg,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = msg,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            fontSize = 14.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Button(
+                            onClick = {
+                                mapErrorMessage = null
+                                isErrorPaused = false
+                                retryCount++
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError
+                            ),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Text("Retry", fontSize = 12.sp)
+                        }
+                    }
                 }
             }
             Box(
