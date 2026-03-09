@@ -77,7 +77,7 @@ configure<ApplicationExtension> {
             dimension = "distribution"
             buildConfigField("boolean", "CAR_USE_SURFACE", "false")
         }
-        create("full") {
+        create("phone") {
             dimension = "distribution"
             buildConfigField("boolean", "CAR_USE_SURFACE", "true")
         }

@@ -149,7 +149,7 @@ class MainScreen(
     override fun onGetTemplate(): Template {
         return try {
             // NavigationTemplate CANNOT be wrapped in TabTemplate.
-            // If we are in Navigation mode (full build), we return NavigationTemplate directly.
+            // If we are in Navigation mode (phone build), we return NavigationTemplate directly.
             if (BuildConfig.CAR_USE_SURFACE && !useFallback) {
                 surfaceCallback?.let { appManager.setSurfaceCallback(it) }
                 scheduleFallbackIfNoSurface()

@@ -1,6 +1,8 @@
 ## Debugging Android Auto with DHU
 
-This guide explains how to debug the **Android Auto `fullDebug` flavor** of Julius using the **Android Auto Desktop Head Unit (DHU)** and the helper script `scripts/run-dhu.sh`.
+This guide explains how to debug the **Android Auto `phoneDebug` flavor** of Julius using the **Android Auto Desktop Head Unit (DHU)** and the helper script `scripts/run-dhu.sh`.
+
+**Quick start (play flavor + USB device):** Use `scripts/debug-play-dhu.sh` to run all checks, build/install `playDebug`, and start DHU in one go. See script help: `./scripts/debug-play-dhu.sh --help`.
 
 ### 1. Prerequisites
 
@@ -19,18 +21,18 @@ This guide explains how to debug the **Android Auto `fullDebug` flavor** of Juli
 
 ### 2. Build and install the Android Auto flavor
 
-Julius uses a dedicated **`full` flavor** for Android Auto (it includes car-specific permissions like `ACCESS_SURFACE`, `NAVIGATION_TEMPLATES`).
+Julius uses a dedicated **`phone` flavor** for Android Auto (it includes car-specific permissions like `ACCESS_SURFACE`, `NAVIGATION_TEMPLATES`).
 
 - **Option A – Android Studio**
   - In the **Build Variants** panel, select:
-    - Module `androidApp` → Variant **`fullDebug`**
+    - Module `androidApp` → Variant **`phoneDebug`**
   - Pick your **physical phone** as the run target.
   - Click **Run** to install and start the app on the device.
 
 - **Option B – CLI**
 
 ```bash
-./gradlew :androidApp:installFullDebug
+./gradlew :androidApp:installPhoneDebug
 ```
 
 Then unlock the phone and start Julius once so the system does not put it to sleep.
@@ -89,14 +91,14 @@ You can pass any DHU `.ini` config file via `-c` to match your monitor resolutio
 Once DHU is running and the phone is connected:
 
 1. **Start Julius on the phone**
-   - Ensure the **`fullDebug`** build is installed (see section 2).
+   - Ensure the **`phoneDebug`** build is installed (see section 2).
    - Open Julius once so Android Auto knows about it.
 2. **Start an Android Auto session in DHU**
    - With DHU running, the phone should detect a “car” connection.
    - Android Auto should appear inside the DHU window.
 3. **Attach Android Studio debugger**
    - In Android Studio, select your **phone** as the target device.
-   - Use **Run → Attach Debugger to Android Process…** and pick the Julius process (the `fullDebug` build).
+   - Use **Run → Attach Debugger to Android Process…** and pick the Julius process (the `phoneDebug` build).
    - Interact with Julius via the DHU window; breakpoints in:
      - `VoiceAppService`
      - `VoiceSession`
@@ -105,7 +107,7 @@ Once DHU is running and the phone is connected:
 
 ### 5. Quick recap
 
-- **Build/install** `fullDebug` on your phone.
+- **Build/install** `phoneDebug` on your phone.
 - **Enable** Android Auto developer mode + unknown sources.
 - **Start DHU** via:
   - `./scripts/run-dhu.sh` (USB), or

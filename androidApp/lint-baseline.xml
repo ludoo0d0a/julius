@@ -406,7 +406,7 @@
         errorLine1="        &lt;service"
         errorLine2="         ~~~~~~~">
         <location
-            file="src/full/AndroidManifest.xml"
+            file="src/phone/AndroidManifest.xml"
             line="9"
             column="10"/>
     </issue>

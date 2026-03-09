@@ -382,10 +382,10 @@ Julius supports multiple AI agents, each with different capabilities, pricing mo
 Sideloaded/debug builds are hidden from the car launcher unless you allow non-Play apps:
 
 1. **Build the right variant**  
-   Use the **full** flavor so the app has car permissions (`ACCESS_SURFACE`, `NAVIGATION_TEMPLATES`). In Android Studio: **Build > Select Build Variant** → choose `fullDebug` (or `fullRelease` with your keystore). Then install to the phone (Run or `./gradlew :androidApp:installFullDebug`).
+   Use the **phone** flavor so the app has car permissions (`ACCESS_SURFACE`, `NAVIGATION_TEMPLATES`). In Android Studio: **Build > Select Build Variant** → choose `phoneDebug` (or `phoneRelease` with your keystore). Then install to the phone (Run or `./gradlew :androidApp:installPhoneDebug`).
 
 2. **Signing**  
-   Debug builds are signed with the debug keystore automatically; no extra config needed for development. For release, configure `signingConfigs` in `androidApp/build.gradle.kts` and use `fullRelease`.
+   Debug builds are signed with the debug keystore automatically; no extra config needed for development. For release, configure `signingConfigs` in `androidApp/build.gradle.kts` and use `phoneRelease`.
 
 3. **Enable Android Auto developer mode (on the phone)**  
    - Open **Settings** → search for **Android Auto** (or **Settings > Apps > Android Auto >** “Configure in Android Auto” / “Additional settings”).  
