@@ -1,0 +1,128 @@
+package fr.geoking.julius.auto
+
+import androidx.car.app.CarContext
+import androidx.car.app.Screen
+import androidx.car.app.model.Action
+import androidx.car.app.model.ActionStrip
+import androidx.car.app.model.ItemList
+import androidx.car.app.model.ListTemplate
+import androidx.car.app.model.MessageTemplate
+import androidx.car.app.model.Row
+import androidx.car.app.model.Template
+import androidx.lifecycle.lifecycleScope
+import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.ui.LocalModelHelper
+import fr.geoking.julius.ui.LocalModelVariant
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+/**
+ * Android Auto screen to download a Llamatik GGUF model. Shown from Settings when agent is Local.
+ */
+class AutoLocalModelScreen(
+    carContext: CarContext,
+    private val settingsManager: SettingsManager
+) : Screen(carContext) {
+
+    private val helper = LocalModelHelper(carContext.applicationContext)
+
+    /** When non-null, we are downloading this variant and show progress. */
+    private var downloadVariant: LocalModelVariant? = null
+    private var downloadBytes: Long = 0L
+    private var downloadTotal: Long? = null
+    private var downloadError: String? = null
+
+    override fun onGetTemplate(): Template {
+        val settings = settingsManager.settings.value
+
+        // Show progress or error message while downloading
+        downloadVariant?.let { variant ->
+            val progressText = when {
+                downloadError != null -> "Error: $downloadError"
+                downloadTotal != null && downloadTotal!! > 0 -> {
+                    val pct = (100 * downloadBytes / downloadTotal!!).toInt()
+                    "Downloading ${variant.displayName}… $pct%"
+                }
+                else -> "Downloading ${variant.displayName}… ${downloadBytes / (1024 * 1024)} MB"
+            }
+            return MessageTemplate.Builder(progressText)
+                .setTitle("Llamatik model")
+                .setHeaderAction(Action.BACK)
+                .setActionStrip(
+                    ActionStrip.Builder().addAction(
+                        Action.Builder().setTitle("Cancel").setOnClickListener {
+                            downloadVariant = null
+                            downloadError = null
+                            invalidate()
+                        }.build()
+                    ).build()
+                )
+                .build()
+        }
+
+        val listBuilder = ItemList.Builder()
+        for (variant in LocalModelVariant.entries) {
+            val isDownloaded = helper.isVariantDownloaded(variant)
+            val subtitle = if (isDownloaded) "Downloaded" else variant.sizeDescription
+            listBuilder.addItem(
+                Row.Builder()
+                    .setTitle(variant.displayName)
+                    .addText(subtitle)
+                    .setOnClickListener {
+                        if (isDownloaded) {
+                            // Select this variant and update path
+                            val path = helper.getDownloadDestinationPath(variant)
+                            settingsManager.saveSettings(
+                                settings.copy(
+                                    localModelPath = path,
+                                    selectedLocalModelVariant = variant.name
+                                )
+                            )
+                            screenManager.pop()
+                        } else {
+                            downloadError = null
+                            downloadVariant = variant
+                            downloadBytes = 0L
+                            downloadTotal = null
+                            invalidate()
+                            lifecycleScope.launch {
+                                val result = helper.download(variant) { bytes, total ->
+                                    lifecycleScope.launch(Dispatchers.Main) {
+                                        downloadBytes = bytes
+                                        downloadTotal = total
+                                        invalidate()
+                                    }
+                                }
+                                withContext(Dispatchers.Main) {
+                                    downloadVariant = null
+                                    result.fold(
+                                        onSuccess = { path ->
+                                            val current = settingsManager.settings.value
+                                            settingsManager.saveSettings(
+                                                current.copy(
+                                                    localModelPath = path,
+                                                    selectedLocalModelVariant = variant.name
+                                                )
+                                            )
+                                        },
+                                        onFailure = { e ->
+                                            downloadError = e.message ?: "Download failed"
+                                        }
+                                    )
+                                    invalidate()
+                                }
+                            }
+                        }
+                    }
+                    .build()
+            )
+        }
+
+        return ListTemplate.Builder()
+            .setSingleList(listBuilder.build())
+            .setTitle("Download model (Llamatik)")
+            .setHeaderAction(Action.BACK)
+            .build()
+    }
+}

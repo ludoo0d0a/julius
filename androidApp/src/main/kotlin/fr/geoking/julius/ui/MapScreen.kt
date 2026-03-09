@@ -341,15 +341,30 @@ private fun PoiDetailCard(
     onShowDetails: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val siteName = poi.siteName?.takeIf { it.isNotBlank() } ?: poi.name
-    val addressForTitle = poi.addressLocal?.takeIf { it.isNotBlank() } ?: poi.address.takeIf { it.isNotBlank() }
-    val addressLines = buildList {
+    val rawSiteName = poi.siteName?.takeIf { it.isNotBlank() } ?: poi.name
+    val isGenericName = rawSiteName.isBlank() ||
+        rawSiteName.equals("Gas station", ignoreCase = true) ||
+        rawSiteName.equals("Station", ignoreCase = true)
+    val brandInfo = BrandHelper.getBrandInfo(poi.brand)
+    val locationSummary = buildList {
         listOf(poi.townLocal, poi.postcode).filter { !it.isNullOrBlank() }.joinToString(", ").takeIf { it.isNotBlank() }?.let { add(it) }
         poi.countryLocal?.takeIf { it.isNotBlank() }?.let { add(it) }
-        if (isEmpty() && addressForTitle == null && poi.address.isNotBlank()) add(poi.address)
+    }.joinToString(", ").takeIf { it.isNotBlank() }
+    val streetAddress = poi.addressLocal?.takeIf { it.isNotBlank() } ?: poi.address.takeIf { it.isNotBlank() }
+    val displayTitle = when {
+        !isGenericName -> rawSiteName
+        brandInfo != null && !locationSummary.isNullOrBlank() -> "${brandInfo.displayName} – $locationSummary"
+        brandInfo != null && !streetAddress.isNullOrBlank() -> "${brandInfo.displayName} – ${streetAddress.take(40)}${if (streetAddress.length > 40) "…" else ""}"
+        brandInfo != null -> brandInfo.displayName
+        !locationSummary.isNullOrBlank() -> locationSummary
+        !streetAddress.isNullOrBlank() -> streetAddress.take(50).let { if (streetAddress.length > 50) "$it…" else it }
+        else -> "%.4f, %.4f".format(poi.latitude, poi.longitude)
     }
-    val brandInfo = BrandHelper.getBrandInfo(poi.brand)
-    val hasLocation = !addressForTitle.isNullOrBlank() || addressLines.isNotEmpty()
+    val addressLines = buildList {
+        if (!streetAddress.isNullOrBlank()) add(streetAddress)
+        if (!locationSummary.isNullOrBlank() && locationSummary != streetAddress) add(locationSummary)
+        if (isEmpty()) add("%.4f, %.4f".format(poi.latitude, poi.longitude))
+    }
 
     Card(
         modifier = modifier.widthIn(min = 300.dp, max = 360.dp),
@@ -390,54 +405,47 @@ private fun PoiDetailCard(
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = siteName,
+                        text = displayTitle,
                         color = Color.White,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     brandInfo?.let { info ->
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = info.displayName,
-                            color = Color.White.copy(alpha = 0.75f),
-                            fontSize = 13.sp
-                        )
+                        if (isGenericName || !displayTitle.startsWith(info.displayName, ignoreCase = true)) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = info.displayName,
+                                color = Color.White.copy(alpha = 0.75f),
+                                fontSize = 13.sp
+                            )
+                        }
                     }
                 }
             }
 
-            // Location block
-            if (hasLocation) {
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = Color.White.copy(alpha = 0.15f))
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    verticalAlignment = Alignment.Top,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = Color.White.copy(alpha = 0.6f)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        if (!addressForTitle.isNullOrBlank()) {
-                            Text(
-                                text = addressForTitle,
-                                color = Color.White.copy(alpha = 0.95f),
-                                fontSize = 14.sp
-                            )
-                            if (addressLines.isNotEmpty()) Spacer(modifier = Modifier.height(2.dp))
-                        }
-                        addressLines.forEach { line ->
-                            Text(
-                                text = line,
-                                color = Color.White.copy(alpha = 0.8f),
-                                fontSize = 13.sp
-                            )
-                        }
+            // Location block – always shown (address, town/postcode/country, or coordinates)
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(color = Color.White.copy(alpha = 0.15f))
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                verticalAlignment = Alignment.Top,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = Color.White.copy(alpha = 0.6f)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    addressLines.forEachIndexed { index, line ->
+                        Text(
+                            text = line,
+                            color = Color.White.copy(alpha = 0.95f),
+                            fontSize = 14.sp
+                        )
+                        if (index < addressLines.lastIndex) Spacer(modifier = Modifier.height(2.dp))
                     }
                 }
             }

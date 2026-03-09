@@ -109,7 +109,8 @@ class MainScreen(
                 lastError = state.lastError
                 currentText = when {
                     state.lastError != null -> state.lastError!!.message
-                    state.status == VoiceEvent.Listening -> state.currentTranscript.ifBlank { "Listening..." }
+                    state.currentTranscript.isNotBlank() -> state.currentTranscript
+                    state.status == VoiceEvent.Listening -> "Listening..."
                     else -> {
                         val userName = settingsManager.settings.value.googleUserName
                         val defaultGreeting = if (userName != null) "Hello $userName, how can I help?" else "Tap mic to start"
@@ -152,7 +153,7 @@ class MainScreen(
     override fun onGetTemplate(): Template {
         return try {
             // NavigationTemplate CANNOT be wrapped in TabTemplate.
-            // If we are in Navigation mode (full build), we return NavigationTemplate directly.
+            // If we are in Navigation mode (phone build), we return NavigationTemplate directly.
             if (BuildConfig.CAR_USE_SURFACE && !useFallback) {
                 surfaceCallback?.let { appManager.setSurfaceCallback(it) }
                 scheduleFallbackIfNoSurface()
@@ -283,7 +284,7 @@ class MainScreen(
                     .setIcon(
                         CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_swap_horiz)).build()
                     )
-                    .setTitle("Next model")
+                    .setTitle(settingsManager.settings.value.selectedAgent.name)
                     .setOnClickListener { cycleToNextAgent() }
                     .build()
             )
@@ -385,7 +386,7 @@ class MainScreen(
         paneBuilder.addAction(
             Action.Builder()
                 .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_swap_horiz)).build())
-                .setTitle("Next model")
+                .setTitle(settingsManager.settings.value.selectedAgent.name)
                 .setOnClickListener { cycleToNextAgent() }
                 .build()
         )

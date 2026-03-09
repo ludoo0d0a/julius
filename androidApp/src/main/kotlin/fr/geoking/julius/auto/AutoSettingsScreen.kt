@@ -3,6 +3,7 @@ package fr.geoking.julius.auto
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.*
+import fr.geoking.julius.AgentType
 import fr.geoking.julius.SettingsManager
 
 class AutoSettingsScreen(
@@ -34,6 +35,18 @@ class AutoSettingsScreen(
                 }
                 .build()
         )
+
+        if (settings.selectedAgent == AgentType.Local) {
+            listBuilder.addItem(
+                Row.Builder()
+                    .setTitle("Download model (Llamatik)")
+                    .addText("Download GGUF model for offline use")
+                    .setOnClickListener {
+                        screenManager.push(AutoLocalModelScreen(carContext, settingsManager))
+                    }
+                    .build()
+            )
+        }
 
         listBuilder.addItem(
             Row.Builder()

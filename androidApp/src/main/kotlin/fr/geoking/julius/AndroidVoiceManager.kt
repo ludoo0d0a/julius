@@ -3,6 +3,7 @@ package fr.geoking.julius
 import android.content.Context
 import android.content.Intent
 import android.media.MediaPlayer
+import android.util.Log
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -42,6 +43,13 @@ class AndroidVoiceManager(
     private val context: Context
 ) : VoiceManager, RecognitionListener, TextToSpeech.OnInitListener {
 
+    companion object {
+        private const val TAG = "Julius/Voice"
+        private const val BARGE_IN_RESTART_DELAY_MS = 250L
+        private const val RMS_LOG_INTERVAL = 20
+        private const val BUFFER_LOG_INTERVAL = 50
+    }
+
     private val _events = MutableStateFlow(VoiceEvent.Silence)
     override val events: StateFlow<VoiceEvent> = _events.asStateFlow()
 
@@ -61,6 +69,8 @@ class AndroidVoiceManager(
     private var isRecognizerActive: Boolean = false
     private var isBargeInActive: Boolean = false
     private var bargeInRestartScheduled: Boolean = false
+    private var rmsCallCount: Int = 0
+    private var bufferCallCount: Int = 0
 
     private val player = object : SimpleBasePlayer(context.mainLooper) {
         fun notifyStateChanged() {
@@ -246,10 +256,12 @@ class AndroidVoiceManager(
     }
 
     override fun startListening() {
+        Log.d(TAG, "mic on: startListening()")
         startListeningInternal(stopOutputs = true, bargeIn = false)
     }
 
     override fun stopListening() {
+        Log.d(TAG, "mic off: stopListening()")
         mainHandler.post {
             speechRecognizer?.stopListening()
             isRecognizerActive = false
@@ -292,7 +304,13 @@ class AndroidVoiceManager(
 
     override fun stopSpeaking() {
         tts?.stop()
-        mediaPlayer?.stop()
+        try {
+            if (mediaPlayer?.isPlaying == true) {
+                mediaPlayer?.stop()
+            }
+        } catch (e: IllegalStateException) {
+            e.printStackTrace()
+        }
         stopBargeInListening()
         _events.value = VoiceEvent.Silence
         player.notifyStateChanged()
@@ -340,10 +358,20 @@ class AndroidVoiceManager(
 
     private fun startListeningInternal(stopOutputs: Boolean, bargeIn: Boolean) {
         val intent = buildRecognizerIntent()
+        Log.d(TAG, "startListeningInternal stopOutputs=$stopOutputs bargeIn=$bargeIn")
         mainHandler.post {
-            val recognizer = getOrCreateRecognizer() ?: return@post
+            val recognizer = getOrCreateRecognizer() ?: run {
+                Log.e(TAG, "getOrCreateRecognizer() returned null, cannot start")
+                return@post
+            }
             if (stopOutputs) {
-                mediaPlayer?.stop()
+                try {
+                    if (mediaPlayer?.isPlaying == true) {
+                        mediaPlayer?.stop()
+                    }
+                } catch (e: IllegalStateException) {
+                    e.printStackTrace()
+                }
                 tts?.stop()
             }
             if (isRecognizerActive) {
@@ -359,8 +387,11 @@ class AndroidVoiceManager(
             isRecognizerActive = true
             isBargeInActive = bargeIn
             bargeInRestartScheduled = false
+            rmsCallCount = 0
+            bufferCallCount = 0
             _partialText.value = ""
             _transcribedText.value = ""
+            Log.d(TAG, "SpeechRecognizer.startListening() called")
             recognizer.startListening(intent)
             if (!bargeIn) {
                 _events.value = VoiceEvent.Listening
@@ -412,6 +443,7 @@ class AndroidVoiceManager(
 
     // RecognitionListener
     override fun onReadyForSpeech(params: Bundle?) {
+        Log.d(TAG, "onReadyForSpeech: mic ready, listening for speech")
         // Keep Speaking state when listening for barge-in
         if (!(isBargeInActive && _events.value == VoiceEvent.Speaking)) {
             _events.value = VoiceEvent.Listening
@@ -421,21 +453,53 @@ class AndroidVoiceManager(
     override fun onBeginningOfSpeech() {
         if (isBargeInActive && _events.value == VoiceEvent.Speaking) {
             tts?.stop()
-            mediaPlayer?.stop()
+            try {
+                if (mediaPlayer?.isPlaying == true) {
+                    mediaPlayer?.stop()
+                }
+            } catch (e: IllegalStateException) {
+                e.printStackTrace()
+            }
             isBargeInActive = false
         }
-        _events.value = VoiceEvent.Listening 
+        _events.value = VoiceEvent.Listening
         player.notifyStateChanged()
+        Log.d(TAG, "onBeginningOfSpeech: speech detected")
     }
-    override fun onRmsChanged(rmsdB: Float) {}
-    override fun onBufferReceived(buffer: ByteArray?) {}
+    override fun onRmsChanged(rmsdB: Float) {
+        rmsCallCount++
+        if (rmsCallCount <= 3 || rmsCallCount % RMS_LOG_INTERVAL == 0) {
+            Log.d(TAG, "onRmsChanged: rmsdB=$rmsdB (call #$rmsCallCount)")
+        }
+    }
+    override fun onBufferReceived(buffer: ByteArray?) {
+        bufferCallCount++
+        val len = buffer?.size ?: 0
+        if (bufferCallCount <= 3 || bufferCallCount % BUFFER_LOG_INTERVAL == 0) {
+            Log.d(TAG, "onBufferReceived: bytes=$len (call #$bufferCallCount)")
+        }
+    }
     override fun onEndOfSpeech() {
+        Log.d(TAG, "onEndOfSpeech: waiting for final result")
         if (!(isBargeInActive && _events.value == VoiceEvent.Speaking)) {
             _events.value = VoiceEvent.Processing
             player.notifyStateChanged()
         }
     }
     override fun onError(error: Int) {
+        val errorStr = when (error) {
+            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "ERROR_NETWORK_TIMEOUT"
+            SpeechRecognizer.ERROR_NETWORK -> "ERROR_NETWORK"
+            SpeechRecognizer.ERROR_AUDIO -> "ERROR_AUDIO"
+            SpeechRecognizer.ERROR_CLIENT -> "ERROR_CLIENT"
+            SpeechRecognizer.ERROR_NO_MATCH -> "ERROR_NO_MATCH"
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "ERROR_RECOGNIZER_BUSY"
+            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "ERROR_INSUFFICIENT_PERMISSIONS"
+            SpeechRecognizer.ERROR_SERVER -> "ERROR_SERVER"
+            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "ERROR_SPEECH_TIMEOUT"
+            else -> "ERROR_OTHER($error)"
+        }
+        Log.w(TAG, "onError: code=$error $errorStr")
         isRecognizerActive = false
         if (isBargeInActive && _events.value == VoiceEvent.Speaking) {
             scheduleBargeInRestart()
@@ -454,7 +518,8 @@ class AndroidVoiceManager(
         isBargeInActive = false
         val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         val text = matches?.firstOrNull() ?: ""
-        _transcribedText.value = text 
+        Log.d(TAG, "onResults: transcribed text=\"$text\" (confidence/size=${matches?.size ?: 0})")
+        _transcribedText.value = text
         player.notifyStateChanged()
         // Note: ConversationStore observes this flow and triggers processing
     }
@@ -462,11 +527,12 @@ class AndroidVoiceManager(
         if (isBargeInActive && _events.value == VoiceEvent.Speaking) return
         val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         val text = matches?.firstOrNull() ?: ""
+        if (text.isNotBlank()) {
+            Log.d(TAG, "onPartialResults: partial=\"$text\"")
+        }
         _partialText.value = text
     }
-    override fun onEvent(eventType: Int, params: Bundle?) {}
-
-    companion object {
-        private const val BARGE_IN_RESTART_DELAY_MS = 250L
+    override fun onEvent(eventType: Int, params: Bundle?) {
+        Log.d(TAG, "onEvent: eventType=$eventType")
     }
 }

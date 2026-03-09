@@ -375,17 +375,17 @@ Julius supports multiple AI agents, each with different capabilities, pricing mo
 - State handling: `ConversationStore.kt`
 
 **Testing Android Auto:**
-- Use Android Auto Desktop Head Unit (AA Desktop Head Unit)
+- Use Android Auto Desktop Head Unit (AA Desktop Head Unit) — see `docs/ANDROID_AUTO_DHU_DEBUG.md` for a step‑by‑step DHU + debugger setup using `scripts/run-dhu.sh`.
 - Or deploy to a physical device with Android Auto support
 
 **Running on a physical car (phone-projected Android Auto):**  
 Sideloaded/debug builds are hidden from the car launcher unless you allow non-Play apps:
 
 1. **Build the right variant**  
-   Use the **full** flavor so the app has car permissions (`ACCESS_SURFACE`, `NAVIGATION_TEMPLATES`). In Android Studio: **Build > Select Build Variant** → choose `fullDebug` (or `fullRelease` with your keystore). Then install to the phone (Run or `./gradlew :androidApp:installFullDebug`).
+   Use the **phone** flavor so the app has car permissions (`ACCESS_SURFACE`, `NAVIGATION_TEMPLATES`). In Android Studio: **Build > Select Build Variant** → choose `phoneDebug` (or `phoneRelease` with your keystore). Then install to the phone (Run or `./gradlew :androidApp:installPhoneDebug`).
 
 2. **Signing**  
-   Debug builds are signed with the debug keystore automatically; no extra config needed for development. For release, configure `signingConfigs` in `androidApp/build.gradle.kts` and use `fullRelease`.
+   Debug builds are signed with the debug keystore automatically; no extra config needed for development. For release, configure `signingConfigs` in `androidApp/build.gradle.kts` and use `phoneRelease`.
 
 3. **Enable Android Auto developer mode (on the phone)**  
    - Open **Settings** → search for **Android Auto** (or **Settings > Apps > Android Auto >** “Configure in Android Auto” / “Additional settings”).  
