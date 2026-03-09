@@ -48,7 +48,9 @@ data class AppSettings(
     /** Path to local GGUF model: asset-relative (e.g. "models/phi-2.Q4_0.gguf") or absolute path after download. */
     val localModelPath: String = "models/phi-2.Q4_0.gguf",
     /** Selected local model variant for download UI; must match [fr.geoking.julius.ui.LocalModelVariant].name (e.g. Phi2Q4_0). */
-    val selectedLocalModelVariant: String = "Phi2Q4_0"
+    val selectedLocalModelVariant: String = "Phi2Q4_0",
+    val lastJulesRepoId: String = "",
+    val lastJulesRepoName: String = ""
 )
 
 open class SettingsManager(context: Context) {
@@ -72,6 +74,8 @@ open class SettingsManager(context: Context) {
         val completionsMeModel = prefs.getString("completions_me_model", "claude-sonnet-4.5") ?: "claude-sonnet-4.5"
         val apifreellmKey = prefs.getString("apifreellm_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.APIFREELLM_KEY
         val julesKey = prefs.getString("jules_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.JULES_KEY
+        val lastJulesRepoId = prefs.getString("last_jules_repo_id", "") ?: ""
+        val lastJulesRepoName = prefs.getString("last_jules_repo_name", "") ?: ""
 
         // Persist build-time keys (from env/local.properties) when prefs were empty so they show in settings and are reused
         persistBuildTimeKeysIfUsed(
@@ -132,7 +136,9 @@ open class SettingsManager(context: Context) {
                 TextAnimation.Fade
             },
             localModelPath = prefs.getString("local_model_path", "models/phi-2.Q4_0.gguf") ?: "models/phi-2.Q4_0.gguf",
-            selectedLocalModelVariant = prefs.getString("selected_local_model_variant", "Phi2Q4_0") ?: "Phi2Q4_0"
+            selectedLocalModelVariant = prefs.getString("selected_local_model_variant", "Phi2Q4_0") ?: "Phi2Q4_0",
+            lastJulesRepoId = lastJulesRepoId,
+            lastJulesRepoName = lastJulesRepoName
         )
     }
 
@@ -216,6 +222,8 @@ open class SettingsManager(context: Context) {
             .putString("text_animation", settings.textAnimation.name)
             .putString("local_model_path", settings.localModelPath)
             .putString("selected_local_model_variant", settings.selectedLocalModelVariant)
+            .putString("last_jules_repo_id", settings.lastJulesRepoId)
+            .putString("last_jules_repo_name", settings.lastJulesRepoName)
             .apply()
 
         // Update StateFlow immediately with the new values to ensure UI and agent switching update right away
