@@ -1,6 +1,8 @@
 package fr.geoking.julius.agents
 
 import fr.geoking.julius.shared.NetworkException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * LocalAgent - On-device/offline LLM inference using Llamatik
@@ -24,6 +26,7 @@ class LocalAgent(
     private val backend: LlamaBackend? = DefaultLlamaBackend
 ) : ConversationalAgent {
 
+    private val mutex = Mutex()
     private var isModelInitialized = false
     private val systemPrompt = "You are a helpful and concise voice assistant. Provide clear, brief responses suitable for voice interaction."
 
@@ -49,7 +52,7 @@ class LocalAgent(
         }
     }
 
-    override suspend fun process(input: String): AgentResponse {
+    override suspend fun process(input: String): AgentResponse = mutex.withLock {
         val bridge = getBackend()
         try {
             if (!isModelInitialized) {

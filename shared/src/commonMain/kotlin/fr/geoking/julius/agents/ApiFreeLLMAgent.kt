@@ -1,6 +1,7 @@
 package fr.geoking.julius.agents
 
 import fr.geoking.julius.shared.NetworkException
+import fr.geoking.julius.shared.getCurrentTimeMillis
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -8,6 +9,9 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -20,18 +24,32 @@ import kotlinx.serialization.json.Json
 class ApiFreeLLMAgent(
     private val client: HttpClient,
     private val apiKey: String,
-    private val baseUrl: String = "https://apifreellm.com/api/v1"
+    private val baseUrl: String = "https://apifreellm.com/api/v1",
+    override val rateLimitDelayMs: Long = 25000L
 ) : ConversationalAgent {
+
+    private val mutex = Mutex()
+    private var lastRequestStartTime: Long = 0
 
     @Serializable private data class Req(val message: String)
     @Serializable private data class Res(val success: Boolean, val response: String? = null)
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun process(input: String): AgentResponse {
+    override suspend fun process(input: String): AgentResponse = mutex.withLock {
         if (apiKey.isBlank()) {
             throw NetworkException(null, "ApiFreeLLM API key is required. Sign in with Google at apifreellm.com")
         }
+
+        // Enforce rate limit delay
+        val now = getCurrentTimeMillis()
+        val timeSinceLastRequest = now - lastRequestStartTime
+        if (timeSinceLastRequest < rateLimitDelayMs) {
+            val waitTime = rateLimitDelayMs - timeSinceLastRequest
+            delay(waitTime)
+        }
+
+        lastRequestStartTime = getCurrentTimeMillis()
 
         val response = client.post("$baseUrl/chat") {
             header("Authorization", "Bearer $apiKey")

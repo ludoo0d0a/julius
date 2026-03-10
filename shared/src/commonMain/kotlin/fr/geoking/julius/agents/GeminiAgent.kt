@@ -10,6 +10,8 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
@@ -40,6 +42,8 @@ class GeminiAgent(
     private val temperature: Float = 0.7f,
     private val maxOutputTokens: Int = 1024
 ) : ConversationalAgent {
+
+    private val mutex = Mutex()
 
     init {
         // Configure client with JSON serialization if not already configured
@@ -130,7 +134,7 @@ class GeminiAgent(
         isLenient = true
     }
 
-    override suspend fun process(input: String): AgentResponse {
+    override suspend fun process(input: String): AgentResponse = mutex.withLock {
         if (apiKey.isBlank()) {
             throw NetworkException(null, "Gemini API key is required. Please set it in settings.")
         }

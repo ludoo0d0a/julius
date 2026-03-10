@@ -6,6 +6,8 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -15,6 +17,8 @@ class FirebaseAIAgent(
     private val model: String = "gemini-1.5-flash-latest",
     private val baseUrl: String = "https://generativelanguage.googleapis.com/v1beta"
 ) : ConversationalAgent {
+
+    private val mutex = Mutex()
 
     @Serializable
     private data class Part(val text: String)
@@ -39,7 +43,7 @@ class FirebaseAIAgent(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun process(input: String): AgentResponse {
+    override suspend fun process(input: String): AgentResponse = mutex.withLock {
         if (apiKey.isBlank()) {
             return AgentResponse("Firebase AI key is required. Please set it in settings.", null)
         }

@@ -8,6 +8,8 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -16,6 +18,8 @@ class DeepgramAgent(
     private val deepgramKey: String,
     private val baseUrl: String = "https://api.deepgram.com/v1"
 ) : ConversationalAgent {
+
+    private val mutex = Mutex()
 
     @Serializable private data class Msg(val role: String, val content: String)
     @Serializable private data class ChatReq(
@@ -28,7 +32,7 @@ class DeepgramAgent(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun process(input: String): AgentResponse {
+    override suspend fun process(input: String): AgentResponse = mutex.withLock {
         if (deepgramKey.isBlank()) {
             throw NetworkException(null, "Deepgram API key is required. Please set it in settings.")
         }
