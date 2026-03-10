@@ -28,6 +28,7 @@ import fr.geoking.julius.FractalColorIntensity
 import fr.geoking.julius.FractalQuality
 import fr.geoking.julius.IaModel
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.GoogleAuthManager
 import fr.geoking.julius.providers.PoiProviderType
 import fr.geoking.julius.TextAnimation
 import fr.geoking.julius.BuildConfig
