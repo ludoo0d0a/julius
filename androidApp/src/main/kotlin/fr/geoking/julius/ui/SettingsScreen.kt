@@ -6,18 +6,22 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -744,29 +748,82 @@ private fun ConfigTextField(
 @Composable
 private fun ErrorLog(errorLog: List<DetailedError>) {
     val scrollState = rememberScrollState()
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(24.dp)
-    ) {
-        if (errorLog.isEmpty()) {
-            Text("No errors recorded", color = Lavender, fontSize = 18.sp)
-        } else {
-            errorLog.reversed().forEach { error ->
-                val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(error.timestamp))
-                val httpCode = error.httpCode?.let { "HTTP $it" } ?: "Generic"
+    val clipboardManager = LocalClipboardManager.current
+    val reversedLog = remember(errorLog) { errorLog.reversed() }
 
-                Column(
+    SelectionContainer {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(24.dp)
+        ) {
+            if (reversedLog.isEmpty()) {
+                Text("No errors recorded", color = Lavender, fontSize = 18.sp)
+            } else {
+                Button(
+                    onClick = {
+                        val allErrors = reversedLog.joinToString("\n\n") { error ->
+                            val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(error.timestamp))
+                            val httpCode = error.httpCode?.let { "HTTP $it" } ?: "Generic"
+                            "[$timestamp] $httpCode\n${error.message}"
+                        }
+                        clipboardManager.setText(AnnotatedString(allErrors))
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                        .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-                        .padding(16.dp)
+                        .padding(bottom = 16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Lavender,
+                        contentColor = DeepPurple
+                    )
                 ) {
-                    Text(text = "[$timestamp] $httpCode", color = Lavender, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = error.message, color = Color.White, fontSize = 16.sp)
+                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Copy All Logs")
+                }
+
+                reversedLog.forEach { error ->
+                    val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(error.timestamp))
+                    val httpCode = error.httpCode?.let { "HTTP $it" } ?: "Generic"
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                            .padding(16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Text(
+                                text = "[$timestamp] $httpCode",
+                                color = Lavender,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(
+                                onClick = {
+                                    val errorText = "[$timestamp] $httpCode\n${error.message}"
+                                    clipboardManager.setText(AnnotatedString(errorText))
+                                },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.ContentCopy,
+                                    contentDescription = "Copy error",
+                                    tint = Lavender,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(text = error.message, color = Color.White, fontSize = 16.sp)
+                    }
                 }
             }
         }
