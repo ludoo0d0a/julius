@@ -108,6 +108,7 @@ val appModule = module {
 
     single { JulesClient(get()) }
     single { SettingsManager(androidContext()) }
+    single { fr.geoking.julius.GoogleAuthManager(androidContext(), get(), get()) }
     
     // Use the dynamic wrapper instead of a static agent
     single<ConversationalAgent> {

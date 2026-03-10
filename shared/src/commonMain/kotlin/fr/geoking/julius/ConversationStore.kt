@@ -57,6 +57,7 @@ open class ConversationStore(
     
     // Configurable prompt or context
     var systemPrompt: String = "You are a helpful driving assistant. Keep answers short."
+    var userName: String? = null
     private var preferredSpeechLanguageTag: String? = initialSpeechLanguageTag
 
     init {
@@ -196,6 +197,9 @@ open class ConversationStore(
             if (prompt.isNotBlank()) {
                 append("System: ")
                 append(prompt)
+                if (userName != null) {
+                    append(" The user's name is $userName.")
+                }
                 append("\n\n")
             }
             if (history.isNotBlank()) {

@@ -86,6 +86,7 @@ class MainActivity : ComponentActivity() {
         try {
             val store: ConversationStore = get()
             val settingsManager: SettingsManager = get()
+            val authManager: GoogleAuthManager = get()
             val permissionManager: PermissionManager = get()
             val poiProvider: PoiProvider = get()
             val julesClient: JulesClient = get()
@@ -102,6 +103,7 @@ class MainActivity : ComponentActivity() {
                     state = state,
                     store = store,
                     settingsManager = settingsManager,
+                    authManager = authManager,
                     poiProvider = poiProvider,
                     julesClient = julesClient,
                     inAppUpdateHelper = inAppUpdateHelper,
@@ -125,6 +127,7 @@ fun MainUI(
     state: ConversationState,
     store: ConversationStore,
     settingsManager: SettingsManager,
+    authManager: GoogleAuthManager,
     poiProvider: PoiProvider,
     julesClient: JulesClient,
     inAppUpdateHelper: InAppUpdateHelper? = null,
@@ -162,7 +165,7 @@ fun MainUI(
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when {
                 showSettings -> {
-                    SettingsScreen(settingsManager, state.errorLog) { showSettings = false }
+                    SettingsScreen(settingsManager, authManager, state.errorLog) { showSettings = false }
                 }
                 showMap -> {
                     MapScreen(
@@ -248,10 +251,14 @@ fun MainUIPreview() {
     val mockStore = rememberMockStore()
     val mockSettingsManager = rememberMockSettingsManager()
 
+    val context = LocalContext.current
+    val mockAuthManager = remember { GoogleAuthManager(context, mockSettingsManager, mockStore) }
+
     MainUI(
         state = mockState,
         store = mockStore,
         settingsManager = mockSettingsManager,
+        authManager = mockAuthManager,
         poiProvider = remember { MockPoiProvider() },
         julesClient = remember { JulesClient(HttpClient(OkHttp) {}) }
     )
