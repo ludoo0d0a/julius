@@ -32,6 +32,7 @@ import fr.geoking.julius.FractalColorIntensity
 import fr.geoking.julius.FractalQuality
 import fr.geoking.julius.IaModel
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.GoogleAuthManager
 import fr.geoking.julius.providers.PoiProviderType
 import fr.geoking.julius.TextAnimation
 import fr.geoking.julius.BuildConfig
@@ -66,6 +67,7 @@ private val SeparatorColor = Color(0xFF2D2D44)
 @Composable
 fun SettingsScreen(
     settingsManager: SettingsManager,
+    authManager: GoogleAuthManager,
     errorLog: List<DetailedError>,
     onDismiss: () -> Unit
 ) {
@@ -112,6 +114,7 @@ fun SettingsScreen(
                 when (currentScreen) {
                     Screen.Main -> MainMenu(
                         settings = current,
+                        authManager = authManager,
                         onNavigate = { currentScreen = it },
                         onToggleExtendedActions = {
                             save(settingsManager, current.copy(extendedActionsEnabled = it))
@@ -196,17 +199,78 @@ private fun SettingsHeader(title: String, onBack: () -> Unit) {
 @Composable
 private fun MainMenu(
     settings: AppSettings,
+    authManager: GoogleAuthManager,
     onNavigate: (Screen) -> Unit,
     onToggleExtendedActions: (Boolean) -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(top = 16.dp)
-    ) {
-        SettingsItem(
-            label = "Theme",
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(top = 16.dp)
+        ) {
+            // Google Auth Section
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+                    .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (settings.isLoggedIn) "Hello, ${settings.googleUserName}" else "Not signed in",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = if (settings.isLoggedIn) "Google Account connected" else "Sign in to sync your profile",
+                        color = Lavender.copy(alpha = 0.7f),
+                        fontSize = 14.sp
+                    )
+                }
+                if (settings.isLoggedIn) {
+                    TextButton(onClick = {
+                        authManager.signOut { success ->
+                            if (!success) {
+                                scope.launch { snackbarHostState.showSnackbar("Sign out failed") }
+                            }
+                        }
+                    }) {
+                        Text("Sign Out", color = Color(0xFFFF6B6B))
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            authManager.signIn(context) { success, error ->
+                                if (!success) {
+                                    scope.launch { snackbarHostState.showSnackbar(error ?: "Sign in failed") }
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Lavender, contentColor = DeepPurple)
+                    ) {
+                        Text("Sign In")
+                    }
+                }
+            }
+
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 24.dp),
+                thickness = 0.5.dp,
+                color = SeparatorColor
+            )
+
+            SettingsItem(
+                label = "Theme",
             value = settings.selectedTheme.name,
             onClick = { onNavigate(Screen.Theme) }
         )
@@ -278,6 +342,12 @@ private fun MainMenu(
             value = "Version & build info",
             onClick = { onNavigate(Screen.About) }
         )
+    }
+
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter)
+    )
     }
 }
 
@@ -861,8 +931,33 @@ fun SettingsScreenPreview() {
         }
     }
     
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val store = remember {
+        fr.geoking.julius.shared.ConversationStore(
+            scope = scope,
+            agent = object : fr.geoking.julius.agents.ConversationalAgent {
+                override suspend fun process(input: String) = fr.geoking.julius.agents.AgentResponse("Mock", null, null)
+            },
+            voiceManager = object : fr.geoking.julius.shared.VoiceManager {
+                override val events = MutableStateFlow(fr.geoking.julius.shared.VoiceEvent.Silence)
+                override val transcribedText = MutableStateFlow("")
+                override val partialText = MutableStateFlow("")
+                override fun startListening() {}
+                override fun stopListening() {}
+                override fun speak(text: String, languageTag: String?) {}
+                override fun playAudio(bytes: ByteArray) {}
+                override fun stopSpeaking() {}
+            },
+            actionExecutor = null,
+            initialSpeechLanguageTag = null
+        )
+    }
+    val mockAuthManager = remember { GoogleAuthManager(context, mockSettingsManager, store) }
+
     SettingsScreen(
         settingsManager = mockSettingsManager,
+        authManager = mockAuthManager,
         errorLog = emptyList(),
         onDismiss = {}
     )
