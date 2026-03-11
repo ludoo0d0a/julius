@@ -137,6 +137,7 @@ fun MapScreen(
         try {
             pois = poiProvider.getGasStations(centerLat, centerLng, viewport)
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             val msg = e.message?.takeIf { it.isNotBlank() } ?: e.toString()
             mapErrorMessage = msg
             isErrorPaused = true

@@ -6,18 +6,22 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,6 +68,7 @@ private val SeparatorColor = Color(0xFF2D2D44)
 @Composable
 fun SettingsScreen(
     settingsManager: SettingsManager,
+    authManager: GoogleAuthManager,
     errorLog: List<DetailedError>,
     onDismiss: () -> Unit
 ) {
@@ -111,6 +116,7 @@ fun SettingsScreen(
                 when (currentScreen) {
                     Screen.Main -> MainMenu(
                         settings = current,
+                        authManager = authManager,
                         onNavigate = { currentScreen = it },
                         onToggleExtendedActions = {
                             save(settingsManager, current.copy(extendedActionsEnabled = it))
@@ -199,17 +205,78 @@ private fun SettingsHeader(title: String, onBack: () -> Unit) {
 @Composable
 private fun MainMenu(
     settings: AppSettings,
+    authManager: GoogleAuthManager,
     onNavigate: (Screen) -> Unit,
     onToggleExtendedActions: (Boolean) -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(top = 16.dp)
-    ) {
-        SettingsItem(
-            label = "Theme",
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(top = 16.dp)
+        ) {
+            // Google Auth Section
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+                    .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (settings.isLoggedIn) "Hello, ${settings.googleUserName}" else "Not signed in",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = if (settings.isLoggedIn) "Google Account connected" else "Sign in to sync your profile",
+                        color = Lavender.copy(alpha = 0.7f),
+                        fontSize = 14.sp
+                    )
+                }
+                if (settings.isLoggedIn) {
+                    TextButton(onClick = {
+                        authManager.signOut { success ->
+                            if (!success) {
+                                scope.launch { snackbarHostState.showSnackbar("Sign out failed") }
+                            }
+                        }
+                    }) {
+                        Text("Sign Out", color = Color(0xFFFF6B6B))
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            authManager.signIn(context) { success, error ->
+                                if (!success) {
+                                    scope.launch { snackbarHostState.showSnackbar(error ?: "Sign in failed") }
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Lavender, contentColor = DeepPurple)
+                    ) {
+                        Text("Sign In")
+                    }
+                }
+            }
+
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 24.dp),
+                thickness = 0.5.dp,
+                color = SeparatorColor
+            )
+
+            SettingsItem(
+                label = "Theme",
             value = settings.selectedTheme.name,
             onClick = { onNavigate(Screen.Theme) }
         )
@@ -287,6 +354,12 @@ private fun MainMenu(
             value = "Version & build info",
             onClick = { onNavigate(Screen.About) }
         )
+    }
+
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter)
+    )
     }
 }
 
@@ -811,29 +884,82 @@ private fun ConfigTextField(
 @Composable
 private fun ErrorLog(errorLog: List<DetailedError>) {
     val scrollState = rememberScrollState()
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(24.dp)
-    ) {
-        if (errorLog.isEmpty()) {
-            Text("No errors recorded", color = Lavender, fontSize = 18.sp)
-        } else {
-            errorLog.reversed().forEach { error ->
-                val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(error.timestamp))
-                val httpCode = error.httpCode?.let { "HTTP $it" } ?: "Generic"
+    val clipboardManager = LocalClipboardManager.current
+    val reversedLog = remember(errorLog) { errorLog.reversed() }
 
-                Column(
+    SelectionContainer {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(24.dp)
+        ) {
+            if (reversedLog.isEmpty()) {
+                Text("No errors recorded", color = Lavender, fontSize = 18.sp)
+            } else {
+                Button(
+                    onClick = {
+                        val allErrors = reversedLog.joinToString("\n\n") { error ->
+                            val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(error.timestamp))
+                            val httpCode = error.httpCode?.let { "HTTP $it" } ?: "Generic"
+                            "[$timestamp] $httpCode\n${error.message}"
+                        }
+                        clipboardManager.setText(AnnotatedString(allErrors))
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                        .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-                        .padding(16.dp)
+                        .padding(bottom = 16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Lavender,
+                        contentColor = DeepPurple
+                    )
                 ) {
-                    Text(text = "[$timestamp] $httpCode", color = Lavender, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = error.message, color = Color.White, fontSize = 16.sp)
+                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Copy All Logs")
+                }
+
+                reversedLog.forEach { error ->
+                    val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(error.timestamp))
+                    val httpCode = error.httpCode?.let { "HTTP $it" } ?: "Generic"
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                            .padding(16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Text(
+                                text = "[$timestamp] $httpCode",
+                                color = Lavender,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(
+                                onClick = {
+                                    val errorText = "[$timestamp] $httpCode\n${error.message}"
+                                    clipboardManager.setText(AnnotatedString(errorText))
+                                },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.ContentCopy,
+                                    contentDescription = "Copy error",
+                                    tint = Lavender,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(text = error.message, color = Color.White, fontSize = 16.sp)
+                    }
                 }
             }
         }
@@ -871,8 +997,33 @@ fun SettingsScreenPreview() {
         }
     }
     
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val store = remember {
+        fr.geoking.julius.shared.ConversationStore(
+            scope = scope,
+            agent = object : fr.geoking.julius.agents.ConversationalAgent {
+                override suspend fun process(input: String) = fr.geoking.julius.agents.AgentResponse("Mock", null, null)
+            },
+            voiceManager = object : fr.geoking.julius.shared.VoiceManager {
+                override val events = MutableStateFlow(fr.geoking.julius.shared.VoiceEvent.Silence)
+                override val transcribedText = MutableStateFlow("")
+                override val partialText = MutableStateFlow("")
+                override fun startListening() {}
+                override fun stopListening() {}
+                override fun speak(text: String, languageTag: String?) {}
+                override fun playAudio(bytes: ByteArray) {}
+                override fun stopSpeaking() {}
+            },
+            actionExecutor = null,
+            initialSpeechLanguageTag = null
+        )
+    }
+    val mockAuthManager = remember { GoogleAuthManager(context, mockSettingsManager, store) }
+
     SettingsScreen(
         settingsManager = mockSettingsManager,
+        authManager = mockAuthManager,
         errorLog = emptyList(),
         onDismiss = {}
     )

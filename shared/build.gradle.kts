@@ -70,6 +70,7 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.core)
+            implementation("io.ktor:ktor-client-mock:${libs.versions.ktor.get()}")
         }
         val desktopTest by getting {
             dependencies {

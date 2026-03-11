@@ -9,6 +9,8 @@ import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 
 class ElevenLabsAgent(
@@ -20,6 +22,7 @@ class ElevenLabsAgent(
     private val baseUrl: String = "https://api.elevenlabs.io/v1"
 ) : ConversationalAgent {
 
+    private val mutex = Mutex()
     private val perplexityAgent = PerplexityAgent(client, perplexityKey, model)
 
     @Serializable private data class TtsReq(
@@ -29,7 +32,7 @@ class ElevenLabsAgent(
     )
     @Serializable private data class VoiceSettings(val stability: Double = 0.5, val similarity_boost: Double = 0.75)
 
-    override suspend fun process(input: String): AgentResponse {
+    override suspend fun process(input: String): AgentResponse = mutex.withLock {
         if (elevenLabsKey.isBlank()) {
             throw NetworkException(null, "ElevenLabs API key is required. Please set it in settings.")
         }

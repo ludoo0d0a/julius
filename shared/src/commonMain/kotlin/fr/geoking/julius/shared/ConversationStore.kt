@@ -202,6 +202,9 @@ open class ConversationStore(
             if (prompt.isNotBlank()) {
                 append("System: ")
                 append(prompt)
+                if (userName != null) {
+                    append(" The user's name is $userName.")
+                }
                 append("\n\n")
             }
             if (history.isNotBlank()) {

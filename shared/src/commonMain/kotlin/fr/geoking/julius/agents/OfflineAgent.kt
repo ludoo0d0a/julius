@@ -1,5 +1,7 @@
 package fr.geoking.julius.agents
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.random.Random
 
 /**
@@ -9,7 +11,9 @@ import kotlin.random.Random
  */
 class OfflineAgent : ConversationalAgent {
 
-    override suspend fun process(input: String): AgentResponse {
+    private val mutex = Mutex()
+
+    override suspend fun process(input: String): AgentResponse = mutex.withLock {
         val lastUserMessage = extractLastUserMessage(input)
         val normalized = lastUserMessage.trim().lowercase()
 
