@@ -39,7 +39,7 @@ Then unlock the phone and start Julius once so the system does not put it to sle
 
 ### 3. Starting DHU via `run-dhu.sh`
 
-The helper script lives at `scripts/run-dhu.sh` and wraps the official DHU binary, handling SDK paths and (optionally) `adb forward`.  
+The helper script lives at `scripts/run-dhu.sh` and wraps the official DHU binary, handling SDK paths and (optionally) `adb forward`.
 DHU always talks to a **physical phone** (over USB or ADB); it does not connect to the Android emulator.
 
 Basic usages:
@@ -113,4 +113,3 @@ Once DHU is running and the phone is connected:
   - `./scripts/run-dhu.sh` (USB), or
   - `./scripts/run-dhu.sh --adb` (ADB tunneling).
 - **Attach debugger** in Android Studio to the Julius process while using the DHU window as your “car” screen.
-

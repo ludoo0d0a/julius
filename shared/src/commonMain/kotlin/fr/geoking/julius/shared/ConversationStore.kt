@@ -193,7 +193,12 @@ open class ConversationStore(
             "$speaker: ${msg.text.trim()}"
         }
         return buildString {
-            val prompt = systemPrompt.trim()
+            val basePrompt = if (userName != null) {
+                "$systemPrompt The user's name is $userName."
+            } else {
+                systemPrompt
+            }
+            val prompt = basePrompt.trim()
             if (prompt.isNotBlank()) {
                 append("System: ")
                 append(prompt)
