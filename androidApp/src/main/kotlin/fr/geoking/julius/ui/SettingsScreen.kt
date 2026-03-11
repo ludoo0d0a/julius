@@ -158,7 +158,8 @@ fun SettingsScreen(
                     Screen.About -> AboutContent()
                     Screen.GoogleAccount -> GoogleAccount(
                         settings = current,
-                        settingsManager = settingsManager
+                        settingsManager = settingsManager,
+                        authManager = authManager
                     )
                 }
             }
@@ -801,11 +802,11 @@ private fun FractalConfig(
 @Composable
 private fun GoogleAccount(
     settings: AppSettings,
-    settingsManager: SettingsManager
+    settingsManager: SettingsManager,
+    authManager: GoogleAuthManager
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val authManager = remember { GoogleAuthManager(context, settingsManager) }
 
     Column(
         modifier = Modifier
@@ -822,7 +823,13 @@ private fun GoogleAccount(
             )
             Spacer(modifier = Modifier.height(24.dp))
             Button(
-                onClick = { authManager.signOut() },
+                onClick = {
+                    authManager.signOut { success ->
+                        if (!success) {
+                            android.util.Log.e("GoogleAuth", "Sign-out failed")
+                        }
+                    }
+                },
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.7f), contentColor = Color.White),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -838,8 +845,10 @@ private fun GoogleAccount(
             Button(
                 onClick = {
                     scope.launch {
-                        authManager.signIn().onFailure { e ->
-                            android.util.Log.e("GoogleAuth", "Sign-in failed", e)
+                        authManager.signIn(context) { success, error ->
+                            if (!success) {
+                                android.util.Log.e("GoogleAuth", "Sign-in failed: ${error ?: "Unknown error"}")
+                            }
                         }
                     }
                 },

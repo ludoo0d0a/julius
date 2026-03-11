@@ -270,8 +270,6 @@ class AndroidVoiceManager(
 
     override fun startListening() {
         Log.d(TAG, "mic on: startListening()")
-        startListeningInternal(stopOutputs = true, bargeIn = false)
-        Log.d(TAG, "mic on: startListening()")
         startListeningInternal(stopOutputs = true, bargeIn = false, isContinuation = false)
     }
 
