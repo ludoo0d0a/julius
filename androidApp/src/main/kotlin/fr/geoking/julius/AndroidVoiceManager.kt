@@ -537,9 +537,11 @@ class AndroidVoiceManager(
         }
     }
     override fun onEndOfSpeech() {
-        Log.d(TAG, "onEndOfSpeech")
-        // We don't transition to Processing here anymore,
-        // because we might restart listening for more speech.
+        Log.d(TAG, "onEndOfSpeech: waiting for final result")
+        if (!(isBargeInActive && _events.value == VoiceEvent.Speaking)) {
+            _events.value = VoiceEvent.Processing
+            player.notifyStateChanged()
+        }
     }
     override fun onError(error: Int) {
         val errorStr = when (error) {

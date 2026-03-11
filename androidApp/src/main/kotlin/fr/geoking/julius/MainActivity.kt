@@ -99,6 +99,12 @@ class MainActivity : ComponentActivity() {
 
             setContent {
                 val state by store.state.collectAsState()
+                val settings by settingsManager.settings.collectAsState()
+
+                LaunchedEffect(settings.googleUserName) {
+                    store.userName = settings.googleUserName
+                }
+
                 MainUI(
                     state = state,
                     store = store,
