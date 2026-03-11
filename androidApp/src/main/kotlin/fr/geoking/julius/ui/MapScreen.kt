@@ -36,9 +36,8 @@ import fr.geoking.julius.providers.MapViewport
 import fr.geoking.julius.providers.Poi
 import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.providers.PoiProviderType
-import fr.geoking.julius.providers.RoutexSiteDetails
 import fr.geoking.julius.shared.ConversationStore
-import fr.geoking.julius.ui.map.poi.PoiDetailCard
+import fr.geoking.julius.ui.map.PoiDetailCard
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -365,8 +364,6 @@ private fun MapScreenPreview() {
             centerLng: Double,
             viewport: MapViewport?
         ): List<Poi> = emptyList()
-
-        override suspend fun getSiteDetails(poi: Poi): RoutexSiteDetails? = null
     }
 
     MapScreen(
