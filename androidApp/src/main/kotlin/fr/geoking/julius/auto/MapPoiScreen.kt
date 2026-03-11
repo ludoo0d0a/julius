@@ -71,6 +71,7 @@ class MapPoiScreen(
                 pois = poiProvider.getGasStations(lat, lon)
                 Log.d("MapPoiScreen", "pois loaded: ${pois.size}")
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("MapPoiScreen", "getGasStations failed", e)
                 pois = emptyList()
             }
