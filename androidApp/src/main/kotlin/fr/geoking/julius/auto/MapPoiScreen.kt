@@ -113,8 +113,8 @@ class MapPoiScreen(
                         .build()
 
                     val rowBuilder = Row.Builder()
-                        .setTitle(poi.name)
-                        .addText(poi.address.ifBlank { " " })
+                        .setTitle(poi.name.ifBlank { " -no name- " })
+                        .addText(poi.address.ifBlank { " -no address- " })
                         .setMetadata(metadata)
                         .setBrowsable(true)
                         .setOnClickListener { screenManager.push(PoiDetailScreen(carContext, poi)) }
