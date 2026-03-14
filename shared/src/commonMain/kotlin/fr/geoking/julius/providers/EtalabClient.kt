@@ -39,7 +39,7 @@ class EtalabClient(
     ): List<EtalabStation> {
         // ODSQL: within_distance(geo_field, GEOM'POINT(lng lat)', Xkm)
         // POINT is (longitude, latitude) in WGS84.
-        val where = "within_distance(geolocation, geom'POINT($longitude $latitude)', ${radiusKm}km)"
+        val where = "within_distance(geom, geom'POINT($longitude $latitude)', ${radiusKm}km)"
         val encodedWhere = where.encodeURLParameter()
         val url = "$baseUrl/records?where=$encodedWhere&limit=$limit"
 
@@ -51,7 +51,7 @@ class EtalabClient(
         return parseRecords(body)
     }
 
-    private fun parseRecords(body: String): List<EtalabStation> {
+    internal fun parseRecords(body: String): List<EtalabStation> {
         val element = json.parseToJsonElement(body)
         val obj = element.jsonObject
         val results = obj["results"]?.jsonArray ?: return emptyList()
@@ -70,7 +70,7 @@ class EtalabClient(
         return stations.values.toList()
     }
 
-    private fun parseStationFromRecord(record: JsonObject): EtalabStation? {
+    internal fun parseStationFromRecord(record: JsonObject): EtalabStation? {
         val id = record["id"]?.jsonPrimitive?.content
             ?: record["id_"]?.jsonPrimitive?.content
             ?: return null
@@ -100,11 +100,12 @@ class EtalabClient(
         )
     }
 
-    private fun parseGeo(record: JsonObject): Pair<Double, Double>? {
+    internal fun parseGeo(record: JsonObject): Pair<Double, Double>? {
         val lat = record["latitude"]?.jsonPrimitive?.content?.toDoubleOrNull()
         val lng = record["longitude"]?.jsonPrimitive?.content?.toDoubleOrNull()
         if (lat != null && lng != null) return Pair(lat, lng)
-        val geo = record["geolocation"]?.jsonObject
+        val geo = record["geom"]?.jsonObject
+            ?: record["geolocation"]?.jsonObject
             ?: record["coordonnees_geo"]?.jsonObject
         if (geo != null) {
             val coords = geo["coordinates"]?.jsonArray
