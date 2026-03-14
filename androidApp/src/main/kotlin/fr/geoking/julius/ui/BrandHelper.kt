@@ -56,9 +56,27 @@ object BrandHelper {
         "aral" to R.drawable.ic_brand_aral,
     )
 
+    /** brand_id (lowercase) -> rounded brand icon drawable. Unlisted brands use ic_poi_gas_rounded. */
+    private val roundedBrandIcons = mapOf(
+        "total" to R.drawable.ic_brand_total_rounded,
+        "totalenergies" to R.drawable.ic_brand_total_rounded,
+        "bp" to R.drawable.ic_brand_bp_rounded,
+        "shell" to R.drawable.ic_brand_shell_rounded,
+        "esso" to R.drawable.ic_brand_esso_rounded,
+        "esso express" to R.drawable.ic_brand_esso_rounded,
+        "eni" to R.drawable.ic_brand_eni_rounded,
+        "repsol" to R.drawable.ic_brand_repsol_rounded,
+        "omv" to R.drawable.ic_brand_omv_rounded,
+        "rel" to R.drawable.ic_brand_rel_rounded,
+        "rel.metz" to R.drawable.ic_brand_rel_rounded,
+        "circle k" to R.drawable.ic_brand_circlek_rounded,
+        "aral" to R.drawable.ic_brand_aral_rounded,
+    )
+
     data class BrandInfo(
         val displayName: String,
-        val iconResId: Int
+        val iconResId: Int,
+        val roundedIconResId: Int
     )
 
     fun getBrandInfo(brandId: String?): BrandInfo? {
@@ -67,9 +85,11 @@ object BrandHelper {
         val name = brandNames[normalized] ?: brandId.trim().takeIf { it.isNotBlank() }
             ?: return null
         val iconResId = brandIcons[normalized] ?: R.drawable.ic_poi_gas
+        val roundedIconResId = roundedBrandIcons[normalized] ?: R.drawable.ic_poi_gas_rounded
         return BrandInfo(
             displayName = name,
-            iconResId = iconResId
+            iconResId = iconResId,
+            roundedIconResId = roundedIconResId
         )
     }
 }

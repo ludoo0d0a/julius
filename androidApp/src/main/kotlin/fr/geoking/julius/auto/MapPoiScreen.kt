@@ -23,6 +23,7 @@ import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.R
 import fr.geoking.julius.providers.Poi
 import fr.geoking.julius.providers.PoiProvider
+import fr.geoking.julius.ui.BrandHelper
 import kotlinx.coroutines.launch
 
 class MapPoiScreen(
@@ -104,10 +105,15 @@ class MapPoiScreen(
                     .setNoItemsMessage("No gas stations found")
 
                 for (poi in pois) {
+                    val iconResId = BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_gas_rounded
+                    val carIcon = CarIcon.Builder(IconCompat.createWithResource(carContext, iconResId)).build()
+
                     val metadata = Metadata.Builder()
                         .setPlace(
                             Place.Builder(CarLocation.create(poi.latitude, poi.longitude))
-                                .setMarker(PlaceMarker.Builder().build())
+                                .setMarker(PlaceMarker.Builder()
+                                    .setIcon(carIcon, PlaceMarker.TYPE_ICON)
+                                    .build())
                                 .build()
                         )
                         .build()
