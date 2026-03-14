@@ -50,16 +50,10 @@ class MapPoiScreen(
 
             if (carContext.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
                 carContext.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                try {
-                    val locationManager = carContext.getSystemService(android.content.Context.LOCATION_SERVICE) as LocationManager
-                    val location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                        ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-                    if (location != null) {
-                        lat = location.latitude
-                        lon = location.longitude
-                    }
-                } catch (e: Exception) {
-                    Log.e("MapPoiScreen", "Failed to get location", e)
+                val location = fr.geoking.julius.LocationHelper.getCurrentLocation(carContext)
+                if (location != null) {
+                    lat = location.latitude
+                    lon = location.longitude
                 }
             }
 
