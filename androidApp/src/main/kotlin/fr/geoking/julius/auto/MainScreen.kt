@@ -110,10 +110,9 @@ class MainScreen(
                 currentText = when {
                     state.lastError != null -> state.lastError!!.message
                     state.currentTranscript.isNotBlank() -> state.currentTranscript
-                    state.status == VoiceEvent.Listening -> "Listening..."
                     else -> {
                         val userName = settingsManager.settings.value.googleUserName
-                        val defaultGreeting = if (userName != null) "Hello $userName, how can I help?" else "Tap mic to start"
+                        val defaultGreeting = if (userName != null) "Hello $userName, how can I help?" else "Hi, how can I help you"
                         state.messages.lastOrNull()?.text ?: defaultGreeting
                     }
                 }
