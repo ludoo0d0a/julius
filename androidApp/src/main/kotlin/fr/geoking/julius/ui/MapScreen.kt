@@ -277,14 +277,14 @@ fun MapScreen(
                 ) {
                     val mapContext = LocalContext.current
                     val defaultMarkerIcon = remember(mapContext) {
-                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_gas)
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_gas_rounded)
                             ?: BitmapDescriptorFactory.defaultMarker()
                     }
                     val iconCache = remember(mapContext) {
-                        mutableMapOf(R.drawable.ic_poi_gas to defaultMarkerIcon)
+                        mutableMapOf(R.drawable.ic_poi_gas_rounded to defaultMarkerIcon)
                     }
                     pois.forEach { poi ->
-                        val iconResId = BrandHelper.getBrandInfo(poi.brand)?.iconResId ?: R.drawable.ic_poi_gas
+                        val iconResId = BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_gas_rounded
                         val markerIcon = iconCache.getOrPut(iconResId) {
                             vectorDrawableToBitmapDescriptor(mapContext, iconResId) ?: defaultMarkerIcon
                         }
