@@ -68,15 +68,15 @@ open class ConversationStore(
         }.launchIn(scope)
 
         voiceManager.partialText.onEach { text ->
-            // Update live transcript while listening (and allow early partials that may arrive right after Listening)
-            if (text.isNotBlank() && _state.value.status == VoiceEvent.Listening) {
+            // Update live transcript while listening or processing (if it arrives late)
+            if (text.isNotBlank()) {
                 _state.value = _state.value.copy(currentTranscript = text)
             }
         }.launchIn(scope)
 
         voiceManager.transcribedText.onEach { text ->
-             // If we get a final transcription (simplification for now), we send it
-             if (text.isNotBlank() && _state.value.status != VoiceEvent.Speaking) {
+             // If we get a final transcription, we send it
+             if (text.isNotBlank()) {
                  _state.value = _state.value.copy(currentTranscript = text)
                  // Auto-send when transcription stabilizes
                  onUserFinishedSpeaking(text)
