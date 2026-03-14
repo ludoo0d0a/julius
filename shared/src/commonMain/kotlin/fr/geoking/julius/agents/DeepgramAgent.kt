@@ -8,6 +8,8 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.ktor.http.Headers
+import io.ktor.http.HttpHeaders
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
@@ -31,6 +33,33 @@ class DeepgramAgent(
     @Serializable private data class ChatRes(val choices: List<Choice>)
 
     private val json = Json { ignoreUnknownKeys = true }
+
+    @Serializable private data class TranscriptionRes(val results: Results)
+    @Serializable private data class Results(val channels: List<Channel>)
+    @Serializable private data class Channel(val alternatives: List<Alternative>)
+    @Serializable private data class Alternative(val transcript: String)
+
+    override val isSttSupported: Boolean get() = true
+
+    override suspend fun transcribe(audioData: ByteArray): String? = mutex.withLock {
+        if (deepgramKey.isBlank()) return null
+
+        try {
+            val response = client.post("$baseUrl/listen?model=nova-2&smart_format=true") {
+                header("Authorization", "Bearer $deepgramKey")
+                contentType(ContentType.parse("audio/x-uncompressed;bit=16;rate=16000;channels=1"))
+                setBody(audioData)
+            }
+
+            if (response.status.value == 200) {
+                val res = json.decodeFromString<TranscriptionRes>(response.bodyAsText())
+                return res.results.channels.firstOrNull()?.alternatives?.firstOrNull()?.transcript
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return null
+    }
 
     override suspend fun process(input: String): AgentResponse = mutex.withLock {
         if (deepgramKey.isBlank()) {

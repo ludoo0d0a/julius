@@ -121,7 +121,7 @@ val appModule = module {
     }
     
     single<VoiceManager> {
-        AndroidVoiceManager(androidContext())
+        AndroidVoiceManager(androidContext(), get())
     }
 
     single<PermissionManager> {

@@ -59,6 +59,8 @@ data class AppSettings(
     val fractalQuality: FractalQuality = FractalQuality.Medium,
     val fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium,
     val extendedActionsEnabled: Boolean = false,
+    val wakeWordEnabled: Boolean = false,
+    val useCarMic: Boolean = false,
     val textAnimation: TextAnimation = TextAnimation.Fade,
     /** Path to local GGUF model: asset-relative (e.g. "models/phi-2.Q4_0.gguf") or absolute path after download. */
     val localModelPath: String = "models/phi-2.Q4_0.gguf",
@@ -157,6 +159,8 @@ open class SettingsManager(context: Context) {
                 FractalColorIntensity.Medium
             },
             extendedActionsEnabled = prefs.getBoolean("extended_actions_enabled", false),
+            wakeWordEnabled = prefs.getBoolean("wake_word_enabled", false),
+            useCarMic = prefs.getBoolean("use_car_mic", false),
             textAnimation = try {
                 TextAnimation.valueOf(prefs.getString("text_animation", TextAnimation.Fade.name) ?: TextAnimation.Fade.name)
             } catch (e: IllegalArgumentException) {
@@ -254,6 +258,8 @@ open class SettingsManager(context: Context) {
             .putString("fractal_quality", settings.fractalQuality.name)
             .putString("fractal_color_intensity", settings.fractalColorIntensity.name)
             .putBoolean("extended_actions_enabled", settings.extendedActionsEnabled)
+            .putBoolean("wake_word_enabled", settings.wakeWordEnabled)
+            .putBoolean("use_car_mic", settings.useCarMic)
             .putString("text_animation", settings.textAnimation.name)
             .putString("local_model_path", settings.localModelPath)
             .putString("selected_local_model_variant", settings.selectedLocalModelVariant)
@@ -289,6 +295,8 @@ open class SettingsManager(context: Context) {
         fractalQuality: FractalQuality = FractalQuality.Medium,
         fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium,
         extendedActionsEnabled: Boolean = false,
+        wakeWordEnabled: Boolean = false,
+        useCarMic: Boolean = false,
         localModelPath: String = _settings.value.localModelPath,
         selectedLocalModelVariant: String = _settings.value.selectedLocalModelVariant
     ) {
@@ -315,6 +323,8 @@ open class SettingsManager(context: Context) {
             fractalQuality = fractalQuality,
             fractalColorIntensity = fractalColorIntensity,
             extendedActionsEnabled = extendedActionsEnabled,
+            wakeWordEnabled = wakeWordEnabled,
+            useCarMic = useCarMic,
             textAnimation = _settings.value.textAnimation,
             localModelPath = localModelPath,
             selectedLocalModelVariant = selectedLocalModelVariant
