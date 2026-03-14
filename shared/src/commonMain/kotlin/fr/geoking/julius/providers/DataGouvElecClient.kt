@@ -4,6 +4,7 @@ import fr.geoking.julius.shared.NetworkException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.encodeURLParameter
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -12,16 +13,6 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.math.*
-
-private fun String.encodeWhereParameter(): String = map { c ->
-    when (c) {
-        ' ' -> "%20"
-        '(' -> "%28"
-        ')' -> "%29"
-        '\'' -> "%27"
-        else -> c.toString()
-    }
-}.joinToString("")
 
 /**
  * Client for the French open data IRVE (Infrastructures de Recharge pour Véhicules Électriques),
@@ -54,8 +45,8 @@ class DataGouvElecClient(
         val lngLo = longitude - deltaLng
         val lngHi = longitude + deltaLng
         val where = "consolidated_latitude > $latLo and consolidated_latitude < $latHi and consolidated_longitude > $lngLo and consolidated_longitude < $lngHi"
-        val encodedWhere = where.encodeWhereParameter()
-        val url = "$baseUrl/records?where=$encodedWhere&limit=${limit.coerceAtLeast(500)}"
+        val encodedWhere = where.encodeURLParameter()
+        val url = "$baseUrl/records?where=$encodedWhere&limit=${limit.coerceAtMost(50)}"
 
         val response = client.get(url)
         val body = response.bodyAsText()

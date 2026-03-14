@@ -4,6 +4,7 @@ import fr.geoking.julius.shared.NetworkException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.encodeURLParameter
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -40,8 +41,8 @@ class DataGouvClient(
         limit: Int = 100
     ): List<DataGouvStation> {
         // ODSQL: within_distance(geo_field, GEOM'POINT(lng lat)', Xkm); POINT is (longitude, latitude).
-        val where = "within_distance(geolocation, geom'POINT($longitude $latitude)', ${radiusKm}km)"
-        val encodedWhere = java.net.URLEncoder.encode(where, "UTF-8")
+        val where = "within_distance(geom, geom'POINT($longitude $latitude)', ${radiusKm}km)"
+        val encodedWhere = where.encodeURLParameter()
         val url = "$baseUrl/records?where=$encodedWhere&limit=$limit"
 
         val response = client.get(url)
@@ -52,7 +53,7 @@ class DataGouvClient(
         return parseRecords(body)
     }
 
-    private fun parseRecords(body: String): List<DataGouvStation> {
+    internal fun parseRecords(body: String): List<DataGouvStation> {
         val element = json.parseToJsonElement(body)
         val obj = element.jsonObject
         val results = obj["results"]?.jsonArray ?: return emptyList()
@@ -71,7 +72,7 @@ class DataGouvClient(
         return stations.values.toList()
     }
 
-    private fun parseStationFromRecord(record: JsonObject): DataGouvStation? {
+    internal fun parseStationFromRecord(record: JsonObject): DataGouvStation? {
         val id = record["id"]?.jsonPrimitive?.content
             ?: record["id_"]?.jsonPrimitive?.content
             ?: return null
@@ -96,11 +97,12 @@ class DataGouvClient(
         )
     }
 
-    private fun parseGeo(record: JsonObject): Pair<Double, Double>? {
+    internal fun parseGeo(record: JsonObject): Pair<Double, Double>? {
         val lat = record["latitude"]?.jsonPrimitive?.content?.toDoubleOrNull()
         val lng = record["longitude"]?.jsonPrimitive?.content?.toDoubleOrNull()
         if (lat != null && lng != null) return Pair(lat, lng)
-        val geo = record["geolocation"]?.jsonObject
+        val geo = record["geom"]?.jsonObject
+            ?: record["geolocation"]?.jsonObject
             ?: record["coordonnees_geo"]?.jsonObject
         if (geo != null) {
             val coords = geo["coordinates"]?.jsonArray
