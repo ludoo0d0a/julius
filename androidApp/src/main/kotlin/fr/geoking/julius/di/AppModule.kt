@@ -44,6 +44,8 @@ class DynamicAgentWrapper(
     private fun cacheKey(settings: AppSettings): String = buildString {
         append(settings.selectedAgent.name)
         append("|").append(settings.selectedModel.modelName)
+        append("|").append(settings.openAiModel.modelName)
+        append("|").append(settings.geminiModel.modelName)
         append("|").append(settings.extendedActionsEnabled)
         append("|").append(settings.openAiKey.take(8))
         append("|").append(settings.perplexityKey.take(8))
@@ -68,7 +70,7 @@ class DynamicAgentWrapper(
         } else {
             android.util.Log.d("DynamicAgentWrapper", "Creating agent: ${settings.selectedAgent.name}")
             val newAgent = when (settings.selectedAgent) {
-            AgentType.OpenAI -> OpenAIAgent(client, apiKey = settings.openAiKey, toolsEnabled = settings.extendedActionsEnabled)
+            AgentType.OpenAI -> OpenAIAgent(client, apiKey = settings.openAiKey, model = settings.openAiModel.modelName, toolsEnabled = settings.extendedActionsEnabled)
             AgentType.ElevenLabs -> {
                 // Ensure required keys are present for ElevenLabs
                 if (settings.perplexityKey.isBlank() || settings.elevenLabsKey.isBlank()) {
@@ -81,7 +83,7 @@ class DynamicAgentWrapper(
                 DeepgramAgent(client, deepgramKey = settings.deepgramKey)
             }
             AgentType.Native -> PerplexityAgent(client, apiKey = settings.perplexityKey, model = settings.selectedModel.modelName)
-            AgentType.Gemini -> GeminiAgent(client, apiKey = settings.geminiKey, toolsEnabled = settings.extendedActionsEnabled)
+            AgentType.Gemini -> GeminiAgent(client, apiKey = settings.geminiKey, model = settings.geminiModel.modelName, toolsEnabled = settings.extendedActionsEnabled)
             AgentType.FirebaseAI -> FirebaseAIAgent(client, apiKey = settings.firebaseAiKey, model = settings.firebaseAiModel)
             AgentType.OpenCodeZen -> OpenCodeZenAgent(client, apiKey = settings.opencodeZenKey, model = settings.opencodeZenModel)
             AgentType.CompletionsMe -> CompletionsMeAgent(client, apiKey = settings.completionsMeKey, model = settings.completionsMeModel)
@@ -101,7 +103,10 @@ val appModule = module {
     single<HttpClient> {
         HttpClient(OkHttp) {
             install(ContentNegotiation) {
-                json(Json { ignoreUnknownKeys = true })
+                json(Json {
+                    ignoreUnknownKeys = true
+                    encodeDefaults = true
+                })
             }
         }
     }

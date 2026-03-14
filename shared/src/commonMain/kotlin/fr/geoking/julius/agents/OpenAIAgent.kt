@@ -21,6 +21,7 @@ import fr.geoking.julius.shared.DeviceAction
 class OpenAIAgent(
     private val client: HttpClient,
     private val apiKey: String,
+    private val model: String = "gpt-4o",
     private val baseUrl: String = "https://api.openai.com/v1",
     private val toolsEnabled: Boolean = false
 ) : ConversationalAgent {
@@ -40,7 +41,7 @@ class OpenAIAgent(
     @Serializable private data class FunctionDef(val name: String, val description: String, val parameters: JsonObject)
 
     @Serializable private data class ChatReq(
-        val model: String = "gpt-4o",
+        val model: String,
         val messages: List<Msg>,
         val tools: List<Tool>? = null
     )
@@ -69,7 +70,7 @@ class OpenAIAgent(
             header("Authorization", "Bearer $apiKey")
             contentType(ContentType.Application.Json)
             setBody(ChatReq(
-                model = "gpt-4o",
+                model = model,
                 messages = listOf(Msg("user", input)),
                 tools = tools
             ))
