@@ -141,8 +141,11 @@ open class ConversationStore(
                 // 5. Add AI Message (with action result if any)
                 val responseText = response.text + actionResultMessage
                 val aiMsg = ChatMessage("a_${getCurrentTimeMillis()}", Role.Assistant, responseText)
-                updateMessages(aiMsg)
-                
+                _state.value = _state.value.copy(
+                    messages = _state.value.messages + aiMsg,
+                    currentTranscript = ""
+                )
+
                 // 6. Speak (text without action result message for cleaner audio)
                 if (response.audio != null) {
                     voiceManager.playAudio(response.audio)

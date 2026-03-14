@@ -145,7 +145,7 @@ private fun VoiceStatusContentSilencePreview() {
     VoiceStatusContent(
         agentName = AgentType.Gemini.name,
         status = VoiceEvent.Silence,
-        displayText = "Hi, how can I help?",
+        displayText = "Hi, how can I help you",
         lastError = null
     )
 }
@@ -167,7 +167,7 @@ private fun VoiceStatusContentWithErrorPreview() {
     VoiceStatusContent(
         agentName = AgentType.OpenAI.name,
         status = VoiceEvent.Silence,
-        displayText = "Hi, how can I help?",
+        displayText = "Hi, how can I help you",
         lastError = DetailedError(httpCode = 401, message = "Invalid API key", timestamp = 0L)
     )
 }
