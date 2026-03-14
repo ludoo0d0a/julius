@@ -18,6 +18,7 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import fr.geoking.julius.shared.ActionType
 import fr.geoking.julius.shared.DeviceAction
 
@@ -38,7 +39,7 @@ class GeminiAgent(
     private val toolsEnabled: Boolean = false,
     private val systemInstruction: String = "You are Julius, a friendly voice assistant for Android and Android Auto. " +
         "Keep responses concise and natural for text-to-speech: short sentences, avoid bullet points or long lists. " +
-        "Be helpful, conversational, and direct. When the user asks for device actions (location, battery, volume), use the provided tools.",
+        "Be helpful, conversational, and direct. When the user asks for device actions (battery, volume), use the provided tools.",
     private val temperature: Float = 0.7f,
     private val maxOutputTokens: Int = 1024
 ) : ConversationalAgent {
@@ -147,9 +148,8 @@ class GeminiAgent(
             val tools = if (toolsEnabled) {
                 listOf(
                     Tool(listOf(
-                        FunctionDeclaration("get_location", "Get the current GPS location of the device", buildJsonObject {}),
-                        FunctionDeclaration("get_battery_level", "Get the current battery level percentage of the device", buildJsonObject {}),
-                        FunctionDeclaration("get_volume_levels", "Get the current system volume levels (media, alarm, ring)", buildJsonObject {})
+                        FunctionDeclaration("get_battery_level", "Get the current battery level percentage of the device", buildJsonObject { put("type", "object") }),
+                        FunctionDeclaration("get_volume_levels", "Get the current system volume levels (media, alarm, ring)", buildJsonObject { put("type", "object") })
                     ))
                 )
             } else null
@@ -206,7 +206,6 @@ class GeminiAgent(
             val toolCalls = candidate?.content?.parts?.filter { it.functionCall != null }?.mapNotNull { p ->
                 val fc = p.functionCall!!
                 val type = when (fc.name) {
-                    "get_location" -> ActionType.GET_LOCATION
                     "get_battery_level" -> ActionType.GET_BATTERY_LEVEL
                     "get_volume_levels" -> ActionType.GET_VOLUME_LEVEL
                     else -> null
