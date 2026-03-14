@@ -12,6 +12,8 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import androidx.car.app.CarContext
+import androidx.car.app.media.CarAudioRecord
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.MediaItem
@@ -40,8 +42,17 @@ import java.util.Locale
 
 @UnstableApi
 class AndroidVoiceManager(
-    private val context: Context
+    private val context: Context,
+    private val settingsManager: SettingsManager
 ) : VoiceManager, RecognitionListener, TextToSpeech.OnInitListener {
+
+    private var carContext: CarContext? = null
+    private var isRecording = false
+    private var wakeWordDetectionJob: kotlinx.coroutines.Job? = null
+
+    fun setCarContext(carContext: CarContext) {
+        this.carContext = carContext
+    }
 
     companion object {
         private const val TAG = "Julius/Voice"
@@ -71,6 +82,7 @@ class AndroidVoiceManager(
     private var bargeInRestartScheduled: Boolean = false
     private var rmsCallCount: Int = 0
     private var bufferCallCount: Int = 0
+    private var transcriber: (suspend (ByteArray) -> String?)? = null
 
     private val player = object : SimpleBasePlayer(context.mainLooper) {
         fun notifyStateChanged() {
@@ -198,6 +210,7 @@ class AndroidVoiceManager(
     }
 
     init {
+        observeSettings()
         // Defer TTS and MediaPlayer creation off the main thread to avoid ANR.
         // TextToSpeech constructor can block for several seconds on first use.
         GlobalScope.launch(Dispatchers.IO) {
@@ -257,13 +270,93 @@ class AndroidVoiceManager(
 
     override fun startListening() {
         Log.d(TAG, "mic on: startListening()")
-        startListeningInternal(stopOutputs = true, bargeIn = false)
+        val currentCarContext = carContext
+        if (currentCarContext != null && BuildConfig.FLAVOR == "play" && settingsManager.settings.value.useCarMic) {
+            startCarListening(currentCarContext)
+        } else {
+            startListeningInternal(stopOutputs = true, bargeIn = false)
+        }
+    }
+
+    private fun startCarListening(carContext: CarContext) {
+        if (isRecording) return
+        isRecording = true
+        _events.value = VoiceEvent.Listening
+        player.notifyStateChanged()
+
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                val carAudioRecord = CarAudioRecord.create(carContext)
+                carAudioRecord.startRecording()
+                val baos = java.io.ByteArrayOutputStream()
+                val buffer = ByteArray(CarAudioRecord.AUDIO_CONTENT_BUFFER_SIZE)
+
+                Log.d(TAG, "Car recording started")
+
+                while (isRecording) {
+                    val read = carAudioRecord.read(buffer, 0, buffer.size)
+                    if (read > 0) {
+                        baos.write(buffer, 0, read)
+                        // In a real app, we would do VAD here to auto-stop
+                    } else if (read < 0) {
+                        break
+                    }
+                }
+
+                carAudioRecord.stopRecording()
+                val audioData = baos.toByteArray()
+                Log.d(TAG, "Car recording stopped, size: ${audioData.size}")
+
+                if (audioData.isNotEmpty()) {
+                    processCarAudio(audioData)
+                } else {
+                    mainHandler.post {
+                        _events.value = VoiceEvent.Silence
+                        player.notifyStateChanged()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Car recording failed", e)
+                isRecording = false
+                mainHandler.post {
+                    _events.value = VoiceEvent.Silence
+                    player.notifyStateChanged()
+                }
+            }
+        }
+    }
+
+    private suspend fun processCarAudio(audioData: ByteArray) {
+        mainHandler.post {
+            _events.value = VoiceEvent.Processing
+            player.notifyStateChanged()
+        }
+
+        val text = transcriber?.invoke(audioData) ?: ""
+        Log.d(TAG, "Car transcription: \"$text\"")
+
+        mainHandler.post {
+            if (text.isNotBlank()) {
+                _transcribedText.value = text
+            } else {
+                _events.value = VoiceEvent.Silence
+                player.notifyStateChanged()
+            }
+        }
+    }
+
+    override fun setTranscriber(transcriber: suspend (ByteArray) -> String?) {
+        this.transcriber = transcriber
     }
 
     override fun stopListening() {
         Log.d(TAG, "mic off: stopListening()")
-        mainHandler.post {
-            speechRecognizer?.stopListening()
+        if (isRecording) {
+            isRecording = false
+        } else {
+            mainHandler.post {
+                speechRecognizer?.stopListening()
+            }
         }
     }
     
@@ -401,6 +494,39 @@ class AndroidVoiceManager(
             speechRecognizer?.cancel()
             isRecognizerActive = false
         }
+    }
+
+    private fun observeSettings() {
+        GlobalScope.launch(Dispatchers.Main) {
+            settingsManager.settings.collect { settings ->
+                if (settings.wakeWordEnabled) {
+                    startWakeWordDetection()
+                } else {
+                    stopWakeWordDetection()
+                }
+            }
+        }
+    }
+
+    private fun startWakeWordDetection() {
+        if (wakeWordDetectionJob != null) return
+        Log.d(TAG, "Starting wake word detection")
+        wakeWordDetectionJob = GlobalScope.launch(Dispatchers.IO) {
+            while (kotlinx.coroutines.isActive) {
+                if (_events.value == VoiceEvent.Silence && !isRecording && !isRecognizerActive) {
+                    // This is a simplified placeholder for wake word detection.
+                    // In a real scenario, we'd use a local engine like Porcupine.
+                    // Here we'll periodically check if we should trigger.
+                }
+                kotlinx.coroutines.delay(2000)
+            }
+        }
+    }
+
+    private fun stopWakeWordDetection() {
+        Log.d(TAG, "Stopping wake word detection")
+        wakeWordDetectionJob?.cancel()
+        wakeWordDetectionJob = null
     }
 
     private fun scheduleBargeInRestart() {

@@ -2,12 +2,16 @@ package fr.geoking.julius.agents
 
 import fr.geoking.julius.shared.NetworkException
 import io.ktor.client.HttpClient
+import io.ktor.client.request.forms.formData
+import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.client.call.body
 import io.ktor.http.ContentType
+import io.ktor.http.Headers
+import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -49,8 +53,94 @@ class OpenAIAgent(
     @Serializable private data class ChatRes(val choices: List<Choice>)
     
     @Serializable private data class TtsReq(val model: String = "tts-1-hd", val input: String, val voice: String = "nova")
+    @Serializable private data class TranscriptionRes(val text: String)
 
     private val json = Json { ignoreUnknownKeys = true }
+
+    override val isSttSupported: Boolean get() = true
+
+    override suspend fun transcribe(audioData: ByteArray): String? = mutex.withLock {
+        if (apiKey.isBlank()) return null
+
+        try {
+            val wavData = pcmToWav(audioData)
+            val response = client.submitFormWithBinaryData(
+                url = "$baseUrl/audio/transcriptions",
+                formData = formData {
+                    append("file", wavData, Headers.build {
+                        append(HttpHeaders.ContentDisposition, "form-data; name=\"file\"; filename=\"audio.wav\"")
+                        append(HttpHeaders.ContentType, "audio/wav")
+                    })
+                    append("model", "whisper-1")
+                }
+            ) {
+                header("Authorization", "Bearer $apiKey")
+            }
+
+            if (response.status.value == 200) {
+                return json.decodeFromString<TranscriptionRes>(response.bodyAsText()).text
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return null
+    }
+
+    private fun pcmToWav(pcmData: ByteArray, sampleRate: Int = 16000): ByteArray {
+        val header = ByteArray(44)
+        val totalDataLen = pcmData.size + 36
+        val byteRate = sampleRate * 2 // 16-bit mono
+
+        header[0] = 'R'.toByte()
+        header[1] = 'I'.toByte()
+        header[2] = 'F'.toByte()
+        header[3] = 'F'.toByte()
+        header[4] = (totalDataLen and 0xff).toByte()
+        header[5] = ((totalDataLen shr 8) and 0xff).toByte()
+        header[6] = ((totalDataLen shr 16) and 0xff).toByte()
+        header[7] = ((totalDataLen shr 24) and 0xff).toByte()
+        header[8] = 'W'.toByte()
+        header[9] = 'A'.toByte()
+        header[10] = 'V'.toByte()
+        header[11] = 'E'.toByte()
+        header[12] = 'f'.toByte()
+        header[13] = 'm'.toByte()
+        header[14] = 't'.toByte()
+        header[15] = ' '.toByte()
+        header[16] = 16 // size of 'fmt ' chunk
+        header[17] = 0
+        header[18] = 0
+        header[19] = 0
+        header[20] = 1 // format = 1 (PCM)
+        header[21] = 0
+        header[22] = 1 // channels = 1 (Mono)
+        header[23] = 0
+        header[24] = (sampleRate and 0xff).toByte()
+        header[25] = ((sampleRate shr 8) and 0xff).toByte()
+        header[26] = ((sampleRate shr 16) and 0xff).toByte()
+        header[27] = ((sampleRate shr 24) and 0xff).toByte()
+        header[28] = (byteRate and 0xff).toByte()
+        header[29] = ((byteRate shr 8) and 0xff).toByte()
+        header[30] = ((byteRate shr 16) and 0xff).toByte()
+        header[31] = ((byteRate shr 24) and 0xff).toByte()
+        header[32] = 2 // block align
+        header[33] = 0
+        header[34] = 16 // bits per sample
+        header[35] = 0
+        header[36] = 'd'.toByte()
+        header[37] = 'a'.toByte()
+        header[38] = 't'.toByte()
+        header[39] = 'a'.toByte()
+        header[40] = (pcmData.size and 0xff).toByte()
+        header[41] = ((pcmData.size shr 8) and 0xff).toByte()
+        header[42] = ((pcmData.size shr 16) and 0xff).toByte()
+        header[43] = ((pcmData.size shr 24) and 0xff).toByte()
+
+        val wav = ByteArray(44 + pcmData.size)
+        header.copyInto(wav)
+        pcmData.copyInto(wav, 44)
+        return wav
+    }
 
     override suspend fun process(input: String): AgentResponse = mutex.withLock {
         if (apiKey.isBlank()) {

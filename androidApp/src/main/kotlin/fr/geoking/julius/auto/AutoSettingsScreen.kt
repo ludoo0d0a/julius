@@ -88,6 +88,34 @@ class AutoSettingsScreen(
                 .build()
         )
 
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("Use Car Microphone")
+                .addText("Play flavor only")
+                .setToggle(
+                    Toggle.Builder { checked ->
+                        val current = settingsManager.settings.value
+                        settingsManager.saveSettings(current.copy(useCarMic = checked))
+                        invalidate()
+                    }.setChecked(settings.useCarMic).build()
+                )
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("Hands-free Wake Word")
+                .addText("Say 'Julius' to start")
+                .setToggle(
+                    Toggle.Builder { checked ->
+                        val current = settingsManager.settings.value
+                        settingsManager.saveSettings(current.copy(wakeWordEnabled = checked))
+                        invalidate()
+                    }.setChecked(settings.wakeWordEnabled).build()
+                )
+                .build()
+        )
+
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
             .setTitle("Settings")

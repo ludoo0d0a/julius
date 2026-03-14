@@ -61,6 +61,14 @@ open class ConversationStore(
     private var preferredSpeechLanguageTag: String? = initialSpeechLanguageTag
 
     init {
+        voiceManager.setTranscriber { audioData ->
+            if (agent.isSttSupported) {
+                agent.transcribe(audioData)
+            } else {
+                null
+            }
+        }
+
         voiceManager.events.onEach { event ->
             // Clear transcript when entering Listening so partial results show with fresh letter-by-letter animation
             val nextTranscript = if (event == VoiceEvent.Listening) "" else _state.value.currentTranscript

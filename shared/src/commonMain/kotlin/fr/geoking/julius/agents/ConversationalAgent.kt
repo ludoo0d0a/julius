@@ -15,6 +15,20 @@ interface ConversationalAgent {
     suspend fun listModels(): String {
         throw UnsupportedOperationException("This agent does not support listing models")
     }
+
+    /**
+     * Whether this agent supports speech-to-text (STT) processing of raw audio bytes.
+     */
+    val isSttSupported: Boolean get() = false
+
+    /**
+     * Transcribes raw audio bytes into text.
+     * @param audioData The raw PCM 16-bit 16kHz audio data.
+     * @return The transcribed text, or null if STT is not supported or failed.
+     */
+    suspend fun transcribe(audioData: ByteArray): String? {
+        return null
+    }
 }
 
 data class ToolCall(
