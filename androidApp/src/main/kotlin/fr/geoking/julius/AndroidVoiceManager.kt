@@ -72,19 +72,6 @@ class AndroidVoiceManager(
     private var rmsCallCount: Int = 0
     private var bufferCallCount: Int = 0
 
-    // Continuous listening state
-    private val accumulatedText = StringBuilder()
-    private var isManualStop = false
-    private var isSilenceTimeout = false
-    private val SILENCE_THRESHOLD_MS = 4000L
-    private val silenceRunnable = Runnable {
-        Log.d(TAG, "Silence timeout reached (${SILENCE_THRESHOLD_MS}ms)")
-        isSilenceTimeout = true
-        mainHandler.post {
-            speechRecognizer?.stopListening()
-        }
-    }
-
     private val player = object : SimpleBasePlayer(context.mainLooper) {
         fun notifyStateChanged() {
             invalidateState()
@@ -270,16 +257,13 @@ class AndroidVoiceManager(
 
     override fun startListening() {
         Log.d(TAG, "mic on: startListening()")
-        startListeningInternal(stopOutputs = true, bargeIn = false, isContinuation = false)
+        startListeningInternal(stopOutputs = true, bargeIn = false)
     }
 
     override fun stopListening() {
         Log.d(TAG, "mic off: stopListening()")
         mainHandler.post {
-            isManualStop = true
-            mainHandler.removeCallbacks(silenceRunnable)
             speechRecognizer?.stopListening()
-            // We don't transition to Silence here; we wait for onResults or onError to finalize
         }
     }
     
@@ -366,20 +350,13 @@ class AndroidVoiceManager(
         }
     }
 
-    private fun startListeningInternal(stopOutputs: Boolean, bargeIn: Boolean, isContinuation: Boolean) {
+    private fun startListeningInternal(stopOutputs: Boolean, bargeIn: Boolean) {
         val intent = buildRecognizerIntent()
-        Log.d(TAG, "startListeningInternal stopOutputs=$stopOutputs bargeIn=$bargeIn isContinuation=$isContinuation")
+        Log.d(TAG, "startListeningInternal stopOutputs=$stopOutputs bargeIn=$bargeIn")
         mainHandler.post {
             val recognizer = getOrCreateRecognizer() ?: run {
                 Log.e(TAG, "getOrCreateRecognizer() returned null, cannot start")
                 return@post
-            }
-
-            if (!isContinuation) {
-                accumulatedText.setLength(0)
-                isManualStop = false
-                isSilenceTimeout = false
-                resetSilenceTimer()
             }
 
             if (stopOutputs) {
@@ -393,14 +370,6 @@ class AndroidVoiceManager(
                 tts?.stop()
             }
             if (isRecognizerActive) {
-                if (isBargeInActive == bargeIn && isContinuation) {
-                    // If we are just continuing, don't restart unless necessary
-                    if (!bargeIn) {
-                        _events.value = VoiceEvent.Listening
-                        player.notifyStateChanged()
-                    }
-                    return@post
-                }
                 recognizer.cancel()
             }
             isRecognizerActive = true
@@ -409,11 +378,8 @@ class AndroidVoiceManager(
             rmsCallCount = 0
             bufferCallCount = 0
 
-            // Only clear UI text if this is a fresh start (not a continuation)
-            if (!isContinuation) {
-                _partialText.value = ""
-                _transcribedText.value = ""
-            }
+            _partialText.value = ""
+            _transcribedText.value = ""
 
             Log.d(TAG, "SpeechRecognizer.startListening() called")
             recognizer.startListening(intent)
@@ -425,7 +391,7 @@ class AndroidVoiceManager(
     }
 
     private fun startBargeInListening() {
-        startListeningInternal(stopOutputs = false, bargeIn = true, isContinuation = false)
+        startListeningInternal(stopOutputs = false, bargeIn = true)
     }
 
     private fun stopBargeInListening() {
@@ -462,23 +428,15 @@ class AndroidVoiceManager(
         return Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            // Try to hint for longer silence, though many engines ignore this
-            putExtra("android.speech.extras.SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS", SILENCE_THRESHOLD_MS)
-            putExtra("android.speech.extras.SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS", SILENCE_THRESHOLD_MS)
+            // Prefer offline recognition if available to satisfy "local if you can" requirement
+            putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
         }
     }
 
-    private fun resetSilenceTimer() {
-        if (isBargeInActive) return // Don't time out during barge-in
-        mainHandler.removeCallbacks(silenceRunnable)
-        mainHandler.postDelayed(silenceRunnable, SILENCE_THRESHOLD_MS)
-    }
-
-    private fun finalizeListening() {
-        mainHandler.removeCallbacks(silenceRunnable)
+    private fun finalizeListening(text: String = "") {
         isRecognizerActive = false
         isBargeInActive = false
-        val finalResult = accumulatedText.toString().trim()
+        val finalResult = text.trim()
         Log.d(TAG, "finalizeListening: finalResult=\"$finalResult\"")
 
         _partialText.value = ""
@@ -507,7 +465,6 @@ class AndroidVoiceManager(
         }
     }
     override fun onBeginningOfSpeech() {
-        resetSilenceTimer()
         if (isBargeInActive && _events.value == VoiceEvent.Speaking) {
             tts?.stop()
             try {
@@ -564,63 +521,60 @@ class AndroidVoiceManager(
             return
         }
 
-        if (isManualStop || isSilenceTimeout) {
-            finalizeListening()
-            return
-        }
-
-        // Handle common non-fatal timeouts by restarting if silence threshold not reached
-        if (error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT || error == SpeechRecognizer.ERROR_NO_MATCH) {
-            Log.d(TAG, "onError: Restarting listening after $errorStr")
-            startListeningInternal(stopOutputs = false, bargeIn = false, isContinuation = true)
-        } else {
-            isBargeInActive = false
-            finalizeListening()
-        }
+        isBargeInActive = false
+        finalizeListening()
     }
     override fun onResults(results: Bundle?) {
         isRecognizerActive = false
 
         val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         val text = matches?.firstOrNull() ?: ""
-        Log.d(TAG, "onResults: segment=\"$text\"")
-
-        if (text.isNotBlank()) {
-            if (accumulatedText.isNotEmpty()) {
-                accumulatedText.append(" ")
-            }
-            accumulatedText.append(text)
-        }
+        Log.d(TAG, "onResults: \"$text\"")
 
         if (isBargeInActive && _events.value == VoiceEvent.Speaking) {
-            scheduleBargeInRestart()
+            if (text.isNotBlank()) {
+                // If we detected speech during barge-in, stop TTS and process it
+                tts?.stop()
+                try {
+                    if (mediaPlayer?.isPlaying == true) {
+                        mediaPlayer?.stop()
+                    }
+                } catch (e: IllegalStateException) {
+                    e.printStackTrace()
+                }
+                isBargeInActive = false
+                finalizeListening(text)
+            } else {
+                scheduleBargeInRestart()
+            }
             return
         }
 
-        if (isManualStop || isSilenceTimeout) {
-            finalizeListening()
-        } else {
-            // Standard result from recognizer, but we haven't reached our own silence timeout or manual stop
-            Log.d(TAG, "onResults: Continuing listening...")
-            startListeningInternal(stopOutputs = false, bargeIn = false, isContinuation = true)
-        }
+        finalizeListening(text)
     }
     override fun onPartialResults(partialResults: Bundle?) {
-        if (isBargeInActive && _events.value == VoiceEvent.Speaking) return
-
         val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         val text = matches?.firstOrNull() ?: ""
 
         if (text.isNotBlank()) {
             Log.d(TAG, "onPartialResults: partial=\"$text\"")
-            resetSilenceTimer()
 
-            val totalPartial = if (accumulatedText.isEmpty()) {
-                text
-            } else {
-                "$accumulatedText $text"
+            if (isBargeInActive && _events.value == VoiceEvent.Speaking) {
+                // In barge-in, as soon as we have a partial result, we stop TTS
+                tts?.stop()
+                try {
+                    if (mediaPlayer?.isPlaying == true) {
+                        mediaPlayer?.stop()
+                    }
+                } catch (e: IllegalStateException) {
+                    e.printStackTrace()
+                }
+                isBargeInActive = false
+                _events.value = VoiceEvent.Listening
+                player.notifyStateChanged()
             }
-            _partialText.value = totalPartial
+
+            _partialText.value = text
         }
     }
     override fun onEvent(eventType: Int, params: Bundle?) {
