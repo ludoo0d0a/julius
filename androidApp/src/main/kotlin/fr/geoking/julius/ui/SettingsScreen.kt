@@ -31,7 +31,9 @@ import fr.geoking.julius.AppSettings
 import fr.geoking.julius.AppTheme
 import fr.geoking.julius.FractalColorIntensity
 import fr.geoking.julius.FractalQuality
-import fr.geoking.julius.IaModel
+import fr.geoking.julius.PerplexityModel
+import fr.geoking.julius.OpenAiModel
+import fr.geoking.julius.GeminiModel
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.GoogleAuthManager
 import fr.geoking.julius.providers.PoiProviderType
@@ -51,7 +53,6 @@ import kotlinx.coroutines.flow.asStateFlow
 private enum class Screen {
     Main,
     Theme,
-    Model,
     Agent,
     GoogleAccount,
     AgentConfig,
@@ -98,7 +99,6 @@ fun SettingsScreen(
                 title = when (currentScreen) {
                     Screen.Main -> "Julius Settings"
                     Screen.Theme -> "Theme"
-                    Screen.Model -> "IA Model"
                     Screen.Agent -> "Agent"
                     Screen.AgentConfig -> "${current.selectedAgent.name} Config"
                     Screen.FractalConfig -> "Fractal Settings"
@@ -129,12 +129,6 @@ fun SettingsScreen(
                             save(settingsManager, current.copy(selectedTheme = it))
                         },
                         onConfigureFractal = { currentScreen = Screen.FractalConfig }
-                    )
-                    Screen.Model -> ModelSelection(
-                        selected = current.selectedModel,
-                        onSelect = {
-                            save(settingsManager, current.copy(selectedModel = it))
-                        }
                     )
                     Screen.Agent -> AgentSelection(
                         selected = current.selectedAgent,
@@ -169,7 +163,7 @@ fun SettingsScreen(
 }
 
 private fun save(settingsManager: SettingsManager, s: AppSettings) {
-    settingsManager.saveSettings(s)
+    settingsManager.saveSettingsWithThemeCheck(s)
 }
 
 @Composable
@@ -281,11 +275,6 @@ private fun MainMenu(
                 label = "Theme",
             value = settings.selectedTheme.name,
             onClick = { onNavigate(Screen.Theme) }
-        )
-        SettingsItem(
-            label = "IA Model",
-            value = settings.selectedModel.displayName,
-            onClick = { onNavigate(Screen.Model) }
         )
         SettingsItem(
             label = "Agent",
@@ -484,21 +473,6 @@ private fun ThemeSelection(
     }
 }
 
-@Composable
-private fun ModelSelection(
-    selected: IaModel,
-    onSelect: (IaModel) -> Unit
-) {
-    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-        IaModel.entries.forEach { model ->
-            SelectionItem(
-                label = model.displayName,
-                isSelected = model == selected,
-                onSelect = { onSelect(model) }
-            )
-        }
-    }
-}
 
 @Composable
 private fun AgentSelection(
@@ -585,16 +559,52 @@ private fun AgentConfig(
         when (settings.selectedAgent) {
             AgentType.OpenAI -> {
                 ConfigTextField("OpenAI Key", settings.openAiKey) { onUpdate(settings.copy(openAiKey = it)) }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Model", color = Lavender, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
+                OpenAiModel.entries.forEach { model ->
+                    SelectionItem(
+                        label = model.displayName,
+                        isSelected = model == settings.openAiModel,
+                        onSelect = { onUpdate(settings.copy(openAiModel = model)) }
+                    )
+                }
             }
             AgentType.ElevenLabs -> {
                 ConfigTextField("ElevenLabs Key", settings.elevenLabsKey) { onUpdate(settings.copy(elevenLabsKey = it)) }
                 ConfigTextField("Perplexity Key", settings.perplexityKey) { onUpdate(settings.copy(perplexityKey = it)) }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Perplexity Model", color = Lavender, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
+                PerplexityModel.entries.forEach { model ->
+                    SelectionItem(
+                        label = model.displayName,
+                        isSelected = model == settings.selectedModel,
+                        onSelect = { onUpdate(settings.copy(selectedModel = model)) }
+                    )
+                }
             }
             AgentType.Native -> {
                 ConfigTextField("Perplexity Key", settings.perplexityKey) { onUpdate(settings.copy(perplexityKey = it)) }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Model", color = Lavender, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
+                PerplexityModel.entries.forEach { model ->
+                    SelectionItem(
+                        label = model.displayName,
+                        isSelected = model == settings.selectedModel,
+                        onSelect = { onUpdate(settings.copy(selectedModel = model)) }
+                    )
+                }
             }
             AgentType.Gemini -> {
                 ConfigTextField("Gemini Key", settings.geminiKey) { onUpdate(settings.copy(geminiKey = it)) }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Model", color = Lavender, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
+                GeminiModel.entries.forEach { model ->
+                    SelectionItem(
+                        label = model.displayName,
+                        isSelected = model == settings.geminiModel,
+                        onSelect = { onUpdate(settings.copy(geminiModel = model)) }
+                    )
+                }
             }
             AgentType.Deepgram -> {
                 ConfigTextField("Deepgram Key", settings.deepgramKey) { onUpdate(settings.copy(deepgramKey = it)) }
@@ -994,7 +1004,7 @@ fun SettingsScreenPreview() {
                     firebaseAiModel = "gemini-1.5-flash-latest",
                     selectedAgent = AgentType.OpenAI,
                     selectedTheme = AppTheme.Particles,
-                    selectedModel = IaModel.LLAMA_3_1_SONAR_SMALL,
+                    selectedModel = PerplexityModel.LLAMA_3_1_SONAR_SMALL,
                     fractalQuality = FractalQuality.Medium,
                     fractalColorIntensity = FractalColorIntensity.Medium,
                     extendedActionsEnabled = false,

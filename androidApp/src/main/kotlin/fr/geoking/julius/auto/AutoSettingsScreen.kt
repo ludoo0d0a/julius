@@ -26,15 +26,41 @@ class AutoSettingsScreen(
                 .build()
         )
 
-        listBuilder.addItem(
-            Row.Builder()
-                .setTitle("IA Model")
-                .addText(settings.selectedModel.displayName)
-                .setOnClickListener {
-                    screenManager.push(AutoModelSelectionScreen(carContext, settingsManager))
-                }
-                .build()
-        )
+        if (settings.selectedAgent == AgentType.Native || settings.selectedAgent == AgentType.ElevenLabs) {
+            listBuilder.addItem(
+                Row.Builder()
+                    .setTitle("IA Model")
+                    .addText(settings.selectedModel.displayName)
+                    .setOnClickListener {
+                        screenManager.push(AutoModelSelectionScreen(carContext, settingsManager))
+                    }
+                    .build()
+            )
+        }
+
+        if (settings.selectedAgent == AgentType.OpenAI) {
+            listBuilder.addItem(
+                Row.Builder()
+                    .setTitle("IA Model")
+                    .addText(settings.openAiModel.displayName)
+                    .setOnClickListener {
+                        screenManager.push(AutoOpenAiModelSelectionScreen(carContext, settingsManager))
+                    }
+                    .build()
+            )
+        }
+
+        if (settings.selectedAgent == AgentType.Gemini) {
+            listBuilder.addItem(
+                Row.Builder()
+                    .setTitle("IA Model")
+                    .addText(settings.geminiModel.displayName)
+                    .setOnClickListener {
+                        screenManager.push(AutoGeminiModelSelectionScreen(carContext, settingsManager))
+                    }
+                    .build()
+            )
+        }
 
         if (settings.selectedAgent == AgentType.Local) {
             listBuilder.addItem(

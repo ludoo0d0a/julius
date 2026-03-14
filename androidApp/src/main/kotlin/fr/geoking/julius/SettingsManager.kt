@@ -14,7 +14,7 @@ enum class AppTheme { Particles, Sphere, Waves, Fractal, Micro }
 enum class TextAnimation { None, Genie, Blur, Fade, Zoom, Falling }
 enum class FractalQuality { Low, Medium, High }
 enum class FractalColorIntensity { Low, Medium, High }
-enum class IaModel(val modelName: String, val displayName: String) {
+enum class PerplexityModel(val modelName: String, val displayName: String) {
     LLAMA_3_1_SONAR_SMALL("llama-3.1-sonar-small-128k-online", "Sonar Small"),
     LLAMA_3_1_SONAR_LARGE("llama-3.1-sonar-large-128k-online", "Sonar Large"),
     LLAMA_3_1_8B_INSTRUCT("llama-3.1-8b-instruct", "Llama 3.1 Instruct"),
@@ -23,12 +23,27 @@ enum class IaModel(val modelName: String, val displayName: String) {
     GEMMA_2_27B_IT("gemma-2-27b-it", "Gemma 2 27B")
 }
 
+enum class OpenAiModel(val modelName: String, val displayName: String) {
+    GPT_4O("gpt-4o", "GPT-4o"),
+    GPT_4O_MINI("gpt-4o-mini", "GPT-4o mini"),
+    GPT_4_TURBO("gpt-4-turbo", "GPT-4 Turbo"),
+    GPT_3_5_TURBO("gpt-3.5-turbo", "GPT-3.5 Turbo")
+}
+
+enum class GeminiModel(val modelName: String, val displayName: String) {
+    GEMINI_2_0_FLASH("gemini-2.0-flash", "Gemini 2.0 Flash"),
+    GEMINI_1_5_FLASH("gemini-1.5-flash", "Gemini 1.5 Flash"),
+    GEMINI_1_5_PRO("gemini-1.5-pro", "Gemini 1.5 Pro")
+}
+
 data class AppSettings(
     val selectedPoiProvider: fr.geoking.julius.providers.PoiProviderType = fr.geoking.julius.providers.PoiProviderType.Routex,
     val openAiKey: String = "",
+    val openAiModel: OpenAiModel = OpenAiModel.GPT_4O,
     val elevenLabsKey: String = "",
     val perplexityKey: String = "",
     val geminiKey: String = "",
+    val geminiModel: GeminiModel = GeminiModel.GEMINI_2_0_FLASH,
     val deepgramKey: String = "",
     val firebaseAiKey: String = "",
     val firebaseAiModel: String = "gemini-1.5-flash-latest",
@@ -40,7 +55,7 @@ data class AppSettings(
     val julesKey: String = "",
     val selectedAgent: AgentType = DEFAULT_AGENT,
     val selectedTheme: AppTheme = AppTheme.Particles,
-    val selectedModel: IaModel = IaModel.LLAMA_3_1_SONAR_SMALL,
+    val selectedModel: PerplexityModel = PerplexityModel.LLAMA_3_1_SONAR_SMALL,
     val fractalQuality: FractalQuality = FractalQuality.Medium,
     val fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium,
     val extendedActionsEnabled: Boolean = false,
@@ -97,9 +112,15 @@ open class SettingsManager(context: Context) {
                 fr.geoking.julius.providers.PoiProviderType.Routex
             },
             openAiKey = openAiKey,
+            openAiModel = try {
+                OpenAiModel.valueOf(prefs.getString("openai_model", OpenAiModel.GPT_4O.name) ?: OpenAiModel.GPT_4O.name)
+            } catch (e: IllegalArgumentException) { OpenAiModel.GPT_4O },
             elevenLabsKey = elevenLabsKey,
             perplexityKey = perplexityKey,
             geminiKey = geminiKey,
+            geminiModel = try {
+                GeminiModel.valueOf(prefs.getString("gemini_model", GeminiModel.GEMINI_2_0_FLASH.name) ?: GeminiModel.GEMINI_2_0_FLASH.name)
+            } catch (e: IllegalArgumentException) { GeminiModel.GEMINI_2_0_FLASH },
             deepgramKey = deepgramKey,
             firebaseAiKey = firebaseAiKey,
             firebaseAiModel = firebaseAiModel,
@@ -122,7 +143,9 @@ open class SettingsManager(context: Context) {
             } catch (e: IllegalArgumentException) {
                 AppTheme.Micro
             },
-            selectedModel = IaModel.valueOf(prefs.getString("model", IaModel.LLAMA_3_1_SONAR_SMALL.name) ?: IaModel.LLAMA_3_1_SONAR_SMALL.name),
+            selectedModel = try {
+                PerplexityModel.valueOf(prefs.getString("model", PerplexityModel.LLAMA_3_1_SONAR_SMALL.name) ?: PerplexityModel.LLAMA_3_1_SONAR_SMALL.name)
+            } catch (e: IllegalArgumentException) { PerplexityModel.LLAMA_3_1_SONAR_SMALL },
             fractalQuality = try {
                 FractalQuality.valueOf(prefs.getString("fractal_quality", FractalQuality.Medium.name) ?: FractalQuality.Medium.name)
             } catch (e: IllegalArgumentException) {
@@ -190,6 +213,10 @@ open class SettingsManager(context: Context) {
     }
 
     open fun saveSettings(settings: AppSettings) {
+        saveSettingsInternal(settings)
+    }
+
+    open fun saveSettingsWithThemeCheck(settings: AppSettings) {
         var currentSettings = _settings.value
         var finalSettings = settings
 
@@ -207,9 +234,11 @@ open class SettingsManager(context: Context) {
         prefs.edit()
             .putString("poi_provider", settings.selectedPoiProvider.name)
             .putString("openai_key", settings.openAiKey)
+            .putString("openai_model", settings.openAiModel.name)
             .putString("elevenlabs_key", settings.elevenLabsKey)
             .putString("perplexity_key", settings.perplexityKey)
             .putString("gemini_key", settings.geminiKey)
+            .putString("gemini_model", settings.geminiModel.name)
             .putString("deepgram_key", settings.deepgramKey)
             .putString("firebase_ai_key", settings.firebaseAiKey)
             .putString("firebase_ai_model", settings.firebaseAiModel)
@@ -240,9 +269,11 @@ open class SettingsManager(context: Context) {
 
     open fun saveSettings(
         openAiKey: String,
+        openAiModel: OpenAiModel = _settings.value.openAiModel,
         elevenLabsKey: String,
         perplexityKey: String,
         geminiKey: String,
+        geminiModel: GeminiModel = _settings.value.geminiModel,
         deepgramKey: String,
         firebaseAiKey: String,
         firebaseAiModel: String,
@@ -254,7 +285,7 @@ open class SettingsManager(context: Context) {
         julesKey: String = "",
         agent: AgentType,
         theme: AppTheme,
-        model: IaModel,
+        model: PerplexityModel,
         fractalQuality: FractalQuality = FractalQuality.Medium,
         fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium,
         extendedActionsEnabled: Boolean = false,
@@ -264,9 +295,11 @@ open class SettingsManager(context: Context) {
         val newSettings = AppSettings(
             selectedPoiProvider = _settings.value.selectedPoiProvider,
             openAiKey = openAiKey,
+            openAiModel = openAiModel,
             elevenLabsKey = elevenLabsKey,
             perplexityKey = perplexityKey,
             geminiKey = geminiKey,
+            geminiModel = geminiModel,
             deepgramKey = deepgramKey,
             firebaseAiKey = firebaseAiKey,
             firebaseAiModel = firebaseAiModel,

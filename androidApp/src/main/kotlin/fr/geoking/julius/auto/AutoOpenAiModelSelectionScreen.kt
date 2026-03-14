@@ -3,10 +3,10 @@ package fr.geoking.julius.auto
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.*
-import fr.geoking.julius.PerplexityModel
+import fr.geoking.julius.OpenAiModel
 import fr.geoking.julius.SettingsManager
 
-class AutoModelSelectionScreen(
+class AutoOpenAiModelSelectionScreen(
     carContext: CarContext,
     private val settingsManager: SettingsManager
 ) : Screen(carContext) {
@@ -15,12 +15,12 @@ class AutoModelSelectionScreen(
         val settings = settingsManager.settings.value
         val listBuilder = ItemList.Builder()
 
-        PerplexityModel.entries.forEach { model ->
+        OpenAiModel.entries.forEach { model ->
             listBuilder.addItem(
                 Row.Builder()
                     .setTitle(model.displayName)
                     .setOnClickListener {
-                        settingsManager.saveSettings(settings.copy(selectedModel = model))
+                        settingsManager.saveSettings(settings.copy(openAiModel = model))
                         screenManager.pop()
                     }
                     .build()
@@ -29,7 +29,7 @@ class AutoModelSelectionScreen(
 
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
-            .setTitle("Select IA Model")
+            .setTitle("Select OpenAI Model")
             .setHeaderAction(Action.BACK)
             .build()
     }

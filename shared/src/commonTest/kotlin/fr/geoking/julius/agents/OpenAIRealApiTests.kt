@@ -43,4 +43,20 @@ class OpenAIRealApiTests : RealApiTestBase() {
             }
         }
     }
+
+    @Test
+    fun testOpenAIAgent_CustomModel() {
+        runBlocking {
+            withApiKey("OPENAI_KEY", "OpenAI Custom Model") { apiKey ->
+                withHttpClient { client ->
+                    val agent = OpenAIAgent(client, apiKey = apiKey, model = "gpt-4o-mini")
+                    testAgent(
+                        agent = agent,
+                        agentName = "OpenAI (gpt-4o-mini)",
+                        prompt = "Hello, what model are you?"
+                    )
+                }
+            } ?: Unit
+        }
+    }
 }
