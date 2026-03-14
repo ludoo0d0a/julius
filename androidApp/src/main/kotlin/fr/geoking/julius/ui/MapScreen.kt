@@ -1,11 +1,14 @@
 package fr.geoking.julius.ui
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.location.LocationManager
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -104,6 +107,21 @@ fun MapScreen(
 
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(LatLng(defaultLat, defaultLng), 12f)
+    }
+
+    var didInitialCenter by remember { mutableStateOf(false) }
+
+    LaunchedEffect(hasLocationPermission) {
+        if (hasLocationPermission && !didInitialCenter) {
+            val location = fr.geoking.julius.LocationHelper.getCurrentLocation(context)
+            if (location != null) {
+                cameraPositionState.position = CameraPosition.fromLatLngZoom(
+                    LatLng(location.latitude, location.longitude),
+                    12f
+                )
+                didInitialCenter = true
+            }
+        }
     }
 
     var mapSizePx by remember { mutableStateOf(IntSize.Zero) }
