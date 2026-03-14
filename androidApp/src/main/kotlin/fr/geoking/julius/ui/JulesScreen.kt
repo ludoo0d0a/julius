@@ -199,9 +199,10 @@ fun JulesScreen(
     }
 
     Surface(modifier = Modifier.fillMaxSize(), color = JulesBg) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier
                     .fillMaxWidth()
                     .background(JulesHeaderBg)
                     .padding(horizontal = 8.dp, vertical = 8.dp),
@@ -329,16 +330,19 @@ fun JulesScreen(
                         )
                     }
 
-                    if (loading || loadingSessions) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(color = JulesAccent, modifier = Modifier.size(24.dp))
-                        }
-                    }
+                }
+            }
+        }
+
+        if (loading || loadingSessions) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.4f))
+                        .clickable(enabled = true, onClick = {}),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = JulesAccent)
                 }
             }
         }
