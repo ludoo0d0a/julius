@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.ContextCompat
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
@@ -329,6 +330,16 @@ fun MapScreen(
                         onNavigate = {
                             val uri = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${Uri.encode(poi.name)}")
                             context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                        },
+                        onLocate = {
+                            scope.launch {
+                                cameraPositionState.animate(
+                                    CameraUpdateFactory.newLatLngZoom(
+                                        LatLng(poi.latitude, poi.longitude),
+                                        15f
+                                    )
+                                )
+                            }
                         },
                         onShowDetails = poi.routexDetails?.let { { poiForDetailsDialog = poi } }
                     )

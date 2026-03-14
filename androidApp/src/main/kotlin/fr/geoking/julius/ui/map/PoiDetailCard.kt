@@ -1,12 +1,13 @@
 package fr.geoking.julius.ui.map
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Directions
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -25,6 +26,7 @@ import fr.geoking.julius.ui.BrandHelper
 fun PoiDetailCard(
     poi: Poi,
     onNavigate: () -> Unit,
+    onLocate: () -> Unit,
     onShowDetails: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -94,7 +96,8 @@ fun PoiDetailCard(
                         text = displayTitle,
                         color = Color.White,
                         fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = if (onShowDetails != null) Modifier.clickable { onShowDetails() } else Modifier
                     )
                     brandInfo?.let { info ->
                         if (isGenericName || !displayTitle.startsWith(info.displayName, ignoreCase = true)) {
@@ -113,7 +116,7 @@ fun PoiDetailCard(
             HorizontalDivider(color = Color.White.copy(alpha = 0.15f))
             Spacer(modifier = Modifier.height(12.dp))
             Row(
-                verticalAlignment = Alignment.Top,
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(
@@ -132,6 +135,22 @@ fun PoiDetailCard(
                         )
                         if (index < addressLines.lastIndex) Spacer(modifier = Modifier.height(2.dp))
                     }
+                }
+                IconButton(onClick = onLocate) {
+                    Icon(
+                        imageVector = Icons.Default.MyLocation,
+                        contentDescription = "Locate",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(onClick = onNavigate) {
+                    Icon(
+                        imageVector = Icons.Default.Directions,
+                        contentDescription = "Navigate",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
 
@@ -177,40 +196,6 @@ fun PoiDetailCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
-            if (onShowDetails != null) {
-                OutlinedButton(
-                    onClick = onShowDetails,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                    contentPadding = PaddingValues(vertical = 12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = Color.White
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Station details")
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-            Button(
-                onClick = onNavigate,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0EA5E9)),
-                contentPadding = PaddingValues(vertical = 12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Directions,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = Color.White
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Navigate to")
-            }
         }
     }
 }
@@ -234,6 +219,7 @@ private fun PoiDetailCardPreview() {
             routexDetails = null
         ),
         onNavigate = {},
+        onLocate = {},
         onShowDetails = {}
     )
 }
