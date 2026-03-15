@@ -7,6 +7,7 @@ import androidx.car.app.Screen
 import androidx.car.app.model.Action
 import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.CarIcon
+import androidx.car.app.model.Header
 import androidx.car.app.model.MessageTemplate
 import androidx.car.app.model.Template
 import androidx.core.graphics.drawable.IconCompat
@@ -31,9 +32,9 @@ class PoiDetailScreen(
         val navigateIntent = Intent(CarContext.ACTION_NAVIGATE).apply {
             data = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${Uri.encode(title)}")
         }
+        @Suppress("DEPRECATION")
         return MessageTemplate.Builder(body)
-            .setTitle(title)
-            .setHeaderAction(Action.BACK)
+            .setHeader(Header.Builder().setTitle(title).setStartHeaderAction(Action.BACK).build())
             .setActionStrip(
                 ActionStrip.Builder()
                     .addAction(

@@ -13,6 +13,7 @@ import androidx.car.app.model.ItemList
 import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.MessageTemplate
 import androidx.car.app.model.Pane
+import androidx.car.app.model.Header
 import androidx.car.app.model.PaneTemplate
 import androidx.car.app.model.Row
 import androidx.car.app.model.Tab
@@ -199,6 +200,7 @@ class MainScreen(
                 else -> buildPaneTemplate()
             }
 
+            @Suppress("DEPRECATION")
             TabTemplate.Builder(object : TabTemplate.TabCallback {
                 override fun onTabSelected(tabContentId: String) {
                     when (tabContentId) {
@@ -245,22 +247,21 @@ class MainScreen(
 
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
-            .setTitle("Conversation History")
+            .setHeader(Header.Builder().setTitle("Conversation History").build())
             .build()
     }
 
     private fun buildSettingsPlaceholderTemplate(): Template {
         return MessageTemplate.Builder("Redirecting to Settings...")
             .setLoading(true)
-            .setTitle("Settings")
+            .setHeader(Header.Builder().setTitle("Settings").build())
             .build()
     }
 
     private fun buildErrorFallbackTemplate(e: Exception): Template {
         val msg = e.message ?: e.toString()
         return MessageTemplate.Builder(msg.take(300))
-            .setTitle("Julius Error")
-            .setHeaderAction(Action.APP_ICON)
+            .setHeader(Header.Builder().setTitle("Julius Error").setStartHeaderAction(Action.APP_ICON).build())
             .build()
     }
 
@@ -409,7 +410,7 @@ class MainScreen(
                 .build()
         )
         return PaneTemplate.Builder(paneBuilder.build())
-            .setTitle("Julius Assistant")
+            .setHeader(Header.Builder().setTitle("Julius Assistant").build())
             .build()
     }
 

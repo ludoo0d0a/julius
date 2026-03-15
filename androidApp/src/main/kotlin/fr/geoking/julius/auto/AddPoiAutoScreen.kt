@@ -2,6 +2,7 @@ package fr.geoking.julius.auto
 
 import androidx.car.app.CarContext
 import androidx.car.app.model.Action
+import androidx.car.app.model.Header
 import androidx.car.app.model.MessageTemplate
 import androidx.car.app.model.Template
 import fr.geoking.julius.community.CommunityPoiRepository
@@ -27,8 +28,7 @@ class AddPoiAutoScreen(
     override fun onGetTemplate(): Template {
         val coordStr = "%.4f, %.4f".format(lat, lng)
         return MessageTemplate.Builder("Add a station at current location?\n$coordStr")
-            .setTitle("Add POI")
-            .setHeaderAction(Action.BACK)
+            .setHeader(Header.Builder().setTitle("Add POI").setStartHeaderAction(Action.BACK).build())
             .addAction(
                 Action.Builder()
                     .setTitle("Gas station")

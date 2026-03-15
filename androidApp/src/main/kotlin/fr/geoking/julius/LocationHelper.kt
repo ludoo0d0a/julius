@@ -41,6 +41,7 @@ object LocationHelper {
         Log.d(TAG, "Requesting fresh location update (timeout ${timeoutMs}ms)")
         return withTimeoutOrNull(timeoutMs) {
             suspendCancellableCoroutine { continuation ->
+                @Suppress("DEPRECATION")
                 val listener = object : LocationListener {
                     override fun onLocationChanged(location: Location) {
                         locationManager.removeUpdates(this)
@@ -61,6 +62,7 @@ object LocationHelper {
                     }
 
                     if (provider != null) {
+                        @Suppress("DEPRECATION")
                         locationManager.requestSingleUpdate(provider, listener, null)
                     } else {
                         if (continuation.isActive) continuation.resume(null)

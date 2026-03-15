@@ -29,8 +29,7 @@ class AutoOpenAiModelSelectionScreen(
 
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
-            .setTitle("Select OpenAI Model")
-            .setHeaderAction(Action.BACK)
+            .setHeader(Header.Builder().setTitle("Select OpenAI Model").setStartHeaderAction(Action.BACK).build())
             .build()
     }
 }

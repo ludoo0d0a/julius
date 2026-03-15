@@ -54,6 +54,7 @@ private enum class Screen {
     Main,
     Theme,
     Agent,
+    TextAnimation,
     GoogleAccount,
     AgentConfig,
     FractalConfig,
@@ -100,6 +101,7 @@ fun SettingsScreen(
                     Screen.Main -> "Julius Settings"
                     Screen.Theme -> "Theme"
                     Screen.Agent -> "Agent"
+                    Screen.TextAnimation -> "Text animation"
                     Screen.AgentConfig -> "${current.selectedAgent.name} Config"
                     Screen.FractalConfig -> "Fractal Settings"
                     Screen.JulesConfig -> "Jules API"
@@ -136,6 +138,12 @@ fun SettingsScreen(
                             save(settingsManager, current.copy(selectedAgent = it))
                         },
                         onConfigure = { currentScreen = Screen.AgentConfig }
+                    )
+                    Screen.TextAnimation -> TextAnimationSelection(
+                        selected = current.textAnimation,
+                        onSelect = {
+                            save(settingsManager, current.copy(textAnimation = it))
+                        }
                     )
                     Screen.AgentConfig -> AgentConfig(
                         settings = current,
@@ -280,6 +288,11 @@ private fun MainMenu(
             label = "Agent",
             value = settings.selectedAgent.name,
             onClick = { onNavigate(Screen.Agent) }
+        )
+        SettingsItem(
+            label = "Text animation",
+            value = settings.textAnimation.name,
+            onClick = { onNavigate(Screen.TextAnimation) }
         )
 
         SettingsItem(
@@ -498,6 +511,22 @@ private fun AgentSelection(
                         )
                     }
                 }
+            )
+        }
+    }
+}
+
+@Composable
+private fun TextAnimationSelection(
+    selected: TextAnimation,
+    onSelect: (TextAnimation) -> Unit
+) {
+    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        TextAnimation.entries.forEach { animation ->
+            SelectionItem(
+                label = animation.name,
+                isSelected = animation == selected,
+                onSelect = { onSelect(animation) }
             )
         }
     }

@@ -11,6 +11,7 @@ import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.CarIcon
 import androidx.car.app.model.CarLocation
 import androidx.car.app.model.ItemList
+import androidx.car.app.model.Header
 import androidx.car.app.model.Metadata
 import androidx.car.app.model.MessageTemplate
 import androidx.car.app.model.Place
@@ -103,6 +104,7 @@ class MapPoiScreen(
 
     override fun onGetTemplate(): Template {
         return try {
+            @Suppress("DEPRECATION")
             val builder = PlaceListMapTemplate.Builder()
                 .setTitle("Gas Stations")
                 .setHeaderAction(Action.BACK)
@@ -207,8 +209,7 @@ class MapPoiScreen(
         } catch (e: Exception) {
             Log.e("MapPoiScreen", "Error building template", e)
             MessageTemplate.Builder("Failed to load map: ${e.message}")
-                .setTitle("Error")
-                .setHeaderAction(Action.BACK)
+                .setHeader(Header.Builder().setTitle("Error").setStartHeaderAction(Action.BACK).build())
                 .build()
         }
     }

@@ -28,6 +28,16 @@ fun AnimatedLetterText(
     color: Color = Color.White,
     textAlign: TextAlign = TextAlign.Start
 ) {
+    if (animation == TextAnimation.None) {
+        Text(
+            text = text,
+            style = style,
+            color = color,
+            textAlign = textAlign,
+            modifier = modifier
+        )
+        return
+    }
     // We want to animate letters as they appear.
     // If the text grows, new letters should animate.
     // To handle this properly, we use a key for each letter's position to maintain its animation state.
@@ -77,7 +87,7 @@ fun AnimatedLetter(
         transitionState.targetState = true
     }
 
-    val transition = updateTransition(transitionState, label = "LetterTransition")
+    val transition = rememberTransition(transitionState, label = "LetterTransition")
 
     val alpha by transition.animateFloat(
         transitionSpec = { tween(durationMillis = 500) },

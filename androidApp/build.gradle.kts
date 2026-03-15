@@ -26,6 +26,9 @@ configure<ApplicationExtension> {
         // Keys: local.properties first, then env (CI must set env on the step that runs Gradle, e.g. JULES_KEY, GOOGLE_MAPS_KEY)
         fun prop(key: String, default: String = "") =
             localProps.getProperty(key) ?: System.getenv(key) ?: default
+        // Sanitize for Java string literal: trim, strip newlines, escape backslash and double-quote
+        fun sanitizeBuildConfigString(s: String): String =
+            s.trim().replace("\\", "\\\\").replace("\"", "\\\"").replace(Regex("[\r\n]+"), " ")
         val localVersionCode = prop("VERSION_CODE").takeIf { it.isNotEmpty() }?.toIntOrNull()
         val computedVersionCode = when {
             ciRunNumber != null -> (ciRunNumber * 10) + ciRunAttempt
@@ -42,18 +45,18 @@ configure<ApplicationExtension> {
         val buildDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         buildConfigField("String", "BUILD_DATE", "\"$buildDate\"")
 
-        val elevenLabsKey = prop("ELEVENLABS_KEY")
-        val geminiKey = prop("GEMINI_KEY")
-        val deepgramKey = prop("DEEPGRAM_KEY")
-        val openaiKey = prop("OPENAI_KEY")
-        val perplexityKey = prop("PERPLEXITY_KEY")
-        val firebaseAiKey = prop("FIREBASE_AI_KEY")
-        val firebaseAiModel = prop("FIREBASE_AI_MODEL", "gemini-1.5-flash-latest")
-        val opencodeZenKey = prop("OPENCODE_ZEN_KEY")
-        val completionsMeKey = prop("COMPLETIONS_ME_KEY")
-        val apifreellmKey = prop("APIFREELLM_KEY")
-        val julesKey = prop("JULES_KEY")
-        val googleWebClientId = prop("GOOGLE_WEB_CLIENT_ID", "your_web_client_id_placeholder")
+        val elevenLabsKey = sanitizeBuildConfigString(prop("ELEVENLABS_KEY"))
+        val geminiKey = sanitizeBuildConfigString(prop("GEMINI_KEY"))
+        val deepgramKey = sanitizeBuildConfigString(prop("DEEPGRAM_KEY"))
+        val openaiKey = sanitizeBuildConfigString(prop("OPENAI_KEY"))
+        val perplexityKey = sanitizeBuildConfigString(prop("PERPLEXITY_KEY"))
+        val firebaseAiKey = sanitizeBuildConfigString(prop("FIREBASE_AI_KEY"))
+        val firebaseAiModel = sanitizeBuildConfigString(prop("FIREBASE_AI_MODEL", "gemini-1.5-flash-latest"))
+        val opencodeZenKey = sanitizeBuildConfigString(prop("OPENCODE_ZEN_KEY"))
+        val completionsMeKey = sanitizeBuildConfigString(prop("COMPLETIONS_ME_KEY"))
+        val apifreellmKey = sanitizeBuildConfigString(prop("APIFREELLM_KEY"))
+        val julesKey = sanitizeBuildConfigString(prop("JULES_KEY"))
+        val googleWebClientId = sanitizeBuildConfigString(prop("GOOGLE_WEB_CLIENT_ID", "your_web_client_id_placeholder"))
         val mapsApiKey = prop("GOOGLE_MAPS_KEY")
         manifestPlaceholders["googleMapsApiKey"] = mapsApiKey
 

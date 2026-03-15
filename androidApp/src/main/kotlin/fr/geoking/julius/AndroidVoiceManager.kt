@@ -29,6 +29,7 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.shared.VoiceManager
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.isActive
@@ -39,8 +40,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import kotlin.OptIn
 import java.util.Locale
 
+@OptIn(DelicateCoroutinesApi::class)
 @UnstableApi
 class AndroidVoiceManager(
     private val context: Context,
@@ -261,6 +264,7 @@ class AndroidVoiceManager(
         }
     }
 
+    @Suppress("DEPRECATION")
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             ttsReady = true

@@ -118,8 +118,7 @@ class AutoSettingsScreen(
 
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
-            .setTitle("Settings")
-            .setHeaderAction(Action.BACK)
+            .setHeader(Header.Builder().setTitle("Settings").setStartHeaderAction(Action.BACK).build())
             .build()
     }
 }
