@@ -1,0 +1,10 @@
+<!-- EV charging (IRVE) icon: lightning bolt, green, 24dp viewport -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+  <path
+      android:fillColor="#22C55E"
+      android:pathData="M7,2v11h3v9l7,-12h-4V2z"/>
+</vector>
