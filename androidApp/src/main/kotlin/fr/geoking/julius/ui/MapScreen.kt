@@ -307,7 +307,7 @@ fun MapScreen(
                                 PoiProviderType.DataGouv -> "Source: data.gouv.fr"
                                 PoiProviderType.DataGouvElec -> "Source: IRVE"
                                 PoiProviderType.OpenChargeMap -> "Source: Open Charge Map"
-                                PoiProviderType.Overpass -> "Source: OSM (toilets, water)"
+                                PoiProviderType.Overpass -> "Source: OSM + data.gouv (camping, picnic…)"
                             }
                         )
                     }
@@ -365,18 +365,33 @@ fun MapScreen(
                     val defaultWaterIcon = remember(mapContext, sizePx) {
                         vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_water_rounded, sizePx) ?: defaultGasIcon
                     }
+                    val defaultCampingIcon = remember(mapContext, sizePx) {
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_camping_rounded, sizePx) ?: defaultGasIcon
+                    }
+                    val defaultCaravanIcon = remember(mapContext, sizePx) {
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_caravan_rounded, sizePx) ?: defaultGasIcon
+                    }
+                    val defaultPicnicIcon = remember(mapContext, sizePx) {
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_picnic_rounded, sizePx) ?: defaultGasIcon
+                    }
                     val iconCache = remember(mapContext, sizePx) {
                         mutableMapOf<Int, BitmapDescriptor>().apply {
                             put(R.drawable.ic_poi_gas_rounded, defaultGasIcon)
                             put(R.drawable.ic_poi_electric_rounded, defaultElectricIcon)
                             put(R.drawable.ic_poi_toilet_rounded, defaultToiletIcon)
                             put(R.drawable.ic_poi_water_rounded, defaultWaterIcon)
+                            put(R.drawable.ic_poi_camping_rounded, defaultCampingIcon)
+                            put(R.drawable.ic_poi_caravan_rounded, defaultCaravanIcon)
+                            put(R.drawable.ic_poi_picnic_rounded, defaultPicnicIcon)
                         }
                     }
                     fun iconFor(poi: Poi): BitmapDescriptor {
                         val iconResId = when (poi.poiCategory) {
                             PoiCategory.Toilet -> R.drawable.ic_poi_toilet_rounded
                             PoiCategory.DrinkingWater -> R.drawable.ic_poi_water_rounded
+                            PoiCategory.Camping -> R.drawable.ic_poi_camping_rounded
+                            PoiCategory.CaravanSite -> R.drawable.ic_poi_caravan_rounded
+                            PoiCategory.PicnicSite -> R.drawable.ic_poi_picnic_rounded
                             else -> when {
                                 poi.isElectric -> R.drawable.ic_poi_electric_rounded
                                 else -> BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_gas_rounded

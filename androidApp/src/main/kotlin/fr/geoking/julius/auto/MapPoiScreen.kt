@@ -131,6 +131,9 @@ class MapPoiScreen(
                     val iconResId = when (poi.poiCategory) {
                         PoiCategory.Toilet -> R.drawable.ic_poi_toilet_rounded
                         PoiCategory.DrinkingWater -> R.drawable.ic_poi_water_rounded
+                        PoiCategory.Camping -> R.drawable.ic_poi_camping_rounded
+                        PoiCategory.CaravanSite -> R.drawable.ic_poi_caravan_rounded
+                        PoiCategory.PicnicSite -> R.drawable.ic_poi_picnic_rounded
                         else -> when {
                             poi.isElectric -> R.drawable.ic_poi_electric_rounded
                             else -> BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_gas_rounded

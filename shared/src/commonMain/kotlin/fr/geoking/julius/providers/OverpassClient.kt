@@ -32,7 +32,7 @@ class OverpassClient(
      * @param longitude Center longitude
      * @param radiusKm Search radius in km
      * @param amenityValues OSM "amenity" tag values, e.g. "toilets", "drinking_water"
-     * @param limit Max elements per amenity type (Overpass may return more; we trim)
+     * @param limit Max elements (Overpass may return more; we trim)
      */
     suspend fun queryNodes(
         latitude: Double,
@@ -40,8 +40,25 @@ class OverpassClient(
         radiusKm: Int = 5,
         amenityValues: Set<String>,
         limit: Int = 100
+    ): List<OverpassElement> = queryNodesWithTagFilters(
+        latitude, longitude, radiusKm,
+        listOf("amenity" to amenityValues),
+        limit
+    )
+
+    /**
+     * Fetch POI nodes matching multiple OSM tag key/value filters (e.g. amenity + tourism).
+     * Builds a union of node[key=value] for each (key, values) pair.
+     */
+    suspend fun queryNodesWithTagFilters(
+        latitude: Double,
+        longitude: Double,
+        radiusKm: Int = 5,
+        tagFilters: List<Pair<String, Set<String>>>,
+        limit: Int = 100
     ): List<OverpassElement> {
-        if (amenityValues.isEmpty()) return emptyList()
+        val flat = tagFilters.flatMap { (key, values) -> values.map { key to it } }
+        if (flat.isEmpty()) return emptyList()
         val deltaLat = radiusKm / 111.0
         val deltaLng = radiusKm / (111.0 * cos(latitude * PI / 180)).coerceAtLeast(0.01)
         val south = latitude - deltaLat
@@ -49,8 +66,8 @@ class OverpassClient(
         val west = longitude - deltaLng
         val east = longitude + deltaLng
         val bbox = "$south,$west,$north,$east"
-        val unionParts = amenityValues.joinToString("\n") { amenity ->
-            """  node["amenity"="$amenity"]($bbox);"""
+        val unionParts = flat.joinToString("\n") { (key, value) ->
+            """  node["$key"="$value"]($bbox);"""
         }
         val query = """
             [out:json][timeout:25];
@@ -65,22 +82,81 @@ class OverpassClient(
         if (response.status.value != 200) {
             throw NetworkException(response.status.value, "Overpass API error: ${body.take(500)}")
         }
-        return parseElements(body)
+        return parseElements(body, nodesOnly = true)
     }
 
-    private fun parseElements(body: String): List<OverpassElement> {
+    /**
+     * Fetch POI nodes and ways matching the given tag filters (e.g. amenity=truck_stop, highway=rest_area).
+     * Ways are returned with a representative point (center). Use for categories that are often mapped as ways.
+     */
+    suspend fun queryNodesAndWaysWithTagFilters(
+        latitude: Double,
+        longitude: Double,
+        radiusKm: Int = 5,
+        tagFilters: List<Pair<String, Set<String>>>,
+        limit: Int = 100
+    ): List<OverpassElement> {
+        val flat = tagFilters.flatMap { (key, values) -> values.map { key to it } }
+        if (flat.isEmpty()) return emptyList()
+        val deltaLat = radiusKm / 111.0
+        val deltaLng = radiusKm / (111.0 * cos(latitude * PI / 180)).coerceAtLeast(0.01)
+        val south = latitude - deltaLat
+        val north = latitude + deltaLat
+        val west = longitude - deltaLng
+        val east = longitude + deltaLng
+        val bbox = "$south,$west,$north,$east"
+        val unionParts = flat.joinToString("\n") { (key, value) ->
+            """  node["$key"="$value"]($bbox);  way["$key"="$value"]($bbox);"""
+        }
+        val query = """
+            [out:json][timeout:25];
+            (
+            $unionParts
+            );
+            out center ${limit.coerceIn(1, 500)};
+        """.trimIndent()
+
+        val response = client.post(baseUrl) { setBody(query) }
+        val body = response.bodyAsText()
+        if (response.status.value != 200) {
+            throw NetworkException(response.status.value, "Overpass API error: ${body.take(500)}")
+        }
+        return parseElements(body, nodesOnly = false)
+    }
+
+    private fun parseElements(body: String, nodesOnly: Boolean = true): List<OverpassElement> {
         val root = json.parseToJsonElement(body).jsonObject
         val elements = root["elements"] ?: return emptyList()
         val arr = elements.jsonArray
         return arr.mapNotNull { el ->
             val obj = el.jsonObject
             val type = obj["type"]?.jsonPrimitive?.content ?: return@mapNotNull null
-            if (type != "node") return@mapNotNull null
             val id = obj["id"]?.jsonPrimitive?.content?.toLongOrNull() ?: return@mapNotNull null
-            val lat = obj["lat"]?.jsonPrimitive?.content?.toDoubleOrNull() ?: return@mapNotNull null
-            val lon = obj["lon"]?.jsonPrimitive?.content?.toDoubleOrNull() ?: return@mapNotNull null
             val tags = (obj["tags"] as? JsonObject)?.mapValues { (_, v) -> (v as? kotlinx.serialization.json.JsonPrimitive)?.content ?: "" } ?: emptyMap()
-            OverpassElement(id = id, lat = lat, lon = lon, tags = tags)
+            when (type) {
+                "node" -> {
+                    val lat = obj["lat"]?.jsonPrimitive?.content?.toDoubleOrNull() ?: return@mapNotNull null
+                    val lon = obj["lon"]?.jsonPrimitive?.content?.toDoubleOrNull() ?: return@mapNotNull null
+                    OverpassElement(id = id, lat = lat, lon = lon, tags = tags)
+                }
+                "way" -> if (nodesOnly) null else {
+                    val center = obj["center"]?.jsonObject
+                    val lat = center?.get("lat")?.jsonPrimitive?.content?.toDoubleOrNull()
+                    val lon = center?.get("lon")?.jsonPrimitive?.content?.toDoubleOrNull()
+                    val (wayLat, wayLon) = when {
+                        lat != null && lon != null -> lat to lon
+                        else -> obj["bounds"]?.jsonObject?.let { b ->
+                            val minLat = b["minlat"]?.jsonPrimitive?.content?.toDoubleOrNull() ?: return@let null
+                            val maxLat = b["maxlat"]?.jsonPrimitive?.content?.toDoubleOrNull() ?: return@let null
+                            val minLon = b["minlon"]?.jsonPrimitive?.content?.toDoubleOrNull() ?: return@let null
+                            val maxLon = b["maxlon"]?.jsonPrimitive?.content?.toDoubleOrNull() ?: return@let null
+                            (minLat + maxLat) / 2.0 to (minLon + maxLon) / 2.0
+                        } ?: return@mapNotNull null
+                    }
+                    OverpassElement(id = id, lat = wayLat, lon = wayLon, tags = tags)
+                }
+                else -> null
+            }
         }
     }
 }
@@ -92,6 +168,8 @@ data class OverpassElement(
     val tags: Map<String, String>
 ) {
     fun amenity(): String? = tags["amenity"]
+    fun tourism(): String? = tags["tourism"]
+    fun highway(): String? = tags["highway"]
     fun name(): String? = tags["name"]
     fun address(): String? = tags["addr:street"]?.let { street ->
         val house = tags["addr:housenumber"]

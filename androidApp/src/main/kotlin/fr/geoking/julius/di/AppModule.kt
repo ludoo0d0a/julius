@@ -14,6 +14,8 @@ import fr.geoking.julius.shared.PermissionManager
 import fr.geoking.julius.providers.GasApiProvider
 import fr.geoking.julius.providers.EtalabProvider
 import fr.geoking.julius.providers.DataGouvProvider
+import fr.geoking.julius.providers.DataGouvCampingClient
+import fr.geoking.julius.providers.DataGouvCampingProvider
 import fr.geoking.julius.providers.DataGouvElecProvider
 import fr.geoking.julius.providers.OpenChargeMapClient
 import fr.geoking.julius.providers.OpenChargeMapProvider
@@ -171,6 +173,10 @@ val appModule = module {
     single<PoiProvider>(named("overpass")) {
         OverpassProvider(get(), radiusKm = 5, limit = 100)
     }
+    single { DataGouvCampingClient(get()) }
+    single<PoiProvider>(named("datagouvcamping")) {
+        DataGouvCampingProvider(get(), radiusKm = 15, limit = 50)
+    }
     single<PoiProvider>(named("selector")) {
         SelectorPoiProvider(
             routex = get(named("routex")),
@@ -180,6 +186,7 @@ val appModule = module {
             dataGouvElec = get(named("datagouvelec")),
             openChargeMap = get(named("openchargemap")),
             overpass = get(named("overpass")),
+            dataGouvCamping = get(named("datagouvcamping")),
             settingsManager = get()
         )
     }

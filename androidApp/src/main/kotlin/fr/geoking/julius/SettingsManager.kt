@@ -2,6 +2,7 @@ package fr.geoking.julius
 
 import android.content.Context
 import android.content.SharedPreferences
+import fr.geoking.julius.VehicleType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -71,8 +72,10 @@ data class AppSettings(
     val evConsumptionKwhPer100km: Float? = null,
     /** Optional API key for Open Charge Map (api.openchargemap.io). */
     val openChargeMapKey: String = "",
-    /** When POI provider is Overpass: which amenity types to show (toilets, drinking_water). */
+    /** When POI provider is Overpass: which amenity types to show (toilets, drinking_water, truck_stop, rest_area). */
     val selectedOverpassAmenityTypes: Set<String> = setOf("toilets", "drinking_water"),
+    /** Vehicle type for POI categories and optional routing profile (Car, Truck, Motorcycle, Motorhome). */
+    val vehicleType: VehicleType = VehicleType.Car,
     val openAiKey: String = "",
     val openAiModel: OpenAiModel = OpenAiModel.GPT_4O,
     val elevenLabsKey: String = "",
@@ -164,6 +167,11 @@ open class SettingsManager(context: Context) {
         val overpassAmenityStr = prefs.getString("overpass_amenity_types", "toilets,drinking_water") ?: "toilets,drinking_water"
         val selectedOverpassAmenityTypes = overpassAmenityStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
             .ifEmpty { setOf("toilets", "drinking_water") }
+        val vehicleType = try {
+            VehicleType.valueOf(prefs.getString("vehicle_type", VehicleType.Car.name) ?: VehicleType.Car.name)
+        } catch (e: IllegalArgumentException) {
+            VehicleType.Car
+        }
 
         return AppSettings(
             selectedPoiProvider = try {
@@ -183,6 +191,7 @@ open class SettingsManager(context: Context) {
             evConsumptionKwhPer100km = evConsumptionKwhPer100km,
             openChargeMapKey = openChargeMapKey,
             selectedOverpassAmenityTypes = selectedOverpassAmenityTypes,
+            vehicleType = vehicleType,
             openAiKey = openAiKey,
             openAiModel = try {
                 OpenAiModel.valueOf(prefs.getString("openai_model", OpenAiModel.GPT_4O.name) ?: OpenAiModel.GPT_4O.name)
@@ -323,6 +332,11 @@ open class SettingsManager(context: Context) {
         _settings.value = _settings.value.copy(selectedOverpassAmenityTypes = value)
     }
 
+    open fun setVehicleType(type: VehicleType) {
+        prefs.edit().putString("vehicle_type", type.name).apply()
+        _settings.value = _settings.value.copy(vehicleType = type)
+    }
+
     open fun setEvRangeKm(km: Int) {
         val value = km.coerceIn(50, 1000)
         prefs.edit().putInt("ev_range_km", value).apply()
@@ -382,6 +396,7 @@ open class SettingsManager(context: Context) {
             .apply { settings.evConsumptionKwhPer100km?.let { putFloat("ev_consumption_kwh_100", it) } ?: remove("ev_consumption_kwh_100") }
             .putString("openchargemap_key", settings.openChargeMapKey)
             .putString("overpass_amenity_types", settings.selectedOverpassAmenityTypes.joinToString(","))
+            .putString("vehicle_type", settings.vehicleType.name)
             .putString("openai_key", settings.openAiKey)
             .putString("openai_model", settings.openAiModel.name)
             .putString("elevenlabs_key", settings.elevenLabsKey)
@@ -456,6 +471,8 @@ open class SettingsManager(context: Context) {
             evRangeKm = _settings.value.evRangeKm,
             evConsumptionKwhPer100km = _settings.value.evConsumptionKwhPer100km,
             openChargeMapKey = _settings.value.openChargeMapKey,
+            selectedOverpassAmenityTypes = _settings.value.selectedOverpassAmenityTypes,
+            vehicleType = _settings.value.vehicleType,
             openAiKey = openAiKey,
             openAiModel = openAiModel,
             elevenLabsKey = elevenLabsKey,

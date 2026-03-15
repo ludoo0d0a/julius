@@ -13,10 +13,15 @@ import kotlinx.serialization.json.jsonPrimitive
  * [RoutingClient] implementation using the public OSRM demo server.
  * No API key required. May be rate-limited under heavy use.
  * See https://project-osrm.org/docs/v5.24.0/api/
+ *
+ * [baseUrl] should be the base up to and including "/route/v1" (e.g. https://router.project-osrm.org/route/v1).
+ * [profile] is used in the path: /route/v1/{profile}/{coords}. Public OSRM supports "driving", "driving-traffic",
+ * "walking", "cycling". Truck/motorcycle routing requires a custom backend with matching profiles.
  */
 class OsrmRoutingClient(
     private val client: HttpClient,
-    private val baseUrl: String = "https://router.project-osrm.org/route/v1/driving"
+    private val baseUrl: String = "https://router.project-osrm.org/route/v1",
+    private val defaultProfile: String = "driving"
 ) : RoutingClient {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -25,11 +30,13 @@ class OsrmRoutingClient(
         originLat: Double,
         originLon: Double,
         destLat: Double,
-        destLon: Double
+        destLon: Double,
+        profile: String?
     ): RouteResult? {
         // OSRM expects coordinates as lon,lat
         val coords = "${originLon},${originLat};${destLon},${destLat}"
-        val url = "$baseUrl/$coords?overview=full&geometries=polyline"
+        val profileSegment = profile?.takeIf { it.isNotBlank() } ?: defaultProfile
+        val url = "$baseUrl/$profileSegment/$coords?overview=full&geometries=polyline"
         val response = client.get(url)
         val body = response.bodyAsText()
         if (response.status.value != 200) {

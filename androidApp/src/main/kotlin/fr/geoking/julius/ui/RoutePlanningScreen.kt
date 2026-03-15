@@ -36,6 +36,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +49,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import fr.geoking.julius.LocationHelper
+import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.VehicleType
 import fr.geoking.julius.providers.Poi
 import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.routing.RoutePlanner
@@ -57,6 +60,7 @@ import fr.geoking.julius.routing.RoutePlanner
 fun RoutePlanningScreen(
     routePlanner: RoutePlanner,
     poiProvider: PoiProvider,
+    settingsManager: SettingsManager,
     onBack: () -> Unit
 ) {
     BackHandler(onBack = onBack)
@@ -175,7 +179,13 @@ fun RoutePlanningScreen(
 
             if (stations.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Stations along route (${stations.size})", color = Color.White, style = MaterialTheme.typography.titleMedium)
+                val settings by settingsManager.settings.collectAsState()
+                val title = if (settings.vehicleType == VehicleType.Truck || settings.vehicleType == VehicleType.Motorhome) {
+                    "POIs along route (${stations.size})"
+                } else {
+                    "Stations along route (${stations.size})"
+                }
+                Text(title, color = Color.White, style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(stations, key = { it.id }) { poi ->

@@ -12,13 +12,43 @@ enum class PoiCategory {
     /** Public toilets (e.g. Overpass amenity=toilets). */
     Toilet,
     /** Drinking water / fountains (e.g. Overpass amenity=drinking_water). */
-    DrinkingWater;
+    DrinkingWater,
+    /** Camp sites (OSM tourism=camp_site). */
+    Camping,
+    /** Caravan / motorhome aires (OSM tourism=caravan_site; data.gouv.fr aires). */
+    CaravanSite,
+    /** Picnic areas (OSM tourism=picnic_site). */
+    PicnicSite,
+    /** Truck stops (OSM amenity=truck_stop). */
+    TruckStop,
+    /** Rest areas (OSM highway=rest_area). */
+    RestArea;
     companion object {
         /** OSM amenity tag value for this category, when applicable. */
         fun fromOsmAmenity(amenity: String): PoiCategory? = when (amenity) {
             "toilets" -> Toilet
             "drinking_water" -> DrinkingWater
+            "truck_stop" -> TruckStop
             else -> null
+        }
+        /** OSM tourism tag value for this category. */
+        fun fromOsmTourism(tourism: String): PoiCategory? = when (tourism) {
+            "camp_site" -> Camping
+            "caravan_site" -> CaravanSite
+            "picnic_site" -> PicnicSite
+            else -> null
+        }
+        /** OSM highway tag value for this category (e.g. rest_area). */
+        fun fromOsmHighway(highway: String): PoiCategory? = when (highway) {
+            "rest_area" -> RestArea
+            else -> null
+        }
+        /** Resolve category from OSM tags (amenity, tourism, highway). */
+        fun fromOsmTags(tags: Map<String, String>): PoiCategory? {
+            tags["amenity"]?.let { fromOsmAmenity(it) }?.let { return it }
+            tags["tourism"]?.let { fromOsmTourism(it) }?.let { return it }
+            tags["highway"]?.let { fromOsmHighway(it) }?.let { return it }
+            return null
         }
     }
 }

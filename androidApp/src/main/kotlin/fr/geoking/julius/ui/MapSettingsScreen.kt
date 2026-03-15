@@ -23,6 +23,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import fr.geoking.julius.DEFAULT_EV_RANGE_KM
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.VehicleType
 import fr.geoking.julius.providers.PoiProviderType
 
 private val PROVIDER_OPTIONS = listOf(
@@ -32,13 +33,26 @@ private val PROVIDER_OPTIONS = listOf(
     PoiProviderType.DataGouv to "data.gouv.fr (fuel)",
     PoiProviderType.DataGouvElec to "data.gouv.fr (IRVE)",
     PoiProviderType.OpenChargeMap to "Open Charge Map (EV)",
-    PoiProviderType.Overpass to "Overpass (OSM: toilets, water)"
+    PoiProviderType.Overpass to "Overpass (OSM + data.gouv: toilets, water, camping, picnic)"
 )
 
-/** Overpass amenity types: id used in settings, label for UI. */
+/** Overpass / motorhome POI types: id used in settings, label for UI. */
 val OVERPASS_AMENITY_OPTIONS = listOf(
     "toilets" to "Toilets",
-    "drinking_water" to "Drinking water"
+    "drinking_water" to "Drinking water",
+    "camp_site" to "Camping",
+    "caravan_site" to "Aire camping-car",
+    "picnic_site" to "Picnic",
+    "truck_stop" to "Truck stop",
+    "rest_area" to "Rest area"
+)
+
+/** Vehicle type options for map/route POI relevance. */
+val VEHICLE_TYPE_OPTIONS = listOf(
+    VehicleType.Car to "Car",
+    VehicleType.Truck to "Truck",
+    VehicleType.Motorcycle to "Motorcycle",
+    VehicleType.Motorhome to "Motorhome"
 )
 
 /**
@@ -140,6 +154,9 @@ fun MapSettingsScreen(
     var selectedOverpassAmenities by remember(settings.selectedOverpassAmenityTypes) {
         mutableStateOf(settings.selectedOverpassAmenityTypes)
     }
+    var selectedVehicleType by remember(settings.vehicleType) {
+        mutableStateOf(settings.vehicleType)
+    }
     var evRangeKm by remember(settings.evRangeKm) { mutableStateOf(settings.evRangeKm.toString()) }
     var evConsumptionKwh by remember(settings.evConsumptionKwhPer100km) {
         mutableStateOf(settings.evConsumptionKwhPer100km?.toString() ?: "")
@@ -169,6 +186,9 @@ fun MapSettingsScreen(
         }
         if (selectedOverpassAmenities != settings.selectedOverpassAmenityTypes) {
             settingsManager.setOverpassAmenityTypes(selectedOverpassAmenities)
+        }
+        if (selectedVehicleType != settings.vehicleType) {
+            settingsManager.setVehicleType(selectedVehicleType)
         }
         evRangeKm.toIntOrNull()?.coerceIn(50, 1000)?.let { km ->
             if (km != settings.evRangeKm) settingsManager.setEvRangeKm(km)
@@ -233,6 +253,37 @@ fun MapSettingsScreen(
                     )
                 }
             }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                "Vehicle type",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                "Affects which POIs are relevant on the map and along routes (e.g. truck stops for Truck).",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            VEHICLE_TYPE_OPTIONS.forEach { (type, label) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = selectedVehicleType == type,
+                        onClick = { selectedVehicleType = type }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
             if (selectedProvider == PoiProviderType.OpenChargeMap) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -244,13 +295,13 @@ fun MapSettingsScreen(
             if (selectedProvider == PoiProviderType.Overpass) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    "Amenity types (OpenStreetMap)",
+                    "POI types (OSM + data.gouv.fr)",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "Show toilets, drinking water, etc. Data © OpenStreetMap contributors.",
+                    "Toilets, water, camping, aires camping-car, picnic. OSM © contributors; aires from data.gouv.fr (e.g. Hérault).",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

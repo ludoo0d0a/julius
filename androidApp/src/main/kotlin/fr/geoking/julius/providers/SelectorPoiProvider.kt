@@ -2,6 +2,7 @@ package fr.geoking.julius.providers
 
 import android.util.Log
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.VehicleType
 
 /**
  * Delegates to the currently selected [PoiProvider] (Routex, Etalab, GasApi, DataGouv, DataGouvElec, OpenChargeMap, Overpass)
@@ -15,6 +16,7 @@ class SelectorPoiProvider(
     private val dataGouvElec: PoiProvider,
     private val openChargeMap: PoiProvider,
     private val overpass: PoiProvider,
+    private val dataGouvCamping: PoiProvider?,
     private val settingsManager: SettingsManager
 ) : PoiProvider {
 
@@ -31,18 +33,44 @@ class SelectorPoiProvider(
     override suspend fun search(request: PoiSearchRequest): List<Poi> {
         val settings = settingsManager.settings.value
         val provider = settings.selectedPoiProvider
+        val vehicleType = settings.vehicleType
         val categories = when (provider) {
-            PoiProviderType.Overpass -> settings.selectedOverpassAmenityTypes.mapNotNull { amenity ->
-                when (amenity) {
-                    "toilets" -> PoiCategory.Toilet
-                    "drinking_water" -> PoiCategory.DrinkingWater
-                    else -> null
+            PoiProviderType.Overpass -> {
+                val fromSettings = settings.selectedOverpassAmenityTypes.mapNotNull { id ->
+                    when (id) {
+                        "toilets" -> PoiCategory.Toilet
+                        "drinking_water" -> PoiCategory.DrinkingWater
+                        "camp_site" -> PoiCategory.Camping
+                        "caravan_site" -> PoiCategory.CaravanSite
+                        "picnic_site" -> PoiCategory.PicnicSite
+                        "truck_stop" -> PoiCategory.TruckStop
+                        "rest_area" -> PoiCategory.RestArea
+                        else -> null
+                    }
+                }.toSet()
+                val defaultOverpass = fromSettings.ifEmpty {
+                    setOf(PoiCategory.Toilet, PoiCategory.DrinkingWater)
                 }
-            }.toSet().ifEmpty { setOf(PoiCategory.Toilet, PoiCategory.DrinkingWater) }
-            else -> setOf(PoiCategory.Gas, PoiCategory.Irve)
+                when (vehicleType) {
+                    VehicleType.Truck -> defaultOverpass + setOf(PoiCategory.TruckStop, PoiCategory.RestArea, PoiCategory.Gas)
+                    VehicleType.Motorhome -> defaultOverpass + setOf(PoiCategory.CaravanSite, PoiCategory.Camping, PoiCategory.PicnicSite)
+                    else -> defaultOverpass
+                }
+            }
+            else -> {
+                when (vehicleType) {
+                    VehicleType.Truck -> setOf(PoiCategory.Gas, PoiCategory.TruckStop, PoiCategory.RestArea)
+                    else -> setOf(PoiCategory.Gas, PoiCategory.Irve)
+                }
+            }
         }
         val effectiveRequest = request.copy(categories = categories)
         var result = currentProvider().search(effectiveRequest)
+        if (provider == PoiProviderType.Overpass && PoiCategory.CaravanSite in categories && dataGouvCamping != null) {
+            val extra = dataGouvCamping.search(effectiveRequest)
+            val seenIds = result.mapTo(mutableSetOf()) { it.id }
+            result = result + extra.filter { it.id !in seenIds }
+        }
         if (provider != PoiProviderType.Overpass) {
             val selectedEnergies = settings.selectedMapEnergyTypes
             if (selectedEnergies.isNotEmpty()) {

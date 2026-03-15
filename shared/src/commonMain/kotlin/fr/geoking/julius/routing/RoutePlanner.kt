@@ -2,6 +2,8 @@ package fr.geoking.julius.routing
 
 import fr.geoking.julius.providers.Poi
 import fr.geoking.julius.providers.PoiProvider
+import fr.geoking.julius.providers.PoiSearchRequest
+import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
@@ -18,8 +20,9 @@ class RoutePlanner(
 ) {
 
     /**
-     * Returns POIs (charging/gas stations) along the route from origin to destination.
-     * Uses [poiProvider] to fetch stations near sampled points. No range simulation; just "stations along route".
+     * Returns POIs (gas, IRVE, truck stops, rest areas, etc.) along the route from origin to destination.
+     * Uses [poiProvider] to fetch POIs near sampled points; categories are vehicle-aware when the provider
+     * uses settings (e.g. SelectorPoiProvider). No range simulation; just "POIs along route".
      */
     suspend fun getStationsAlongRoute(
         originLat: Double,
@@ -36,8 +39,9 @@ class RoutePlanner(
         val sampled = samplePointsByDistance(points, sampleIntervalKm * 1000)
         val seenIds = mutableSetOf<String>()
         val result = mutableListOf<Poi>()
+        val request = PoiSearchRequest(latitude = 0.0, longitude = 0.0, categories = emptySet())
         for ((lat, lon) in sampled) {
-            val pois = poiProvider.getGasStations(lat, lon, null)
+            val pois = poiProvider.search(request.copy(latitude = lat, longitude = lon))
             for (poi in pois) {
                 if (poi.id !in seenIds) {
                     seenIds.add(poi.id)
@@ -72,12 +76,12 @@ class RoutePlanner(
 
     private fun haversineMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val r = 6_371_000.0
-        val rad = Math.PI / 180.0
+        val rad = PI / 180.0
         val dLat = (lat2 - lat1) * rad
         val dLon = (lon2 - lon1) * rad
         val a = sin(dLat / 2) * sin(dLat / 2) +
             cos(lat1 * rad) * cos(lat2 * rad) * sin(dLon / 2) * sin(dLon / 2)
-        val c = 2 * atan2(sqrt(a), sqrt(1 - a))
+        val c = 2 * atan2(sqrt(a), sqrt(1.0 - a))
         return r * c
     }
 }

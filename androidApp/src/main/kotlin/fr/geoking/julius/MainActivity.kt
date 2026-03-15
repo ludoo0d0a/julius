@@ -197,6 +197,7 @@ fun MainUI(
                     RoutePlanningScreen(
                         routePlanner = routePlanner,
                         poiProvider = poiProvider,
+                        settingsManager = settingsManager,
                         onBack = { showRoutePlanning = false }
                     )
                 }

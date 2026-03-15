@@ -18,7 +18,7 @@ fun matchAvailabilityToPois(
     // Group by station: use stationId when present, else group by rounded lat/lon (same location)
     val groupKey: (PdcAvailability) -> String = { pdc ->
         pdc.stationId?.takeIf { it.isNotBlank() }
-            ?: "%.5f,%.5f".format(pdc.latitude, pdc.longitude)
+            ?: "${roundTo5Decimals(pdc.latitude)},${roundTo5Decimals(pdc.longitude)}"
     }
     val groups = availabilities.groupBy(groupKey)
 
@@ -46,12 +46,14 @@ fun matchAvailabilityToPois(
     return result
 }
 
+private fun roundTo5Decimals(x: Double): Double = round(x * 1e5) / 1e5
+
 private fun haversineMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
     val r = 6_371_000.0 // meters
     val rad = PI / 180.0
     val dLat = (lat2 - lat1) * rad
     val dLon = (lon2 - lon1) * rad
     val a = sin(dLat / 2).pow(2) + cos(lat1 * rad) * cos(lat2 * rad) * sin(dLon / 2).pow(2)
-    val c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    val c = 2 * atan2(sqrt(a), sqrt(1.0 - a))
     return r * c
 }
