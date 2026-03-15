@@ -13,6 +13,7 @@ import androidx.car.app.model.ItemList
 import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.MessageTemplate
 import androidx.car.app.model.Pane
+import androidx.car.app.model.Header
 import androidx.car.app.model.PaneTemplate
 import androidx.car.app.model.Row
 import androidx.car.app.model.Tab
@@ -28,9 +29,12 @@ import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.DetailedError
-import fr.geoking.julius.providers.PoiProvider
-import fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory
+import fr.geoking.julius.community.CommunityPoiRepository
+import fr.geoking.julius.community.FavoritesRepository
+import fr.geoking.julius.poi.PoiProvider
+import fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory
 import fr.geoking.julius.shared.Role
+import fr.geoking.julius.shared.toHistoryScreenState
 import fr.geoking.julius.shared.VoiceEvent
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -42,7 +46,9 @@ class MainScreen(
     private val store: ConversationStore,
     private val settingsManager: SettingsManager,
     private val poiProvider: PoiProvider,
-    private val availabilityProviderFactory: BorneAvailabilityProviderFactory
+    private val availabilityProviderFactory: BorneAvailabilityProviderFactory,
+    private val communityRepo: CommunityPoiRepository,
+    private val favoritesRepo: FavoritesRepository
 ) : Screen(carContext) {
 
     private var currentStatus: String = "Idle"
@@ -126,7 +132,7 @@ class MainScreen(
                     val lastUserMsg = lastMsg.text.lowercase()
                     val keywords = listOf("display map", "map", "carte", "gas stations", "stations service")
                     if (keywords.any { lastUserMsg.contains(it) }) {
-                        screenManager.push(MapPoiScreen(carContext, poiProvider, availabilityProviderFactory))
+                        screenManager.push(MapPoiScreen(carContext, poiProvider, availabilityProviderFactory, settingsManager, communityRepo, favoritesRepo))
                     }
                 }
 
@@ -199,7 +205,7 @@ class MainScreen(
                 override fun onTabSelected(tabContentId: String) {
                     when (tabContentId) {
                         TAB_SETTINGS -> screenManager.push(AutoSettingsScreen(carContext, settingsManager))
-                        TAB_MAP -> screenManager.push(MapPoiScreen(carContext, poiProvider, availabilityProviderFactory))
+                        TAB_MAP -> screenManager.push(MapPoiScreen(carContext, poiProvider, availabilityProviderFactory, settingsManager, communityRepo, favoritesRepo))
                         else -> {
                             activeTabId = tabContentId
                             invalidate()
@@ -223,17 +229,18 @@ class MainScreen(
     }
 
     private fun buildHistoryTemplate(): Template {
+        val screenState = store.state.value.toHistoryScreenState()
         val listBuilder = ItemList.Builder()
-            .setNoItemsMessage("No conversation history")
+            .setNoItemsMessage(screenState.emptyMessage)
 
-        val messages = store.state.value.messages
-        // Show last 6 messages to comply with Android Auto list limits
-        messages.takeLast(6).reversed().forEach { msg ->
-            val senderIcon = if (msg.sender == Role.User) R.drawable.ic_speaker else R.drawable.ic_home
+        // Show last 6 items to comply with Android Auto list limits
+        screenState.items.takeLast(6).reversed().forEach { item ->
+            val senderIcon = if (item.isUser) R.drawable.ic_speaker else R.drawable.ic_home
+            val senderLabel = if (item.isUser) Role.User.name else Role.Assistant.name
             listBuilder.addItem(
                 Row.Builder()
-                    .setTitle(msg.sender.name)
-                    .addText(msg.text)
+                    .setTitle(senderLabel)
+                    .addText(item.text)
                     .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, senderIcon)).build())
                     .build()
             )
@@ -241,22 +248,21 @@ class MainScreen(
 
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
-            .setTitle("Conversation History")
+            .setHeader(Header.Builder().setTitle(screenState.title).build())
             .build()
     }
 
     private fun buildSettingsPlaceholderTemplate(): Template {
         return MessageTemplate.Builder("Redirecting to Settings...")
             .setLoading(true)
-            .setTitle("Settings")
+            .setHeader(Header.Builder().setTitle("Settings").build())
             .build()
     }
 
     private fun buildErrorFallbackTemplate(e: Exception): Template {
         val msg = e.message ?: e.toString()
         return MessageTemplate.Builder(msg.take(300))
-            .setTitle("Julius Error")
-            .setHeaderAction(Action.APP_ICON)
+            .setHeader(Header.Builder().setTitle("Julius Error").setStartHeaderAction(Action.APP_ICON).build())
             .build()
     }
 
@@ -405,7 +411,7 @@ class MainScreen(
                 .build()
         )
         return PaneTemplate.Builder(paneBuilder.build())
-            .setTitle("Julius Assistant")
+            .setHeader(Header.Builder().setTitle("Julius Assistant").build())
             .build()
     }
 

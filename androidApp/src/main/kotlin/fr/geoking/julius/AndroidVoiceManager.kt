@@ -29,6 +29,7 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.shared.VoiceManager
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.isActive
@@ -39,8 +40,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import kotlin.OptIn
 import java.util.Locale
 
+@OptIn(DelicateCoroutinesApi::class)
 @UnstableApi
 class AndroidVoiceManager(
     private val context: Context,
@@ -245,6 +248,7 @@ class AndroidVoiceManager(
                         }
                     }
 
+                    @Deprecated("Overrides deprecated UtteranceProgressListener.onError", ReplaceWith("onDone(utteranceId)"))
                     override fun onError(utteranceId: String?) {
                         onDone(utteranceId)
                     }
@@ -261,6 +265,7 @@ class AndroidVoiceManager(
         }
     }
 
+    @Deprecated("Implements deprecated TextToSpeech.OnInitListener", ReplaceWith("use TextToSpeech constructor callback"))
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             ttsReady = true
@@ -272,7 +277,7 @@ class AndroidVoiceManager(
     override fun startListening() {
         Log.d(TAG, "mic on: startListening()")
         val currentCarContext = carContext
-        if (currentCarContext != null && BuildConfig.FLAVOR == "play" && settingsManager.settings.value.useCarMic) {
+        if (currentCarContext != null && BuildConfig.FLAVOR == "phone" && settingsManager.settings.value.useCarMic) {
             startCarListening(currentCarContext)
         } else {
             startListeningInternal(stopOutputs = true, bargeIn = false)

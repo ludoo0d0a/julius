@@ -3,7 +3,7 @@ package fr.geoking.julius.auto
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.Action
-import androidx.car.app.model.ActionStrip
+import androidx.car.app.model.Header
 import androidx.car.app.model.ItemList
 import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.MessageTemplate
@@ -46,17 +46,18 @@ class AutoLocalModelScreen(
                 }
                 else -> "Downloading ${variant.displayName}… ${downloadBytes / (1024 * 1024)} MB"
             }
+            val cancelAction = Action.Builder().setTitle("Cancel").setOnClickListener {
+                downloadVariant = null
+                downloadError = null
+                invalidate()
+            }.build()
             return MessageTemplate.Builder(progressText)
-                .setTitle("Llamatik model")
-                .setHeaderAction(Action.BACK)
-                .setActionStrip(
-                    ActionStrip.Builder().addAction(
-                        Action.Builder().setTitle("Cancel").setOnClickListener {
-                            downloadVariant = null
-                            downloadError = null
-                            invalidate()
-                        }.build()
-                    ).build()
+                .setHeader(
+                    Header.Builder()
+                        .setTitle("Llamatik model")
+                        .setStartHeaderAction(Action.BACK)
+                        .addEndHeaderAction(cancelAction)
+                        .build()
                 )
                 .build()
         }
@@ -121,8 +122,7 @@ class AutoLocalModelScreen(
 
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
-            .setTitle("Download model (Llamatik)")
-            .setHeaderAction(Action.BACK)
+            .setHeader(Header.Builder().setTitle("Download model (Llamatik)").setStartHeaderAction(Action.BACK).build())
             .build()
     }
 }

@@ -36,6 +36,7 @@ fun PhoneMainScreen(
     settingsManager: SettingsManager,
     store: ConversationStore,
     onSettingsClick: () -> Unit,
+    onHistoryClick: () -> Unit = {},
     onMapClick: () -> Unit,
     onJulesClick: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -71,6 +72,7 @@ fun PhoneMainScreen(
             palette = palette,
             store = store,
             onSettingsClick = onSettingsClick,
+            onHistoryClick = onHistoryClick,
             onMapClick = onMapClick,
             onJulesClick = onJulesClick,
             onAgentClick = {

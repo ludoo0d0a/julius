@@ -37,14 +37,24 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 import fr.geoking.julius.R
-import fr.geoking.julius.providers.MapViewport
-import fr.geoking.julius.providers.Poi
-import fr.geoking.julius.providers.PoiProvider
-import fr.geoking.julius.providers.PoiProviderType
-import fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory
-import fr.geoking.julius.providers.availability.matchAvailabilityToPois
-import fr.geoking.julius.providers.availability.StationAvailabilitySummary
+import fr.geoking.julius.poi.MapViewport
+import fr.geoking.julius.poi.Poi
+import fr.geoking.julius.poi.PoiProvider
+import fr.geoking.julius.poi.PoiProviderType
+import fr.geoking.julius.poi.PoiSearchRequest
+import fr.geoking.julius.poi.PoiCategory
+import fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory
+import fr.geoking.julius.api.availability.matchAvailabilityToPois
+import fr.geoking.julius.api.availability.StationAvailabilitySummary
+import fr.geoking.julius.api.traffic.TrafficInfo
+import fr.geoking.julius.api.traffic.TrafficProviderFactory
+import fr.geoking.julius.api.traffic.TrafficRequest
+import fr.geoking.julius.api.traffic.TrafficSeverity
 import fr.geoking.julius.shared.ConversationStore
+import fr.geoking.julius.community.CommunityPoiRepository
+import fr.geoking.julius.community.FavoritesRepository
+import fr.geoking.julius.community.isCommunityPoiId
+import fr.geoking.julius.ui.map.AddPoiSheet
 import fr.geoking.julius.ui.map.PoiDetailCard
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -75,9 +85,13 @@ private fun markerSizePxForZoom(zoom: Float): Int {
 fun MapScreen(
     poiProvider: PoiProvider,
     availabilityProviderFactory: BorneAvailabilityProviderFactory?,
+    trafficProviderFactory: TrafficProviderFactory? = null,
     settingsManager: fr.geoking.julius.SettingsManager,
     store: ConversationStore,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onPlanRoute: (() -> Unit)? = null,
+    communityRepo: CommunityPoiRepository? = null,
+    favoritesRepo: FavoritesRepository? = null
 ) {
     BackHandler { onBack() }
 
@@ -85,10 +99,20 @@ fun MapScreen(
     val settings by settingsManager.settings.collectAsState()
     val selectedProvider = settings.selectedPoiProvider
     var pois by remember { mutableStateOf<List<Poi>>(emptyList()) }
+    var trafficInfo by remember { mutableStateOf<TrafficInfo?>(null) }
     var mapErrorMessage by remember(selectedProvider) { mutableStateOf<String?>(null) }
     var isErrorPaused by remember(selectedProvider) { mutableStateOf(false) }
     var retryCount by remember { mutableStateOf(0) }
     var showMapSettings by remember { mutableStateOf(false) }
+    var showAddPoiSheet by remember { mutableStateOf(false) }
+    var addPoiLinkedOfficialId by remember { mutableStateOf<String?>(null) }
+    var addPoiInitialName by remember { mutableStateOf("") }
+    var addPoiInitialAddress by remember { mutableStateOf("") }
+    var addPoiInitialLat by remember { mutableStateOf<Double?>(null) }
+    var addPoiInitialLng by remember { mutableStateOf<Double?>(null) }
+    var addPoiExistingCommunityId by remember { mutableStateOf<String?>(null) }
+    var showFavoritesOnly by remember { mutableStateOf(false) }
+    var favoriteIds by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     var hasLocationPermission by remember {
         mutableStateOf(
@@ -135,7 +159,13 @@ fun MapScreen(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(selectedProvider, settings.selectedMapEnergyTypes, settings.mapMinPowerKw, settings.mapIrveOperator, cameraPositionState.position, mapSizePx, retryCount) {
+    LaunchedEffect(pois, favoritesRepo) {
+        if (favoritesRepo != null) {
+            favoriteIds = favoritesRepo.getFavorites().map { it.id }.toSet()
+        }
+    }
+
+    LaunchedEffect(selectedProvider, settings.selectedMapEnergyTypes, settings.mapMinPowerKw, settings.mapIrveOperator, settings.selectedMapConnectorTypes, cameraPositionState.position, mapSizePx, retryCount) {
         if (!hasLocationPermission) {
             launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
@@ -150,7 +180,7 @@ fun MapScreen(
             MapViewport(zoom = zoom, mapWidthPx = mapSizePx.width, mapHeightPx = mapSizePx.height)
         } else null
         try {
-            pois = poiProvider.getGasStations(centerLat, centerLng, viewport)
+            pois = poiProvider.search(PoiSearchRequest(centerLat, centerLng, viewport, emptySet()))
             val radiusKm = 10
             val availabilityProvider = availabilityProviderFactory?.getProvider(centerLat, centerLng)
             if (availabilityProvider != null) {
@@ -164,6 +194,25 @@ fun MapScreen(
             } else {
                 availabilityByPoiId = emptyMap()
             }
+            val trafficProvider = trafficProviderFactory?.getProvider(centerLat, centerLng)
+            if (trafficProvider != null) {
+                try {
+                    val halfSpan = 0.15
+                    trafficInfo = trafficProvider.getTraffic(
+                        TrafficRequest.Bbox(
+                            centerLat - halfSpan,
+                            centerLng - halfSpan,
+                            centerLat + halfSpan,
+                            centerLng + halfSpan
+                        )
+                    )
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    trafficInfo = null
+                }
+            } else {
+                trafficInfo = null
+            }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             val msg = e.message?.takeIf { it.isNotBlank() } ?: e.toString()
@@ -172,6 +221,7 @@ fun MapScreen(
             store.recordError((e as? fr.geoking.julius.shared.NetworkException)?.httpCode, "Map ($selectedProvider): $msg")
             pois = emptyList()
             availabilityByPoiId = emptyMap()
+            trafficInfo = null
         }
     }
 
@@ -194,6 +244,13 @@ fun MapScreen(
                             contentDescription = "Back",
                             tint = Color.White
                         )
+                    }
+                },
+                actions = {
+                    onPlanRoute?.let { plan ->
+                        TextButton(onClick = plan) {
+                            Text("Plan route", color = Color.White)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -257,6 +314,55 @@ fun MapScreen(
                     }
                 }
             }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FilterChip(
+                    selected = false,
+                    onClick = { showMapSettings = true },
+                    label = {
+                        Text(
+                            when (selectedProvider) {
+                                PoiProviderType.Routex -> "Source: Routex"
+                                PoiProviderType.Etalab -> "Source: Etalab"
+                                PoiProviderType.GasApi -> "Source: Gas API"
+                                PoiProviderType.DataGouv -> "Source: data.gouv.fr"
+                                PoiProviderType.DataGouvElec -> "Source: IRVE"
+                                PoiProviderType.OpenChargeMap -> "Source: Open Charge Map"
+                                PoiProviderType.Overpass -> "Source: OSM + data.gouv (camping, picnic…)"
+                            }
+                        )
+                    }
+                )
+                if (settings.isLoggedIn && (communityRepo != null || favoritesRepo != null)) {
+                    if (communityRepo != null) {
+                        FilterChip(
+                            selected = false,
+                            onClick = {
+                                addPoiInitialLat = cameraPositionState.position.target.latitude
+                                addPoiInitialLng = cameraPositionState.position.target.longitude
+                                addPoiLinkedOfficialId = null
+                                addPoiExistingCommunityId = null
+                                addPoiInitialName = ""
+                                addPoiInitialAddress = ""
+                                showAddPoiSheet = true
+                            },
+                            label = { Text("+ POI") }
+                        )
+                    }
+                    if (favoritesRepo != null) {
+                        FilterChip(
+                            selected = showFavoritesOnly,
+                            onClick = { showFavoritesOnly = !showFavoritesOnly },
+                            label = { Text(if (showFavoritesOnly) "Saved only" else "Saved") }
+                        )
+                    }
+                }
+            }
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -265,7 +371,10 @@ fun MapScreen(
                 GoogleMap(
                     modifier = Modifier.fillMaxSize(),
                     cameraPositionState = cameraPositionState,
-                    properties = MapProperties(isMyLocationEnabled = hasLocationPermission),
+                    properties = MapProperties(
+                        isMyLocationEnabled = hasLocationPermission,
+                        isTrafficEnabled = settings.mapTrafficEnabled
+                    ),
                     uiSettings = MapUiSettings(myLocationButtonEnabled = hasLocationPermission)
                 ) {
                     val mapContext = LocalContext.current
@@ -279,22 +388,50 @@ fun MapScreen(
                         vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_electric_rounded, sizePx)
                             ?: defaultGasIcon
                     }
+                    val defaultToiletIcon = remember(mapContext, sizePx) {
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_toilet_rounded, sizePx) ?: defaultGasIcon
+                    }
+                    val defaultWaterIcon = remember(mapContext, sizePx) {
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_water_rounded, sizePx) ?: defaultGasIcon
+                    }
+                    val defaultCampingIcon = remember(mapContext, sizePx) {
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_camping_rounded, sizePx) ?: defaultGasIcon
+                    }
+                    val defaultCaravanIcon = remember(mapContext, sizePx) {
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_caravan_rounded, sizePx) ?: defaultGasIcon
+                    }
+                    val defaultPicnicIcon = remember(mapContext, sizePx) {
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_picnic_rounded, sizePx) ?: defaultGasIcon
+                    }
                     val iconCache = remember(mapContext, sizePx) {
                         mutableMapOf<Int, BitmapDescriptor>().apply {
                             put(R.drawable.ic_poi_gas_rounded, defaultGasIcon)
                             put(R.drawable.ic_poi_electric_rounded, defaultElectricIcon)
+                            put(R.drawable.ic_poi_toilet_rounded, defaultToiletIcon)
+                            put(R.drawable.ic_poi_water_rounded, defaultWaterIcon)
+                            put(R.drawable.ic_poi_camping_rounded, defaultCampingIcon)
+                            put(R.drawable.ic_poi_caravan_rounded, defaultCaravanIcon)
+                            put(R.drawable.ic_poi_picnic_rounded, defaultPicnicIcon)
                         }
                     }
                     fun iconFor(poi: Poi): BitmapDescriptor {
-                        val iconResId = when {
-                            poi.isElectric -> R.drawable.ic_poi_electric_rounded
-                            else -> BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_gas_rounded
+                        val iconResId = when (poi.poiCategory) {
+                            PoiCategory.Toilet -> R.drawable.ic_poi_toilet_rounded
+                            PoiCategory.DrinkingWater -> R.drawable.ic_poi_water_rounded
+                            PoiCategory.Camping -> R.drawable.ic_poi_camping_rounded
+                            PoiCategory.CaravanSite -> R.drawable.ic_poi_caravan_rounded
+                            PoiCategory.PicnicSite -> R.drawable.ic_poi_picnic_rounded
+                            else -> when {
+                                poi.isElectric -> R.drawable.ic_poi_electric_rounded
+                                else -> BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_gas_rounded
+                            }
                         }
                         return iconCache.getOrPut(iconResId) {
                             vectorDrawableToBitmapDescriptor(mapContext, iconResId, sizePx) ?: defaultGasIcon
                         }
                     }
-                    pois.forEach { poi ->
+                    val poisToShow = if (showFavoritesOnly && favoriteIds.isNotEmpty()) pois.filter { it.id in favoriteIds } else pois
+                    poisToShow.forEach { poi ->
                         Marker(
                             state = MarkerState(position = LatLng(poi.latitude, poi.longitude)),
                             title = poi.name,
@@ -307,22 +444,41 @@ fun MapScreen(
                             }
                         )
                     }
+                    trafficInfo?.events?.forEach { event ->
+                        val bbox = event.bbox ?: return@forEach
+                        val lat = (bbox.latMin + bbox.latMax) / 2
+                        val lon = (bbox.lonMin + bbox.lonMax) / 2
+                        val hue = when (event.severity) {
+                            TrafficSeverity.Normal -> 120f
+                            TrafficSeverity.Congestion -> 30f
+                            TrafficSeverity.Closure, TrafficSeverity.Accident, TrafficSeverity.Roadworks -> 0f
+                            TrafficSeverity.Unknown -> 60f
+                        }
+                        Marker(
+                            state = MarkerState(position = LatLng(lat, lon)),
+                            title = "${event.roadRef}${event.direction?.let { " ($it)" } ?: ""}",
+                            snippet = event.message,
+                            icon = BitmapDescriptorFactory.defaultMarker(hue),
+                            onClick = { true }
+                        )
+                    }
                 }
             }
         }
     }
 
     if (selectedPoi != null) {
+        val listToShow = remember(pois, selectedPoi, showFavoritesOnly, favoriteIds) {
+            val base = if (showFavoritesOnly && favoriteIds.isNotEmpty()) pois.filter { it.id in favoriteIds } else pois
+            val sel = selectedPoi ?: return@remember base
+            listOf(sel) + base.filter { it.id != sel.id }
+        }
         ModalBottomSheet(
             onDismissRequest = { scope.launch { sheetState.hide() }; selectedPoi = null },
             sheetState = sheetState,
             containerColor = Color(0xFF1E293B),
             dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.7f)) }
         ) {
-            val listToShow = remember(pois, selectedPoi) {
-                val sel = selectedPoi ?: return@remember pois
-                listOf(sel) + pois.filter { it.id != sel.id }
-            }
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -331,9 +487,16 @@ fun MapScreen(
                 contentPadding = PaddingValues(bottom = 32.dp)
             ) {
                 items(listToShow, key = { it.id }) { poi ->
+                    val ratingState = remember(poi.id) { mutableStateOf(settingsManager.getPoiRating(poi.id)) }
+                    val isFav = poi.id in favoriteIds
                     PoiDetailCard(
                         poi = poi,
                         availabilitySummary = availabilityByPoiId[poi.id],
+                        rating = ratingState.value,
+                        onRate = { r ->
+                            settingsManager.setPoiRating(poi.id, r)
+                            ratingState.value = r
+                        },
                         onNavigate = {
                             val uri = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${Uri.encode(poi.name)}")
                             context.startActivity(Intent(Intent.ACTION_VIEW, uri))
@@ -348,11 +511,80 @@ fun MapScreen(
                                 )
                             }
                         },
-                        onShowDetails = poi.routexDetails?.let { { poiForDetailsDialog = poi } }
+                        onShowDetails = poi.routexDetails?.let { { poiForDetailsDialog = poi } },
+                        isLoggedIn = settings.isLoggedIn,
+                        isCommunityPoi = isCommunityPoiId(poi.id),
+                        isFavorite = isFav,
+                        onToggleFavorite = if (settings.isLoggedIn && favoritesRepo != null) {
+                            {
+                                scope.launch {
+                                    favoritesRepo.toggleFavorite(poi)
+                                    favoriteIds = favoritesRepo.getFavorites().map { it.id }.toSet()
+                                }
+                            }
+                        } else null,
+                        onEdit = if (settings.isLoggedIn && isCommunityPoiId(poi.id) && communityRepo != null) {
+                            {
+                                addPoiExistingCommunityId = poi.id
+                                addPoiInitialName = poi.name
+                                addPoiInitialAddress = poi.address
+                                addPoiInitialLat = poi.latitude
+                                addPoiInitialLng = poi.longitude
+                                addPoiLinkedOfficialId = null
+                                showAddPoiSheet = true
+                                scope.launch { sheetState.hide() }; selectedPoi = null
+                            }
+                        } else null,
+                        onRemove = if (settings.isLoggedIn && isCommunityPoiId(poi.id) && communityRepo != null) {
+                            {
+                                scope.launch {
+                                    communityRepo.removeCommunityPoi(poi.id)
+                                    retryCount++
+                                    sheetState.hide()
+                                    selectedPoi = null
+                                }
+                            }
+                        } else null,
+                        onHide = if (settings.isLoggedIn && !isCommunityPoiId(poi.id) && communityRepo != null) {
+                            {
+                                scope.launch {
+                                    communityRepo.hideOfficialPoi(poi.id)
+                                    retryCount++
+                                    sheetState.hide()
+                                    selectedPoi = null
+                                }
+                            }
+                        } else null,
+                        onSuggestCorrection = if (settings.isLoggedIn && !isCommunityPoiId(poi.id) && communityRepo != null) {
+                            {
+                                addPoiLinkedOfficialId = poi.id
+                                addPoiExistingCommunityId = null
+                                addPoiInitialName = poi.name
+                                addPoiInitialAddress = poi.address
+                                addPoiInitialLat = poi.latitude
+                                addPoiInitialLng = poi.longitude
+                                showAddPoiSheet = true
+                                scope.launch { sheetState.hide() }; selectedPoi = null
+                            }
+                        } else null
                     )
                 }
             }
         }
+    }
+
+    if (showAddPoiSheet) {
+        AddPoiSheet(
+            initialLat = addPoiInitialLat,
+            initialLng = addPoiInitialLng,
+            linkedOfficialId = addPoiLinkedOfficialId,
+            existingCommunityId = addPoiExistingCommunityId,
+            initialName = addPoiInitialName,
+            initialAddress = addPoiInitialAddress,
+            communityRepo = communityRepo,
+            onDismiss = { showAddPoiSheet = false },
+            onSaved = { retryCount++ }
+        )
     }
 
     poiForDetailsDialog?.routexDetails?.let { details ->
@@ -405,6 +637,7 @@ private fun MapScreenPreview() {
 
     MapScreen(
         poiProvider = fakePoiProvider,
+        availabilityProviderFactory = null,
         settingsManager = fakeSettingsManager,
         store = fakeStore,
         onBack = {}

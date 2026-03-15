@@ -1,5 +1,7 @@
 package fr.geoking.julius.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,11 +15,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -26,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.AppSettings
 import fr.geoking.julius.AppTheme
@@ -36,10 +40,11 @@ import fr.geoking.julius.OpenAiModel
 import fr.geoking.julius.GeminiModel
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.GoogleAuthManager
-import fr.geoking.julius.providers.PoiProviderType
+import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.TextAnimation
 import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.shared.DetailedError
+import fr.geoking.julius.shared.SttEnginePreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -54,10 +59,12 @@ private enum class Screen {
     Main,
     Theme,
     Agent,
+    TextAnimation,
     GoogleAccount,
     AgentConfig,
     FractalConfig,
     JulesConfig,
+    TollData,
     ErrorLog,
     About
 }
@@ -66,6 +73,37 @@ private val Lavender = Color(0xFFD1D5FF)
 private val DeepPurple = Color(0xFF21004C)
 private val DarkBackground = Color(0xFF0A0A0A)
 private val SeparatorColor = Color(0xFF2D2D44)
+
+/** Used in About screen: API/service name, website URL, optional logo URL. */
+private data class UsedApi(val name: String, val url: String, val logoUrl: String? = null)
+
+private val UsedApisList = listOf(
+    // AI / chat agents
+    UsedApi("OpenAI", "https://openai.com", "https://openai.com/favicon.ico"),
+    UsedApi("Google Gemini", "https://ai.google.dev", "https://www.gstatic.com/lamda/images/favicon_final_18032024.png"),
+    UsedApi("Perplexity", "https://perplexity.ai", "https://www.perplexity.ai/favicon.ico"),
+    UsedApi("ElevenLabs", "https://elevenlabs.io", "https://elevenlabs.io/favicon.ico"),
+    UsedApi("Deepgram", "https://deepgram.com", "https://deepgram.com/favicon.ico"),
+    UsedApi("OpenCode Zen", "https://opencode.ai", null),
+    UsedApi("Completions.me", "https://www.completions.me", null),
+    UsedApi("ApiFreeLLM", "https://apifreellm.com", null),
+    UsedApi("Jules (Google)", "https://jules.google.com", null),
+    // Routing & maps
+    UsedApi("OSRM", "https://project-osrm.org", "https://project-osrm.org/favicon.ico"),
+    UsedApi("Overpass API (OpenStreetMap)", "https://wiki.openstreetmap.org/wiki/Overpass_API", "https://www.openstreetmap.org/favicon.ico"),
+    // POI & fuel / charging
+    UsedApi("Open Charge Map", "https://openchargemap.org", "https://openchargemap.org/favicon.ico"),
+    UsedApi("data.gouv.fr", "https://www.data.gouv.fr", "https://www.data.gouv.fr/favicon.ico"),
+    UsedApi("ODRE (bornes IRVE)", "https://odre.opendatasoft.com", null),
+    UsedApi("Gas API (prix carburants)", "https://gas-api.ovh", null),
+    UsedApi("data.economie.gouv.fr", "https://data.economie.gouv.fr", null),
+    UsedApi("Routex / Wigeogis", "https://www.wigeogis.com", null),
+    UsedApi("Belib (Paris EV)", "https://opendata.paris.fr", null),
+    UsedApi("Hérault Data (camping-car)", "https://www.herault-data.fr", null),
+    // Traffic & toll
+    UsedApi("CITA (trafic Luxembourg)", "https://www.cita.lu", "https://www.cita.lu/favicon.ico"),
+    UsedApi("OpenTollData", "https://github.com/louis2038/OpenTollData", null),
+)
 
 @Composable
 fun SettingsScreen(
@@ -100,9 +138,11 @@ fun SettingsScreen(
                     Screen.Main -> "Julius Settings"
                     Screen.Theme -> "Theme"
                     Screen.Agent -> "Agent"
+                    Screen.TextAnimation -> "Text animation"
                     Screen.AgentConfig -> "${current.selectedAgent.name} Config"
                     Screen.FractalConfig -> "Fractal Settings"
                     Screen.JulesConfig -> "Jules API"
+                    Screen.TollData -> "Highway toll (OpenTollData)"
                     Screen.ErrorLog -> "Error Log"
                     Screen.About -> "About"
                     Screen.GoogleAccount -> "Google Account"
@@ -121,6 +161,9 @@ fun SettingsScreen(
                         onNavigate = { currentScreen = it },
                         onToggleExtendedActions = {
                             save(settingsManager, current.copy(extendedActionsEnabled = it))
+                        },
+                        onSttEnginePreferenceChange = {
+                            save(settingsManager, current.copy(sttEnginePreference = it))
                         }
                     )
                     Screen.Theme -> ThemeSelection(
@@ -137,11 +180,21 @@ fun SettingsScreen(
                         },
                         onConfigure = { currentScreen = Screen.AgentConfig }
                     )
+                    Screen.TextAnimation -> TextAnimationSelection(
+                        selected = current.textAnimation,
+                        onSelect = {
+                            save(settingsManager, current.copy(textAnimation = it))
+                        }
+                    )
                     Screen.AgentConfig -> AgentConfig(
                         settings = current,
                         onUpdate = { save(settingsManager, it) }
                     )
                     Screen.JulesConfig -> JulesConfig(
+                        settings = current,
+                        onUpdate = { save(settingsManager, it) }
+                    )
+                    Screen.TollData -> TollDataSection(
                         settings = current,
                         onUpdate = { save(settingsManager, it) }
                     )
@@ -203,9 +256,11 @@ private fun MainMenu(
     settings: AppSettings,
     authManager: GoogleAuthManager,
     onNavigate: (Screen) -> Unit,
-    onToggleExtendedActions: (Boolean) -> Unit
+    onToggleExtendedActions: (Boolean) -> Unit,
+    onSttEnginePreferenceChange: (SttEnginePreference) -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    var showSttEngineDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -281,6 +336,16 @@ private fun MainMenu(
             value = settings.selectedAgent.name,
             onClick = { onNavigate(Screen.Agent) }
         )
+        SettingsItem(
+            label = "Text animation",
+            value = settings.textAnimation.name,
+            onClick = { onNavigate(Screen.TextAnimation) }
+        )
+        SettingsItem(
+            label = "STT engine (car)",
+            value = sttEnginePreferenceLabel(settings.sttEnginePreference),
+            onClick = { showSttEngineDialog = true }
+        )
 
         SettingsItem(
             label = "Google Account",
@@ -336,6 +401,11 @@ private fun MainMenu(
             onClick = { onNavigate(Screen.JulesConfig) }
         )
         SettingsItem(
+            label = "Highway toll (OpenTollData)",
+            value = if (!settings.tollDataPath.isNullOrBlank()) "Downloaded" else "Not downloaded",
+            onClick = { onNavigate(Screen.TollData) }
+        )
+        SettingsItem(
             label = "Error Log",
             value = "View recent errors",
             onClick = { onNavigate(Screen.ErrorLog) }
@@ -347,6 +417,36 @@ private fun MainMenu(
         )
     }
 
+    if (showSttEngineDialog) {
+        AlertDialog(
+            onDismissRequest = { showSttEngineDialog = false },
+            title = { Text("STT engine (car mic)", color = Color.White) },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    SttEnginePreference.entries.forEach { pref ->
+                        TextButton(
+                            onClick = {
+                                onSttEnginePreferenceChange(pref)
+                                showSttEngineDialog = false
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = sttEnginePreferenceLabel(pref),
+                                color = if (settings.sttEnginePreference == pref) Lavender else Color.White
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSttEngineDialog = false }) {
+                    Text("Close", color = Lavender)
+                }
+            },
+            containerColor = DarkBackground
+        )
+    }
     SnackbarHost(
         hostState = snackbarHostState,
         modifier = Modifier.align(Alignment.BottomCenter)
@@ -354,8 +454,99 @@ private fun MainMenu(
     }
 }
 
+private fun sttEnginePreferenceLabel(pref: SttEnginePreference): String = when (pref) {
+    SttEnginePreference.LocalOnly -> "Local only (Vosk)"
+    SttEnginePreference.LocalFirst -> "Local first (Vosk, then cloud)"
+    SttEnginePreference.NativeOnly -> "Native only (cloud)"
+}
+
+@Composable
+private fun TollDataSection(
+    settings: AppSettings,
+    onUpdate: (AppSettings) -> Unit
+) {
+    val context = LocalContext.current
+    val helper = remember(context) { OpenTollDataHelper(context) }
+    val scope = rememberCoroutineScope()
+    var downloadProgress by remember { mutableStateOf<Pair<Long, Long?>?>(null) }
+    var downloadError by remember { mutableStateOf<String?>(null) }
+
+    val downloaded = helper.isTollDataDownloaded(settings)
+    val displayPath = helper.getDisplayPath(settings)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp)
+    ) {
+        Text(
+            text = "French highway toll estimation uses OpenTollData. Download the data file to see estimated tolls on planned routes.",
+            color = Lavender,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+        Text(
+            text = if (downloaded) "Status: Downloaded" else "Status: Not downloaded",
+            color = if (downloaded) Color(0xFF7FFF7F) else Color(0xFFFFB366),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(bottom = 2.dp)
+        )
+        Text(
+            text = "Path: $displayPath",
+            color = Lavender,
+            fontSize = 12.sp,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+        when (val progress = downloadProgress) {
+            null -> {
+                Button(
+                    onClick = {
+                        downloadError = null
+                        downloadProgress = 0L to null
+                        scope.launch {
+                            val result = helper.download { bytes, total ->
+                                scope.launch(Dispatchers.Main) {
+                                    downloadProgress = bytes to total
+                                }
+                            }
+                            withContext(Dispatchers.Main) { downloadProgress = null }
+                            result.fold(
+                                onSuccess = { path -> withContext(Dispatchers.Main) { onUpdate(settings.copy(tollDataPath = path)) } },
+                                onFailure = { e -> withContext(Dispatchers.Main) { downloadError = e.message ?: "Download failed" } }
+                            )
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Lavender, contentColor = DeepPurple)
+                ) {
+                    Text("Download toll data (OpenTollData)")
+                }
+            }
+            else -> {
+                val (bytes, total) = progress
+                val pct = if (total != null && total > 0) (100 * bytes / total).toInt() else null
+                Text(
+                    text = if (pct != null) "Downloading… $pct%" else "Downloading… ${bytes / (1024 * 1024)} MB",
+                    color = Lavender,
+                    fontSize = 14.sp
+                )
+            }
+        }
+        downloadError?.let { err ->
+            Text(
+                text = "Error: $err",
+                color = Color(0xFFFF6B6B),
+                fontSize = 14.sp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+    }
+}
+
 @Composable
 private fun AboutContent() {
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -372,6 +563,83 @@ private fun AboutContent() {
         AboutRow("Version name", BuildConfig.VERSION_NAME)
         AboutRow("Version code", BuildConfig.VERSION_CODE.toString())
         AboutRow("Build date", BuildConfig.BUILD_DATE)
+        Spacer(modifier = Modifier.height(32.dp))
+        Text(
+            text = "Used APIs & services",
+            color = Lavender.copy(alpha = 0.9f),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        UsedApisList.forEach { api ->
+            AboutApiRow(
+                name = api.name,
+                url = api.url,
+                logoUrl = api.logoUrl,
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(api.url))
+                    context.startActivity(intent)
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun AboutApiRow(
+    name: String,
+    url: String,
+    logoUrl: String?,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(DeepPurple, RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (logoUrl != null) {
+                AsyncImage(
+                    model = logoUrl,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp)
+                )
+            } else {
+                Text(
+                    text = name.first().uppercaseChar().toString(),
+                    color = Lavender,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = name,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = Uri.parse(url).host ?: url,
+                color = Lavender.copy(alpha = 0.7f),
+                fontSize = 12.sp
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+            contentDescription = "Open website",
+            tint = Lavender.copy(alpha = 0.8f),
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 
@@ -498,6 +766,22 @@ private fun AgentSelection(
                         )
                     }
                 }
+            )
+        }
+    }
+}
+
+@Composable
+private fun TextAnimationSelection(
+    selected: TextAnimation,
+    onSelect: (TextAnimation) -> Unit
+) {
+    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        TextAnimation.entries.forEach { animation ->
+            SelectionItem(
+                label = animation.name,
+                isSelected = animation == selected,
+                onSelect = { onSelect(animation) }
             )
         }
     }
@@ -902,10 +1186,10 @@ private fun ConfigTextField(
 }
 
 @Composable
-@Suppress("DEPRECATION") // LocalClipboardManager deprecated in favor of LocalClipboard (suspend API); migrate when ready
 private fun ErrorLog(errorLog: List<DetailedError>) {
     val scrollState = rememberScrollState()
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
     val reversedLog = remember(errorLog) { errorLog.reversed() }
 
     SelectionContainer {
@@ -925,7 +1209,9 @@ private fun ErrorLog(errorLog: List<DetailedError>) {
                             val httpCode = error.httpCode?.let { "HTTP $it" } ?: "Generic"
                             "[$timestamp] $httpCode\n${error.message}"
                         }
-                        clipboardManager.setText(AnnotatedString(allErrors))
+                        scope.launch {
+                            clipboard.setClipEntry(androidx.compose.ui.platform.ClipEntry(android.content.ClipData.newPlainText("", allErrors)))
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -966,7 +1252,9 @@ private fun ErrorLog(errorLog: List<DetailedError>) {
                             IconButton(
                                 onClick = {
                                     val errorText = "[$timestamp] $httpCode\n${error.message}"
-                                    clipboardManager.setText(AnnotatedString(errorText))
+                                    scope.launch {
+                                        clipboard.setClipEntry(androidx.compose.ui.platform.ClipEntry(android.content.ClipData.newPlainText("", errorText)))
+                                    }
                                 },
                                 modifier = Modifier.size(24.dp)
                             ) {

@@ -1,0 +1,259 @@
+package fr.geoking.julius.poi
+
+import fr.geoking.julius.api.routex.RoutexSiteDetails
+
+/**
+ * Category of POI for unified search. Extensible: add new values and wire providers as needed.
+ * Used by [PoiSearchRequest] and [Poi.poiCategory].
+ */
+enum class PoiCategory {
+    /** Fuel / gas stations (Routex, Etalab, GasApi, DataGouv). */
+    Gas,
+    /** EV charging / IRVE (DataGouvElec, OpenChargeMap). */
+    Irve,
+    /** Public toilets (e.g. Overpass amenity=toilets). */
+    Toilet,
+    /** Drinking water / fountains (e.g. Overpass amenity=drinking_water). */
+    DrinkingWater,
+    /** Camp sites (OSM tourism=camp_site). */
+    Camping,
+    /** Caravan / motorhome aires (OSM tourism=caravan_site; data.gouv.fr aires). */
+    CaravanSite,
+    /** Picnic areas (OSM tourism=picnic_site). */
+    PicnicSite,
+    /** Truck stops (OSM amenity=truck_stop). */
+    TruckStop,
+    /** Rest areas (OSM highway=rest_area). */
+    RestArea,
+    /** Restaurants (OSM amenity=restaurant). */
+    Restaurant,
+    /** Fast food (OSM amenity=fast_food). */
+    FastFood;
+    companion object {
+        /** OSM amenity tag value for this category, when applicable. */
+        fun fromOsmAmenity(amenity: String): PoiCategory? = when (amenity) {
+            "toilets" -> Toilet
+            "drinking_water" -> DrinkingWater
+            "truck_stop" -> TruckStop
+            "restaurant" -> Restaurant
+            "fast_food" -> FastFood
+            else -> null
+        }
+        /** OSM tourism tag value for this category. */
+        fun fromOsmTourism(tourism: String): PoiCategory? = when (tourism) {
+            "camp_site" -> Camping
+            "caravan_site" -> CaravanSite
+            "picnic_site" -> PicnicSite
+            else -> null
+        }
+        /** OSM highway tag value for this category (e.g. rest_area). */
+        fun fromOsmHighway(highway: String): PoiCategory? = when (highway) {
+            "rest_area" -> RestArea
+            else -> null
+        }
+        /** Resolve category from OSM tags (amenity, tourism, highway). */
+        fun fromOsmTags(tags: Map<String, String>): PoiCategory? {
+            tags["amenity"]?.let { fromOsmAmenity(it) }?.let { return it }
+            tags["tourism"]?.let { fromOsmTourism(it) }?.let { return it }
+            tags["highway"]?.let { fromOsmHighway(it) }?.let { return it }
+            return null
+        }
+    }
+}
+
+/** Source of gas station data shown on the map. */
+enum class PoiProviderType {
+    Routex,   // Wigeogis SiteFinder
+    Etalab,   // data.economie.gouv.fr / donnees.roulez-eco.fr
+    GasApi,  //  gas-api.ovh
+    DataGouv, // data.gouv.fr (fuel)
+    DataGouvElec, // data.gouv.fr IRVE (EV charging)
+    OpenChargeMap, // openchargemap.org (EV, Europe/world)
+    Overpass  // OpenStreetMap Overpass API (toilets, drinking water, etc.)
+}
+
+/**
+ * IRVE-only details: connector types, tarification (free text), opening hours, payment, etc.
+ * Used when [Poi.isElectric] and data comes from data.gouv.fr IRVE.
+ */
+data class IrveDetails(
+    /** Connector type ids: "type_2", "combo_ccs", "chademo", "ef", "autre". */
+    val connectorTypes: Set<String> = emptySet(),
+    /** Free-text tarification; display as-is. */
+    val tarification: String? = null,
+    val gratuit: Boolean? = null,
+    val openingHours: String? = null,
+    val reservation: Boolean? = null,
+    val paymentActe: Boolean? = null,
+    val paymentCb: Boolean? = null,
+    val paymentAutre: Boolean? = null,
+    /** "Accès libre" / "Accès réservé". */
+    val conditionAcces: String? = null
+)
+
+/**
+ * Restaurant/fast food details from OSM (Overpass): opening hours, cuisine, brand.
+ * Used when [Poi.poiCategory] is Restaurant or FastFood and data comes from Overpass.
+ */
+data class RestaurantDetails(
+    val openingHours: String? = null,
+    val cuisine: String? = null,
+    val brand: String? = null,
+    val isFastFood: Boolean = false
+)
+
+/**
+ * Fuel type and price at a gas station (e.g. from data.gouv.fr / gas-api.ovh).
+ */
+data class FuelPrice(
+    val fuelName: String,
+    val price: Double,
+    val updatedAt: String? = null,
+    val outOfStock: Boolean = false
+)
+
+data class Poi(
+    val id: String,
+    val name: String,
+    val address: String,
+    val latitude: Double,
+    val longitude: Double,
+    val brand: String? = null,
+    /** True for IRVE / EV charging stations (e.g. data.gouv.fr IRVE). */
+    val isElectric: Boolean = false,
+    /** Unified category (toilet, drinking water, gas, irve). Inferred from [isElectric] when null. */
+    val poiCategory: PoiCategory? = null,
+    /** Nominal power in kW (IRVE only). Used for min-power filter. */
+    val powerKw: Double? = null,
+    /** Operator name (IRVE only). Used for operator filter. */
+    val operator: String? = null,
+    /** True when station is on highway/autoroute (IRVE only). */
+    val isOnHighway: Boolean = false,
+    /** Number of charging points / points de charge (IRVE only). */
+    val chargePointCount: Int? = null,
+    /** When provided by the provider (e.g. DataGouv), lists fuel types and prices. */
+    val fuelPrices: List<FuelPrice>? = null,
+    /** Site name (e.g. Routex site_name) for title. */
+    val siteName: String? = null,
+    val postcode: String? = null,
+    val addressLocal: String? = null,
+    val countryLocal: String? = null,
+    val townLocal: String? = null,
+    /** Routex-only: amenities and opening hours for fullscreen details. */
+    val routexDetails: RoutexSiteDetails? = null,
+    /** IRVE-only: connector types, tarification, horaires, payment, etc. */
+    val irveDetails: IrveDetails? = null,
+    /** Restaurant/fast food only: opening hours, cuisine, brand (e.g. from Overpass). */
+    val restaurantDetails: RestaurantDetails? = null
+)
+
+/**
+ * Optional map viewport to scope the POI search to the visible area (e.g. for Routex API).
+ * When provided, radius is derived from zoom and map size instead of a fixed default.
+ */
+data class MapViewport(
+    val zoom: Float,
+    val mapWidthPx: Int,
+    val mapHeightPx: Int
+)
+
+/**
+ * Unified POI search request. Used by [PoiProvider.search] for gas, IRVE, toilets, water, etc.
+ * Empty [categories] means "all categories supported by the provider" (provider-specific default).
+ */
+data class PoiSearchRequest(
+    val latitude: Double,
+    val longitude: Double,
+    val viewport: MapViewport? = null,
+    /** Requested POI categories. Empty = provider default (e.g. Gas+Irve for fuel providers). */
+    val categories: Set<PoiCategory> = emptySet()
+)
+
+/**
+ * Maps API fuel names (from data.gouv.fr / Etalab / gas-api.ovh) to filter ids used in map settings.
+ * Aligned with [prix-carburants.gouv.fr](https://www.prix-carburants.gouv.fr/) fuel list.
+ */
+object MapPoiFilter {
+    /** Normalize API fuel name to a filter id (gazole, sp98, sp95, sp95_e10, gplc, e85). Returns null if unknown. */
+    fun fuelNameToId(fuelName: String): String? {
+        val n = fuelName.trim().lowercase()
+        return when {
+            n.contains("gazole") || n == "gasoil" || n == "diesel" -> "gazole"
+            n.contains("sp98") || n == "sp 98" -> "sp98"
+            n.contains("e10") || n.contains("sp95-e10") || n == "sp95 e10" -> "sp95_e10"
+            n.contains("sp95") || n == "sp 95" -> "sp95"
+            n.contains("gpl") || n == "gplc" || n == "lpg" -> "gplc"
+            n.contains("e85") || n == "superéthanol" -> "e85"
+            else -> null
+        }
+    }
+
+    /**
+     * Returns true if [poi] should be shown given [selectedEnergyIds].
+     * When [selectedEnergyIds] is empty, returns true (show all).
+     * Electric stations match when "electric" is selected; fuel stations match when they have at least one fuel in [selectedEnergyIds].
+     */
+    fun matchesEnergyFilter(poi: Poi, selectedEnergyIds: Set<String>): Boolean {
+        if (selectedEnergyIds.isEmpty()) return true
+        if (poi.isElectric) return "electric" in selectedEnergyIds
+        val fuelIds = poi.fuelPrices?.mapNotNull { fuelNameToId(it.fuelName) }?.toSet() ?: emptySet()
+        if (fuelIds.isEmpty()) return true // no price data: show anyway
+        return fuelIds.any { it in selectedEnergyIds }
+    }
+}
+
+/**
+ * Unified POI provider: supports [search] by [PoiCategory] and optional legacy [getGasStations].
+ * New providers implement [search] and [supportedCategories]; [getGasStations] is for backward compatibility.
+ */
+interface PoiProvider {
+    /** Categories this provider can return. Used by the selector to build [PoiSearchRequest]. */
+    fun supportedCategories(): Set<PoiCategory> = setOf(PoiCategory.Gas)
+
+    /**
+     * Unified search: returns POIs for the requested [request.categories] (or provider default if empty).
+     * Default implementation delegates to [getGasStations] and filters by category intersection.
+     */
+    suspend fun search(request: PoiSearchRequest): List<Poi> {
+        val cat = request.categories
+        val supported = supportedCategories()
+        val overlap = if (cat.isEmpty()) supported else cat.intersect(supported)
+        if (overlap.isEmpty() || (PoiCategory.Gas !in overlap && PoiCategory.Irve !in overlap)) {
+            return emptyList()
+        }
+        val list = getGasStations(request.latitude, request.longitude, request.viewport)
+            .map { p -> p.ensureCategory() }
+        return if (cat.isEmpty()) list else list.filter { it.poiCategory!! in overlap }
+    }
+
+    /**
+     * Fetches gas/IRVE stations near the given center (legacy).
+     * When [viewport] is non-null, providers may use it to limit the search to the visible map.
+     */
+    suspend fun getGasStations(
+        latitude: Double,
+        longitude: Double,
+        viewport: MapViewport? = null
+    ): List<Poi>
+}
+
+private fun Poi.ensureCategory(): Poi = copy(
+    poiCategory = poiCategory ?: if (isElectric) PoiCategory.Irve else PoiCategory.Gas
+)
+
+class MockPoiProvider : PoiProvider {
+    override suspend fun getGasStations(
+        latitude: Double,
+        longitude: Double,
+        viewport: MapViewport?
+    ): List<Poi> {
+        // Mock data around some common coordinates or relative to input
+        return listOf(
+            Poi("1", "BP Paris Sud", "123 Avenue du Maine, Paris", latitude + 0.01, longitude + 0.01, "BP"),
+            Poi("2", "Aral Station", "45 Rue de Rivoli, Paris", latitude - 0.01, longitude + 0.02, "Aral"),
+            Poi("3", "Eni Live", "88 Boulevard Haussmann, Paris", latitude + 0.02, longitude - 0.01, "Eni"),
+            Poi("4", "Circle K", "10 Place de la Bastille, Paris", latitude - 0.02, longitude - 0.02, "Circle K"),
+            Poi("5", "OMV Station", "22 Rue de la Paix, Paris", latitude + 0.005, longitude - 0.005, "OMV")
+        )
+    }
+}

@@ -29,8 +29,7 @@ class AutoModelSelectionScreen(
 
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
-            .setTitle("Select IA Model")
-            .setHeaderAction(Action.BACK)
+            .setHeader(Header.Builder().setTitle("Select IA Model").setStartHeaderAction(Action.BACK).build())
             .build()
     }
 }

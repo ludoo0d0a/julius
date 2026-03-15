@@ -4,6 +4,7 @@
     <!-- Surface + NavigationTemplate for Android Auto (sideload/phone build only; not allowed for Play Store) -->
     <uses-permission android:name="androidx.car.app.ACCESS_SURFACE" />
     <uses-permission android:name="androidx.car.app.NAVIGATION_TEMPLATES" />
+    <uses-permission android:name="androidx.car.app.MAP_TEMPLATES" />
 
     <application>
         <service

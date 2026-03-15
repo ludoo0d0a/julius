@@ -57,8 +57,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.SettingsManager
-import fr.geoking.julius.providers.JulesChatItem
-import fr.geoking.julius.providers.JulesClient
+import fr.geoking.julius.api.jules.JulesChatItem
+import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.shared.NetworkException
 import kotlinx.coroutines.launch
 

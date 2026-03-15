@@ -29,8 +29,7 @@ class AutoGeminiModelSelectionScreen(
 
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
-            .setTitle("Select Gemini Model")
-            .setHeaderAction(Action.BACK)
+            .setHeader(Header.Builder().setTitle("Select Gemini Model").setStartHeaderAction(Action.BACK).build())
             .build()
     }
 }

@@ -2,6 +2,8 @@ package fr.geoking.julius
 
 import android.content.Context
 import android.content.SharedPreferences
+import fr.geoking.julius.VehicleType
+import fr.geoking.julius.shared.SttEnginePreference
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,8 +50,11 @@ const val DEFAULT_MAP_MIN_POWER_KW = 0
 /** IRVE operator filter. "all" = Tous les opérateurs. */
 const val DEFAULT_MAP_IRVE_OPERATOR = "all"
 
+/** Default EV range in km for route planning. */
+const val DEFAULT_EV_RANGE_KM = 300
+
 data class AppSettings(
-    val selectedPoiProvider: fr.geoking.julius.providers.PoiProviderType = fr.geoking.julius.providers.PoiProviderType.Routex,
+    val selectedPoiProvider: fr.geoking.julius.poi.PoiProviderType = fr.geoking.julius.poi.PoiProviderType.Routex,
     /** Selected energy types to show on map (e.g. sp95, sp98, gazole, e85, electric). Empty = show all. */
     val selectedMapEnergyTypes: Set<String> = DEFAULT_MAP_ENERGY_TYPES,
     /** Type d'enseigne: "all", "major", "gms", "independant". Filter applied when provider supplies data. */
@@ -60,6 +65,20 @@ data class AppSettings(
     val mapMinPowerKw: Int = DEFAULT_MAP_MIN_POWER_KW,
     /** IRVE operator filter: "all", "atlante", "avia", "zunder", "ionity", "fastned", "tesla". Applied when provider is DataGouvElec. */
     val mapIrveOperator: String = DEFAULT_MAP_IRVE_OPERATOR,
+    /** Selected connector types for IRVE (type_2, combo_ccs, chademo, ef, autre). Empty = show all. Applied when provider is DataGouvElec. */
+    val selectedMapConnectorTypes: Set<String> = emptySet(),
+    /** Show Google traffic layer on the map (green / yellow / red). */
+    val mapTrafficEnabled: Boolean = false,
+    /** EV range in km for route planning. */
+    val evRangeKm: Int = DEFAULT_EV_RANGE_KM,
+    /** Optional consumption in kWh/100 km; null = use range only. */
+    val evConsumptionKwhPer100km: Float? = null,
+    /** Optional API key for Open Charge Map (api.openchargemap.io). */
+    val openChargeMapKey: String = "",
+    /** When POI provider is Overpass: which amenity types to show (toilets, drinking_water, truck_stop, rest_area). */
+    val selectedOverpassAmenityTypes: Set<String> = setOf("toilets", "drinking_water"),
+    /** Vehicle type for POI categories and optional routing profile (Car, Truck, Motorcycle, Motorhome). */
+    val vehicleType: VehicleType = VehicleType.Car,
     val openAiKey: String = "",
     val openAiModel: OpenAiModel = OpenAiModel.GPT_4O,
     val elevenLabsKey: String = "",
@@ -83,6 +102,8 @@ data class AppSettings(
     val extendedActionsEnabled: Boolean = false,
     val wakeWordEnabled: Boolean = false,
     val useCarMic: Boolean = false,
+    /** STT engine for car mic path: LocalOnly (Vosk only), LocalFirst (Vosk then agent), NativeOnly (agent only). */
+    val sttEnginePreference: SttEnginePreference = SttEnginePreference.LocalFirst,
     val textAnimation: TextAnimation = TextAnimation.Fade,
     /** Path to local GGUF model: asset-relative (e.g. "models/phi-2.Q4_0.gguf") or absolute path after download. */
     val localModelPath: String = "models/phi-2.Q4_0.gguf",
@@ -91,7 +112,11 @@ data class AppSettings(
     val lastJulesRepoId: String = "",
     val lastJulesRepoName: String = "",
     val googleUserName: String? = null,
-    val isLoggedIn: Boolean = false
+    val isLoggedIn: Boolean = false,
+    /** Path to downloaded OpenTollData JSON for highway toll estimation; null until user downloads. */
+    val tollDataPath: String? = null,
+    /** Optional API key for Luxembourg mobiliteit.lu (request from opendata-api@atp.etat.lu). */
+    val mobiliteitLuxembourgKey: String = ""
 )
 
 open class SettingsManager(context: Context) {
@@ -139,20 +164,47 @@ open class SettingsManager(context: Context) {
         val mapMinPowerKw = prefs.getInt("map_min_power_kw", DEFAULT_MAP_MIN_POWER_KW)
             .coerceIn(0, 300)
         val mapIrveOperator = prefs.getString("map_irve_operator", DEFAULT_MAP_IRVE_OPERATOR) ?: DEFAULT_MAP_IRVE_OPERATOR
+        val mapConnectorTypesStr = prefs.getString("map_connector_types", null)
+        val selectedMapConnectorTypes = if (!mapConnectorTypesStr.isNullOrBlank()) {
+            mapConnectorTypesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        } else emptySet()
+        val mapTrafficEnabled = prefs.getBoolean("map_traffic_enabled", false)
+        val evRangeKm = prefs.getInt("ev_range_km", DEFAULT_EV_RANGE_KM).coerceIn(50, 1000)
+        val evConsumptionKwhPer100km = if (prefs.contains("ev_consumption_kwh_100")) {
+            prefs.getFloat("ev_consumption_kwh_100", 18f).takeIf { it > 0f }
+        } else null
+        val openChargeMapKey = prefs.getString("openchargemap_key", "") ?: ""
+        val mobiliteitLuxembourgKey = prefs.getString("mobiliteit_luxembourg_key", "")?.takeIf { it.isNotEmpty() }
+            ?: fr.geoking.julius.BuildConfig.MOBILITEIT_LUXEMBOURG_KEY
+        val overpassAmenityStr = prefs.getString("overpass_amenity_types", "toilets,drinking_water") ?: "toilets,drinking_water"
+        val selectedOverpassAmenityTypes = overpassAmenityStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+            .ifEmpty { setOf("toilets", "drinking_water") }
+        val vehicleType = try {
+            VehicleType.valueOf(prefs.getString("vehicle_type", VehicleType.Car.name) ?: VehicleType.Car.name)
+        } catch (e: IllegalArgumentException) {
+            VehicleType.Car
+        }
 
         return AppSettings(
             selectedPoiProvider = try {
-                fr.geoking.julius.providers.PoiProviderType.valueOf(
-                    prefs.getString("poi_provider", fr.geoking.julius.providers.PoiProviderType.Routex.name) ?: fr.geoking.julius.providers.PoiProviderType.Routex.name
+                fr.geoking.julius.poi.PoiProviderType.valueOf(
+                    prefs.getString("poi_provider", fr.geoking.julius.poi.PoiProviderType.Routex.name) ?: fr.geoking.julius.poi.PoiProviderType.Routex.name
                 )
             } catch (e: IllegalArgumentException) {
-                fr.geoking.julius.providers.PoiProviderType.Routex
+                fr.geoking.julius.poi.PoiProviderType.Routex
             },
             selectedMapEnergyTypes = selectedMapEnergyTypes,
             mapEnseigneType = mapEnseigneType,
             selectedMapServices = selectedMapServices,
             mapMinPowerKw = mapMinPowerKw,
             mapIrveOperator = mapIrveOperator,
+            selectedMapConnectorTypes = selectedMapConnectorTypes,
+            mapTrafficEnabled = mapTrafficEnabled,
+            evRangeKm = evRangeKm,
+            evConsumptionKwhPer100km = evConsumptionKwhPer100km,
+            openChargeMapKey = openChargeMapKey,
+            selectedOverpassAmenityTypes = selectedOverpassAmenityTypes,
+            vehicleType = vehicleType,
             openAiKey = openAiKey,
             openAiModel = try {
                 OpenAiModel.valueOf(prefs.getString("openai_model", OpenAiModel.GPT_4O.name) ?: OpenAiModel.GPT_4O.name)
@@ -201,6 +253,11 @@ open class SettingsManager(context: Context) {
             extendedActionsEnabled = prefs.getBoolean("extended_actions_enabled", false),
             wakeWordEnabled = prefs.getBoolean("wake_word_enabled", false),
             useCarMic = prefs.getBoolean("use_car_mic", false),
+            sttEnginePreference = try {
+                SttEnginePreference.valueOf(prefs.getString("stt_engine_preference", SttEnginePreference.LocalFirst.name) ?: SttEnginePreference.LocalFirst.name)
+            } catch (e: IllegalArgumentException) {
+                SttEnginePreference.LocalFirst
+            },
             textAnimation = try {
                 TextAnimation.valueOf(prefs.getString("text_animation", TextAnimation.Fade.name) ?: TextAnimation.Fade.name)
             } catch (e: IllegalArgumentException) {
@@ -208,6 +265,8 @@ open class SettingsManager(context: Context) {
             },
             localModelPath = prefs.getString("local_model_path", "models/phi-2.Q4_0.gguf") ?: "models/phi-2.Q4_0.gguf",
             selectedLocalModelVariant = prefs.getString("selected_local_model_variant", "Phi2Q4_0") ?: "Phi2Q4_0",
+            tollDataPath = prefs.getString("toll_data_path", null),
+            mobiliteitLuxembourgKey = mobiliteitLuxembourgKey,
             lastJulesRepoId = lastJulesRepoId,
             lastJulesRepoName = lastJulesRepoName,
             googleUserName = googleUserName,
@@ -251,7 +310,7 @@ open class SettingsManager(context: Context) {
         edit.apply()
     }
 
-    open fun setPoiProviderType(type: fr.geoking.julius.providers.PoiProviderType) {
+    open fun setPoiProviderType(type: fr.geoking.julius.poi.PoiProviderType) {
         prefs.edit().putString("poi_provider", type.name).apply()
         _settings.value = _settings.value.copy(selectedPoiProvider = type)
     }
@@ -282,6 +341,60 @@ open class SettingsManager(context: Context) {
         _settings.value = _settings.value.copy(mapIrveOperator = operator)
     }
 
+    open fun setMapConnectorTypes(types: Set<String>) {
+        prefs.edit().putString("map_connector_types", types.joinToString(",")).apply()
+        _settings.value = _settings.value.copy(selectedMapConnectorTypes = types)
+    }
+
+    open fun setMapTrafficEnabled(value: Boolean) {
+        prefs.edit().putBoolean("map_traffic_enabled", value).apply()
+        _settings.value = _settings.value.copy(mapTrafficEnabled = value)
+    }
+
+    open fun setOverpassAmenityTypes(types: Set<String>) {
+        val value = types.ifEmpty { setOf("toilets", "drinking_water") }
+        prefs.edit().putString("overpass_amenity_types", value.joinToString(",")).apply()
+        _settings.value = _settings.value.copy(selectedOverpassAmenityTypes = value)
+    }
+
+    open fun setSttEnginePreference(preference: SttEnginePreference) {
+        prefs.edit().putString("stt_engine_preference", preference.name).apply()
+        _settings.value = _settings.value.copy(sttEnginePreference = preference)
+    }
+
+    open fun setVehicleType(type: VehicleType) {
+        prefs.edit().putString("vehicle_type", type.name).apply()
+        _settings.value = _settings.value.copy(vehicleType = type)
+    }
+
+    open fun setEvRangeKm(km: Int) {
+        val value = km.coerceIn(50, 1000)
+        prefs.edit().putInt("ev_range_km", value).apply()
+        _settings.value = _settings.value.copy(evRangeKm = value)
+    }
+
+    open fun setEvConsumptionKwhPer100km(consumption: Float?) {
+        if (consumption != null && consumption > 0f) {
+            prefs.edit().putFloat("ev_consumption_kwh_100", consumption).apply()
+            _settings.value = _settings.value.copy(evConsumptionKwhPer100km = consumption)
+        } else {
+            prefs.edit().remove("ev_consumption_kwh_100").apply()
+            _settings.value = _settings.value.copy(evConsumptionKwhPer100km = null)
+        }
+    }
+
+    /** Local rating for a POI (1–5). No backend; stored in SharedPreferences. */
+    open fun getPoiRating(poiId: String): Int? {
+        val v = prefs.getInt("poi_rating_$poiId", -1)
+        return if (v in 1..5) v else null
+    }
+
+    /** Set local rating for a POI (1–5). */
+    open fun setPoiRating(poiId: String, value: Int) {
+        val v = value.coerceIn(1, 5)
+        prefs.edit().putInt("poi_rating_$poiId", v).apply()
+    }
+
     open fun saveSettings(settings: AppSettings) {
         saveSettingsInternal(settings)
     }
@@ -308,6 +421,14 @@ open class SettingsManager(context: Context) {
             .putString("map_services", settings.selectedMapServices.joinToString(","))
             .putInt("map_min_power_kw", settings.mapMinPowerKw)
             .putString("map_irve_operator", settings.mapIrveOperator)
+            .putString("map_connector_types", settings.selectedMapConnectorTypes.joinToString(","))
+            .putBoolean("map_traffic_enabled", settings.mapTrafficEnabled)
+            .putInt("ev_range_km", settings.evRangeKm.coerceIn(50, 1000))
+            .apply { settings.evConsumptionKwhPer100km?.let { putFloat("ev_consumption_kwh_100", it) } ?: remove("ev_consumption_kwh_100") }
+            .putString("openchargemap_key", settings.openChargeMapKey)
+            .putString("mobiliteit_luxembourg_key", settings.mobiliteitLuxembourgKey)
+            .putString("overpass_amenity_types", settings.selectedOverpassAmenityTypes.joinToString(","))
+            .putString("vehicle_type", settings.vehicleType.name)
             .putString("openai_key", settings.openAiKey)
             .putString("openai_model", settings.openAiModel.name)
             .putString("elevenlabs_key", settings.elevenLabsKey)
@@ -331,9 +452,11 @@ open class SettingsManager(context: Context) {
             .putBoolean("extended_actions_enabled", settings.extendedActionsEnabled)
             .putBoolean("wake_word_enabled", settings.wakeWordEnabled)
             .putBoolean("use_car_mic", settings.useCarMic)
+            .putString("stt_engine_preference", settings.sttEnginePreference.name)
             .putString("text_animation", settings.textAnimation.name)
             .putString("local_model_path", settings.localModelPath)
             .putString("selected_local_model_variant", settings.selectedLocalModelVariant)
+            .apply { settings.tollDataPath?.let { putString("toll_data_path", it) } ?: remove("toll_data_path") }
             .putString("last_jules_repo_id", settings.lastJulesRepoId)
             .putString("last_jules_repo_name", settings.lastJulesRepoName)
             .putString("google_user_name", settings.googleUserName)
@@ -368,6 +491,7 @@ open class SettingsManager(context: Context) {
         extendedActionsEnabled: Boolean = false,
         wakeWordEnabled: Boolean = false,
         useCarMic: Boolean = false,
+        sttEnginePreference: SttEnginePreference = _settings.value.sttEnginePreference,
         localModelPath: String = _settings.value.localModelPath,
         selectedLocalModelVariant: String = _settings.value.selectedLocalModelVariant
     ) {
@@ -378,6 +502,13 @@ open class SettingsManager(context: Context) {
             selectedMapServices = _settings.value.selectedMapServices,
             mapMinPowerKw = _settings.value.mapMinPowerKw,
             mapIrveOperator = _settings.value.mapIrveOperator,
+            selectedMapConnectorTypes = _settings.value.selectedMapConnectorTypes,
+            mapTrafficEnabled = _settings.value.mapTrafficEnabled,
+            evRangeKm = _settings.value.evRangeKm,
+            evConsumptionKwhPer100km = _settings.value.evConsumptionKwhPer100km,
+            openChargeMapKey = _settings.value.openChargeMapKey,
+            selectedOverpassAmenityTypes = _settings.value.selectedOverpassAmenityTypes,
+            vehicleType = _settings.value.vehicleType,
             openAiKey = openAiKey,
             openAiModel = openAiModel,
             elevenLabsKey = elevenLabsKey,
@@ -401,9 +532,15 @@ open class SettingsManager(context: Context) {
             extendedActionsEnabled = extendedActionsEnabled,
             wakeWordEnabled = wakeWordEnabled,
             useCarMic = useCarMic,
+            sttEnginePreference = sttEnginePreference,
             textAnimation = _settings.value.textAnimation,
             localModelPath = localModelPath,
-            selectedLocalModelVariant = selectedLocalModelVariant
+            selectedLocalModelVariant = selectedLocalModelVariant,
+            tollDataPath = _settings.value.tollDataPath,
+            lastJulesRepoId = _settings.value.lastJulesRepoId,
+            lastJulesRepoName = _settings.value.lastJulesRepoName,
+            googleUserName = _settings.value.googleUserName,
+            isLoggedIn = _settings.value.isLoggedIn
         )
         saveSettings(newSettings)
     }

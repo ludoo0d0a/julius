@@ -29,8 +29,7 @@ class AutoAgentSelectionScreen(
 
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
-            .setTitle("Select Agent")
-            .setHeaderAction(Action.BACK)
+            .setHeader(Header.Builder().setTitle("Select Agent").setStartHeaderAction(Action.BACK).build())
             .build()
     }
 }

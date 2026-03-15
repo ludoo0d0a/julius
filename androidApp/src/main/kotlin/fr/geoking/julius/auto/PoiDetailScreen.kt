@@ -5,14 +5,14 @@ import android.net.Uri
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.Action
-import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.CarIcon
+import androidx.car.app.model.Header
 import androidx.car.app.model.MessageTemplate
 import androidx.car.app.model.Template
 import androidx.core.graphics.drawable.IconCompat
 import fr.geoking.julius.R
-import fr.geoking.julius.providers.Poi
-import fr.geoking.julius.providers.availability.StationAvailabilitySummary
+import fr.geoking.julius.poi.Poi
+import fr.geoking.julius.api.availability.StationAvailabilitySummary
 
 /**
  * Android Auto screen showing full POI details and a "Go to this station" action
@@ -21,7 +21,8 @@ import fr.geoking.julius.providers.availability.StationAvailabilitySummary
 class PoiDetailScreen(
     carContext: CarContext,
     private val poi: Poi,
-    private val availabilitySummary: StationAvailabilitySummary? = null
+    private val availabilitySummary: StationAvailabilitySummary? = null,
+    private val rating: Int? = null
 ) : Screen(carContext) {
 
     override fun onGetTemplate(): Template {
@@ -30,24 +31,23 @@ class PoiDetailScreen(
         val navigateIntent = Intent(CarContext.ACTION_NAVIGATE).apply {
             data = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${Uri.encode(title)}")
         }
+        val navigateAction = Action.Builder()
+            .setTitle("Navigate to")
+            .setIcon(
+                CarIcon.Builder(
+                    IconCompat.createWithResource(carContext, R.drawable.ic_poi_gas)
+                ).build()
+            )
+            .setOnClickListener {
+                carContext.startCarApp(navigateIntent)
+            }
+            .build()
         return MessageTemplate.Builder(body)
-            .setTitle(title)
-            .setHeaderAction(Action.BACK)
-            .setActionStrip(
-                ActionStrip.Builder()
-                    .addAction(
-                        Action.Builder()
-                            .setTitle("Navigate to")
-                            .setIcon(
-                                CarIcon.Builder(
-                                    IconCompat.createWithResource(carContext, R.drawable.ic_poi_gas)
-                                ).build()
-                            )
-                            .setOnClickListener {
-                                carContext.startCarApp(navigateIntent)
-                            }
-                            .build()
-                    )
+            .setHeader(
+                Header.Builder()
+                    .setTitle(title)
+                    .setStartHeaderAction(Action.BACK)
+                    .addEndHeaderAction(navigateAction)
                     .build()
             )
             .build()
@@ -80,6 +80,38 @@ class PoiDetailScreen(
                 }
             }
         }
+        rating?.let { r -> lines.add("Note: $r/5") }
+        poi.irveDetails?.let { d ->
+            if (d.connectorTypes.isNotEmpty()) {
+                val connectorLabels = d.connectorTypes.sorted().map { connectorLabel(it) }.joinToString(", ")
+                lines.add("Connecteurs: $connectorLabels")
+            }
+            if (d.gratuit == true) lines.add("Gratuit")
+            d.tarification?.takeIf { it.isNotBlank() }?.let { lines.add("Tarification: $it") }
+            d.openingHours?.takeIf { it.isNotBlank() }?.let { lines.add("Horaires: $it") }
+            if (d.reservation == true) lines.add("Réservation possible")
+            listOfNotNull(
+                if (d.paymentActe == true) "À l'acte" else null,
+                if (d.paymentCb == true) "CB" else null,
+                if (d.paymentAutre == true) "Autre" else null
+            ).joinToString(", ").takeIf { it.isNotBlank() }?.let { lines.add("Paiement: $it") }
+            d.conditionAcces?.takeIf { it.isNotBlank() }?.let { lines.add("Accès: $it") }
+        }
+        poi.restaurantDetails?.let { d ->
+            if (d.isFastFood) lines.add("Fast food")
+            d.brand?.takeIf { it.isNotBlank() }?.let { lines.add("Enseigne: $it") }
+            d.cuisine?.takeIf { it.isNotBlank() }?.let { lines.add("Cuisine: $it") }
+            d.openingHours?.takeIf { it.isNotBlank() }?.let { lines.add("Horaires: $it") }
+        }
         return lines.joinToString("\n").ifBlank { "No extra details" }
+    }
+
+    private fun connectorLabel(id: String): String = when (id) {
+        "type_2" -> "Type 2"
+        "combo_ccs" -> "CCS"
+        "chademo" -> "CHAdeMO"
+        "ef" -> "E/F"
+        "autre" -> "Autre"
+        else -> id
     }
 }

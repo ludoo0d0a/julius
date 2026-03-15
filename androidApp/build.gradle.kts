@@ -7,6 +7,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.kotlinSerialization)
 }
 
 configure<ApplicationExtension> {
@@ -25,6 +26,9 @@ configure<ApplicationExtension> {
         // Keys: local.properties first, then env (CI must set env on the step that runs Gradle, e.g. JULES_KEY, GOOGLE_MAPS_KEY)
         fun prop(key: String, default: String = "") =
             localProps.getProperty(key) ?: System.getenv(key) ?: default
+        // Sanitize for Java string literal: trim, strip newlines, escape backslash and double-quote
+        fun sanitizeBuildConfigString(s: String): String =
+            s.trim().replace("\\", "\\\\").replace("\"", "\\\"").replace(Regex("[\r\n]+"), " ")
         val localVersionCode = prop("VERSION_CODE").takeIf { it.isNotEmpty() }?.toIntOrNull()
         val computedVersionCode = when {
             ciRunNumber != null -> (ciRunNumber * 10) + ciRunAttempt
@@ -41,18 +45,19 @@ configure<ApplicationExtension> {
         val buildDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         buildConfigField("String", "BUILD_DATE", "\"$buildDate\"")
 
-        val elevenLabsKey = prop("ELEVENLABS_KEY")
-        val geminiKey = prop("GEMINI_KEY")
-        val deepgramKey = prop("DEEPGRAM_KEY")
-        val openaiKey = prop("OPENAI_KEY")
-        val perplexityKey = prop("PERPLEXITY_KEY")
-        val firebaseAiKey = prop("FIREBASE_AI_KEY")
-        val firebaseAiModel = prop("FIREBASE_AI_MODEL", "gemini-1.5-flash-latest")
-        val opencodeZenKey = prop("OPENCODE_ZEN_KEY")
-        val completionsMeKey = prop("COMPLETIONS_ME_KEY")
-        val apifreellmKey = prop("APIFREELLM_KEY")
-        val julesKey = prop("JULES_KEY")
-        val googleWebClientId = prop("GOOGLE_WEB_CLIENT_ID", "your_web_client_id_placeholder")
+        val elevenLabsKey = sanitizeBuildConfigString(prop("ELEVENLABS_KEY"))
+        val geminiKey = sanitizeBuildConfigString(prop("GEMINI_KEY"))
+        val deepgramKey = sanitizeBuildConfigString(prop("DEEPGRAM_KEY"))
+        val openaiKey = sanitizeBuildConfigString(prop("OPENAI_KEY"))
+        val perplexityKey = sanitizeBuildConfigString(prop("PERPLEXITY_KEY"))
+        val firebaseAiKey = sanitizeBuildConfigString(prop("FIREBASE_AI_KEY"))
+        val firebaseAiModel = sanitizeBuildConfigString(prop("FIREBASE_AI_MODEL", "gemini-1.5-flash-latest"))
+        val opencodeZenKey = sanitizeBuildConfigString(prop("OPENCODE_ZEN_KEY"))
+        val completionsMeKey = sanitizeBuildConfigString(prop("COMPLETIONS_ME_KEY"))
+        val apifreellmKey = sanitizeBuildConfigString(prop("APIFREELLM_KEY"))
+        val julesKey = sanitizeBuildConfigString(prop("JULES_KEY"))
+        val googleWebClientId = sanitizeBuildConfigString(prop("GOOGLE_WEB_CLIENT_ID", "your_web_client_id_placeholder"))
+        val mobiliteitLuxembourgKey = sanitizeBuildConfigString(prop("MOBILITEIT_LUXEMBOURG_KEY"))
         val mapsApiKey = prop("GOOGLE_MAPS_KEY")
         manifestPlaceholders["googleMapsApiKey"] = mapsApiKey
 
@@ -68,6 +73,7 @@ configure<ApplicationExtension> {
         buildConfigField("String", "OPENCODE_ZEN_KEY", "\"$opencodeZenKey\"")
         buildConfigField("String", "COMPLETIONS_ME_KEY", "\"$completionsMeKey\"")
         buildConfigField("String", "APIFREELLM_KEY", "\"$apifreellmKey\"")
+        buildConfigField("String", "MOBILITEIT_LUXEMBOURG_KEY", "\"$mobiliteitLuxembourgKey\"")
 
         // Required for Google Play Services Maps (references legacy Apache HTTP classes removed from Android 9+)
         useLibrary("org.apache.http.legacy")
@@ -82,6 +88,22 @@ configure<ApplicationExtension> {
         create("phone") {
             dimension = "distribution"
             buildConfigField("boolean", "CAR_USE_SURFACE", "true")
+        }
+    }
+
+    buildTypes {
+        debug {
+            isDebuggable = true
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 
@@ -109,6 +131,34 @@ configure<ApplicationExtension> {
     }
 }
 
+// Fichier de désobscurcissement (mapping R8) associé à l’App Bundle.
+// Après un bundle*Release, le mapping est copié dans build/deobfuscation/
+// pour upload Play Console ou crash reporting.
+afterEvaluate {
+    val appExt = extensions.getByType(com.android.build.api.dsl.ApplicationExtension::class.java)
+    val versionName = appExt.defaultConfig.versionName ?: "unknown"
+    val copyMappings = tasks.register("copyReleaseMappings") {
+        doLast {
+            val buildDir = layout.buildDirectory.get().asFile
+            val mappingRoot = buildDir.resolve("outputs/mapping")
+            val destDir = buildDir.resolve("deobfuscation")
+            if (!mappingRoot.isDirectory) return@doLast
+            mappingRoot.listFiles()?.filter { it.isDirectory }?.forEach { variantDir ->
+                val mappingFile = File(variantDir, "mapping.txt")
+                if (mappingFile.exists()) {
+                    destDir.mkdirs()
+                    val dest = File(destDir, "mapping-${variantDir.name}-$versionName.txt")
+                    mappingFile.copyTo(dest, overwrite = true)
+                    logger.lifecycle("Mapping copié: ${dest.absolutePath}")
+                }
+            }
+        }
+    }
+    tasks.matching { it.name.startsWith("bundle") && it.name.endsWith("Release") }.configureEach {
+        finalizedBy(copyMappings)
+    }
+}
+
 dependencies {
     implementation(project(":shared"))
     
@@ -127,6 +177,10 @@ dependencies {
     // Android Auto
     implementation(libs.androidx.car.app)
     implementation(libs.androidx.car.app.projected)
+
+    // Location (replaces deprecated LocationManager.requestSingleUpdate)
+    implementation(libs.play.services.location)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     // Maps
     implementation(libs.maps.compose)
@@ -155,6 +209,14 @@ dependencies {
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
+
+    // Vosk offline STT (car mic path)
+    implementation("com.alphacephei:vosk-android:0.3.75")
+
+    // Coil for loading API logos in About
+    implementation("io.coil-kt.coil3:coil-compose:${libs.versions.coil.get()}")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:${libs.versions.coil.get()}")
+
 }
 
 kotlin {

@@ -51,7 +51,9 @@ open class ConversationStore(
     private val agent: ConversationalAgent, // Swapped ChatService for Agent
     private val voiceManager: VoiceManager,
     private val actionExecutor: ActionExecutor? = null,
-    private val initialSpeechLanguageTag: String? = null
+    private val initialSpeechLanguageTag: String? = null,
+    private val localTranscriber: LocalTranscriber = NoLocalTranscriber,
+    private val sttPreference: () -> SttEnginePreference = { SttEnginePreference.NativeOnly }
 ) {
     private val _state = MutableStateFlow(ConversationState())
     val state: StateFlow<ConversationState> = _state.asStateFlow()
@@ -77,10 +79,14 @@ open class ConversationStore(
 
     init {
         voiceManager.setTranscriber { audioData ->
-            if (agent.isSttSupported) {
-                agent.transcribe(audioData)
-            } else {
-                null
+            when (sttPreference()) {
+                SttEnginePreference.NativeOnly ->
+                    if (agent.isSttSupported) agent.transcribe(audioData) else null
+                SttEnginePreference.LocalOnly ->
+                    localTranscriber.transcribe(audioData)
+                SttEnginePreference.LocalFirst ->
+                    localTranscriber.transcribe(audioData)
+                        ?: if (agent.isSttSupported) agent.transcribe(audioData) else null
             }
         }
 

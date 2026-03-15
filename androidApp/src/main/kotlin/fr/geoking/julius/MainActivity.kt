@@ -25,13 +25,18 @@ import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.ConversationState
 import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.shared.PermissionManager
-import fr.geoking.julius.providers.MockPoiProvider
-import fr.geoking.julius.providers.PoiProvider
+import fr.geoking.julius.poi.MockPoiProvider
+import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.ui.JulesScreen
 import fr.geoking.julius.ui.MapScreen
 import fr.geoking.julius.ui.PhoneMainScreen
+import fr.geoking.julius.ui.RoutePlanningScreen
+import fr.geoking.julius.ui.HistoryScreen
 import fr.geoking.julius.ui.SettingsScreen
-import fr.geoking.julius.providers.JulesClient
+import fr.geoking.julius.api.jules.JulesClient
+import fr.geoking.julius.api.routing.RoutePlanner
+import fr.geoking.julius.api.routing.RoutingClient
+import fr.geoking.julius.toll.TollCalculator
 import fr.geoking.julius.ui.UpdateAvailableDialog
 import fr.geoking.julius.ui.UpdateDownloadedDialog
 import fr.geoking.julius.ui.anim.AnimationPalettes
@@ -89,8 +94,14 @@ class MainActivity : ComponentActivity() {
             val authManager: GoogleAuthManager = get()
             val permissionManager: PermissionManager = get()
             val poiProvider: PoiProvider = get()
-            val availabilityProviderFactory: fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory = get()
+            val availabilityProviderFactory: fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory = get()
+            val communityRepo: fr.geoking.julius.community.CommunityPoiRepository = get()
+            val favoritesRepo: fr.geoking.julius.community.FavoritesRepository = get()
             val julesClient: JulesClient = get()
+            val routePlanner: RoutePlanner = get()
+            val routingClient: RoutingClient = get()
+            val tollCalculator: TollCalculator = get()
+            val trafficProviderFactory: fr.geoking.julius.api.traffic.TrafficProviderFactory = get()
 
             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             (permissionManager as? AndroidPermissionManager)?.setOnPermissionRequest { permission, deferred ->
@@ -113,7 +124,13 @@ class MainActivity : ComponentActivity() {
                     authManager = authManager,
                     poiProvider = poiProvider,
                     availabilityProviderFactory = availabilityProviderFactory,
+                    communityRepo = communityRepo,
+                    favoritesRepo = favoritesRepo,
                     julesClient = julesClient,
+                    routePlanner = routePlanner,
+                    routingClient = routingClient,
+                    tollCalculator = tollCalculator,
+                    trafficProviderFactory = trafficProviderFactory,
                     inAppUpdateHelper = inAppUpdateHelper,
                     onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) }
                 )
@@ -137,13 +154,21 @@ fun MainUI(
     settingsManager: SettingsManager,
     authManager: GoogleAuthManager,
     poiProvider: PoiProvider,
-    availabilityProviderFactory: fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory? = null,
+    availabilityProviderFactory: fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory? = null,
+    communityRepo: fr.geoking.julius.community.CommunityPoiRepository? = null,
+    favoritesRepo: fr.geoking.julius.community.FavoritesRepository? = null,
     julesClient: JulesClient,
+    routePlanner: RoutePlanner? = null,
+    routingClient: RoutingClient? = null,
+    tollCalculator: TollCalculator? = null,
+    trafficProviderFactory: fr.geoking.julius.api.traffic.TrafficProviderFactory? = null,
     inAppUpdateHelper: InAppUpdateHelper? = null,
     onStartUpdate: (AppUpdateInfo) -> Unit = {}
 ) {
     var showSettings by remember { mutableStateOf(false) }
+    var showHistory by remember { mutableStateOf(false) }
     var showMap by remember { mutableStateOf(false) }
+    var showRoutePlanning by remember { mutableStateOf(false) }
     var showJules by remember { mutableStateOf(false) }
     val settings by settingsManager.settings.collectAsState()
     val paletteIndex by AnimationPalettes.index.collectAsState()
@@ -176,13 +201,31 @@ fun MainUI(
                 showSettings -> {
                     SettingsScreen(settingsManager, authManager, state.errorLog) { showSettings = false }
                 }
+                showHistory -> {
+                    HistoryScreen(state = state, onBack = { showHistory = false })
+                }
+                showMap && showRoutePlanning && routePlanner != null && routingClient != null && tollCalculator != null -> {
+                    RoutePlanningScreen(
+                        routePlanner = routePlanner,
+                        routingClient = routingClient,
+                        tollCalculator = tollCalculator,
+                        trafficProviderFactory = trafficProviderFactory,
+                        poiProvider = poiProvider,
+                        settingsManager = settingsManager,
+                        onBack = { showRoutePlanning = false }
+                    )
+                }
                 showMap -> {
                     MapScreen(
                         poiProvider = poiProvider,
                         availabilityProviderFactory = availabilityProviderFactory,
+                        trafficProviderFactory = trafficProviderFactory,
                         settingsManager = settingsManager,
                         store = store,
-                        onBack = { showMap = false }
+                        onBack = { showMap = false },
+                        onPlanRoute = if (routePlanner != null && routingClient != null && tollCalculator != null) { { showRoutePlanning = true } } else null,
+                        communityRepo = communityRepo,
+                        favoritesRepo = favoritesRepo
                     )
                 }
                 showJules -> {
@@ -200,6 +243,7 @@ fun MainUI(
                         settingsManager = settingsManager,
                         store = store,
                         onSettingsClick = { showSettings = true },
+                        onHistoryClick = { showHistory = true },
                         onMapClick = { showMap = true },
                         onJulesClick = { showJules = true }
                     )
@@ -318,7 +362,7 @@ private fun rememberMockSettingsManager(): SettingsManager {
         object : SettingsManager(context) {
             private val mockSettings = kotlinx.coroutines.flow.MutableStateFlow(AppSettings())
             override val settings = mockSettings
-            override fun setPoiProviderType(type: fr.geoking.julius.providers.PoiProviderType) {
+            override fun setPoiProviderType(type: fr.geoking.julius.poi.PoiProviderType) {
                 mockSettings.value = mockSettings.value.copy(selectedPoiProvider = type)
             }
             override fun saveSettings(settings: AppSettings) {}

@@ -4,6 +4,7 @@ import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.Action
 import androidx.car.app.model.CarIcon
+import androidx.car.app.model.Header
 import androidx.car.app.model.MessageTemplate
 import androidx.car.app.model.Template
 import androidx.core.graphics.drawable.IconCompat
@@ -29,8 +30,7 @@ class ErrorScreen(
                     IconCompat.createWithResource(carContext, R.drawable.auto_theme_idle)
                 ).build()
             )
-            .setTitle("Julius Error")
-            .setHeaderAction(Action.APP_ICON)
+            .setHeader(Header.Builder().setTitle("Julius Error").setStartHeaderAction(Action.APP_ICON).build())
             .build()
     }
 }
