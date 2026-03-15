@@ -3,6 +3,7 @@ package fr.geoking.julius
 import android.content.Context
 import android.content.SharedPreferences
 import fr.geoking.julius.VehicleType
+import fr.geoking.julius.shared.SttEnginePreference
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -99,6 +100,8 @@ data class AppSettings(
     val extendedActionsEnabled: Boolean = false,
     val wakeWordEnabled: Boolean = false,
     val useCarMic: Boolean = false,
+    /** STT engine for car mic path: LocalOnly (Vosk only), LocalFirst (Vosk then agent), NativeOnly (agent only). */
+    val sttEnginePreference: SttEnginePreference = SttEnginePreference.LocalFirst,
     val textAnimation: TextAnimation = TextAnimation.Fade,
     /** Path to local GGUF model: asset-relative (e.g. "models/phi-2.Q4_0.gguf") or absolute path after download. */
     val localModelPath: String = "models/phi-2.Q4_0.gguf",
@@ -242,6 +245,11 @@ open class SettingsManager(context: Context) {
             extendedActionsEnabled = prefs.getBoolean("extended_actions_enabled", false),
             wakeWordEnabled = prefs.getBoolean("wake_word_enabled", false),
             useCarMic = prefs.getBoolean("use_car_mic", false),
+            sttEnginePreference = try {
+                SttEnginePreference.valueOf(prefs.getString("stt_engine_preference", SttEnginePreference.LocalFirst.name) ?: SttEnginePreference.LocalFirst.name)
+            } catch (e: IllegalArgumentException) {
+                SttEnginePreference.LocalFirst
+            },
             textAnimation = try {
                 TextAnimation.valueOf(prefs.getString("text_animation", TextAnimation.Fade.name) ?: TextAnimation.Fade.name)
             } catch (e: IllegalArgumentException) {
@@ -335,6 +343,11 @@ open class SettingsManager(context: Context) {
         _settings.value = _settings.value.copy(selectedOverpassAmenityTypes = value)
     }
 
+    open fun setSttEnginePreference(preference: SttEnginePreference) {
+        prefs.edit().putString("stt_engine_preference", preference.name).apply()
+        _settings.value = _settings.value.copy(sttEnginePreference = preference)
+    }
+
     open fun setVehicleType(type: VehicleType) {
         prefs.edit().putString("vehicle_type", type.name).apply()
         _settings.value = _settings.value.copy(vehicleType = type)
@@ -423,6 +436,7 @@ open class SettingsManager(context: Context) {
             .putBoolean("extended_actions_enabled", settings.extendedActionsEnabled)
             .putBoolean("wake_word_enabled", settings.wakeWordEnabled)
             .putBoolean("use_car_mic", settings.useCarMic)
+            .putString("stt_engine_preference", settings.sttEnginePreference.name)
             .putString("text_animation", settings.textAnimation.name)
             .putString("local_model_path", settings.localModelPath)
             .putString("selected_local_model_variant", settings.selectedLocalModelVariant)
@@ -461,6 +475,7 @@ open class SettingsManager(context: Context) {
         extendedActionsEnabled: Boolean = false,
         wakeWordEnabled: Boolean = false,
         useCarMic: Boolean = false,
+        sttEnginePreference: SttEnginePreference = _settings.value.sttEnginePreference,
         localModelPath: String = _settings.value.localModelPath,
         selectedLocalModelVariant: String = _settings.value.selectedLocalModelVariant
     ) {
@@ -500,6 +515,7 @@ open class SettingsManager(context: Context) {
             extendedActionsEnabled = extendedActionsEnabled,
             wakeWordEnabled = wakeWordEnabled,
             useCarMic = useCarMic,
+            sttEnginePreference = sttEnginePreference,
             textAnimation = _settings.value.textAnimation,
             localModelPath = localModelPath,
             selectedLocalModelVariant = selectedLocalModelVariant,

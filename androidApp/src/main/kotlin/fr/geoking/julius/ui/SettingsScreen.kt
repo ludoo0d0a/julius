@@ -40,6 +40,7 @@ import fr.geoking.julius.providers.PoiProviderType
 import fr.geoking.julius.TextAnimation
 import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.shared.DetailedError
+import fr.geoking.julius.shared.SttEnginePreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -125,6 +126,9 @@ fun SettingsScreen(
                         onNavigate = { currentScreen = it },
                         onToggleExtendedActions = {
                             save(settingsManager, current.copy(extendedActionsEnabled = it))
+                        },
+                        onSttEnginePreferenceChange = {
+                            save(settingsManager, current.copy(sttEnginePreference = it))
                         }
                     )
                     Screen.Theme -> ThemeSelection(
@@ -217,9 +221,11 @@ private fun MainMenu(
     settings: AppSettings,
     authManager: GoogleAuthManager,
     onNavigate: (Screen) -> Unit,
-    onToggleExtendedActions: (Boolean) -> Unit
+    onToggleExtendedActions: (Boolean) -> Unit,
+    onSttEnginePreferenceChange: (SttEnginePreference) -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    var showSttEngineDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -300,6 +306,11 @@ private fun MainMenu(
             value = settings.textAnimation.name,
             onClick = { onNavigate(Screen.TextAnimation) }
         )
+        SettingsItem(
+            label = "STT engine (car)",
+            value = sttEnginePreferenceLabel(settings.sttEnginePreference),
+            onClick = { showSttEngineDialog = true }
+        )
 
         SettingsItem(
             label = "Google Account",
@@ -371,11 +382,47 @@ private fun MainMenu(
         )
     }
 
+    if (showSttEngineDialog) {
+        AlertDialog(
+            onDismissRequest = { showSttEngineDialog = false },
+            title = { Text("STT engine (car mic)", color = Color.White) },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    SttEnginePreference.entries.forEach { pref ->
+                        TextButton(
+                            onClick = {
+                                onSttEnginePreferenceChange(pref)
+                                showSttEngineDialog = false
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = sttEnginePreferenceLabel(pref),
+                                color = if (settings.sttEnginePreference == pref) Lavender else Color.White
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSttEngineDialog = false }) {
+                    Text("Close", color = Lavender)
+                }
+            },
+            containerColor = DarkBackground
+        )
+    }
     SnackbarHost(
         hostState = snackbarHostState,
         modifier = Modifier.align(Alignment.BottomCenter)
     )
     }
+}
+
+private fun sttEnginePreferenceLabel(pref: SttEnginePreference): String = when (pref) {
+    SttEnginePreference.LocalOnly -> "Local only (Vosk)"
+    SttEnginePreference.LocalFirst -> "Local first (Vosk, then cloud)"
+    SttEnginePreference.NativeOnly -> "Native only (cloud)"
 }
 
 @Composable

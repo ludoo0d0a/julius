@@ -8,7 +8,9 @@ import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.agents.*
 import fr.geoking.julius.shared.ConversationStore
+import fr.geoking.julius.shared.LocalTranscriber
 import fr.geoking.julius.shared.VoiceManager
+import fr.geoking.julius.voice.VoskTranscriber
 import fr.geoking.julius.shared.ActionExecutor
 import fr.geoking.julius.shared.PermissionManager
 import fr.geoking.julius.providers.GasApiProvider
@@ -223,14 +225,20 @@ val appModule = module {
     single<ActionExecutor> {
         AndroidActionExecutor(androidContext(), get())
     }
+
+    single { VoskTranscriber(androidContext(), modelDirPath = null) }
+    single<LocalTranscriber> { get<VoskTranscriber>() }
     
     single {
+        val settingsManager = get<SettingsManager>()
         ConversationStore(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             agent = get(),
             voiceManager = get(),
             actionExecutor = get(),
-            initialSpeechLanguageTag = resolveInitialSpeechLanguageTag()
+            initialSpeechLanguageTag = resolveInitialSpeechLanguageTag(),
+            localTranscriber = get(),
+            sttPreference = { settingsManager.settings.value.sttEnginePreference }
         )
     }
 }

@@ -164,6 +164,9 @@ dependencies {
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
 
+    // Vosk offline STT (car mic path)
+    implementation("com.alphacephei:vosk-android:0.3.75")
+
 }
 
 kotlin {

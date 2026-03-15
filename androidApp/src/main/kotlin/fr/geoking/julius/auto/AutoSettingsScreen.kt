@@ -5,6 +5,7 @@ import androidx.car.app.Screen
 import androidx.car.app.model.*
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.shared.SttEnginePreference
 
 class AutoSettingsScreen(
     carContext: CarContext,
@@ -114,6 +115,16 @@ class AutoSettingsScreen(
 
         listBuilder.addItem(
             Row.Builder()
+                .setTitle("STT engine (car)")
+                .addText(sttEngineLabel(settings.sttEnginePreference))
+                .setOnClickListener {
+                    screenManager.push(AutoSttEngineSelectionScreen(carContext, settingsManager))
+                }
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
                 .setTitle("Hands-free Wake Word")
                 .addText("Say 'Julius' to start")
                 .setToggle(
@@ -131,4 +142,10 @@ class AutoSettingsScreen(
             .setHeader(Header.Builder().setTitle("Settings").setStartHeaderAction(Action.BACK).build())
             .build()
     }
+}
+
+private fun sttEngineLabel(pref: SttEnginePreference): String = when (pref) {
+    SttEnginePreference.LocalOnly -> "Local only (Vosk)"
+    SttEnginePreference.LocalFirst -> "Local first (Vosk, then cloud)"
+    SttEnginePreference.NativeOnly -> "Native only (cloud)"
 }

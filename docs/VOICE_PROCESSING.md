@@ -7,12 +7,12 @@ This document explains how voice and speech are currently processed in the Juliu
 Julius uses a turn-based, sequential pipeline where each step must complete before the next begins.
 
 ### Step 1: Speech-to-Text (STT)
-*   **Implementation:** `AndroidVoiceManager` (Android-specific)
-*   **Mechanism:** Uses the native Android `SpeechRecognizer` API (`android.speech`).
-*   **Process:**
-    1. The app listens to microphone input.
-    2. When the system detects the user has finished speaking (`onResults`), it produces a text transcript.
-    3. The transcript is emitted through a Kotlin Flow (`transcribedText`).
+*   **Phone path:** `AndroidVoiceManager` uses the native Android `SpeechRecognizer` API (`android.speech`). When the system detects the user has finished speaking (`onResults`), it produces a text transcript and emits it via `transcribedText`.
+*   **Car mic path (Android Auto):** When "Use Car Microphone" is on (play flavor), the app records raw audio and passes it to a **transcriber** callback. The transcriber is composed in `ConversationStore` according to the **STT engine** setting:
+    *   **Local only:** Use only Vosk (on-device); no cloud fallback.
+    *   **Local first:** Try Vosk first; if it returns null/blank, use the agent’s `transcribe()` when the agent supports STT (e.g. OpenAI, Deepgram).
+    *   **Native only:** Do not use Vosk; use only the agent’s cloud STT when supported.
+*   The setting is available in **Settings > STT engine (car)** and in Android Auto **Settings > STT engine (car)**.
 
 ### Step 2: Orchestration
 *   **Implementation:** `ConversationStore` (Common module)
@@ -44,6 +44,9 @@ Julius implements a "Barge-in" feature. While the assistant is speaking, it cont
 
 ### Multi-Agent Flexibility
 The architecture is designed to be highly modular. By implementing the `ConversationalAgent` interface, new AI models or voice providers can be added without changing the core UI or orchestration logic.
+
+### Optional Offline STT (Vosk)
+For the car mic path, Julius can use **Vosk** for on-device speech recognition. A Vosk model can be placed in `androidApp/src/main/assets/models/vosk/<model-name>/` (e.g. a small English model); it is copied to app storage on first use. The **STT engine** setting controls whether to use Vosk only, Vosk first with cloud fallback, or cloud only.
 
 ---
 
