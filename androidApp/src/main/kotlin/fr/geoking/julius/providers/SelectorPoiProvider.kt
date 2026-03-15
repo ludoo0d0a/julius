@@ -29,9 +29,21 @@ class SelectorPoiProvider(
         longitude: Double,
         viewport: MapViewport?
     ): List<Poi> {
-        val provider = settingsManager.settings.value.selectedPoiProvider
-        val result = currentProvider().getGasStations(latitude, longitude, viewport)
-        Log.d("SelectorPoiProvider", "selected=$provider lat=$latitude lon=$longitude -> ${result.size} pois")
+        val settings = settingsManager.settings.value
+        val provider = settings.selectedPoiProvider
+        var result = currentProvider().getGasStations(latitude, longitude, viewport)
+        val selectedEnergies = settings.selectedMapEnergyTypes
+        if (selectedEnergies.isNotEmpty()) {
+            result = result.filter { MapPoiFilter.matchesEnergyFilter(it, selectedEnergies) }
+        }
+        // IRVE min power filter (LibreChargeMap-style): keep stations with power >= mapMinPowerKw (or unknown power)
+        if (provider == PoiProviderType.DataGouvElec && settings.mapMinPowerKw > 0) {
+            val minKw = settings.mapMinPowerKw
+            result = result.filter { poi ->
+                poi.powerKw == null || poi.powerKw!! >= minKw
+            }
+        }
+        Log.d("SelectorPoiProvider", "selected=$provider lat=$latitude lon=$longitude -> ${result.size} pois (energy+power filter)")
         return result
     }
 }

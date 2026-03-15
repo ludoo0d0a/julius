@@ -130,7 +130,7 @@ fun MapScreen(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(selectedProvider, cameraPositionState.position, mapSizePx, retryCount) {
+    LaunchedEffect(selectedProvider, settings.selectedMapEnergyTypes, settings.mapMinPowerKw, cameraPositionState.position, mapSizePx, retryCount) {
         if (!hasLocationPermission) {
             launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
@@ -377,8 +377,8 @@ private fun MapScreenPreview() {
     }
     val fakePoiProvider = object : PoiProvider {
         override suspend fun getGasStations(
-            centerLat: Double,
-            centerLng: Double,
+            latitude: Double,
+            longitude: Double,
             viewport: MapViewport?
         ): List<Poi> = emptyList()
     }

@@ -36,13 +36,25 @@ enum class GeminiModel(val modelName: String, val displayName: String) {
     GEMINI_1_5_PRO("gemini-1.5-pro", "Gemini 1.5 Pro")
 }
 
-/** Energy/fuel types for map POI filter (multi-select). */
-val DEFAULT_MAP_ENERGY_TYPES = setOf("sp95", "sp98", "gazole", "e85", "electric")
+/** Energy/fuel types for map POI filter (multi-select). Aligned with prix-carburants.gouv.fr. */
+val DEFAULT_MAP_ENERGY_TYPES = setOf("gazole", "sp98", "sp95_e10", "sp95", "gplc", "e85", "electric")
+
+/** Enseigne type for map filter, aligned with prix-carburants.gouv.fr. "all" = Toutes les enseignes. */
+const val DEFAULT_MAP_ENSEIGNE_TYPE = "all"
+
+/** Min power filter for IRVE (kW). 0 = no filter. Aligned with LibreChargeMap. */
+const val DEFAULT_MAP_MIN_POWER_KW = 0
 
 data class AppSettings(
     val selectedPoiProvider: fr.geoking.julius.providers.PoiProviderType = fr.geoking.julius.providers.PoiProviderType.Routex,
     /** Selected energy types to show on map (e.g. sp95, sp98, gazole, e85, electric). Empty = show all. */
     val selectedMapEnergyTypes: Set<String> = DEFAULT_MAP_ENERGY_TYPES,
+    /** Type d'enseigne: "all", "major", "gms", "independant". Filter applied when provider supplies data. */
+    val mapEnseigneType: String = DEFAULT_MAP_ENSEIGNE_TYPE,
+    /** Selected service ids for map filter (e.g. bornes_electriques, automate_cb). Applied when provider supplies data. */
+    val selectedMapServices: Set<String> = emptySet(),
+    /** Min power in kW for IRVE stations (0 = no filter). Applied when provider is DataGouvElec. */
+    val mapMinPowerKw: Int = DEFAULT_MAP_MIN_POWER_KW,
     val openAiKey: String = "",
     val openAiModel: OpenAiModel = OpenAiModel.GPT_4O,
     val elevenLabsKey: String = "",
@@ -114,6 +126,13 @@ open class SettingsManager(context: Context) {
         val selectedMapEnergyTypes = if (!energyTypesStr.isNullOrBlank()) {
             energyTypesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
         } else DEFAULT_MAP_ENERGY_TYPES
+        val mapEnseigneType = prefs.getString("map_enseigne_type", DEFAULT_MAP_ENSEIGNE_TYPE) ?: DEFAULT_MAP_ENSEIGNE_TYPE
+        val mapServicesStr = prefs.getString("map_services", null)
+        val selectedMapServices = if (!mapServicesStr.isNullOrBlank()) {
+            mapServicesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        } else emptySet()
+        val mapMinPowerKw = prefs.getInt("map_min_power_kw", DEFAULT_MAP_MIN_POWER_KW)
+            .coerceIn(0, 300)
 
         return AppSettings(
             selectedPoiProvider = try {
@@ -124,6 +143,9 @@ open class SettingsManager(context: Context) {
                 fr.geoking.julius.providers.PoiProviderType.Routex
             },
             selectedMapEnergyTypes = selectedMapEnergyTypes,
+            mapEnseigneType = mapEnseigneType,
+            selectedMapServices = selectedMapServices,
+            mapMinPowerKw = mapMinPowerKw,
             openAiKey = openAiKey,
             openAiModel = try {
                 OpenAiModel.valueOf(prefs.getString("openai_model", OpenAiModel.GPT_4O.name) ?: OpenAiModel.GPT_4O.name)
@@ -232,6 +254,22 @@ open class SettingsManager(context: Context) {
         _settings.value = _settings.value.copy(selectedMapEnergyTypes = types)
     }
 
+    open fun setMapEnseigneType(type: String) {
+        prefs.edit().putString("map_enseigne_type", type).apply()
+        _settings.value = _settings.value.copy(mapEnseigneType = type)
+    }
+
+    open fun setMapServices(services: Set<String>) {
+        prefs.edit().putString("map_services", services.joinToString(",")).apply()
+        _settings.value = _settings.value.copy(selectedMapServices = services)
+    }
+
+    open fun setMapMinPowerKw(kw: Int) {
+        val value = kw.coerceIn(0, 300)
+        prefs.edit().putInt("map_min_power_kw", value).apply()
+        _settings.value = _settings.value.copy(mapMinPowerKw = value)
+    }
+
     open fun saveSettings(settings: AppSettings) {
         saveSettingsInternal(settings)
     }
@@ -254,6 +292,9 @@ open class SettingsManager(context: Context) {
         prefs.edit()
             .putString("poi_provider", settings.selectedPoiProvider.name)
             .putString("map_energy_types", settings.selectedMapEnergyTypes.joinToString(","))
+            .putString("map_enseigne_type", settings.mapEnseigneType)
+            .putString("map_services", settings.selectedMapServices.joinToString(","))
+            .putInt("map_min_power_kw", settings.mapMinPowerKw)
             .putString("openai_key", settings.openAiKey)
             .putString("openai_model", settings.openAiModel.name)
             .putString("elevenlabs_key", settings.elevenLabsKey)
@@ -320,6 +361,9 @@ open class SettingsManager(context: Context) {
         val newSettings = AppSettings(
             selectedPoiProvider = _settings.value.selectedPoiProvider,
             selectedMapEnergyTypes = _settings.value.selectedMapEnergyTypes,
+            mapEnseigneType = _settings.value.mapEnseigneType,
+            selectedMapServices = _settings.value.selectedMapServices,
+            mapMinPowerKw = _settings.value.mapMinPowerKw,
             openAiKey = openAiKey,
             openAiModel = openAiModel,
             elevenLabsKey = elevenLabsKey,

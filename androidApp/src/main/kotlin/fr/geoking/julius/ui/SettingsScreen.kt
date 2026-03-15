@@ -902,6 +902,7 @@ private fun ConfigTextField(
 }
 
 @Composable
+@Suppress("DEPRECATION") // LocalClipboardManager deprecated in favor of LocalClipboard (suspend API); migrate when ready
 private fun ErrorLog(errorLog: List<DetailedError>) {
     val scrollState = rememberScrollState()
     val clipboardManager = LocalClipboardManager.current
@@ -989,9 +990,10 @@ private fun ErrorLog(errorLog: List<DetailedError>) {
 @Preview(showBackground = true, backgroundColor = 0xFF0F172A)
 @Composable
 fun SettingsScreenPreview() {
-    // Create a mock SettingsManager for preview
-    val mockSettingsManager = remember {
-        object : SettingsManager(null as android.content.Context) {
+    val context = LocalContext.current
+    // Create a mock SettingsManager for preview (context required; we override settings/saveSettings)
+    val mockSettingsManager = remember(context) {
+        object : SettingsManager(context) {
             private val mockSettings = MutableStateFlow(
                 AppSettings(
                     selectedPoiProvider = PoiProviderType.Routex,
@@ -1017,8 +1019,6 @@ fun SettingsScreenPreview() {
             }
         }
     }
-    
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val store = remember {
         fr.geoking.julius.shared.ConversationStore(

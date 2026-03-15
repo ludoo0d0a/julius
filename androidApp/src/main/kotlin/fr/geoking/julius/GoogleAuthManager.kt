@@ -60,7 +60,7 @@ class GoogleAuthManager(
                     conversationStore.userName = firstName
                     onResult(true, null)
                 } else {
-                    val msg = "Unexpected credential type: ${credential?.javaClass?.simpleName ?: "null"}"
+                    val msg = "Unexpected credential type: ${credential.javaClass.simpleName}"
                     Log.e(TAG, "signIn: $msg")
                     conversationStore.recordError(null, "Google Auth: $msg")
                     onResult(false, msg)

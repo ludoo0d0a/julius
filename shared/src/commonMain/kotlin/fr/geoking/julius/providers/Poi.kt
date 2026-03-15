@@ -28,6 +28,8 @@ data class Poi(
     val brand: String? = null,
     /** True for IRVE / EV charging stations (e.g. data.gouv.fr IRVE). */
     val isElectric: Boolean = false,
+    /** Nominal power in kW (IRVE only). Used for min-power filter. */
+    val powerKw: Double? = null,
     /** When provided by the provider (e.g. DataGouv), lists fuel types and prices. */
     val fuelPrices: List<FuelPrice>? = null,
     /** Site name (e.g. Routex site_name) for title. */
@@ -49,6 +51,39 @@ data class MapViewport(
     val mapWidthPx: Int,
     val mapHeightPx: Int
 )
+
+/**
+ * Maps API fuel names (from data.gouv.fr / Etalab / gas-api.ovh) to filter ids used in map settings.
+ * Aligned with [prix-carburants.gouv.fr](https://www.prix-carburants.gouv.fr/) fuel list.
+ */
+object MapPoiFilter {
+    /** Normalize API fuel name to a filter id (gazole, sp98, sp95, sp95_e10, gplc, e85). Returns null if unknown. */
+    fun fuelNameToId(fuelName: String): String? {
+        val n = fuelName.trim().lowercase()
+        return when {
+            n.contains("gazole") || n == "gasoil" || n == "diesel" -> "gazole"
+            n.contains("sp98") || n == "sp 98" -> "sp98"
+            n.contains("e10") || n.contains("sp95-e10") || n == "sp95 e10" -> "sp95_e10"
+            n.contains("sp95") || n == "sp 95" -> "sp95"
+            n.contains("gpl") || n == "gplc" || n == "lpg" -> "gplc"
+            n.contains("e85") || n == "superéthanol" -> "e85"
+            else -> null
+        }
+    }
+
+    /**
+     * Returns true if [poi] should be shown given [selectedEnergyIds].
+     * When [selectedEnergyIds] is empty, returns true (show all).
+     * Electric stations match when "electric" is selected; fuel stations match when they have at least one fuel in [selectedEnergyIds].
+     */
+    fun matchesEnergyFilter(poi: Poi, selectedEnergyIds: Set<String>): Boolean {
+        if (selectedEnergyIds.isEmpty()) return true
+        if (poi.isElectric) return "electric" in selectedEnergyIds
+        val fuelIds = poi.fuelPrices?.mapNotNull { fuelNameToId(it.fuelName) }?.toSet() ?: emptySet()
+        if (fuelIds.isEmpty()) return true // no price data: show anyway
+        return fuelIds.any { it in selectedEnergyIds }
+    }
+}
 
 interface PoiProvider {
     /**
