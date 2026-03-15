@@ -1,17 +1,25 @@
 package fr.geoking.julius.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.AppSettings
 import fr.geoking.julius.AppTheme
@@ -45,6 +53,11 @@ fun PhoneMainScreen(
     val currentTheme = rememberUpdatedState(settings.selectedTheme)
     val verticalThresholdPx = with(LocalDensity.current) { 64.dp.toPx() }
     val horizontalThresholdPx = with(LocalDensity.current) { 80.dp.toPx() }
+    var showEffectBackground by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(100)
+        showEffectBackground = true
+    }
 
     BoxWithConstraints(
         modifier = modifier
@@ -58,13 +71,17 @@ fun PhoneMainScreen(
             ),
         contentAlignment = Alignment.Center
     ) {
-        key(settings.selectedTheme) {
-            ThemeBackground(
-                theme = settings.selectedTheme,
-                status = state.status,
-                palette = palette,
-                settings = settings
-            )
+        if (showEffectBackground) {
+            key(settings.selectedTheme) {
+                ThemeBackground(
+                    theme = settings.selectedTheme,
+                    status = state.status,
+                    palette = palette,
+                    settings = settings
+                )
+            }
+        } else {
+            Box(Modifier.fillMaxSize().background(Color(0xFF0F172A)))
         }
         VoiceMainContent(
             state = state,

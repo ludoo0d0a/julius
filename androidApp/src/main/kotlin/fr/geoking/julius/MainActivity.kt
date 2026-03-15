@@ -41,6 +41,7 @@ import fr.geoking.julius.ui.anim.AnimationPalettes
 import com.google.android.play.core.appupdate.AppUpdateInfo
 import fr.geoking.julius.update.InAppUpdateHelper
 import io.ktor.client.HttpClient
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import io.ktor.client.engine.okhttp.OkHttp
 import org.koin.android.ext.android.get
@@ -188,6 +189,7 @@ fun MainUI(
 
     if (inAppUpdateHelper != null) {
         LaunchedEffect(Unit) {
+            delay(500)
             inAppUpdateHelper.checkForUpdate()
         }
     }
