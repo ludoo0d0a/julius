@@ -54,11 +54,16 @@ import fr.geoking.julius.VehicleType
 import fr.geoking.julius.providers.Poi
 import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.routing.RoutePlanner
+import fr.geoking.julius.routing.RoutingClient
+import fr.geoking.julius.toll.TollCalculator
+import fr.geoking.julius.toll.TollEstimate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RoutePlanningScreen(
     routePlanner: RoutePlanner,
+    routingClient: RoutingClient,
+    tollCalculator: TollCalculator,
     poiProvider: PoiProvider,
     settingsManager: SettingsManager,
     onBack: () -> Unit
@@ -72,6 +77,7 @@ fun RoutePlanningScreen(
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var stations by remember { mutableStateOf<List<Poi>>(emptyList()) }
+    var tollEstimate by remember { mutableStateOf<TollEstimate?>(null) }
     var calculateTrigger by remember { mutableStateOf(0) }
 
     val hasLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -157,6 +163,7 @@ fun RoutePlanningScreen(
                         loading = true
                         error = null
                         stations = emptyList()
+                        tollEstimate = null
                         calculateTrigger++
                     }
                 },
@@ -179,6 +186,14 @@ fun RoutePlanningScreen(
 
             if (stations.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(16.dp))
+                tollEstimate?.let { toll ->
+                    Text(
+                        "Estimated toll: €%.2f".format(toll.amountEur),
+                        color = Color.White.copy(alpha = 0.9f),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
                 val settings by settingsManager.settings.collectAsState()
                 val title = if (settings.vehicleType == VehicleType.Truck || settings.vehicleType == VehicleType.Motorhome) {
                     "POIs along route (${stations.size})"
@@ -230,6 +245,13 @@ fun RoutePlanningScreen(
             loading = false
             error = "Enter valid coordinates"
             return@LaunchedEffect
+        }
+        val settings = settingsManager.settings.value
+        val route = routingClient.getRoute(oLat, oLon, dLat, dLon)
+        if (route != null) {
+            tollEstimate = tollCalculator.estimateToll(route.points, settings.vehicleType)
+        } else {
+            tollEstimate = null
         }
         val result = routePlanner.getStationsAlongRoute(oLat, oLon, dLat, dLon, poiProvider)
         loading = false

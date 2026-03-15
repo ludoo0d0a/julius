@@ -38,6 +38,9 @@ import fr.geoking.julius.community.storage.FavoritePoiStorage
 import fr.geoking.julius.routing.OsrmRoutingClient
 import fr.geoking.julius.routing.RoutePlanner
 import fr.geoking.julius.routing.RoutingClient
+import fr.geoking.julius.toll.OpenTollDataParser
+import fr.geoking.julius.toll.TollCalculator
+import fr.geoking.julius.ui.OpenTollDataHelper
 import org.koin.core.qualifier.named
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -205,6 +208,17 @@ val appModule = module {
 
     single<RoutingClient> { OsrmRoutingClient(get()) }
     single<RoutePlanner> { RoutePlanner(get()) }
+
+    single { OpenTollDataHelper(androidContext()) }
+    single<TollCalculator> {
+        val settingsManager = get<SettingsManager>()
+        TollCalculator(dataSource = {
+            val path = settingsManager.settings.value.tollDataPath ?: return@TollCalculator null
+            val file = java.io.File(path)
+            if (!file.exists()) return@TollCalculator null
+            OpenTollDataParser.parse(file.readText())
+        })
+    }
 
     single<ActionExecutor> {
         AndroidActionExecutor(androidContext(), get())

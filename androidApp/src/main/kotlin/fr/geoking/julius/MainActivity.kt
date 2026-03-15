@@ -35,6 +35,8 @@ import fr.geoking.julius.ui.HistoryScreen
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.providers.JulesClient
 import fr.geoking.julius.routing.RoutePlanner
+import fr.geoking.julius.routing.RoutingClient
+import fr.geoking.julius.toll.TollCalculator
 import fr.geoking.julius.ui.UpdateAvailableDialog
 import fr.geoking.julius.ui.UpdateDownloadedDialog
 import fr.geoking.julius.ui.anim.AnimationPalettes
@@ -97,6 +99,8 @@ class MainActivity : ComponentActivity() {
             val favoritesRepo: fr.geoking.julius.community.FavoritesRepository = get()
             val julesClient: JulesClient = get()
             val routePlanner: RoutePlanner = get()
+            val routingClient: RoutingClient = get()
+            val tollCalculator: TollCalculator = get()
 
             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             (permissionManager as? AndroidPermissionManager)?.setOnPermissionRequest { permission, deferred ->
@@ -123,6 +127,8 @@ class MainActivity : ComponentActivity() {
                     favoritesRepo = favoritesRepo,
                     julesClient = julesClient,
                     routePlanner = routePlanner,
+                    routingClient = routingClient,
+                    tollCalculator = tollCalculator,
                     inAppUpdateHelper = inAppUpdateHelper,
                     onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) }
                 )
@@ -151,6 +157,8 @@ fun MainUI(
     favoritesRepo: fr.geoking.julius.community.FavoritesRepository? = null,
     julesClient: JulesClient,
     routePlanner: RoutePlanner? = null,
+    routingClient: RoutingClient? = null,
+    tollCalculator: TollCalculator? = null,
     inAppUpdateHelper: InAppUpdateHelper? = null,
     onStartUpdate: (AppUpdateInfo) -> Unit = {}
 ) {
@@ -193,9 +201,11 @@ fun MainUI(
                 showHistory -> {
                     HistoryScreen(state = state, onBack = { showHistory = false })
                 }
-                showMap && showRoutePlanning && routePlanner != null -> {
+                showMap && showRoutePlanning && routePlanner != null && routingClient != null && tollCalculator != null -> {
                     RoutePlanningScreen(
                         routePlanner = routePlanner,
+                        routingClient = routingClient,
+                        tollCalculator = tollCalculator,
                         poiProvider = poiProvider,
                         settingsManager = settingsManager,
                         onBack = { showRoutePlanning = false }
@@ -208,7 +218,7 @@ fun MainUI(
                         settingsManager = settingsManager,
                         store = store,
                         onBack = { showMap = false },
-                        onPlanRoute = if (routePlanner != null) { { showRoutePlanning = true } } else null,
+                        onPlanRoute = if (routePlanner != null && routingClient != null && tollCalculator != null) { { showRoutePlanning = true } } else null,
                         communityRepo = communityRepo,
                         favoritesRepo = favoritesRepo
                     )

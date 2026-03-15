@@ -76,6 +76,16 @@ class AutoSettingsScreen(
 
         listBuilder.addItem(
             Row.Builder()
+                .setTitle("Download toll data (OpenTollData)")
+                .addText("French highway toll estimation")
+                .setOnClickListener {
+                    screenManager.push(AutoTollDataScreen(carContext, settingsManager))
+                }
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
                 .setTitle("Extended Actions")
                 .addText("Allow AI to access sensors")
                 .setToggle(

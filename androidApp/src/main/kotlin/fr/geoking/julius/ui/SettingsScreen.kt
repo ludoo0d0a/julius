@@ -59,6 +59,7 @@ private enum class Screen {
     AgentConfig,
     FractalConfig,
     JulesConfig,
+    TollData,
     ErrorLog,
     About
 }
@@ -105,6 +106,7 @@ fun SettingsScreen(
                     Screen.AgentConfig -> "${current.selectedAgent.name} Config"
                     Screen.FractalConfig -> "Fractal Settings"
                     Screen.JulesConfig -> "Jules API"
+                    Screen.TollData -> "Highway toll (OpenTollData)"
                     Screen.ErrorLog -> "Error Log"
                     Screen.About -> "About"
                     Screen.GoogleAccount -> "Google Account"
@@ -150,6 +152,10 @@ fun SettingsScreen(
                         onUpdate = { save(settingsManager, it) }
                     )
                     Screen.JulesConfig -> JulesConfig(
+                        settings = current,
+                        onUpdate = { save(settingsManager, it) }
+                    )
+                    Screen.TollData -> TollDataSection(
                         settings = current,
                         onUpdate = { save(settingsManager, it) }
                     )
@@ -349,6 +355,11 @@ private fun MainMenu(
             onClick = { onNavigate(Screen.JulesConfig) }
         )
         SettingsItem(
+            label = "Highway toll (OpenTollData)",
+            value = if (!settings.tollDataPath.isNullOrBlank()) "Downloaded" else "Not downloaded",
+            onClick = { onNavigate(Screen.TollData) }
+        )
+        SettingsItem(
             label = "Error Log",
             value = "View recent errors",
             onClick = { onNavigate(Screen.ErrorLog) }
@@ -364,6 +375,90 @@ private fun MainMenu(
         hostState = snackbarHostState,
         modifier = Modifier.align(Alignment.BottomCenter)
     )
+    }
+}
+
+@Composable
+private fun TollDataSection(
+    settings: AppSettings,
+    onUpdate: (AppSettings) -> Unit
+) {
+    val context = LocalContext.current
+    val helper = remember(context) { OpenTollDataHelper(context) }
+    val scope = rememberCoroutineScope()
+    var downloadProgress by remember { mutableStateOf<Pair<Long, Long?>?>(null) }
+    var downloadError by remember { mutableStateOf<String?>(null) }
+
+    val downloaded = helper.isTollDataDownloaded(settings)
+    val displayPath = helper.getDisplayPath(settings)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp)
+    ) {
+        Text(
+            text = "French highway toll estimation uses OpenTollData. Download the data file to see estimated tolls on planned routes.",
+            color = Lavender,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+        Text(
+            text = if (downloaded) "Status: Downloaded" else "Status: Not downloaded",
+            color = if (downloaded) Color(0xFF7FFF7F) else Color(0xFFFFB366),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(bottom = 2.dp)
+        )
+        Text(
+            text = "Path: $displayPath",
+            color = Lavender,
+            fontSize = 12.sp,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+        when (val progress = downloadProgress) {
+            null -> {
+                Button(
+                    onClick = {
+                        downloadError = null
+                        downloadProgress = 0L to null
+                        scope.launch {
+                            val result = helper.download { bytes, total ->
+                                scope.launch(Dispatchers.Main) {
+                                    downloadProgress = bytes to total
+                                }
+                            }
+                            withContext(Dispatchers.Main) { downloadProgress = null }
+                            result.fold(
+                                onSuccess = { path -> withContext(Dispatchers.Main) { onUpdate(settings.copy(tollDataPath = path)) } },
+                                onFailure = { e -> withContext(Dispatchers.Main) { downloadError = e.message ?: "Download failed" } }
+                            )
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Lavender, contentColor = DeepPurple)
+                ) {
+                    Text("Download toll data (OpenTollData)")
+                }
+            }
+            else -> {
+                val (bytes, total) = progress
+                val pct = if (total != null && total > 0) (100 * bytes / total).toInt() else null
+                Text(
+                    text = if (pct != null) "Downloading… $pct%" else "Downloading… ${bytes / (1024 * 1024)} MB",
+                    color = Lavender,
+                    fontSize = 14.sp
+                )
+            }
+        }
+        downloadError?.let { err ->
+            Text(
+                text = "Error: $err",
+                color = Color(0xFFFF6B6B),
+                fontSize = 14.sp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
     }
 }
 

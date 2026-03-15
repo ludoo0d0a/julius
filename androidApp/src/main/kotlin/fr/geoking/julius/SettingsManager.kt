@@ -107,7 +107,9 @@ data class AppSettings(
     val lastJulesRepoId: String = "",
     val lastJulesRepoName: String = "",
     val googleUserName: String? = null,
-    val isLoggedIn: Boolean = false
+    val isLoggedIn: Boolean = false,
+    /** Path to downloaded OpenTollData JSON for highway toll estimation; null until user downloads. */
+    val tollDataPath: String? = null
 )
 
 open class SettingsManager(context: Context) {
@@ -247,6 +249,7 @@ open class SettingsManager(context: Context) {
             },
             localModelPath = prefs.getString("local_model_path", "models/phi-2.Q4_0.gguf") ?: "models/phi-2.Q4_0.gguf",
             selectedLocalModelVariant = prefs.getString("selected_local_model_variant", "Phi2Q4_0") ?: "Phi2Q4_0",
+            tollDataPath = prefs.getString("toll_data_path", null),
             lastJulesRepoId = lastJulesRepoId,
             lastJulesRepoName = lastJulesRepoName,
             googleUserName = googleUserName,
@@ -423,6 +426,7 @@ open class SettingsManager(context: Context) {
             .putString("text_animation", settings.textAnimation.name)
             .putString("local_model_path", settings.localModelPath)
             .putString("selected_local_model_variant", settings.selectedLocalModelVariant)
+            .apply { settings.tollDataPath?.let { putString("toll_data_path", it) } ?: remove("toll_data_path") }
             .putString("last_jules_repo_id", settings.lastJulesRepoId)
             .putString("last_jules_repo_name", settings.lastJulesRepoName)
             .putString("google_user_name", settings.googleUserName)
@@ -498,7 +502,12 @@ open class SettingsManager(context: Context) {
             useCarMic = useCarMic,
             textAnimation = _settings.value.textAnimation,
             localModelPath = localModelPath,
-            selectedLocalModelVariant = selectedLocalModelVariant
+            selectedLocalModelVariant = selectedLocalModelVariant,
+            tollDataPath = _settings.value.tollDataPath,
+            lastJulesRepoId = _settings.value.lastJulesRepoId,
+            lastJulesRepoName = _settings.value.lastJulesRepoName,
+            googleUserName = _settings.value.googleUserName,
+            isLoggedIn = _settings.value.isLoggedIn
         )
         saveSettings(newSettings)
     }
