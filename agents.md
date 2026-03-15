@@ -1,35 +1,28 @@
 # Julius - Voice AI Assistant
 
-## Context
+Julius is a Kotlin Multiplatform (KMP) voice assistant for Android and Android Auto, providing hands-free interaction through various AI services.
 
-### Project Overview
-Julius is a **Kotlin Multiplatform (KMP)** voice assistant application designed for **Android** and **Android Auto**. It provides hands-free voice interaction capabilities using various AI agents and voice processing services.
+## Architecture
 
-### Architecture
+- **`:shared`**: Core logic, conversation management (`ConversationStore`), and agent implementations.
+- **`:androidApp`**: Jetpack Compose UI (Mobile & Auto), platform-specific voice handling (`AndroidVoiceManager`), and Koin DI.
 
-#### Module Structure
-- **`:shared`**: Core business logic, data models, and cross-platform code
-  - Contains `ConversationStore` for state management
-  - Implements `VoiceManager` interface for voice processing
-  - Houses multiple `ConversationalAgent` implementations
-  - Supports Android and iOS targets (iOS targets configured but not actively used)
+## Conversational Agents
 
-- **`:androidApp`**: Android application entry point
-  - Mobile UI using Jetpack Compose
-  - Android Auto integration via Car App Library
-  - Platform-specific voice implementation (`AndroidVoiceManager`)
-  - Dependency injection setup with Koin
+- **OpenAI**: High-quality chat and integrated TTS using GPT-4o.
+- **Gemini**: Cost-effective interaction using Gemini 1.5 Flash and system TTS.
+- **Perplexity**: Real-time, web-aware responses with system TTS.
+- **ElevenLabs**: Premium voice synthesis combined with Perplexity's web search.
+- **Embedded**: Fully offline privacy-focused assistant using on-device LLMs.
+- **Deepgram**: Specialized voice processing for low-latency interactions.
 
-#### Key Components
+## Key Features & Design Patterns
 
-**Agents (`shared/src/commonMain/kotlin/fr/geoking/julius/agents/`):**
-- `ConversationalAgent`: Interface for all AI agents
-- `OpenAIAgent`: OpenAI GPT integration
-- `GeminiAgent`: Google Gemini integration
-- `ElevenLabsAgent`: ElevenLabs voice synthesis + Perplexity chat
-- `DeepgramAgent`: Deepgram voice processing
-- `PerplexityAgent`: Perplexity implementation for web-aware responses
-- `EmbeddedAgent`: On-device offline LLM using Llamatik
+- **Multi-Agent Architecture**: Dynamic runtime switching between AI providers and decentralized model selection.
+- **Voice Interaction**: Supports hands-free wake-word detection ("Julius"), barge-in (interruptible speech), and Android Auto integration.
+- **Contextual Awareness**: Incorporates user identity and preferences into agent prompts for personalized experiences.
+- **Mapping & POIs**: Integrated location-based services with support for multiple swappable data providers.
+- **State Management**: Reactive UI driven by a central `ConversationStore` using Kotlin Flows.
 
 **Core Services:**
 - `ConversationStore`: Manages conversation state, message history, and coordinates between voice manager and agents
@@ -468,3 +461,5 @@ Sideloaded/debug builds are hidden from the car launcher unless you allow non-Pl
 - **Agent switching not working**: Verify `DynamicAgentWrapper` is being used and settings are saved
 - **"GoogleCertificatesRslt: not allowed" / "Unable to update local snapshot for consentverifier"**: Google Play Services (e.g. Maps) verifies your app's signing certificate. For **debug** builds, add your debug keystore SHA-1 and SHA-256 in [Google Cloud Console](https://console.cloud.google.com/) → your project → **APIs & Services** → **Credentials** → your Android API key → **Application restrictions** → add the fingerprint(s). Get them with `./gradlew signingReport` or from `~/.android/debug.keystore`. This warning is harmless for development; Maps still works. Release builds must use the keystore registered for your Play app.
 
+- **Build System**: Standard Gradle-based KMP setup with build-time and runtime API key management.
+- **Testing**: Includes mock-based integration tests for agents and platform-specific UI testing.
