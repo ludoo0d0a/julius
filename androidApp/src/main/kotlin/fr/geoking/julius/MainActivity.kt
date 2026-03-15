@@ -256,7 +256,7 @@ fun MainUI(
 @Composable
 private fun StartupErrorContent(error: Throwable) {
     val message = error.message ?: error.toString()
-    val detail = error.stackTraceToString().take(800)
+    val fullDetail = buildStartupErrorDetail(error)
     MaterialTheme(colorScheme = darkColorScheme(background = Color(0xFF0F172A))) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Box(Modifier.fillMaxSize().padding(24.dp)) {
@@ -279,10 +279,10 @@ private fun StartupErrorContent(error: Throwable) {
                         color = Color(0xFFE2E8F0),
                         fontSize = 14.sp
                     )
-                    if (detail.isNotEmpty()) {
+                    if (fullDetail.isNotEmpty()) {
                         Spacer(Modifier.height(12.dp))
                         Text(
-                            detail,
+                            fullDetail,
                             color = Color(0xFF94A3B8),
                             fontSize = 12.sp
                         )
@@ -291,6 +291,25 @@ private fun StartupErrorContent(error: Throwable) {
             }
         }
     }
+}
+
+private fun buildStartupErrorDetail(error: Throwable): String {
+    val sb = StringBuilder()
+    var t: Throwable? = error
+    var depth = 0
+    while (t != null && depth < 10) {
+        if (depth > 0) sb.append("\n\nCaused by: ")
+        sb.append(t.javaClass.name).append(": ").append(t.message ?: "(no message)")
+        val stack = t.stackTrace
+        val limit = (stack.size).coerceAtMost(20)
+        for (i in 0 until limit) {
+            sb.append("\n    at ").append(stack[i].toString())
+        }
+        if (stack.size > limit) sb.append("\n    ... ${stack.size - limit} more")
+        t = t.cause
+        depth++
+    }
+    return sb.toString()
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF0F172A)
@@ -306,7 +325,7 @@ fun MainUIPreview() {
     val mockSettingsManager = rememberMockSettingsManager()
 
     val context = LocalContext.current
-    val mockAuthManager = remember { GoogleAuthManager(context, mockSettingsManager, mockStore) }
+    val mockAuthManager = remember { GoogleAuthManager(context, mockSettingsManager, { mockStore }) }
 
     MainUI(
         state = mockState,

@@ -18,7 +18,7 @@ private const val TAG = "GoogleAuth"
 class GoogleAuthManager(
     private val appContext: Context,
     private val settingsManager: SettingsManager,
-    private val conversationStore: ConversationStore
+    private val conversationStore: () -> ConversationStore
 ) {
     private val credentialManager = CredentialManager.create(appContext)
     private val scope = CoroutineScope(Dispatchers.Main)
@@ -57,7 +57,7 @@ class GoogleAuthManager(
                         isLoggedIn = true
                     ))
 
-                    conversationStore.userName = firstName
+                    conversationStore().userName = firstName
                     onResult(true, null)
                 } else {
                     val msg = "Unexpected credential type: ${credential.javaClass.simpleName}"
@@ -68,12 +68,12 @@ class GoogleAuthManager(
             } catch (e: GetCredentialException) {
                 val detail = buildErrorDetail(e)
                 Log.e(TAG, "signIn: GetCredentialException $detail", e)
-                conversationStore.recordError(null, "Google Auth: $detail")
+                conversationStore().recordError(null, "Google Auth: $detail")
                 onResult(false, e.message ?: detail)
             } catch (e: Exception) {
                 val detail = buildErrorDetail(e)
                 Log.e(TAG, "signIn: Exception $detail", e)
-                conversationStore.recordError(null, "Google Auth: $detail")
+                conversationStore().recordError(null, "Google Auth: $detail")
                 onResult(false, e.message ?: detail)
             }
         }
@@ -101,7 +101,7 @@ class GoogleAuthManager(
             } catch (e: Exception) {
                 val detail = buildErrorDetail(e)
                 Log.e(TAG, "signOut: $detail", e)
-                conversationStore.recordError(null, "Google Auth sign-out: $detail")
+                conversationStore().recordError(null, "Google Auth sign-out: $detail")
                 onResult(false)
             }
         }

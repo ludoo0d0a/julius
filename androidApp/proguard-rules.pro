@@ -36,7 +36,18 @@
 # Koin (injection de dépendances par réflexion)
 # ---------------------------------------------------------------------------
 -keep class org.koin.** { *; }
+-keepclassmembers class org.koin.** { *; }
 -keep class fr.geoking.julius.di.** { *; }
+-keepclassmembers class fr.geoking.julius.di.** { <init>(...); }
+# Preserve constructors and types used by Koin for DI
+-keepclassmembers class fr.geoking.julius.GoogleAuthManager { <init>(...); }
+-keepclassmembers class fr.geoking.julius.SettingsManager { <init>(...); }
+-keep class fr.geoking.julius.shared.ConversationStore { *; }
+-keep class fr.geoking.julius.shared.VoiceManager { *; }
+-keep class fr.geoking.julius.shared.PermissionManager { *; }
+-keep class fr.geoking.julius.shared.ActionExecutor { *; }
+-keep class fr.geoking.julius.agents.ConversationalAgent { *; }
+-keep class fr.geoking.julius.agents.AgentResponse { *; }
 
 # ---------------------------------------------------------------------------
 # Ktor (client HTTP, sérialisation JSON)
