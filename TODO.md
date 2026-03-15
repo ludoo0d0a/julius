@@ -1,5 +1,42 @@
 # Julius – TODO & roadmap
 
+## Features comparison: Julius vs ChargeMap-style apps
+
+| Feature | Julius | ChargeMap-style (e.g. ChargeMap, PlugShare) |
+|--------|--------|---------------------------------------------|
+| **Map & POIs** | | |
+| Map with charging stations | ✅ Multiple sources (DataGouvElec, OpenChargeMap, Routex, Etalab, etc.) | ✅ |
+| Connector types (Type 2, CCS, CHAdeMO, E/F) | ✅ Display + filter | ✅ |
+| Power (kW) | ✅ Display + min-power filter | ✅ |
+| Tarification / pricing | ✅ Plain text (IRVE); fuel prices (DataGouv/Etalab) | ✅ Often structured |
+| Opening hours | ✅ IRVE horaires (as-is) | ✅ |
+| Filter by connector | ✅ | ✅ |
+| Filter by power / operator | ✅ | ✅ |
+| **Route & vehicle** | | |
+| Route planning A→B | ✅ OSRM | ✅ |
+| Charging stops along route | ✅ Suggested stops list | ✅ |
+| Vehicle profile (range, consumption) | ✅ Persisted in settings | ✅ |
+| **Station details** | | |
+| Reservation possible | ✅ Display only | ✅ Often with booking |
+| Payment methods | ✅ Display (à l’acte, CB, autre) | ✅ |
+| Access (libre / réservé) | ✅ | ✅ |
+| Real-time availability | ✅ Borne API when available | ✅ Varies by app |
+| **User content** | | |
+| Local ratings (1–5 stars) | ✅ SharedPreferences, no backend | ✅ Cloud ratings + comments |
+| Favorites / saved stations | ❌ | ✅ |
+| Photos / check-in | ❌ | ✅ Many apps |
+| Comments / reviews (text) | ❌ | ✅ |
+| **Platform & UX** | | |
+| Android Auto | ✅ Map + POI list + detail | ✅ Some apps |
+| Voice assistant | ✅ Core feature | ❌ |
+| Navigation to station | ✅ Intent to maps/nav | ✅ |
+| Account / sign-in | ❌ | ✅ For sync, payment |
+| In-app payment / RFID | ❌ | ✅ Some networks |
+
+**Summary:** Julius covers map, filters, IRVE extended data, route planning, vehicle profile, and local ratings using **public data only**. Missing vs typical EV apps: favorites, cloud ratings/comments, photos, account, and in-app payment/RFID (all require private/backend or partner APIs).
+
+---
+
 ## Features
 
 ### List all available fuel cards
@@ -46,6 +83,14 @@ Reference list of fleet / fuel cards (France & Europe) for the “list fuel card
 | gas-api.ovh     | Fuel prices (France) | None       | Yes – `GasApiClient` |
 | Shell Developer | Card management, mobility | OAuth 2.0  | No |
 | DKV API Portal  | Masterdata, transactions, toll | Portal signup | No |
+
+---
+
+## Current todos (short list)
+
+- [ ] **List all available fuel cards** – UI (Map/Settings) + optional voice; see [Features > List all available fuel cards](#list-all-available-fuel-cards) and [Fuel cards reference](#fuel-cards-reference).
+- [ ] **Filter POIs by accepted fuel card** – e.g. “only Routex” when Routex provider selected; extend when Total/card-specific sources exist.
+- [ ] **Voice:** “Where can I refuel with my Total card?” – map filtered by card once multiple card sources are available.
 
 ---
 

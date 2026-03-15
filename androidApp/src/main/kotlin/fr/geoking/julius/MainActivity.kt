@@ -92,6 +92,8 @@ class MainActivity : ComponentActivity() {
             val permissionManager: PermissionManager = get()
             val poiProvider: PoiProvider = get()
             val availabilityProviderFactory: fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory = get()
+            val communityRepo: fr.geoking.julius.community.CommunityPoiRepository = get()
+            val favoritesRepo: fr.geoking.julius.community.FavoritesRepository = get()
             val julesClient: JulesClient = get()
             val routePlanner: RoutePlanner = get()
 
@@ -116,6 +118,8 @@ class MainActivity : ComponentActivity() {
                     authManager = authManager,
                     poiProvider = poiProvider,
                     availabilityProviderFactory = availabilityProviderFactory,
+                    communityRepo = communityRepo,
+                    favoritesRepo = favoritesRepo,
                     julesClient = julesClient,
                     routePlanner = routePlanner,
                     inAppUpdateHelper = inAppUpdateHelper,
@@ -142,6 +146,8 @@ fun MainUI(
     authManager: GoogleAuthManager,
     poiProvider: PoiProvider,
     availabilityProviderFactory: fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory? = null,
+    communityRepo: fr.geoking.julius.community.CommunityPoiRepository? = null,
+    favoritesRepo: fr.geoking.julius.community.FavoritesRepository? = null,
     julesClient: JulesClient,
     routePlanner: RoutePlanner? = null,
     inAppUpdateHelper: InAppUpdateHelper? = null,
@@ -196,7 +202,9 @@ fun MainUI(
                         settingsManager = settingsManager,
                         store = store,
                         onBack = { showMap = false },
-                        onPlanRoute = if (routePlanner != null) { { showRoutePlanning = true } } else null
+                        onPlanRoute = if (routePlanner != null) { { showRoutePlanning = true } } else null,
+                        communityRepo = communityRepo,
+                        favoritesRepo = favoritesRepo
                     )
                 }
                 showJules -> {

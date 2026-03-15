@@ -44,6 +44,14 @@ fun PoiDetailCard(
     onNavigate: () -> Unit,
     onLocate: () -> Unit,
     onShowDetails: (() -> Unit)? = null,
+    isLoggedIn: Boolean = false,
+    isCommunityPoi: Boolean = false,
+    isFavorite: Boolean = false,
+    onToggleFavorite: (() -> Unit)? = null,
+    onEdit: (() -> Unit)? = null,
+    onRemove: (() -> Unit)? = null,
+    onHide: (() -> Unit)? = null,
+    onSuggestCorrection: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val rawSiteName = poi.siteName?.takeIf { it.isNotBlank() } ?: poi.name
@@ -187,6 +195,35 @@ fun PoiDetailCard(
                         modifier = Modifier.size(20.dp)
                     )
                 }
+                if (isLoggedIn && onToggleFavorite != null) {
+                    IconButton(onClick = onToggleFavorite) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Default.Star else Icons.Outlined.StarBorder,
+                            contentDescription = if (isFavorite) "Saved" else "Save",
+                            tint = if (isFavorite) Color(0xFFEAB308) else Color.White.copy(alpha = 0.7f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+
+            if (isLoggedIn && (onEdit != null || onRemove != null || onHide != null || onSuggestCorrection != null)) {
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.15f))
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (isCommunityPoi) {
+                        onEdit?.let { TextButton(onClick = it) { Text("Edit", color = Color(0xFF94A3B8), fontSize = 12.sp) } }
+                        onRemove?.let { TextButton(onClick = it) { Text("Remove", color = Color(0xFFFF6B6B), fontSize = 12.sp) } }
+                    } else {
+                        onHide?.let { TextButton(onClick = it) { Text("Hide on map", color = Color(0xFF94A3B8), fontSize = 12.sp) } }
+                        onSuggestCorrection?.let { TextButton(onClick = it) { Text("Suggest correction", color = Color(0xFF94A3B8), fontSize = 12.sp) } }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
             }
 
             if (rating != null || onRate != null) {

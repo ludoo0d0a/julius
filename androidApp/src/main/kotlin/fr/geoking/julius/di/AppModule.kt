@@ -20,10 +20,16 @@ import fr.geoking.julius.providers.OpenChargeMapProvider
 import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.providers.RoutexProvider
 import fr.geoking.julius.providers.JulesClient
+import fr.geoking.julius.providers.MergedPoiProvider
 import fr.geoking.julius.providers.SelectorPoiProvider
 import fr.geoking.julius.providers.availability.BelibAvailabilityClient
 import fr.geoking.julius.providers.availability.BelibAvailabilityProvider
 import fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory
+import fr.geoking.julius.community.CommunityPoiRepository
+import fr.geoking.julius.community.FavoritesRepository
+import fr.geoking.julius.community.LocalCommunityPoiRepository
+import fr.geoking.julius.community.LocalFavoritesRepository
+import fr.geoking.julius.community.db.createAppDatabase
 import fr.geoking.julius.routing.OsrmRoutingClient
 import fr.geoking.julius.routing.RoutePlanner
 import fr.geoking.julius.routing.RoutingClient
@@ -158,7 +164,7 @@ val appModule = module {
     single<PoiProvider>(named("openchargemap")) {
         OpenChargeMapProvider(get(), radiusKm = 10, limit = 50)
     }
-    single<PoiProvider> {
+    single<PoiProvider>(named("selector")) {
         SelectorPoiProvider(
             routex = get(named("routex")),
             etalab = get(named("etalab")),
@@ -168,6 +174,15 @@ val appModule = module {
             openChargeMap = get(named("openchargemap")),
             settingsManager = get()
         )
+    }
+    single { createAppDatabase(androidContext()) }
+    single { get<fr.geoking.julius.community.db.AppDatabase>().communityPoiDao() }
+    single { get<fr.geoking.julius.community.db.AppDatabase>().hiddenPoiDao() }
+    single { get<fr.geoking.julius.community.db.AppDatabase>().favoritePoiDao() }
+    single<CommunityPoiRepository> { LocalCommunityPoiRepository(get(), get()) }
+    single<FavoritesRepository> { LocalFavoritesRepository(get()) }
+    single<PoiProvider> {
+        MergedPoiProvider(base = get(named("selector")), communityRepo = get())
     }
 
     // Borne availability (e.g. Belib Paris): factory returns provider for current location.
