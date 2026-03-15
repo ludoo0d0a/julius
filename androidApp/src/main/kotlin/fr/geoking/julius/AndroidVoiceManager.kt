@@ -248,6 +248,7 @@ class AndroidVoiceManager(
                         }
                     }
 
+                    @Deprecated("Overrides deprecated UtteranceProgressListener.onError", ReplaceWith("onDone(utteranceId)"))
                     override fun onError(utteranceId: String?) {
                         onDone(utteranceId)
                     }
@@ -264,7 +265,7 @@ class AndroidVoiceManager(
         }
     }
 
-    @Suppress("DEPRECATION")
+    @Deprecated("Implements deprecated TextToSpeech.OnInitListener", ReplaceWith("use TextToSpeech constructor callback"))
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             ttsReady = true

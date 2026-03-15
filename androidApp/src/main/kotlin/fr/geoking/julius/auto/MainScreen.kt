@@ -200,7 +200,6 @@ class MainScreen(
                 else -> buildPaneTemplate()
             }
 
-            @Suppress("DEPRECATION")
             TabTemplate.Builder(object : TabTemplate.TabCallback {
                 override fun onTabSelected(tabContentId: String) {
                     when (tabContentId) {

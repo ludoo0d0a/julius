@@ -2,11 +2,13 @@ package fr.geoking.julius.ui.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -33,6 +35,7 @@ fun VoiceMainContent(
     palette: AnimationPalette,
     store: ConversationStore,
     onSettingsClick: () -> Unit,
+    onHistoryClick: () -> Unit = {},
     onMapClick: () -> Unit,
     onJulesClick: () -> Unit = {},
     onAgentClick: (() -> Unit)? = null,
@@ -86,12 +89,16 @@ fun VoiceMainContent(
                 }
             )
         }
-        SettingsButton(
-            onClick = onSettingsClick,
+        Row(
             modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 24.dp, bottom = 48.dp)
-        )
+                .align(Alignment.TopStart)
+                .padding(start = 24.dp, top = 24.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SettingsButton(onClick = onSettingsClick)
+            Spacer(modifier = Modifier.width(8.dp))
+            HistoryButton(onClick = onHistoryClick)
+        }
         JulesButton(
             onClick = onJulesClick,
             modifier = Modifier

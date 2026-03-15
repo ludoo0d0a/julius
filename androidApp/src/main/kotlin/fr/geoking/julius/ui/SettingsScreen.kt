@@ -17,7 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -931,10 +931,10 @@ private fun ConfigTextField(
 }
 
 @Composable
-@Suppress("DEPRECATION") // LocalClipboardManager deprecated in favor of LocalClipboard (suspend API); migrate when ready
 private fun ErrorLog(errorLog: List<DetailedError>) {
     val scrollState = rememberScrollState()
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
     val reversedLog = remember(errorLog) { errorLog.reversed() }
 
     SelectionContainer {
@@ -954,7 +954,9 @@ private fun ErrorLog(errorLog: List<DetailedError>) {
                             val httpCode = error.httpCode?.let { "HTTP $it" } ?: "Generic"
                             "[$timestamp] $httpCode\n${error.message}"
                         }
-                        clipboardManager.setText(AnnotatedString(allErrors))
+                        scope.launch {
+                            clipboard.setClipEntry(androidx.compose.ui.platform.ClipEntry(android.content.ClipData.newPlainText("", allErrors)))
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -995,7 +997,9 @@ private fun ErrorLog(errorLog: List<DetailedError>) {
                             IconButton(
                                 onClick = {
                                     val errorText = "[$timestamp] $httpCode\n${error.message}"
-                                    clipboardManager.setText(AnnotatedString(errorText))
+                                    scope.launch {
+                                        clipboard.setClipEntry(androidx.compose.ui.platform.ClipEntry(android.content.ClipData.newPlainText("", errorText)))
+                                    }
                                 },
                                 modifier = Modifier.size(24.dp)
                             ) {

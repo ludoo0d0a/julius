@@ -31,6 +31,7 @@ import fr.geoking.julius.ui.JulesScreen
 import fr.geoking.julius.ui.MapScreen
 import fr.geoking.julius.ui.PhoneMainScreen
 import fr.geoking.julius.ui.RoutePlanningScreen
+import fr.geoking.julius.ui.HistoryScreen
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.providers.JulesClient
 import fr.geoking.julius.routing.RoutePlanner
@@ -154,6 +155,7 @@ fun MainUI(
     onStartUpdate: (AppUpdateInfo) -> Unit = {}
 ) {
     var showSettings by remember { mutableStateOf(false) }
+    var showHistory by remember { mutableStateOf(false) }
     var showMap by remember { mutableStateOf(false) }
     var showRoutePlanning by remember { mutableStateOf(false) }
     var showJules by remember { mutableStateOf(false) }
@@ -187,6 +189,9 @@ fun MainUI(
             when {
                 showSettings -> {
                     SettingsScreen(settingsManager, authManager, state.errorLog) { showSettings = false }
+                }
+                showHistory -> {
+                    HistoryScreen(state = state, onBack = { showHistory = false })
                 }
                 showMap && showRoutePlanning && routePlanner != null -> {
                     RoutePlanningScreen(
@@ -222,6 +227,7 @@ fun MainUI(
                         settingsManager = settingsManager,
                         store = store,
                         onSettingsClick = { showSettings = true },
+                        onHistoryClick = { showHistory = true },
                         onMapClick = { showMap = true },
                         onJulesClick = { showJules = true }
                     )

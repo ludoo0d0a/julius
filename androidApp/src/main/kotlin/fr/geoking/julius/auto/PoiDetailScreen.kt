@@ -5,7 +5,6 @@ import android.net.Uri
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.Action
-import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.CarIcon
 import androidx.car.app.model.Header
 import androidx.car.app.model.MessageTemplate
@@ -32,24 +31,23 @@ class PoiDetailScreen(
         val navigateIntent = Intent(CarContext.ACTION_NAVIGATE).apply {
             data = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${Uri.encode(title)}")
         }
-        @Suppress("DEPRECATION")
+        val navigateAction = Action.Builder()
+            .setTitle("Navigate to")
+            .setIcon(
+                CarIcon.Builder(
+                    IconCompat.createWithResource(carContext, R.drawable.ic_poi_gas)
+                ).build()
+            )
+            .setOnClickListener {
+                carContext.startCarApp(navigateIntent)
+            }
+            .build()
         return MessageTemplate.Builder(body)
-            .setHeader(Header.Builder().setTitle(title).setStartHeaderAction(Action.BACK).build())
-            .setActionStrip(
-                ActionStrip.Builder()
-                    .addAction(
-                        Action.Builder()
-                            .setTitle("Navigate to")
-                            .setIcon(
-                                CarIcon.Builder(
-                                    IconCompat.createWithResource(carContext, R.drawable.ic_poi_gas)
-                                ).build()
-                            )
-                            .setOnClickListener {
-                                carContext.startCarApp(navigateIntent)
-                            }
-                            .build()
-                    )
+            .setHeader(
+                Header.Builder()
+                    .setTitle(title)
+                    .setStartHeaderAction(Action.BACK)
+                    .addEndHeaderAction(navigateAction)
                     .build()
             )
             .build()

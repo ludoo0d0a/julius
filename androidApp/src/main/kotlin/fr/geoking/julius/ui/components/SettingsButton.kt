@@ -23,6 +23,20 @@ fun SettingsButton(
     }
 }
 
+@Composable
+fun HistoryButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    IconButton(onClick = onClick, modifier = modifier) {
+        Icon(
+            painter = painterResource(id = R.drawable.ic_history),
+            contentDescription = "History",
+            tint = Color.White.copy(alpha = 0.7f)
+        )
+    }
+}
+
 @Preview(showBackground = true, backgroundColor = 0xFF0F172A)
 @Composable
 private fun SettingsButtonPreview() {

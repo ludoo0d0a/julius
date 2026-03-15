@@ -132,6 +132,10 @@ dependencies {
     implementation(libs.androidx.car.app)
     implementation(libs.androidx.car.app.projected)
 
+    // Location (replaces deprecated LocationManager.requestSingleUpdate)
+    implementation(libs.play.services.location)
+    implementation(libs.kotlinx.coroutines.play.services)
+
     // Maps
     implementation(libs.maps.compose)
     // Bundle Apache HTTP legacy classes for Play Services Maps Dynamite (removed from Android 9+ bootclasspath)

@@ -3,7 +3,6 @@ package fr.geoking.julius.auto
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.Action
-import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.Header
 import androidx.car.app.model.ItemList
 import androidx.car.app.model.ListTemplate
@@ -47,17 +46,18 @@ class AutoLocalModelScreen(
                 }
                 else -> "Downloading ${variant.displayName}… ${downloadBytes / (1024 * 1024)} MB"
             }
-            @Suppress("DEPRECATION")
+            val cancelAction = Action.Builder().setTitle("Cancel").setOnClickListener {
+                downloadVariant = null
+                downloadError = null
+                invalidate()
+            }.build()
             return MessageTemplate.Builder(progressText)
-                .setHeader(Header.Builder().setTitle("Llamatik model").setStartHeaderAction(Action.BACK).build())
-                .setActionStrip(
-                    ActionStrip.Builder().addAction(
-                        Action.Builder().setTitle("Cancel").setOnClickListener {
-                            downloadVariant = null
-                            downloadError = null
-                            invalidate()
-                        }.build()
-                    ).build()
+                .setHeader(
+                    Header.Builder()
+                        .setTitle("Llamatik model")
+                        .setStartHeaderAction(Action.BACK)
+                        .addEndHeaderAction(cancelAction)
+                        .build()
                 )
                 .build()
         }

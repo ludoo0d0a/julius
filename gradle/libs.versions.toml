@@ -18,6 +18,7 @@ guava = "33.5.0-android"
 maps-compose = "8.2.0"
 httpclient-android = "4.3.5.1"
 play-app-update = "2.1.0"
+play-services-location = "21.3.0"
 androidx-credentials = "1.5.0-rc01"
 googleid = "1.1.1"
 androidx-room = "2.6.1"
@@ -49,6 +50,7 @@ ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx
 
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutines" }
 
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
@@ -60,6 +62,7 @@ media3-common = { module = "androidx.media3:media3-common", version.ref = "media
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 play-app-update = { module = "com.google.android.play:app-update", version.ref = "play-app-update" }
 play-app-update-ktx = { module = "com.google.android.play:app-update-ktx", version.ref = "play-app-update" }
+play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "play-services-location" }
 androidx-credentials = { module = "androidx.credentials:credentials", version.ref = "androidx-credentials" }
 androidx-credentials-play-services-auth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "androidx-credentials" }
 googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }

@@ -104,7 +104,6 @@ class MapPoiScreen(
 
     override fun onGetTemplate(): Template {
         return try {
-            @Suppress("DEPRECATION")
             val builder = PlaceListMapTemplate.Builder()
                 .setTitle("Gas Stations")
                 .setHeaderAction(Action.BACK)
