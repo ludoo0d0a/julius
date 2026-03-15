@@ -32,7 +32,7 @@ class CitaTrafficProvider(
             val rawSites = CitaDatexParser.parseToRawSites(xml)
             for (raw in rawSites) {
                 val severity = raw.speedKmh?.let { speedToSeverity(it) } ?: TrafficSeverity.Unknown
-                val message = raw.speedKmh?.let { "%.0f km/h".format(it) } ?: "—"
+                val message = raw.speedKmh?.let { "${kotlin.math.round(it)} km/h" } ?: "—"
                 events.add(
                     TrafficEvent(
                         roadRef = raw.roadNumber,
