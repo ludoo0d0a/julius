@@ -12,6 +12,7 @@ import androidx.car.app.model.Template
 import androidx.core.graphics.drawable.IconCompat
 import fr.geoking.julius.R
 import fr.geoking.julius.providers.Poi
+import fr.geoking.julius.providers.availability.StationAvailabilitySummary
 
 /**
  * Android Auto screen showing full POI details and a "Go to this station" action
@@ -19,7 +20,8 @@ import fr.geoking.julius.providers.Poi
  */
 class PoiDetailScreen(
     carContext: CarContext,
-    private val poi: Poi
+    private val poi: Poi,
+    private val availabilitySummary: StationAvailabilitySummary? = null
 ) : Screen(carContext) {
 
     override fun onGetTemplate(): Template {
@@ -59,6 +61,9 @@ class PoiDetailScreen(
             if (poi.isOnHighway) lines.add("Autoroute")
             poi.chargePointCount?.let { n ->
                 lines.add(if (n == 1) "1 point de charge" else "$n points de charge")
+            }
+            availabilitySummary?.let { s ->
+                lines.add("${s.availableCount} / ${s.totalCount} disponibles")
             }
         }
         poi.addressLocal?.takeIf { it.isNotBlank() }?.let { lines.add(it) }

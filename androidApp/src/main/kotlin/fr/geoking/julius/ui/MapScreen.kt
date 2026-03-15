@@ -41,6 +41,9 @@ import fr.geoking.julius.providers.MapViewport
 import fr.geoking.julius.providers.Poi
 import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.providers.PoiProviderType
+import fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory
+import fr.geoking.julius.providers.availability.matchAvailabilityToPois
+import fr.geoking.julius.providers.availability.StationAvailabilitySummary
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.ui.map.PoiDetailCard
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
@@ -71,6 +74,7 @@ private fun markerSizePxForZoom(zoom: Float): Int {
 @Composable
 fun MapScreen(
     poiProvider: PoiProvider,
+    availabilityProviderFactory: BorneAvailabilityProviderFactory?,
     settingsManager: fr.geoking.julius.SettingsManager,
     store: ConversationStore,
     onBack: () -> Unit
@@ -127,6 +131,7 @@ fun MapScreen(
     var mapSizePx by remember { mutableStateOf(IntSize.Zero) }
     var selectedPoi by remember { mutableStateOf<Poi?>(null) }
     var poiForDetailsDialog by remember { mutableStateOf<Poi?>(null) }
+    var availabilityByPoiId by remember { mutableStateOf<Map<String, StationAvailabilitySummary>>(emptyMap()) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val scope = rememberCoroutineScope()
 
@@ -146,6 +151,19 @@ fun MapScreen(
         } else null
         try {
             pois = poiProvider.getGasStations(centerLat, centerLng, viewport)
+            val radiusKm = 10
+            val availabilityProvider = availabilityProviderFactory?.getProvider(centerLat, centerLng)
+            if (availabilityProvider != null) {
+                try {
+                    val availabilities = availabilityProvider.getAvailability(centerLat, centerLng, radiusKm)
+                    availabilityByPoiId = matchAvailabilityToPois(availabilities, pois)
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    availabilityByPoiId = emptyMap()
+                }
+            } else {
+                availabilityByPoiId = emptyMap()
+            }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             val msg = e.message?.takeIf { it.isNotBlank() } ?: e.toString()
@@ -153,6 +171,7 @@ fun MapScreen(
             isErrorPaused = true
             store.recordError((e as? fr.geoking.julius.shared.NetworkException)?.httpCode, "Map ($selectedProvider): $msg")
             pois = emptyList()
+            availabilityByPoiId = emptyMap()
         }
     }
 
@@ -314,6 +333,7 @@ fun MapScreen(
                 items(listToShow, key = { it.id }) { poi ->
                     PoiDetailCard(
                         poi = poi,
+                        availabilitySummary = availabilityByPoiId[poi.id],
                         onNavigate = {
                             val uri = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${Uri.encode(poi.name)}")
                             context.startActivity(Intent(Intent.ACTION_VIEW, uri))

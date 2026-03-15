@@ -23,15 +23,20 @@ import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.R
 import fr.geoking.julius.providers.Poi
 import fr.geoking.julius.providers.PoiProvider
+import fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory
+import fr.geoking.julius.providers.availability.StationAvailabilitySummary
+import fr.geoking.julius.providers.availability.matchAvailabilityToPois
 import fr.geoking.julius.ui.BrandHelper
 import kotlinx.coroutines.launch
 
 class MapPoiScreen(
     carContext: CarContext,
-    private val poiProvider: PoiProvider
+    private val poiProvider: PoiProvider,
+    private val availabilityProviderFactory: BorneAvailabilityProviderFactory
 ) : Screen(carContext) {
 
     private var pois: List<Poi> = emptyList()
+    private var availabilityByPoiId: Map<String, StationAvailabilitySummary> = emptyMap()
     private var isLoading = true
     /** Search center (user location or default) for anchor and POI fetch. */
     private var searchLat: Double = 48.8566
@@ -65,10 +70,23 @@ class MapPoiScreen(
             try {
                 pois = poiProvider.getGasStations(lat, lon)
                 Log.d("MapPoiScreen", "pois loaded: ${pois.size}")
+                val provider = availabilityProviderFactory.getProvider(lat, lon)
+                if (provider != null) {
+                    try {
+                        val availabilities = provider.getAvailability(lat, lon, 10)
+                        availabilityByPoiId = matchAvailabilityToPois(availabilities, pois)
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        availabilityByPoiId = emptyMap()
+                    }
+                } else {
+                    availabilityByPoiId = emptyMap()
+                }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("MapPoiScreen", "getGasStations failed", e)
                 pois = emptyList()
+                availabilityByPoiId = emptyMap()
             }
             isLoading = false
             invalidate()
@@ -120,7 +138,7 @@ class MapPoiScreen(
                         .addText(poi.address.ifBlank { " -no address- " })
                         .setMetadata(metadata)
                         .setBrowsable(true)
-                        .setOnClickListener { screenManager.push(PoiDetailScreen(carContext, poi)) }
+                        .setOnClickListener { screenManager.push(PoiDetailScreen(carContext, poi, availabilityByPoiId[poi.id])) }
 
                     poi.fuelPrices?.takeIf { it.isNotEmpty() }?.let { prices ->
                         val priceLine = prices.joinToString(" · ") { fp ->

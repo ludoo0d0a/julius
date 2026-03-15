@@ -29,6 +29,7 @@ import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.DetailedError
 import fr.geoking.julius.providers.PoiProvider
+import fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory
 import fr.geoking.julius.shared.Role
 import fr.geoking.julius.shared.VoiceEvent
 import kotlinx.coroutines.Job
@@ -40,7 +41,8 @@ class MainScreen(
     carContext: CarContext,
     private val store: ConversationStore,
     private val settingsManager: SettingsManager,
-    private val poiProvider: PoiProvider
+    private val poiProvider: PoiProvider,
+    private val availabilityProviderFactory: BorneAvailabilityProviderFactory
 ) : Screen(carContext) {
 
     private var currentStatus: String = "Idle"
@@ -124,7 +126,7 @@ class MainScreen(
                     val lastUserMsg = lastMsg.text.lowercase()
                     val keywords = listOf("display map", "map", "carte", "gas stations", "stations service")
                     if (keywords.any { lastUserMsg.contains(it) }) {
-                        screenManager.push(MapPoiScreen(carContext, poiProvider))
+                        screenManager.push(MapPoiScreen(carContext, poiProvider, availabilityProviderFactory))
                     }
                 }
 
@@ -197,7 +199,7 @@ class MainScreen(
                 override fun onTabSelected(tabContentId: String) {
                     when (tabContentId) {
                         TAB_SETTINGS -> screenManager.push(AutoSettingsScreen(carContext, settingsManager))
-                        TAB_MAP -> screenManager.push(MapPoiScreen(carContext, poiProvider))
+                        TAB_MAP -> screenManager.push(MapPoiScreen(carContext, poiProvider, availabilityProviderFactory))
                         else -> {
                             activeTabId = tabContentId
                             invalidate()

@@ -89,6 +89,7 @@ class MainActivity : ComponentActivity() {
             val authManager: GoogleAuthManager = get()
             val permissionManager: PermissionManager = get()
             val poiProvider: PoiProvider = get()
+            val availabilityProviderFactory: fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory = get()
             val julesClient: JulesClient = get()
 
             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
@@ -111,6 +112,7 @@ class MainActivity : ComponentActivity() {
                     settingsManager = settingsManager,
                     authManager = authManager,
                     poiProvider = poiProvider,
+                    availabilityProviderFactory = availabilityProviderFactory,
                     julesClient = julesClient,
                     inAppUpdateHelper = inAppUpdateHelper,
                     onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) }
@@ -135,6 +137,7 @@ fun MainUI(
     settingsManager: SettingsManager,
     authManager: GoogleAuthManager,
     poiProvider: PoiProvider,
+    availabilityProviderFactory: fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory? = null,
     julesClient: JulesClient,
     inAppUpdateHelper: InAppUpdateHelper? = null,
     onStartUpdate: (AppUpdateInfo) -> Unit = {}
@@ -176,6 +179,7 @@ fun MainUI(
                 showMap -> {
                     MapScreen(
                         poiProvider = poiProvider,
+                        availabilityProviderFactory = availabilityProviderFactory,
                         settingsManager = settingsManager,
                         store = store,
                         onBack = { showMap = false }
@@ -275,6 +279,7 @@ private fun MapScreenPreview() {
     val mockSettingsManager = rememberMockSettingsManager()
     MapScreen(
         poiProvider = remember { MockPoiProvider() },
+        availabilityProviderFactory = null,
         settingsManager = mockSettingsManager,
         store = rememberMockStore(),
         onBack = {}

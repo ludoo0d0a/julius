@@ -20,11 +20,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.R
 import fr.geoking.julius.providers.Poi
+import fr.geoking.julius.providers.availability.StationAvailabilitySummary
 import fr.geoking.julius.ui.BrandHelper
 
 @Composable
 fun PoiDetailCard(
     poi: Poi,
+    availabilitySummary: StationAvailabilitySummary? = null,
     onNavigate: () -> Unit,
     onLocate: () -> Unit,
     onShowDetails: (() -> Unit)? = null,
@@ -115,6 +117,9 @@ fun PoiDetailCard(
                             if (poi.isOnHighway) "Autoroute" else null,
                             poi.chargePointCount?.let { n ->
                                 if (n == 1) "1 point de charge" else "$n points de charge"
+                            },
+                            availabilitySummary?.let { s ->
+                                "${s.availableCount} / ${s.totalCount} disponibles"
                             }
                         ).joinToString(" • ").takeIf { it.isNotBlank() }?.let { info ->
                             Spacer(modifier = Modifier.height(4.dp))

@@ -7,6 +7,7 @@ import androidx.car.app.Session
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.providers.PoiProvider
+import fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -15,12 +16,13 @@ class VoiceSession : Session(), KoinComponent {
     private val store: ConversationStore by inject()
     private val settingsManager: SettingsManager by inject()
     private val poiProvider: PoiProvider by inject()
+    private val availabilityProviderFactory: BorneAvailabilityProviderFactory by inject()
     private val voiceManager: fr.geoking.julius.shared.VoiceManager by inject()
 
     override fun onCreateScreen(intent: Intent): Screen {
         (voiceManager as? fr.geoking.julius.AndroidVoiceManager)?.setCarContext(carContext)
         return try {
-            MainScreen(carContext, store, settingsManager, poiProvider)
+            MainScreen(carContext, store, settingsManager, poiProvider, availabilityProviderFactory)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create MainScreen", e)
             ErrorScreen(

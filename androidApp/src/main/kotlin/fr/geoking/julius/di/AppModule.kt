@@ -19,6 +19,9 @@ import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.providers.RoutexProvider
 import fr.geoking.julius.providers.JulesClient
 import fr.geoking.julius.providers.SelectorPoiProvider
+import fr.geoking.julius.providers.availability.BelibAvailabilityClient
+import fr.geoking.julius.providers.availability.BelibAvailabilityProvider
+import fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory
 import org.koin.core.qualifier.named
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -154,6 +157,11 @@ val appModule = module {
             settingsManager = get()
         )
     }
+
+    // Borne availability (e.g. Belib Paris): factory returns provider for current location.
+    single { BelibAvailabilityClient(get()) }
+    single { BelibAvailabilityProvider(get(), radiusKm = 10, limit = 200) }
+    single { BorneAvailabilityProviderFactory(get()) }
     
     single<ActionExecutor> {
         AndroidActionExecutor(androidContext(), get())
