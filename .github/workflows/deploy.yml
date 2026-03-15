@@ -59,6 +59,7 @@ jobs:
           APIFREELLM_KEY: ${{ secrets.APIFREELLM_KEY }}
           JULES_KEY: ${{ secrets.JULES_KEY }}
           GOOGLE_MAPS_KEY: ${{ secrets.GOOGLE_MAPS_KEY }}
+          GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
         run: |
           ./gradlew :androidApp:bundlePlayRelease \
             -Pandroid.injected.signing.store.file=${{ github.workspace }}/release.keystore \
