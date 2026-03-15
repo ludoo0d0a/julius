@@ -382,7 +382,8 @@ Julius supports multiple AI agents, each with different capabilities, pricing mo
 Sideloaded/debug builds are hidden from the car launcher unless you allow non-Play apps:
 
 1. **Build the right variant**  
-   Use the **phone** flavor so the app has car permissions (`ACCESS_SURFACE`, `NAVIGATION_TEMPLATES`). In Android Studio: **Build > Select Build Variant** → choose `phoneDebug` (or `phoneRelease` with your keystore). Then install to the phone (Run or `./gradlew :androidApp:installPhoneDebug`).
+   Use the **phone** flavor so the app has car permissions (`ACCESS_SURFACE`, `NAVIGATION_TEMPLATES`). In Android Studio: **Build > Select Build Variant** → choose `phoneDebug` (or `phoneRelease` with your keystore). Then install to the phone (Run or `./gradlew :androidApp:installPhoneDebug`).  
+   **Car mic:** The "use car mic" option in Settings applies only to the **phone** (sideload) build. The **play** (Play Store) build always uses the device's default mic in the car.
 
 2. **Signing**  
    Debug builds are signed with the debug keystore automatically; no extra config needed for development. For release, configure `signingConfigs` in `androidApp/build.gradle.kts` and use `phoneRelease`.
@@ -463,7 +464,7 @@ Sideloaded/debug builds are hidden from the car launcher unless you allow non-Pl
 - **API keys not working**: Check `local.properties` and app settings. Runtime settings override build-time keys.
 - **Android Auto not appearing**: Ensure device/emulator has Android Auto support and app is properly signed
 - **Voice not working**: Check `RECORD_AUDIO` permission is granted
-- **Offline STT (car)**: In **Settings > STT engine (car)** choose "Local only" or "Local first". Add a Vosk model under `androidApp/src/main/assets/models/vosk/<model-name>/` (e.g. [vosk-model-small-en-us-0.15](https://alphacephei.com/vosk/models)) so the app can transcribe car mic audio without cloud.
+- **Offline STT (car)**: Use the **phone** flavor and enable "use car mic" in Settings. In **Settings > STT engine (car)** choose "Local only" or "Local first". Add a Vosk model under `androidApp/src/main/assets/models/vosk/<model-name>/` (e.g. [vosk-model-small-en-us-0.15](https://alphacephei.com/vosk/models)) so the app can transcribe car mic audio without cloud.
 - **Agent switching not working**: Verify `DynamicAgentWrapper` is being used and settings are saved
 - **"GoogleCertificatesRslt: not allowed" / "Unable to update local snapshot for consentverifier"**: Google Play Services (e.g. Maps) verifies your app's signing certificate. For **debug** builds, add your debug keystore SHA-1 and SHA-256 in [Google Cloud Console](https://console.cloud.google.com/) → your project → **APIs & Services** → **Credentials** → your Android API key → **Application restrictions** → add the fingerprint(s). Get them with `./gradlew signingReport` or from `~/.android/debug.keystore`. This warning is harmless for development; Maps still works. Release builds must use the keystore registered for your Play app.
 

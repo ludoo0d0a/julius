@@ -277,7 +277,7 @@ class AndroidVoiceManager(
     override fun startListening() {
         Log.d(TAG, "mic on: startListening()")
         val currentCarContext = carContext
-        if (currentCarContext != null && BuildConfig.FLAVOR == "play" && settingsManager.settings.value.useCarMic) {
+        if (currentCarContext != null && BuildConfig.FLAVOR == "phone" && settingsManager.settings.value.useCarMic) {
             startCarListening(currentCarContext)
         } else {
             startListeningInternal(stopOutputs = true, bargeIn = false)
