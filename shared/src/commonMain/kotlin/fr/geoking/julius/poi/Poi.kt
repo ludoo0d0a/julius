@@ -1,4 +1,6 @@
-package fr.geoking.julius.providers
+package fr.geoking.julius.poi
+
+import fr.geoking.julius.api.routex.RoutexSiteDetails
 
 /**
  * Category of POI for unified search. Extensible: add new values and wire providers as needed.

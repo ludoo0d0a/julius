@@ -1,4 +1,4 @@
-package fr.geoking.julius.providers
+package fr.geoking.julius.api.routex
 
 import kotlinx.serialization.Serializable
 

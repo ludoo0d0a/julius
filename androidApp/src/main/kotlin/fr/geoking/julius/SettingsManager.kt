@@ -54,7 +54,7 @@ const val DEFAULT_MAP_IRVE_OPERATOR = "all"
 const val DEFAULT_EV_RANGE_KM = 300
 
 data class AppSettings(
-    val selectedPoiProvider: fr.geoking.julius.providers.PoiProviderType = fr.geoking.julius.providers.PoiProviderType.Routex,
+    val selectedPoiProvider: fr.geoking.julius.poi.PoiProviderType = fr.geoking.julius.poi.PoiProviderType.Routex,
     /** Selected energy types to show on map (e.g. sp95, sp98, gazole, e85, electric). Empty = show all. */
     val selectedMapEnergyTypes: Set<String> = DEFAULT_MAP_ENERGY_TYPES,
     /** Type d'enseigne: "all", "major", "gms", "independant". Filter applied when provider supplies data. */
@@ -187,11 +187,11 @@ open class SettingsManager(context: Context) {
 
         return AppSettings(
             selectedPoiProvider = try {
-                fr.geoking.julius.providers.PoiProviderType.valueOf(
-                    prefs.getString("poi_provider", fr.geoking.julius.providers.PoiProviderType.Routex.name) ?: fr.geoking.julius.providers.PoiProviderType.Routex.name
+                fr.geoking.julius.poi.PoiProviderType.valueOf(
+                    prefs.getString("poi_provider", fr.geoking.julius.poi.PoiProviderType.Routex.name) ?: fr.geoking.julius.poi.PoiProviderType.Routex.name
                 )
             } catch (e: IllegalArgumentException) {
-                fr.geoking.julius.providers.PoiProviderType.Routex
+                fr.geoking.julius.poi.PoiProviderType.Routex
             },
             selectedMapEnergyTypes = selectedMapEnergyTypes,
             mapEnseigneType = mapEnseigneType,
@@ -310,7 +310,7 @@ open class SettingsManager(context: Context) {
         edit.apply()
     }
 
-    open fun setPoiProviderType(type: fr.geoking.julius.providers.PoiProviderType) {
+    open fun setPoiProviderType(type: fr.geoking.julius.poi.PoiProviderType) {
         prefs.edit().putString("poi_provider", type.name).apply()
         _settings.value = _settings.value.copy(selectedPoiProvider = type)
     }

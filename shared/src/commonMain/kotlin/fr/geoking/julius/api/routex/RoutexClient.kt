@@ -1,7 +1,5 @@
 package fr.geoking.julius.api.routex
 
-import fr.geoking.julius.providers.RoutexSite
-import fr.geoking.julius.providers.RoutexSiteDetails
 import fr.geoking.julius.shared.NetworkException
 import fr.geoking.julius.shared.log
 import io.ktor.client.HttpClient

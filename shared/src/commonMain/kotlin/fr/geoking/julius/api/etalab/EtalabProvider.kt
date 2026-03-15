@@ -1,9 +1,9 @@
 package fr.geoking.julius.api.etalab
 
-import fr.geoking.julius.providers.MapViewport
-import fr.geoking.julius.providers.Poi
-import fr.geoking.julius.providers.PoiCategory
-import fr.geoking.julius.providers.PoiProvider
+import fr.geoking.julius.poi.MapViewport
+import fr.geoking.julius.poi.Poi
+import fr.geoking.julius.poi.PoiCategory
+import fr.geoking.julius.poi.PoiProvider
 import io.ktor.client.HttpClient
 
 /**

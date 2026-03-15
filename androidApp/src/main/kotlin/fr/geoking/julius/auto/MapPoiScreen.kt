@@ -23,12 +23,12 @@ import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
-import fr.geoking.julius.providers.Poi
-import fr.geoking.julius.providers.PoiCategory
-import fr.geoking.julius.providers.PoiSearchRequest
+import fr.geoking.julius.poi.Poi
+import fr.geoking.julius.poi.PoiCategory
+import fr.geoking.julius.poi.PoiSearchRequest
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
-import fr.geoking.julius.providers.PoiProvider
+import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory
 import fr.geoking.julius.api.availability.StationAvailabilitySummary
 import fr.geoking.julius.api.availability.matchAvailabilityToPois

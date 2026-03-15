@@ -12,7 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.communityPoiId
-import fr.geoking.julius.providers.Poi
+import fr.geoking.julius.poi.Poi
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)

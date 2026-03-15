@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import fr.geoking.julius.providers.RoutexSiteDetails
+import fr.geoking.julius.api.routex.RoutexSiteDetails
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

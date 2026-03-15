@@ -1,6 +1,6 @@
 package fr.geoking.julius.community
 
-import fr.geoking.julius.providers.Poi
+import fr.geoking.julius.poi.Poi
 
 /**
  * Local (and later sync) storage for community POIs and hidden official POIs.

@@ -40,7 +40,7 @@ import fr.geoking.julius.OpenAiModel
 import fr.geoking.julius.GeminiModel
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.GoogleAuthManager
-import fr.geoking.julius.providers.PoiProviderType
+import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.TextAnimation
 import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.shared.DetailedError

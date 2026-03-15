@@ -51,8 +51,8 @@ import androidx.core.content.ContextCompat
 import fr.geoking.julius.LocationHelper
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.VehicleType
-import fr.geoking.julius.providers.Poi
-import fr.geoking.julius.providers.PoiProvider
+import fr.geoking.julius.poi.Poi
+import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.api.routing.RoutePlanner
 import fr.geoking.julius.api.routing.RoutingClient
 import fr.geoking.julius.toll.TollCalculator

@@ -1,6 +1,6 @@
 package fr.geoking.julius.api.availability
 
-import fr.geoking.julius.providers.Poi
+import fr.geoking.julius.poi.Poi
 import kotlin.math.*
 
 /**

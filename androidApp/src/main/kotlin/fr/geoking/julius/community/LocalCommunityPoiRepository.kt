@@ -3,7 +3,7 @@ package fr.geoking.julius.community
 import fr.geoking.julius.community.db.CommunityPoiEntity
 import fr.geoking.julius.community.db.HiddenPoiEntity
 import fr.geoking.julius.community.storage.CommunityPoiStorage
-import fr.geoking.julius.providers.Poi
+import fr.geoking.julius.poi.Poi
 import kotlin.math.cos
 
 private const val COMMUNITY_POI_ID_PREFIX = "community_"

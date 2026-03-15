@@ -1,10 +1,10 @@
 package fr.geoking.julius.api.openchargemap
 
-import fr.geoking.julius.providers.IrveDetails
-import fr.geoking.julius.providers.MapViewport
-import fr.geoking.julius.providers.Poi
-import fr.geoking.julius.providers.PoiCategory
-import fr.geoking.julius.providers.PoiProvider
+import fr.geoking.julius.poi.IrveDetails
+import fr.geoking.julius.poi.MapViewport
+import fr.geoking.julius.poi.Poi
+import fr.geoking.julius.poi.PoiCategory
+import fr.geoking.julius.poi.PoiProvider
 
 /**
  * [PoiProvider] that fetches EV charging stations from Open Charge Map (open data, CC BY 4.0).

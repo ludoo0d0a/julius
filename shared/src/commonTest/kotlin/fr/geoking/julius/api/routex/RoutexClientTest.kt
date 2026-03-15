@@ -1,6 +1,5 @@
 package fr.geoking.julius.api.routex
 
-import fr.geoking.julius.providers.RoutexSite
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

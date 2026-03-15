@@ -38,7 +38,7 @@ data class StationAvailabilitySummary(
 
 /**
  * Provider of real-time availability for charging points in a given area.
- * Returns per-EVSE status; callers can aggregate by station and match to [fr.geoking.julius.providers.Poi].
+ * Returns per-EVSE status; callers can aggregate by station and match to [fr.geoking.julius.poi.Poi].
  */
 interface BorneAvailabilityProvider {
     suspend fun getAvailability(

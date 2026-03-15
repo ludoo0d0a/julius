@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import fr.geoking.julius.DEFAULT_EV_RANGE_KM
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.VehicleType
-import fr.geoking.julius.providers.PoiProviderType
+import fr.geoking.julius.poi.PoiProviderType
 
 private val PROVIDER_OPTIONS = listOf(
     PoiProviderType.Routex to "Routex (SiteFinder)",

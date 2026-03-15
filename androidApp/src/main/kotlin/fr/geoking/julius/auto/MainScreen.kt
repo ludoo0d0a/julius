@@ -31,7 +31,7 @@ import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.DetailedError
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
-import fr.geoking.julius.providers.PoiProvider
+import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory
 import fr.geoking.julius.shared.Role
 import fr.geoking.julius.shared.toHistoryScreenState

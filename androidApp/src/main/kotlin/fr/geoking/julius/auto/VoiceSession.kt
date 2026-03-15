@@ -8,7 +8,7 @@ import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
-import fr.geoking.julius.providers.PoiProvider
+import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject

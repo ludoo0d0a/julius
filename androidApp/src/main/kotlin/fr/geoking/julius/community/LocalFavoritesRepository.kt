@@ -2,7 +2,7 @@ package fr.geoking.julius.community
 
 import fr.geoking.julius.community.db.FavoritePoiEntity
 import fr.geoking.julius.community.storage.FavoritePoiStorage
-import fr.geoking.julius.providers.Poi
+import fr.geoking.julius.poi.Poi
 
 class LocalFavoritesRepository(
     private val storage: FavoritePoiStorage

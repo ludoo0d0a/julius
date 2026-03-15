@@ -46,9 +46,9 @@ import fr.geoking.julius.community.LocalFavoritesRepository
 import fr.geoking.julius.community.storage.CommunityPoiStorage
 import fr.geoking.julius.community.storage.FavoritePoiStorage
 import fr.geoking.julius.parking.ParkingAggregator
-import fr.geoking.julius.providers.MergedPoiProvider
-import fr.geoking.julius.providers.PoiProvider
-import fr.geoking.julius.providers.SelectorPoiProvider
+import fr.geoking.julius.poi.MergedPoiProvider
+import fr.geoking.julius.poi.PoiProvider
+import fr.geoking.julius.poi.SelectorPoiProvider
 import fr.geoking.julius.api.toll.OpenTollDataParser
 import fr.geoking.julius.transit.TransitAggregator
 import fr.geoking.julius.transit.TransitApiSelector

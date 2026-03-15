@@ -25,7 +25,8 @@ import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.ConversationState
 import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.shared.PermissionManager
-import fr.geoking.julius.providers.PoiProvider
+import fr.geoking.julius.poi.MockPoiProvider
+import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.ui.JulesScreen
 import fr.geoking.julius.ui.MapScreen
 import fr.geoking.julius.ui.PhoneMainScreen
@@ -93,14 +94,14 @@ class MainActivity : ComponentActivity() {
             val authManager: GoogleAuthManager = get()
             val permissionManager: PermissionManager = get()
             val poiProvider: PoiProvider = get()
-            val availabilityProviderFactory: fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory = get()
+            val availabilityProviderFactory: fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory = get()
             val communityRepo: fr.geoking.julius.community.CommunityPoiRepository = get()
             val favoritesRepo: fr.geoking.julius.community.FavoritesRepository = get()
             val julesClient: JulesClient = get()
             val routePlanner: RoutePlanner = get()
             val routingClient: RoutingClient = get()
             val tollCalculator: TollCalculator = get()
-            val trafficProviderFactory: fr.geoking.julius.traffic.TrafficProviderFactory = get()
+            val trafficProviderFactory: fr.geoking.julius.api.traffic.TrafficProviderFactory = get()
 
             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             (permissionManager as? AndroidPermissionManager)?.setOnPermissionRequest { permission, deferred ->
@@ -153,14 +154,14 @@ fun MainUI(
     settingsManager: SettingsManager,
     authManager: GoogleAuthManager,
     poiProvider: PoiProvider,
-    availabilityProviderFactory: fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory? = null,
+    availabilityProviderFactory: fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory? = null,
     communityRepo: fr.geoking.julius.community.CommunityPoiRepository? = null,
     favoritesRepo: fr.geoking.julius.community.FavoritesRepository? = null,
     julesClient: JulesClient,
     routePlanner: RoutePlanner? = null,
     routingClient: RoutingClient? = null,
     tollCalculator: TollCalculator? = null,
-    trafficProviderFactory: fr.geoking.julius.traffic.TrafficProviderFactory? = null,
+    trafficProviderFactory: fr.geoking.julius.api.traffic.TrafficProviderFactory? = null,
     inAppUpdateHelper: InAppUpdateHelper? = null,
     onStartUpdate: (AppUpdateInfo) -> Unit = {}
 ) {
@@ -361,7 +362,7 @@ private fun rememberMockSettingsManager(): SettingsManager {
         object : SettingsManager(context) {
             private val mockSettings = kotlinx.coroutines.flow.MutableStateFlow(AppSettings())
             override val settings = mockSettings
-            override fun setPoiProviderType(type: fr.geoking.julius.providers.PoiProviderType) {
+            override fun setPoiProviderType(type: fr.geoking.julius.poi.PoiProviderType) {
                 mockSettings.value = mockSettings.value.copy(selectedPoiProvider = type)
             }
             override fun saveSettings(settings: AppSettings) {}

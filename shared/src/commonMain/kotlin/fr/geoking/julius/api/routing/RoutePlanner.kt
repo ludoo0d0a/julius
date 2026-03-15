@@ -1,8 +1,8 @@
 package fr.geoking.julius.api.routing
 
-import fr.geoking.julius.providers.Poi
-import fr.geoking.julius.providers.PoiProvider
-import fr.geoking.julius.providers.PoiSearchRequest
+import fr.geoking.julius.poi.Poi
+import fr.geoking.julius.poi.PoiProvider
+import fr.geoking.julius.poi.PoiSearchRequest
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos

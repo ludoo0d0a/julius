@@ -1,6 +1,6 @@
 package fr.geoking.julius.api.datagouv
 
-import fr.geoking.julius.providers.IrveDetails
+import fr.geoking.julius.poi.IrveDetails
 import fr.geoking.julius.shared.NetworkException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get

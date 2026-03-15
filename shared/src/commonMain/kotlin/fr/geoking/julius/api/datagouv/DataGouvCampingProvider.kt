@@ -1,10 +1,10 @@
 package fr.geoking.julius.api.datagouv
 
-import fr.geoking.julius.providers.MapViewport
-import fr.geoking.julius.providers.Poi
-import fr.geoking.julius.providers.PoiCategory
-import fr.geoking.julius.providers.PoiProvider
-import fr.geoking.julius.providers.PoiSearchRequest
+import fr.geoking.julius.poi.MapViewport
+import fr.geoking.julius.poi.Poi
+import fr.geoking.julius.poi.PoiCategory
+import fr.geoking.julius.poi.PoiProvider
+import fr.geoking.julius.poi.PoiSearchRequest
 
 /**
  * [PoiProvider] that fetches aires de camping-car from data.gouv.fr–linked Opendatasoft APIs

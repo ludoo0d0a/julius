@@ -7,7 +7,7 @@ import androidx.car.app.model.MessageTemplate
 import androidx.car.app.model.Template
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.communityPoiId
-import fr.geoking.julius.providers.Poi
+import fr.geoking.julius.poi.Poi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

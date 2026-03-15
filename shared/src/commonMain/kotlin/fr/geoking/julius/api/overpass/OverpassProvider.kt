@@ -1,11 +1,11 @@
 package fr.geoking.julius.api.overpass
 
-import fr.geoking.julius.providers.MapViewport
-import fr.geoking.julius.providers.Poi
-import fr.geoking.julius.providers.PoiCategory
-import fr.geoking.julius.providers.PoiProvider
-import fr.geoking.julius.providers.PoiSearchRequest
-import fr.geoking.julius.providers.RestaurantDetails
+import fr.geoking.julius.poi.MapViewport
+import fr.geoking.julius.poi.Poi
+import fr.geoking.julius.poi.PoiCategory
+import fr.geoking.julius.poi.PoiProvider
+import fr.geoking.julius.poi.PoiSearchRequest
+import fr.geoking.julius.poi.RestaurantDetails
 
 /**
  * [PoiProvider] that fetches amenities (toilets, water, camping, caravan, picnic, etc.) from OpenStreetMap

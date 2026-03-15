@@ -1,10 +1,10 @@
 package fr.geoking.julius.api.datagouv
 
-import fr.geoking.julius.providers.FuelPrice
-import fr.geoking.julius.providers.MapViewport
-import fr.geoking.julius.providers.Poi
-import fr.geoking.julius.providers.PoiCategory
-import fr.geoking.julius.providers.PoiProvider
+import fr.geoking.julius.poi.FuelPrice
+import fr.geoking.julius.poi.MapViewport
+import fr.geoking.julius.poi.Poi
+import fr.geoking.julius.poi.PoiCategory
+import fr.geoking.julius.poi.PoiProvider
 import io.ktor.client.HttpClient
 
 /**

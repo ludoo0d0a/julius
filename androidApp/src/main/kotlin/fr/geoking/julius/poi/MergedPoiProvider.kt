@@ -1,4 +1,4 @@
-package fr.geoking.julius.providers
+package fr.geoking.julius.poi
 
 import fr.geoking.julius.community.CommunityPoiRepository
 
