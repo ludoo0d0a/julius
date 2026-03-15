@@ -9,11 +9,13 @@ class VoiceApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        android.util.Log.d("VoiceApplication", "onCreate start")
         try {
             startKoin {
                 androidContext(this@VoiceApplication)
                 modules(appModule)
             }
+            android.util.Log.d("VoiceApplication", "Koin started OK")
         } catch (e: Throwable) {
             initError = e
             android.util.Log.e("VoiceApplication", "Koin/DI init failed", e)

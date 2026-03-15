@@ -81,14 +81,17 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        android.util.Log.d("MainActivity", "onCreate start")
 
         val appError = VoiceApplication.initError
         if (appError != null) {
+            android.util.Log.e("MainActivity", "Showing startup error (Koin failed)", appError)
             setContent { StartupErrorContent(appError) }
             return
         }
 
         try {
+            android.util.Log.d("MainActivity", "Resolving Koin dependencies...")
             val store: ConversationStore = get()
             val settingsManager: SettingsManager = get()
             val authManager: GoogleAuthManager = get()
@@ -109,10 +112,15 @@ class MainActivity : ComponentActivity() {
                 permissionLauncher.launch(permission)
             }
 
+            android.util.Log.d("MainActivity", "Calling setContent...")
             setContent {
+                android.util.Log.d("MainActivity", "Compose setContent block running")
                 val state by store.state.collectAsState()
                 val settings by settingsManager.settings.collectAsState()
 
+                LaunchedEffect(Unit) {
+                    android.util.Log.d("MainActivity", "Compose first frame")
+                }
                 LaunchedEffect(settings.googleUserName) {
                     store.userName = settings.googleUserName
                 }
