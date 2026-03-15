@@ -221,8 +221,12 @@ val appModule = module {
 
     // Borne availability (e.g. Belib Paris): factory returns provider for current location.
     single { BelibAvailabilityClient(get()) }
-    single<BorneAvailabilityProvider> { BelibAvailabilityProvider(get(), radiusKm = 10, limit = 200) }
-    single<BorneAvailabilityProviderFactory> { BorneAvailabilityProviderFactory(get()) }
+    single<BorneAvailabilityProvider>(named("belib")) {
+        BelibAvailabilityProvider(get(), radiusKm = 10, limit = 200)
+    }
+    single<BorneAvailabilityProviderFactory> {
+        BorneAvailabilityProviderFactory(get(named("belib")))
+    }
 
     // Traffic (e.g. Luxembourg CITA): factory returns provider for current location.
     single { CitaTrafficClient(get()) }
