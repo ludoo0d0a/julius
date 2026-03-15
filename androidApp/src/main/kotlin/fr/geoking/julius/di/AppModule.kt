@@ -40,6 +40,12 @@ import fr.geoking.julius.community.storage.FavoritePoiStorage
 import fr.geoking.julius.routing.OsrmRoutingClient
 import fr.geoking.julius.routing.RoutePlanner
 import fr.geoking.julius.routing.RoutingClient
+import fr.geoking.julius.transit.TransitAggregator
+import fr.geoking.julius.transit.TransitApiSelector
+import fr.geoking.julius.transit.TransitProvider
+import fr.geoking.julius.transit.providers.BelgiumTransitProvider
+import fr.geoking.julius.transit.providers.FranceTransitProvider
+import fr.geoking.julius.transit.providers.LuxembourgTransitProvider
 import fr.geoking.julius.toll.OpenTollDataParser
 import fr.geoking.julius.traffic.CitaTrafficClient
 import fr.geoking.julius.traffic.CitaTrafficProvider
@@ -225,6 +231,20 @@ val appModule = module {
 
     single<RoutingClient> { OsrmRoutingClient(get()) }
     single<RoutePlanner> { RoutePlanner(get()) }
+
+    // Transit (bus/tram): location-based provider selection (France, Luxembourg, Belgium).
+    single<TransitProvider>(named("fr_ratp")) { FranceTransitProvider(get()) }
+    single<TransitProvider>(named("lu_mobiliteit")) {
+        val sm = get<SettingsManager>()
+        val key = sm.settings.value.mobiliteitLuxembourgKey.ifBlank { fr.geoking.julius.BuildConfig.MOBILITEIT_LUXEMBOURG_KEY }
+        LuxembourgTransitProvider(get(), key)
+    }
+    single<TransitProvider>(named("be_stib")) { BelgiumTransitProvider(get()) }
+    single<List<TransitProvider>>(named("transitProviders")) {
+        listOf(get(named("fr_ratp")), get(named("lu_mobiliteit")), get(named("be_stib")))
+    }
+    single { TransitApiSelector(get(named("transitProviders"))) }
+    single { TransitAggregator(get(named("transitProviders")), get()) }
 
     single { OpenTollDataHelper(androidContext()) }
     single<TollCalculator> {

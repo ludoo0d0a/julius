@@ -114,7 +114,9 @@ data class AppSettings(
     val googleUserName: String? = null,
     val isLoggedIn: Boolean = false,
     /** Path to downloaded OpenTollData JSON for highway toll estimation; null until user downloads. */
-    val tollDataPath: String? = null
+    val tollDataPath: String? = null,
+    /** Optional API key for Luxembourg mobiliteit.lu (request from opendata-api@atp.etat.lu). */
+    val mobiliteitLuxembourgKey: String = ""
 )
 
 open class SettingsManager(context: Context) {
@@ -172,6 +174,8 @@ open class SettingsManager(context: Context) {
             prefs.getFloat("ev_consumption_kwh_100", 18f).takeIf { it > 0f }
         } else null
         val openChargeMapKey = prefs.getString("openchargemap_key", "") ?: ""
+        val mobiliteitLuxembourgKey = prefs.getString("mobiliteit_luxembourg_key", "")?.takeIf { it.isNotEmpty() }
+            ?: fr.geoking.julius.BuildConfig.MOBILITEIT_LUXEMBOURG_KEY
         val overpassAmenityStr = prefs.getString("overpass_amenity_types", "toilets,drinking_water") ?: "toilets,drinking_water"
         val selectedOverpassAmenityTypes = overpassAmenityStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
             .ifEmpty { setOf("toilets", "drinking_water") }
@@ -262,6 +266,7 @@ open class SettingsManager(context: Context) {
             localModelPath = prefs.getString("local_model_path", "models/phi-2.Q4_0.gguf") ?: "models/phi-2.Q4_0.gguf",
             selectedLocalModelVariant = prefs.getString("selected_local_model_variant", "Phi2Q4_0") ?: "Phi2Q4_0",
             tollDataPath = prefs.getString("toll_data_path", null),
+            mobiliteitLuxembourgKey = mobiliteitLuxembourgKey,
             lastJulesRepoId = lastJulesRepoId,
             lastJulesRepoName = lastJulesRepoName,
             googleUserName = googleUserName,
@@ -421,6 +426,7 @@ open class SettingsManager(context: Context) {
             .putInt("ev_range_km", settings.evRangeKm.coerceIn(50, 1000))
             .apply { settings.evConsumptionKwhPer100km?.let { putFloat("ev_consumption_kwh_100", it) } ?: remove("ev_consumption_kwh_100") }
             .putString("openchargemap_key", settings.openChargeMapKey)
+            .putString("mobiliteit_luxembourg_key", settings.mobiliteitLuxembourgKey)
             .putString("overpass_amenity_types", settings.selectedOverpassAmenityTypes.joinToString(","))
             .putString("vehicle_type", settings.vehicleType.name)
             .putString("openai_key", settings.openAiKey)

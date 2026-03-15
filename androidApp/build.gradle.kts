@@ -57,6 +57,7 @@ configure<ApplicationExtension> {
         val apifreellmKey = sanitizeBuildConfigString(prop("APIFREELLM_KEY"))
         val julesKey = sanitizeBuildConfigString(prop("JULES_KEY"))
         val googleWebClientId = sanitizeBuildConfigString(prop("GOOGLE_WEB_CLIENT_ID", "your_web_client_id_placeholder"))
+        val mobiliteitLuxembourgKey = sanitizeBuildConfigString(prop("MOBILITEIT_LUXEMBOURG_KEY"))
         val mapsApiKey = prop("GOOGLE_MAPS_KEY")
         manifestPlaceholders["googleMapsApiKey"] = mapsApiKey
 
@@ -72,6 +73,7 @@ configure<ApplicationExtension> {
         buildConfigField("String", "OPENCODE_ZEN_KEY", "\"$opencodeZenKey\"")
         buildConfigField("String", "COMPLETIONS_ME_KEY", "\"$completionsMeKey\"")
         buildConfigField("String", "APIFREELLM_KEY", "\"$apifreellmKey\"")
+        buildConfigField("String", "MOBILITEIT_LUXEMBOURG_KEY", "\"$mobiliteitLuxembourgKey\"")
 
         // Required for Google Play Services Maps (references legacy Apache HTTP classes removed from Android 9+)
         useLibrary("org.apache.http.legacy")
