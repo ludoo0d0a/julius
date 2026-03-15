@@ -34,6 +34,7 @@ import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory
 import fr.geoking.julius.shared.Role
+import fr.geoking.julius.shared.toHistoryScreenState
 import fr.geoking.julius.shared.VoiceEvent
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -228,17 +229,18 @@ class MainScreen(
     }
 
     private fun buildHistoryTemplate(): Template {
+        val screenState = store.state.value.toHistoryScreenState()
         val listBuilder = ItemList.Builder()
-            .setNoItemsMessage("No conversation history")
+            .setNoItemsMessage(screenState.emptyMessage)
 
-        val messages = store.state.value.messages
-        // Show last 6 messages to comply with Android Auto list limits
-        messages.takeLast(6).reversed().forEach { msg ->
-            val senderIcon = if (msg.sender == Role.User) R.drawable.ic_speaker else R.drawable.ic_home
+        // Show last 6 items to comply with Android Auto list limits
+        screenState.items.takeLast(6).reversed().forEach { item ->
+            val senderIcon = if (item.isUser) R.drawable.ic_speaker else R.drawable.ic_home
+            val senderLabel = if (item.isUser) Role.User.name else Role.Assistant.name
             listBuilder.addItem(
                 Row.Builder()
-                    .setTitle(msg.sender.name)
-                    .addText(msg.text)
+                    .setTitle(senderLabel)
+                    .addText(item.text)
                     .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, senderIcon)).build())
                     .build()
             )
@@ -246,7 +248,7 @@ class MainScreen(
 
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
-            .setHeader(Header.Builder().setTitle("Conversation History").build())
+            .setHeader(Header.Builder().setTitle(screenState.title).build())
             .build()
     }
 

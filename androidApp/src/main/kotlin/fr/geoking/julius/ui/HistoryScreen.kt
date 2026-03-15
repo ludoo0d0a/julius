@@ -19,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,9 +29,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import fr.geoking.julius.shared.ChatMessage
 import fr.geoking.julius.shared.ConversationState
-import fr.geoking.julius.shared.Role
+import fr.geoking.julius.shared.HistoryItem
+import fr.geoking.julius.shared.toHistoryScreenState
 
 private val Lavender = Color(0xFFD1D5FF)
 private val DeepPurple = Color(0xFF21004C)
@@ -44,6 +43,7 @@ fun HistoryScreen(
     onBack: () -> Unit
 ) {
     BackHandler(onBack = onBack)
+    val screenState = state.toHistoryScreenState()
 
     Box(
         modifier = Modifier
@@ -76,7 +76,7 @@ fun HistoryScreen(
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Conversation History",
+                        text = screenState.title,
                         color = Color.White,
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold
@@ -84,10 +84,9 @@ fun HistoryScreen(
                 }
             }
 
-            val messages = state.messages
-            if (messages.isEmpty()) {
+            if (screenState.isEmpty) {
                 Text(
-                    text = "No conversation history",
+                    text = screenState.emptyMessage,
                     color = Color.White.copy(alpha = 0.7f),
                     modifier = Modifier
                         .fillMaxSize()
@@ -101,8 +100,8 @@ fun HistoryScreen(
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp)
                 ) {
-                    messages.forEach { msg ->
-                        HistoryMessageItem(msg = msg)
+                    screenState.items.forEach { item ->
+                        HistoryMessageItem(item = item)
                         Spacer(modifier = Modifier.size(12.dp))
                     }
                 }
@@ -112,24 +111,23 @@ fun HistoryScreen(
 }
 
 @Composable
-private fun HistoryMessageItem(msg: ChatMessage) {
-    val isUser = msg.sender == Role.User
+private fun HistoryMessageItem(item: HistoryItem) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
+        horizontalAlignment = if (item.isUser) Alignment.End else Alignment.Start
     ) {
         Surface(
-            color = if (isUser) Lavender.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.12f),
+            color = if (item.isUser) Lavender.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.12f),
             shape = RoundedCornerShape(
                 topStart = 16.dp,
                 topEnd = 16.dp,
-                bottomStart = if (isUser) 16.dp else 4.dp,
-                bottomEnd = if (isUser) 4.dp else 16.dp
+                bottomStart = if (item.isUser) 16.dp else 4.dp,
+                bottomEnd = if (item.isUser) 4.dp else 16.dp
             ),
             modifier = Modifier.fillMaxWidth(0.85f)
         ) {
             Text(
-                text = msg.text,
+                text = item.text,
                 color = Color.White,
                 modifier = Modifier.padding(14.dp),
                 fontSize = 15.sp
