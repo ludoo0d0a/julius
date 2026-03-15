@@ -130,7 +130,7 @@ open class ConversationStore(
                     var toolIteration = 0
                     while (resp.toolCalls != null && toolIteration < 5) {
                         toolIteration++
-                        val toolResults = resp.toolCalls!!.map { toolCall ->
+                        val toolResults = resp.toolCalls.map { toolCall ->
                             val result = withContext(Dispatchers.Main.immediate) {
                                 actionExecutor?.executeAction(toolCall.action)
                             }

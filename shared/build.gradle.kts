@@ -17,11 +17,15 @@ kotlin {
         
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
+            freeCompilerArgs.add("-Xexpect-actual-classes")
         }
     }
     
     // JVM target for running tests on desktop (MacBook Intel x64)
     jvm("desktop") {
+        compilerOptions {
+            freeCompilerArgs.add("-Xexpect-actual-classes")
+        }
         testRuns["test"].executionTask.configure {
             useJUnitPlatform()
             // Show all test results (not just failures)
@@ -39,6 +43,9 @@ kotlin {
         iosArm64(),
         iosSimulatorArm64()
     ).forEach {
+        it.compilerOptions {
+            freeCompilerArgs.add("-Xexpect-actual-classes")
+        }
         it.binaries.framework {
             baseName = "Shared"
         }
