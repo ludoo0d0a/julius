@@ -91,6 +91,22 @@ configure<ApplicationExtension> {
         }
     }
 
+    buildTypes {
+        debug {
+            isDebuggable = true
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -112,6 +128,34 @@ configure<ApplicationExtension> {
 
     lint {
         baseline = file("lint-baseline.xml")
+    }
+}
+
+// Fichier de désobscurcissement (mapping R8) associé à l’App Bundle.
+// Après un bundle*Release, le mapping est copié dans build/deobfuscation/
+// pour upload Play Console ou crash reporting.
+afterEvaluate {
+    val appExt = extensions.getByType(com.android.build.api.dsl.ApplicationExtension::class.java)
+    val versionName = appExt.defaultConfig.versionName ?: "unknown"
+    val copyMappings = tasks.register("copyReleaseMappings") {
+        doLast {
+            val buildDir = layout.buildDirectory.get().asFile
+            val mappingRoot = buildDir.resolve("outputs/mapping")
+            val destDir = buildDir.resolve("deobfuscation")
+            if (!mappingRoot.isDirectory) return@doLast
+            mappingRoot.listFiles()?.filter { it.isDirectory }?.forEach { variantDir ->
+                val mappingFile = File(variantDir, "mapping.txt")
+                if (mappingFile.exists()) {
+                    destDir.mkdirs()
+                    val dest = File(destDir, "mapping-${variantDir.name}-$versionName.txt")
+                    mappingFile.copyTo(dest, overwrite = true)
+                    logger.lifecycle("Mapping copié: ${dest.absolutePath}")
+                }
+            }
+        }
+    }
+    tasks.matching { it.name.startsWith("bundle") && it.name.endsWith("Release") }.configureEach {
+        finalizedBy(copyMappings)
     }
 }
 
