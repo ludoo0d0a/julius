@@ -54,6 +54,13 @@ class PoiDetailScreen(
     private fun buildDetailMessage(poi: Poi): String {
         val lines = mutableListOf<String>()
         poi.brand?.takeIf { it.isNotBlank() }?.let { lines.add(it) }
+        if (poi.isElectric) {
+            poi.operator?.takeIf { it.isNotBlank() }?.let { lines.add(it) }
+            if (poi.isOnHighway) lines.add("Autoroute")
+            poi.chargePointCount?.let { n ->
+                lines.add(if (n == 1) "1 point de charge" else "$n points de charge")
+            }
+        }
         poi.addressLocal?.takeIf { it.isNotBlank() }?.let { lines.add(it) }
         listOf(poi.townLocal, poi.postcode).filter { !it.isNullOrBlank() }.joinToString(", ").takeIf { it.isNotBlank() }?.let { lines.add(it) }
         poi.countryLocal?.takeIf { it.isNotBlank() }?.let { lines.add(it) }

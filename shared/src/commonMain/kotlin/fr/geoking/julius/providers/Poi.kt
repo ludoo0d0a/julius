@@ -30,6 +30,12 @@ data class Poi(
     val isElectric: Boolean = false,
     /** Nominal power in kW (IRVE only). Used for min-power filter. */
     val powerKw: Double? = null,
+    /** Operator name (IRVE only). Used for operator filter. */
+    val operator: String? = null,
+    /** True when station is on highway/autoroute (IRVE only). */
+    val isOnHighway: Boolean = false,
+    /** Number of charging points / points de charge (IRVE only). */
+    val chargePointCount: Int? = null,
     /** When provided by the provider (e.g. DataGouv), lists fuel types and prices. */
     val fuelPrices: List<FuelPrice>? = null,
     /** Site name (e.g. Routex site_name) for title. */

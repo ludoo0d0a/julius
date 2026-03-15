@@ -52,6 +52,17 @@ val MAP_ENSEIGNE_OPTIONS = listOf(
     "independant" to "Indépendant"
 )
 
+/** IRVE operator filter options. */
+val MAP_IRVE_OPERATOR_OPTIONS = listOf(
+    "all" to "Tous les opérateurs",
+    "atlante" to "Atlante",
+    "avia" to "Avia",
+    "zunder" to "Zunder",
+    "ionity" to "Ionity",
+    "fastned" to "Fastned",
+    "tesla" to "Tesla"
+)
+
 /** Min power (kW) for IRVE filter, aligned with [LibreChargeMap](https://libre-charge-map.cipherbliss.com/). */
 val MAP_IRVE_POWER_OPTIONS = listOf(
     0 to "0–20 kW",
@@ -100,6 +111,9 @@ fun MapSettingsScreen(
     var selectedMinPowerKw by remember(settings.mapMinPowerKw) {
         mutableStateOf(settings.mapMinPowerKw)
     }
+    var selectedIrveOperator by remember(settings.mapIrveOperator) {
+        mutableStateOf(settings.mapIrveOperator)
+    }
 
     fun persist() {
         if (selectedProvider != settings.selectedPoiProvider) {
@@ -116,6 +130,9 @@ fun MapSettingsScreen(
         }
         if (selectedMinPowerKw != settings.mapMinPowerKw) {
             settingsManager.setMapMinPowerKw(selectedMinPowerKw)
+        }
+        if (selectedIrveOperator != settings.mapIrveOperator) {
+            settingsManager.setMapIrveOperator(selectedIrveOperator)
         }
         onDismiss()
     }
@@ -202,6 +219,39 @@ fun MapSettingsScreen(
                             }
                         },
                         label = { Text(label) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                "Opérateur (IRVE)",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Filter by charging network. Applied when data source is data.gouv.fr (IRVE).",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            MAP_IRVE_OPERATOR_OPTIONS.forEach { (id, label) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = selectedIrveOperator == id,
+                        onClick = { selectedIrveOperator = id }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }

@@ -36,14 +36,24 @@ class SelectorPoiProvider(
         if (selectedEnergies.isNotEmpty()) {
             result = result.filter { MapPoiFilter.matchesEnergyFilter(it, selectedEnergies) }
         }
-        // IRVE min power filter (LibreChargeMap-style): keep stations with power >= mapMinPowerKw (or unknown power)
-        if (provider == PoiProviderType.DataGouvElec && settings.mapMinPowerKw > 0) {
-            val minKw = settings.mapMinPowerKw
-            result = result.filter { poi ->
-                poi.powerKw == null || poi.powerKw!! >= minKw
+        // IRVE filters when provider is DataGouvElec
+        if (provider == PoiProviderType.DataGouvElec) {
+            if (settings.mapMinPowerKw > 0) {
+                val minKw = settings.mapMinPowerKw
+                result = result.filter { poi ->
+                    poi.powerKw == null || poi.powerKw!! >= minKw
+                }
+            }
+            if (settings.mapIrveOperator != "all") {
+                val op = settings.mapIrveOperator.trim().lowercase()
+                if (op.isNotEmpty()) {
+                    result = result.filter { poi ->
+                        poi.operator?.trim()?.lowercase()?.contains(op) == true
+                    }
+                }
             }
         }
-        Log.d("SelectorPoiProvider", "selected=$provider lat=$latitude lon=$longitude -> ${result.size} pois (energy+power filter)")
+        Log.d("SelectorPoiProvider", "selected=$provider lat=$latitude lon=$longitude -> ${result.size} pois (energy+power+operator filter)")
         return result
     }
 }

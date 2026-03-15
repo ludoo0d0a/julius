@@ -116,6 +116,11 @@ class DataGouvElecClient(
         val address = record["adresse_station"]?.jsonPrimitive?.content?.trim().orEmpty()
         val brand = record["nom_enseigne"]?.jsonPrimitive?.content?.trim()
         val power = record["puissance_nominale"]?.jsonPrimitive?.content?.toDoubleOrNull()
+        val operator = record["nom_operateur"]?.jsonPrimitive?.content?.trim()?.takeIf { it.isNotBlank() }
+        val implantation = record["implantation_station"]?.jsonPrimitive?.content?.trim().orEmpty()
+        val isOnHighway = implantation.contains("autoroute", ignoreCase = true) ||
+            (address + " " + (record["nom_station"]?.jsonPrimitive?.content?.trim().orEmpty())).contains("autoroute", ignoreCase = true)
+        val nbrePdc = record["nbre_pdc"]?.jsonPrimitive?.content?.toIntOrNull()
         return DataGouvElecStation(
             id = id,
             name = name,
@@ -123,7 +128,10 @@ class DataGouvElecClient(
             latitude = lat,
             longitude = lng,
             brand = brand,
-            puissanceKw = power
+            puissanceKw = power,
+            operator = operator,
+            isOnHighway = isOnHighway,
+            nbrePdc = nbrePdc
         )
     }
 }
@@ -136,5 +144,9 @@ data class DataGouvElecStation(
     val latitude: Double,
     val longitude: Double,
     val brand: String? = null,
-    val puissanceKw: Double? = null
+    val puissanceKw: Double? = null,
+    val operator: String? = null,
+    val isOnHighway: Boolean = false,
+    /** Number of points de charge (charging points) at the station. */
+    val nbrePdc: Int? = null
 )

@@ -45,6 +45,9 @@ const val DEFAULT_MAP_ENSEIGNE_TYPE = "all"
 /** Min power filter for IRVE (kW). 0 = no filter. Aligned with LibreChargeMap. */
 const val DEFAULT_MAP_MIN_POWER_KW = 0
 
+/** IRVE operator filter. "all" = Tous les opérateurs. */
+const val DEFAULT_MAP_IRVE_OPERATOR = "all"
+
 data class AppSettings(
     val selectedPoiProvider: fr.geoking.julius.providers.PoiProviderType = fr.geoking.julius.providers.PoiProviderType.Routex,
     /** Selected energy types to show on map (e.g. sp95, sp98, gazole, e85, electric). Empty = show all. */
@@ -55,6 +58,8 @@ data class AppSettings(
     val selectedMapServices: Set<String> = emptySet(),
     /** Min power in kW for IRVE stations (0 = no filter). Applied when provider is DataGouvElec. */
     val mapMinPowerKw: Int = DEFAULT_MAP_MIN_POWER_KW,
+    /** IRVE operator filter: "all", "atlante", "avia", "zunder", "ionity", "fastned", "tesla". Applied when provider is DataGouvElec. */
+    val mapIrveOperator: String = DEFAULT_MAP_IRVE_OPERATOR,
     val openAiKey: String = "",
     val openAiModel: OpenAiModel = OpenAiModel.GPT_4O,
     val elevenLabsKey: String = "",
@@ -133,6 +138,7 @@ open class SettingsManager(context: Context) {
         } else emptySet()
         val mapMinPowerKw = prefs.getInt("map_min_power_kw", DEFAULT_MAP_MIN_POWER_KW)
             .coerceIn(0, 300)
+        val mapIrveOperator = prefs.getString("map_irve_operator", DEFAULT_MAP_IRVE_OPERATOR) ?: DEFAULT_MAP_IRVE_OPERATOR
 
         return AppSettings(
             selectedPoiProvider = try {
@@ -146,6 +152,7 @@ open class SettingsManager(context: Context) {
             mapEnseigneType = mapEnseigneType,
             selectedMapServices = selectedMapServices,
             mapMinPowerKw = mapMinPowerKw,
+            mapIrveOperator = mapIrveOperator,
             openAiKey = openAiKey,
             openAiModel = try {
                 OpenAiModel.valueOf(prefs.getString("openai_model", OpenAiModel.GPT_4O.name) ?: OpenAiModel.GPT_4O.name)
@@ -270,6 +277,11 @@ open class SettingsManager(context: Context) {
         _settings.value = _settings.value.copy(mapMinPowerKw = value)
     }
 
+    open fun setMapIrveOperator(operator: String) {
+        prefs.edit().putString("map_irve_operator", operator).apply()
+        _settings.value = _settings.value.copy(mapIrveOperator = operator)
+    }
+
     open fun saveSettings(settings: AppSettings) {
         saveSettingsInternal(settings)
     }
@@ -295,6 +307,7 @@ open class SettingsManager(context: Context) {
             .putString("map_enseigne_type", settings.mapEnseigneType)
             .putString("map_services", settings.selectedMapServices.joinToString(","))
             .putInt("map_min_power_kw", settings.mapMinPowerKw)
+            .putString("map_irve_operator", settings.mapIrveOperator)
             .putString("openai_key", settings.openAiKey)
             .putString("openai_model", settings.openAiModel.name)
             .putString("elevenlabs_key", settings.elevenLabsKey)
@@ -364,6 +377,7 @@ open class SettingsManager(context: Context) {
             mapEnseigneType = _settings.value.mapEnseigneType,
             selectedMapServices = _settings.value.selectedMapServices,
             mapMinPowerKw = _settings.value.mapMinPowerKw,
+            mapIrveOperator = _settings.value.mapIrveOperator,
             openAiKey = openAiKey,
             openAiModel = openAiModel,
             elevenLabsKey = elevenLabsKey,

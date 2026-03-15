@@ -128,6 +128,15 @@ class MapPoiScreen(
                         }
                         rowBuilder.addText(priceLine)
                     }
+                    if (poi.isElectric) {
+                        listOfNotNull(
+                            poi.operator?.takeIf { it.isNotBlank() },
+                            if (poi.isOnHighway) "Autoroute" else null,
+                            poi.chargePointCount?.let { n ->
+                                if (n == 1) "1 point de charge" else "$n points de charge"
+                            }
+                        ).joinToString(" • ").takeIf { it.isNotBlank() }?.let { rowBuilder.addText(it) }
+                    }
 
                     listBuilder.addItem(rowBuilder.build())
                 }

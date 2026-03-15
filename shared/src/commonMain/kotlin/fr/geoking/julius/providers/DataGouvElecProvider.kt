@@ -42,6 +42,9 @@ class DataGouvElecProvider(
                 brand = station.brand,
                 isElectric = true,
                 powerKw = station.puissanceKw,
+                operator = station.operator,
+                isOnHighway = station.isOnHighway,
+                chargePointCount = station.nbrePdc,
                 fuelPrices = null
             )
         }

@@ -109,6 +109,22 @@ fun PoiDetailCard(
                             )
                         }
                     }
+                    if (poi.isElectric) {
+                        listOfNotNull(
+                            poi.operator?.takeIf { it.isNotBlank() },
+                            if (poi.isOnHighway) "Autoroute" else null,
+                            poi.chargePointCount?.let { n ->
+                                if (n == 1) "1 point de charge" else "$n points de charge"
+                            }
+                        ).joinToString(" • ").takeIf { it.isNotBlank() }?.let { info ->
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = info,
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
                 }
             }
 
