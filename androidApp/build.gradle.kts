@@ -42,6 +42,8 @@ configure<ApplicationExtension> {
         }
         versionCode = computedVersionCode
         versionName = computedVersionName
+        buildConfigField("int", "VERSION_CODE", "$computedVersionCode")
+        buildConfigField("String", "VERSION_NAME", "\"$computedVersionName\"")
         val buildDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         buildConfigField("String", "BUILD_DATE", "\"$buildDate\"")
 
