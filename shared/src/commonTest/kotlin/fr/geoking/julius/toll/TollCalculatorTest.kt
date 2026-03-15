@@ -71,8 +71,9 @@ class TollCalculatorTest {
         )
         val estimate = calculator.estimateToll(route, VehicleType.Car)
         assertTrue(estimate != null, "Expected non-null toll for route passing near two booths")
-        assertTrue(estimate!!.amountEur > 0, "Expected positive toll")
-        assertTrue(estimate.amountEur >= 2.0 && estimate.amountEur <= 3.0, "Expected ~2.5 for class_1")
+        val toll = requireNotNull(estimate)
+        assertTrue(toll.amountEur > 0, "Expected positive toll")
+        assertTrue(toll.amountEur >= 2.0 && toll.amountEur <= 3.0, "Expected ~2.5 for class_1")
     }
 
     @Test
