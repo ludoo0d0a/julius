@@ -45,7 +45,8 @@ class DataGouvElecProvider(
                 operator = station.operator,
                 isOnHighway = station.isOnHighway,
                 chargePointCount = station.nbrePdc,
-                fuelPrices = null
+                fuelPrices = null,
+                irveDetails = station.irveDetails
             )
         }
     }

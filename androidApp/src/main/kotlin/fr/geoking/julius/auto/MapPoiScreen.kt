@@ -21,6 +21,7 @@ import androidx.car.app.model.Template
 import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.R
+import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.providers.Poi
 import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory
@@ -32,7 +33,8 @@ import kotlinx.coroutines.launch
 class MapPoiScreen(
     carContext: CarContext,
     private val poiProvider: PoiProvider,
-    private val availabilityProviderFactory: BorneAvailabilityProviderFactory
+    private val availabilityProviderFactory: BorneAvailabilityProviderFactory,
+    private val settingsManager: SettingsManager
 ) : Screen(carContext) {
 
     private var pois: List<Poi> = emptyList()
@@ -138,7 +140,7 @@ class MapPoiScreen(
                         .addText(poi.address.ifBlank { " -no address- " })
                         .setMetadata(metadata)
                         .setBrowsable(true)
-                        .setOnClickListener { screenManager.push(PoiDetailScreen(carContext, poi, availabilityByPoiId[poi.id])) }
+                        .setOnClickListener { screenManager.push(PoiDetailScreen(carContext, poi, availabilityByPoiId[poi.id], settingsManager.getPoiRating(poi.id))) }
 
                     poi.fuelPrices?.takeIf { it.isNotEmpty() }?.let { prices ->
                         val priceLine = prices.joinToString(" · ") { fp ->
@@ -154,6 +156,14 @@ class MapPoiScreen(
                                 if (n == 1) "1 point de charge" else "$n points de charge"
                             }
                         ).joinToString(" • ").takeIf { it.isNotBlank() }?.let { rowBuilder.addText(it) }
+                        poi.irveDetails?.let { d ->
+                            val parts = mutableListOf<String>()
+                            if (d.connectorTypes.isNotEmpty()) {
+                                parts.add(d.connectorTypes.sorted().joinToString(", ") { connectorLabel(it) })
+                            }
+                            if (d.gratuit == true) parts.add("Gratuit")
+                            parts.joinToString(" • ").takeIf { it.isNotBlank() }?.let { rowBuilder.addText(it) }
+                        }
                     }
 
                     listBuilder.addItem(rowBuilder.build())
@@ -181,5 +191,14 @@ class MapPoiScreen(
                 .setHeaderAction(Action.BACK)
                 .build()
         }
+    }
+
+    private fun connectorLabel(id: String): String = when (id) {
+        "type_2" -> "Type 2"
+        "combo_ccs" -> "CCS"
+        "chademo" -> "CHAdeMO"
+        "ef" -> "E/F"
+        "autre" -> "Autre"
+        else -> id
     }
 }

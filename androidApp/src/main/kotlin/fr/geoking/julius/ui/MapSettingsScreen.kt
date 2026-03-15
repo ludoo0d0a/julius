@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -18,7 +19,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import fr.geoking.julius.DEFAULT_EV_RANGE_KM
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.providers.PoiProviderType
 
@@ -27,7 +30,8 @@ private val PROVIDER_OPTIONS = listOf(
     PoiProviderType.Etalab to "Etalab (open data)",
     PoiProviderType.GasApi to "gas-api.ovh",
     PoiProviderType.DataGouv to "data.gouv.fr (fuel)",
-    PoiProviderType.DataGouvElec to "data.gouv.fr (IRVE)"
+    PoiProviderType.DataGouvElec to "data.gouv.fr (IRVE)",
+    PoiProviderType.OpenChargeMap to "Open Charge Map (EV)"
 )
 
 /**
@@ -61,6 +65,15 @@ val MAP_IRVE_OPERATOR_OPTIONS = listOf(
     "ionity" to "Ionity",
     "fastned" to "Fastned",
     "tesla" to "Tesla"
+)
+
+/** Connector types for IRVE filter. Empty selection = show all. */
+val MAP_CONNECTOR_OPTIONS = listOf(
+    "type_2" to "Type 2",
+    "combo_ccs" to "CCS",
+    "chademo" to "CHAdeMO",
+    "ef" to "E/F",
+    "autre" to "Autre"
 )
 
 /** Min power (kW) for IRVE filter, aligned with [LibreChargeMap](https://libre-charge-map.cipherbliss.com/). */
@@ -114,6 +127,13 @@ fun MapSettingsScreen(
     var selectedIrveOperator by remember(settings.mapIrveOperator) {
         mutableStateOf(settings.mapIrveOperator)
     }
+    var selectedConnectorTypes by remember(settings.selectedMapConnectorTypes) {
+        mutableStateOf(settings.selectedMapConnectorTypes)
+    }
+    var evRangeKm by remember(settings.evRangeKm) { mutableStateOf(settings.evRangeKm.toString()) }
+    var evConsumptionKwh by remember(settings.evConsumptionKwhPer100km) {
+        mutableStateOf(settings.evConsumptionKwhPer100km?.toString() ?: "")
+    }
 
     fun persist() {
         if (selectedProvider != settings.selectedPoiProvider) {
@@ -133,6 +153,17 @@ fun MapSettingsScreen(
         }
         if (selectedIrveOperator != settings.mapIrveOperator) {
             settingsManager.setMapIrveOperator(selectedIrveOperator)
+        }
+        if (selectedConnectorTypes != settings.selectedMapConnectorTypes) {
+            settingsManager.setMapConnectorTypes(selectedConnectorTypes)
+        }
+        evRangeKm.toIntOrNull()?.coerceIn(50, 1000)?.let { km ->
+            if (km != settings.evRangeKm) settingsManager.setEvRangeKm(km)
+        }
+        evConsumptionKwh.toFloatOrNull()?.takeIf { it > 0f }?.let { c ->
+            if (c != settings.evConsumptionKwhPer100km) settingsManager.setEvConsumptionKwhPer100km(c)
+        } ?: run {
+            if (settings.evConsumptionKwhPer100km != null) settingsManager.setEvConsumptionKwhPer100km(null)
         }
         onDismiss()
     }
@@ -188,6 +219,14 @@ fun MapSettingsScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
+            }
+            if (selectedProvider == PoiProviderType.OpenChargeMap) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "Data from Open Charge Map (CC BY 4.0). Attribution required.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -283,6 +322,41 @@ fun MapSettingsScreen(
                 }
             }
 
+            if (selectedProvider == PoiProviderType.DataGouvElec || selectedProvider == PoiProviderType.OpenChargeMap) {
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    "Connecteurs (IRVE / EV)",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "Show only stations with at least one selected connector. Empty = all.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    MAP_CONNECTOR_OPTIONS.forEach { (id, label) ->
+                        FilterChip(
+                            selected = selectedConnectorTypes.contains(id),
+                            onClick = {
+                                selectedConnectorTypes = if (selectedConnectorTypes.contains(id)) {
+                                    selectedConnectorTypes - id
+                                } else {
+                                    selectedConnectorTypes + id
+                                }
+                            },
+                            label = { Text(label) }
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
             Text(
                 "Type d'enseigne",
@@ -348,6 +422,51 @@ fun MapSettingsScreen(
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                "Vehicle (EV)",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Used for route planning: range and optional consumption.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(150 to "150 km", 300 to "300 km", 500 to "500 km").forEach { (km, label) ->
+                    FilterChip(
+                        selected = evRangeKm == km.toString(),
+                        onClick = { evRangeKm = km.toString() },
+                        label = { Text(label) }
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                value = evRangeKm,
+                onValueChange = { evRangeKm = it.filter { c -> c.isDigit() }.take(4) },
+                label = { Text("Range (km)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = evConsumptionKwh,
+                onValueChange = { evConsumptionKwh = it.filter { c -> c.isDigit() || c == '.' }.take(6) },
+                label = { Text("Consumption (kWh/100 km, optional)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }

@@ -6,8 +6,28 @@ enum class PoiProviderType {
     Etalab,   // data.economie.gouv.fr / donnees.roulez-eco.fr
     GasApi,  //  gas-api.ovh
     DataGouv, // data.gouv.fr (fuel)
-    DataGouvElec // data.gouv.fr IRVE (EV charging)
+    DataGouvElec, // data.gouv.fr IRVE (EV charging)
+    OpenChargeMap // openchargemap.org (EV, Europe/world)
 }
+
+/**
+ * IRVE-only details: connector types, tarification (free text), opening hours, payment, etc.
+ * Used when [Poi.isElectric] and data comes from data.gouv.fr IRVE.
+ */
+data class IrveDetails(
+    /** Connector type ids: "type_2", "combo_ccs", "chademo", "ef", "autre". */
+    val connectorTypes: Set<String> = emptySet(),
+    /** Free-text tarification; display as-is. */
+    val tarification: String? = null,
+    val gratuit: Boolean? = null,
+    val openingHours: String? = null,
+    val reservation: Boolean? = null,
+    val paymentActe: Boolean? = null,
+    val paymentCb: Boolean? = null,
+    val paymentAutre: Boolean? = null,
+    /** "Accès libre" / "Accès réservé". */
+    val conditionAcces: String? = null
+)
 
 /**
  * Fuel type and price at a gas station (e.g. from data.gouv.fr / gas-api.ovh).
@@ -45,7 +65,9 @@ data class Poi(
     val countryLocal: String? = null,
     val townLocal: String? = null,
     /** Routex-only: amenities and opening hours for fullscreen details. */
-    val routexDetails: RoutexSiteDetails? = null
+    val routexDetails: RoutexSiteDetails? = null,
+    /** IRVE-only: connector types, tarification, horaires, payment, etc. */
+    val irveDetails: IrveDetails? = null
 )
 
 /**

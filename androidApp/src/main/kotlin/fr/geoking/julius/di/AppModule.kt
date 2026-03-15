@@ -15,6 +15,8 @@ import fr.geoking.julius.providers.GasApiProvider
 import fr.geoking.julius.providers.EtalabProvider
 import fr.geoking.julius.providers.DataGouvProvider
 import fr.geoking.julius.providers.DataGouvElecProvider
+import fr.geoking.julius.providers.OpenChargeMapClient
+import fr.geoking.julius.providers.OpenChargeMapProvider
 import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.providers.RoutexProvider
 import fr.geoking.julius.providers.JulesClient
@@ -22,6 +24,9 @@ import fr.geoking.julius.providers.SelectorPoiProvider
 import fr.geoking.julius.providers.availability.BelibAvailabilityClient
 import fr.geoking.julius.providers.availability.BelibAvailabilityProvider
 import fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory
+import fr.geoking.julius.routing.OsrmRoutingClient
+import fr.geoking.julius.routing.RoutePlanner
+import fr.geoking.julius.routing.RoutingClient
 import org.koin.core.qualifier.named
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -147,6 +152,12 @@ val appModule = module {
     single<PoiProvider>(named("datagouvelec")) {
         DataGouvElecProvider(get(), radiusKm = 10, limit = 100)
     }
+    single<OpenChargeMapClient> {
+        OpenChargeMapClient(get(), apiKey = get<SettingsManager>().settings.value.openChargeMapKey.ifBlank { null })
+    }
+    single<PoiProvider>(named("openchargemap")) {
+        OpenChargeMapProvider(get(), radiusKm = 10, limit = 50)
+    }
     single<PoiProvider> {
         SelectorPoiProvider(
             routex = get(named("routex")),
@@ -154,6 +165,7 @@ val appModule = module {
             gasApi = get(named("gasapi")),
             dataGouv = get(named("datagouv")),
             dataGouvElec = get(named("datagouvelec")),
+            openChargeMap = get(named("openchargemap")),
             settingsManager = get()
         )
     }
@@ -162,7 +174,10 @@ val appModule = module {
     single { BelibAvailabilityClient(get()) }
     single { BelibAvailabilityProvider(get(), radiusKm = 10, limit = 200) }
     single { BorneAvailabilityProviderFactory(get()) }
-    
+
+    single<RoutingClient> { OsrmRoutingClient(get()) }
+    single<RoutePlanner> { RoutePlanner(get()) }
+
     single<ActionExecutor> {
         AndroidActionExecutor(androidContext(), get())
     }

@@ -21,7 +21,8 @@ import fr.geoking.julius.providers.availability.StationAvailabilitySummary
 class PoiDetailScreen(
     carContext: CarContext,
     private val poi: Poi,
-    private val availabilitySummary: StationAvailabilitySummary? = null
+    private val availabilitySummary: StationAvailabilitySummary? = null,
+    private val rating: Int? = null
 ) : Screen(carContext) {
 
     override fun onGetTemplate(): Template {
@@ -80,6 +81,32 @@ class PoiDetailScreen(
                 }
             }
         }
+        rating?.let { r -> lines.add("Note: $r/5") }
+        poi.irveDetails?.let { d ->
+            if (d.connectorTypes.isNotEmpty()) {
+                val connectorLabels = d.connectorTypes.sorted().map { connectorLabel(it) }.joinToString(", ")
+                lines.add("Connecteurs: $connectorLabels")
+            }
+            if (d.gratuit == true) lines.add("Gratuit")
+            d.tarification?.takeIf { it.isNotBlank() }?.let { lines.add("Tarification: $it") }
+            d.openingHours?.takeIf { it.isNotBlank() }?.let { lines.add("Horaires: $it") }
+            if (d.reservation == true) lines.add("Réservation possible")
+            listOfNotNull(
+                if (d.paymentActe == true) "À l'acte" else null,
+                if (d.paymentCb == true) "CB" else null,
+                if (d.paymentAutre == true) "Autre" else null
+            ).joinToString(", ").takeIf { it.isNotBlank() }?.let { lines.add("Paiement: $it") }
+            d.conditionAcces?.takeIf { it.isNotBlank() }?.let { lines.add("Accès: $it") }
+        }
         return lines.joinToString("\n").ifBlank { "No extra details" }
+    }
+
+    private fun connectorLabel(id: String): String = when (id) {
+        "type_2" -> "Type 2"
+        "combo_ccs" -> "CCS"
+        "chademo" -> "CHAdeMO"
+        "ef" -> "E/F"
+        "autre" -> "Autre"
+        else -> id
     }
 }

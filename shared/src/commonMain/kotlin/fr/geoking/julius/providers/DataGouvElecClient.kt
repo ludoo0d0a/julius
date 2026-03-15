@@ -56,7 +56,8 @@ class DataGouvElecClient(
         val lngHi = longitude + deltaLng
         val where = "consolidated_latitude > $latLo and consolidated_latitude < $latHi and consolidated_longitude > $lngLo and consolidated_longitude < $lngHi"
         val encodedWhere = where.encodeURLParameter()
-        val url = "$baseUrl/records?where=$encodedWhere&limit=${limit.coerceAtMost(50)}"
+        val requestLimit = (limit * 2).coerceAtLeast(100).coerceAtMost(200) // fetch more PDC rows to aggregate into stations
+        val url = "$baseUrl/records?where=$encodedWhere&limit=$requestLimit"
 
         val response = client.get(url)
         val body = response.bodyAsText()
@@ -64,14 +65,75 @@ class DataGouvElecClient(
             throw NetworkException(response.status.value, "DataGouvElec API error: $body")
         }
         val raw = parseRecords(body)
-        return raw
+        val aggregated = aggregateByStation(raw)
+        return aggregated
             .mapNotNull { station ->
                 val dist = haversineKm(latitude, longitude, station.latitude, station.longitude)
                 if (dist <= radiusKm) station to dist else null
             }
             .sortedBy { it.second }
-            .take(limit)
+            .take(limit.coerceAtMost(50))
             .map { it.first }
+    }
+
+    private fun parseBool(value: Any?): Boolean? {
+        when (value) {
+            is Boolean -> return value
+            is String -> return value.trim().lowercase() == "true"
+            else -> return null
+        }
+    }
+
+    private fun parseConnectorTypes(record: JsonObject): Set<String> {
+        val set = mutableSetOf<String>()
+        if (parseBool(record["prise_type_2"]?.jsonPrimitive?.content) == true) set.add("type_2")
+        if (parseBool(record["prise_type_combo_ccs"]?.jsonPrimitive?.content) == true) set.add("combo_ccs")
+        if (parseBool(record["prise_type_chademo"]?.jsonPrimitive?.content) == true) set.add("chademo")
+        if (parseBool(record["prise_type_ef"]?.jsonPrimitive?.content) == true) set.add("ef")
+        if (parseBool(record["prise_type_autre"]?.jsonPrimitive?.content) == true) set.add("autre")
+        return set
+    }
+
+    /** Aggregate PDC records by station (id_station_itinerance); merge connector types, take first non-null for text/booleans. */
+    private fun aggregateByStation(records: List<DataGouvElecStationRaw>): List<DataGouvElecStation> {
+        val byStation = records.groupBy { it.stationId }
+        return byStation.map { (_, group) ->
+            val first = group.first()
+            val connectors = group.flatMap { it.connectorTypes }.toSet()
+            val tarification = group.mapNotNull { it.tarification }.firstOrNull()?.takeIf { it.isNotBlank() }
+            val openingHours = group.mapNotNull { it.openingHours }.firstOrNull()?.takeIf { it.isNotBlank() }
+            val gratuit = group.mapNotNull { it.gratuit }.firstOrNull()
+            val reservation = group.mapNotNull { it.reservation }.firstOrNull()
+            val paymentActe = group.mapNotNull { it.paymentActe }.firstOrNull()
+            val paymentCb = group.mapNotNull { it.paymentCb }.firstOrNull()
+            val paymentAutre = group.mapNotNull { it.paymentAutre }.firstOrNull()
+            val conditionAcces = group.mapNotNull { it.conditionAcces }.firstOrNull()?.takeIf { it.isNotBlank() }
+            val nbrePdc = group.maxOfOrNull { it.nbrePdc ?: 0 }?.takeIf { it > 0 }
+            val puissanceKw = group.mapNotNull { it.puissanceKw }.maxOrNull()
+            DataGouvElecStation(
+                id = first.id,
+                name = first.name,
+                address = first.address,
+                latitude = first.latitude,
+                longitude = first.longitude,
+                brand = first.brand,
+                puissanceKw = puissanceKw,
+                operator = first.operator,
+                isOnHighway = first.isOnHighway,
+                nbrePdc = nbrePdc,
+                irveDetails = IrveDetails(
+                    connectorTypes = connectors,
+                    tarification = tarification,
+                    gratuit = gratuit,
+                    openingHours = openingHours,
+                    reservation = reservation,
+                    paymentActe = paymentActe,
+                    paymentCb = paymentCb,
+                    paymentAutre = paymentAutre,
+                    conditionAcces = conditionAcces
+                )
+            )
+        }
     }
 
     private fun haversineKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
@@ -84,11 +146,11 @@ class DataGouvElecClient(
         return r * c
     }
 
-    private fun parseRecords(body: String): List<DataGouvElecStation> {
+    private fun parseRecords(body: String): List<DataGouvElecStationRaw> {
         val element = json.parseToJsonElement(body)
         val obj = element.jsonObject
         val results = resultsAsList(obj)
-        val stations = mutableListOf<DataGouvElecStation>()
+        val stations = mutableListOf<DataGouvElecStationRaw>()
         for (item in results) {
             val record = item as? JsonObject ?: continue
             parseStation(record)?.let { stations.add(it) }
@@ -96,13 +158,12 @@ class DataGouvElecClient(
         return stations
     }
 
-    private fun parseStation(record: JsonObject): DataGouvElecStation? {
-        val id = record["id_station_itinerance"]?.jsonPrimitive?.content
-            ?: record["id_pdc_itinerance"]?.jsonPrimitive?.content
-            ?: return null
+    private fun parseStation(record: JsonObject): DataGouvElecStationRaw? {
+        val stationId = record["id_station_itinerance"]?.jsonPrimitive?.content ?: return null
+        val pdcId = record["id_pdc_itinerance"]?.jsonPrimitive?.content ?: stationId
+        val id = stationId
         val lat = record["consolidated_latitude"]?.jsonPrimitive?.content?.toDoubleOrNull()
             ?: (record["coordonneesxy"]?.jsonObject)?.let { coord ->
-                // coordonneesxy uses lon=latitude, lat=longitude in the API
                 coord["lon"]?.jsonPrimitive?.content?.toDoubleOrNull()
             }
         val lng = record["consolidated_longitude"]?.jsonPrimitive?.content?.toDoubleOrNull()
@@ -121,7 +182,17 @@ class DataGouvElecClient(
         val isOnHighway = implantation.contains("autoroute", ignoreCase = true) ||
             (address + " " + (record["nom_station"]?.jsonPrimitive?.content?.trim().orEmpty())).contains("autoroute", ignoreCase = true)
         val nbrePdc = record["nbre_pdc"]?.jsonPrimitive?.content?.toIntOrNull()
-        return DataGouvElecStation(
+        val connectorTypes = parseConnectorTypes(record)
+        val tarification = record["tarification"]?.jsonPrimitive?.content?.trim()?.takeIf { it.isNotBlank() }
+        val openingHours = record["horaires"]?.jsonPrimitive?.content?.trim()?.takeIf { it.isNotBlank() }
+        val gratuit = parseBool(record["gratuit"]?.jsonPrimitive?.content)
+        val reservation = parseBool(record["reservation"]?.jsonPrimitive?.content)
+        val paymentActe = parseBool(record["paiement_acte"]?.jsonPrimitive?.content)
+        val paymentCb = parseBool(record["paiement_cb"]?.jsonPrimitive?.content)
+        val paymentAutre = parseBool(record["paiement_autre"]?.jsonPrimitive?.content)
+        val conditionAcces = record["condition_acces"]?.jsonPrimitive?.content?.trim()?.takeIf { it.isNotBlank() }
+        return DataGouvElecStationRaw(
+            stationId = stationId,
             id = id,
             name = name,
             address = address,
@@ -131,10 +202,43 @@ class DataGouvElecClient(
             puissanceKw = power,
             operator = operator,
             isOnHighway = isOnHighway,
-            nbrePdc = nbrePdc
+            nbrePdc = nbrePdc,
+            connectorTypes = connectorTypes,
+            tarification = tarification,
+            openingHours = openingHours,
+            gratuit = gratuit,
+            reservation = reservation,
+            paymentActe = paymentActe,
+            paymentCb = paymentCb,
+            paymentAutre = paymentAutre,
+            conditionAcces = conditionAcces
         )
     }
 }
+
+/** Raw PDC record before aggregation by station. */
+private data class DataGouvElecStationRaw(
+    val stationId: String,
+    val id: String,
+    val name: String,
+    val address: String,
+    val latitude: Double,
+    val longitude: Double,
+    val brand: String?,
+    val puissanceKw: Double?,
+    val operator: String?,
+    val isOnHighway: Boolean,
+    val nbrePdc: Int?,
+    val connectorTypes: Set<String>,
+    val tarification: String?,
+    val openingHours: String?,
+    val gratuit: Boolean?,
+    val reservation: Boolean?,
+    val paymentActe: Boolean?,
+    val paymentCb: Boolean?,
+    val paymentAutre: Boolean?,
+    val conditionAcces: String?
+)
 
 /** EV charging station from ODRÉ IRVE (data.gouv.fr base nationale IRVE). */
 data class DataGouvElecStation(
@@ -148,5 +252,7 @@ data class DataGouvElecStation(
     val operator: String? = null,
     val isOnHighway: Boolean = false,
     /** Number of points de charge (charging points) at the station. */
-    val nbrePdc: Int? = null
+    val nbrePdc: Int? = null,
+    /** Connector types, tarification, horaires, payment, etc. */
+    val irveDetails: IrveDetails? = null
 )

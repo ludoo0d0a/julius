@@ -48,6 +48,9 @@ const val DEFAULT_MAP_MIN_POWER_KW = 0
 /** IRVE operator filter. "all" = Tous les opérateurs. */
 const val DEFAULT_MAP_IRVE_OPERATOR = "all"
 
+/** Default EV range in km for route planning. */
+const val DEFAULT_EV_RANGE_KM = 300
+
 data class AppSettings(
     val selectedPoiProvider: fr.geoking.julius.providers.PoiProviderType = fr.geoking.julius.providers.PoiProviderType.Routex,
     /** Selected energy types to show on map (e.g. sp95, sp98, gazole, e85, electric). Empty = show all. */
@@ -60,6 +63,14 @@ data class AppSettings(
     val mapMinPowerKw: Int = DEFAULT_MAP_MIN_POWER_KW,
     /** IRVE operator filter: "all", "atlante", "avia", "zunder", "ionity", "fastned", "tesla". Applied when provider is DataGouvElec. */
     val mapIrveOperator: String = DEFAULT_MAP_IRVE_OPERATOR,
+    /** Selected connector types for IRVE (type_2, combo_ccs, chademo, ef, autre). Empty = show all. Applied when provider is DataGouvElec. */
+    val selectedMapConnectorTypes: Set<String> = emptySet(),
+    /** EV range in km for route planning. */
+    val evRangeKm: Int = DEFAULT_EV_RANGE_KM,
+    /** Optional consumption in kWh/100 km; null = use range only. */
+    val evConsumptionKwhPer100km: Float? = null,
+    /** Optional API key for Open Charge Map (api.openchargemap.io). */
+    val openChargeMapKey: String = "",
     val openAiKey: String = "",
     val openAiModel: OpenAiModel = OpenAiModel.GPT_4O,
     val elevenLabsKey: String = "",
@@ -139,6 +150,15 @@ open class SettingsManager(context: Context) {
         val mapMinPowerKw = prefs.getInt("map_min_power_kw", DEFAULT_MAP_MIN_POWER_KW)
             .coerceIn(0, 300)
         val mapIrveOperator = prefs.getString("map_irve_operator", DEFAULT_MAP_IRVE_OPERATOR) ?: DEFAULT_MAP_IRVE_OPERATOR
+        val mapConnectorTypesStr = prefs.getString("map_connector_types", null)
+        val selectedMapConnectorTypes = if (!mapConnectorTypesStr.isNullOrBlank()) {
+            mapConnectorTypesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        } else emptySet()
+        val evRangeKm = prefs.getInt("ev_range_km", DEFAULT_EV_RANGE_KM).coerceIn(50, 1000)
+        val evConsumptionKwhPer100km = if (prefs.contains("ev_consumption_kwh_100")) {
+            prefs.getFloat("ev_consumption_kwh_100", 18f).takeIf { it > 0f }
+        } else null
+        val openChargeMapKey = prefs.getString("openchargemap_key", "") ?: ""
 
         return AppSettings(
             selectedPoiProvider = try {
@@ -153,6 +173,10 @@ open class SettingsManager(context: Context) {
             selectedMapServices = selectedMapServices,
             mapMinPowerKw = mapMinPowerKw,
             mapIrveOperator = mapIrveOperator,
+            selectedMapConnectorTypes = selectedMapConnectorTypes,
+            evRangeKm = evRangeKm,
+            evConsumptionKwhPer100km = evConsumptionKwhPer100km,
+            openChargeMapKey = openChargeMapKey,
             openAiKey = openAiKey,
             openAiModel = try {
                 OpenAiModel.valueOf(prefs.getString("openai_model", OpenAiModel.GPT_4O.name) ?: OpenAiModel.GPT_4O.name)
@@ -282,6 +306,39 @@ open class SettingsManager(context: Context) {
         _settings.value = _settings.value.copy(mapIrveOperator = operator)
     }
 
+    open fun setMapConnectorTypes(types: Set<String>) {
+        prefs.edit().putString("map_connector_types", types.joinToString(",")).apply()
+        _settings.value = _settings.value.copy(selectedMapConnectorTypes = types)
+    }
+
+    open fun setEvRangeKm(km: Int) {
+        val value = km.coerceIn(50, 1000)
+        prefs.edit().putInt("ev_range_km", value).apply()
+        _settings.value = _settings.value.copy(evRangeKm = value)
+    }
+
+    open fun setEvConsumptionKwhPer100km(consumption: Float?) {
+        if (consumption != null && consumption > 0f) {
+            prefs.edit().putFloat("ev_consumption_kwh_100", consumption).apply()
+            _settings.value = _settings.value.copy(evConsumptionKwhPer100km = consumption)
+        } else {
+            prefs.edit().remove("ev_consumption_kwh_100").apply()
+            _settings.value = _settings.value.copy(evConsumptionKwhPer100km = null)
+        }
+    }
+
+    /** Local rating for a POI (1–5). No backend; stored in SharedPreferences. */
+    open fun getPoiRating(poiId: String): Int? {
+        val v = prefs.getInt("poi_rating_$poiId", -1)
+        return if (v in 1..5) v else null
+    }
+
+    /** Set local rating for a POI (1–5). */
+    open fun setPoiRating(poiId: String, value: Int) {
+        val v = value.coerceIn(1, 5)
+        prefs.edit().putInt("poi_rating_$poiId", v).apply()
+    }
+
     open fun saveSettings(settings: AppSettings) {
         saveSettingsInternal(settings)
     }
@@ -308,6 +365,10 @@ open class SettingsManager(context: Context) {
             .putString("map_services", settings.selectedMapServices.joinToString(","))
             .putInt("map_min_power_kw", settings.mapMinPowerKw)
             .putString("map_irve_operator", settings.mapIrveOperator)
+            .putString("map_connector_types", settings.selectedMapConnectorTypes.joinToString(","))
+            .putInt("ev_range_km", settings.evRangeKm.coerceIn(50, 1000))
+            .apply { settings.evConsumptionKwhPer100km?.let { putFloat("ev_consumption_kwh_100", it) } ?: remove("ev_consumption_kwh_100") }
+            .putString("openchargemap_key", settings.openChargeMapKey)
             .putString("openai_key", settings.openAiKey)
             .putString("openai_model", settings.openAiModel.name)
             .putString("elevenlabs_key", settings.elevenLabsKey)
@@ -378,6 +439,10 @@ open class SettingsManager(context: Context) {
             selectedMapServices = _settings.value.selectedMapServices,
             mapMinPowerKw = _settings.value.mapMinPowerKw,
             mapIrveOperator = _settings.value.mapIrveOperator,
+            selectedMapConnectorTypes = _settings.value.selectedMapConnectorTypes,
+            evRangeKm = _settings.value.evRangeKm,
+            evConsumptionKwhPer100km = _settings.value.evConsumptionKwhPer100km,
+            openChargeMapKey = _settings.value.openChargeMapKey,
             openAiKey = openAiKey,
             openAiModel = openAiModel,
             elevenLabsKey = elevenLabsKey,

@@ -77,7 +77,8 @@ fun MapScreen(
     availabilityProviderFactory: BorneAvailabilityProviderFactory?,
     settingsManager: fr.geoking.julius.SettingsManager,
     store: ConversationStore,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onPlanRoute: (() -> Unit)? = null
 ) {
     BackHandler { onBack() }
 
@@ -135,7 +136,7 @@ fun MapScreen(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(selectedProvider, settings.selectedMapEnergyTypes, settings.mapMinPowerKw, settings.mapIrveOperator, cameraPositionState.position, mapSizePx, retryCount) {
+    LaunchedEffect(selectedProvider, settings.selectedMapEnergyTypes, settings.mapMinPowerKw, settings.mapIrveOperator, settings.selectedMapConnectorTypes, cameraPositionState.position, mapSizePx, retryCount) {
         if (!hasLocationPermission) {
             launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
@@ -194,6 +195,13 @@ fun MapScreen(
                             contentDescription = "Back",
                             tint = Color.White
                         )
+                    }
+                },
+                actions = {
+                    onPlanRoute?.let { plan ->
+                        TextButton(onClick = plan) {
+                            Text("Plan route", color = Color.White)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -331,9 +339,15 @@ fun MapScreen(
                 contentPadding = PaddingValues(bottom = 32.dp)
             ) {
                 items(listToShow, key = { it.id }) { poi ->
+                    val ratingState = remember(poi.id) { mutableStateOf(settingsManager.getPoiRating(poi.id)) }
                     PoiDetailCard(
                         poi = poi,
                         availabilitySummary = availabilityByPoiId[poi.id],
+                        rating = ratingState.value,
+                        onRate = { r ->
+                            settingsManager.setPoiRating(poi.id, r)
+                            ratingState.value = r
+                        },
                         onNavigate = {
                             val uri = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${Uri.encode(poi.name)}")
                             context.startActivity(Intent(Intent.ACTION_VIEW, uri))
@@ -405,6 +419,7 @@ private fun MapScreenPreview() {
 
     MapScreen(
         poiProvider = fakePoiProvider,
+        availabilityProviderFactory = null,
         settingsManager = fakeSettingsManager,
         store = fakeStore,
         onBack = {}

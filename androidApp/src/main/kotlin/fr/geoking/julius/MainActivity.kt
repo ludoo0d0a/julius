@@ -30,8 +30,10 @@ import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.ui.JulesScreen
 import fr.geoking.julius.ui.MapScreen
 import fr.geoking.julius.ui.PhoneMainScreen
+import fr.geoking.julius.ui.RoutePlanningScreen
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.providers.JulesClient
+import fr.geoking.julius.routing.RoutePlanner
 import fr.geoking.julius.ui.UpdateAvailableDialog
 import fr.geoking.julius.ui.UpdateDownloadedDialog
 import fr.geoking.julius.ui.anim.AnimationPalettes
@@ -91,6 +93,7 @@ class MainActivity : ComponentActivity() {
             val poiProvider: PoiProvider = get()
             val availabilityProviderFactory: fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory = get()
             val julesClient: JulesClient = get()
+            val routePlanner: RoutePlanner = get()
 
             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             (permissionManager as? AndroidPermissionManager)?.setOnPermissionRequest { permission, deferred ->
@@ -114,6 +117,7 @@ class MainActivity : ComponentActivity() {
                     poiProvider = poiProvider,
                     availabilityProviderFactory = availabilityProviderFactory,
                     julesClient = julesClient,
+                    routePlanner = routePlanner,
                     inAppUpdateHelper = inAppUpdateHelper,
                     onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) }
                 )
@@ -139,11 +143,13 @@ fun MainUI(
     poiProvider: PoiProvider,
     availabilityProviderFactory: fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory? = null,
     julesClient: JulesClient,
+    routePlanner: RoutePlanner? = null,
     inAppUpdateHelper: InAppUpdateHelper? = null,
     onStartUpdate: (AppUpdateInfo) -> Unit = {}
 ) {
     var showSettings by remember { mutableStateOf(false) }
     var showMap by remember { mutableStateOf(false) }
+    var showRoutePlanning by remember { mutableStateOf(false) }
     var showJules by remember { mutableStateOf(false) }
     val settings by settingsManager.settings.collectAsState()
     val paletteIndex by AnimationPalettes.index.collectAsState()
@@ -176,13 +182,21 @@ fun MainUI(
                 showSettings -> {
                     SettingsScreen(settingsManager, authManager, state.errorLog) { showSettings = false }
                 }
+                showMap && showRoutePlanning && routePlanner != null -> {
+                    RoutePlanningScreen(
+                        routePlanner = routePlanner,
+                        poiProvider = poiProvider,
+                        onBack = { showRoutePlanning = false }
+                    )
+                }
                 showMap -> {
                     MapScreen(
                         poiProvider = poiProvider,
                         availabilityProviderFactory = availabilityProviderFactory,
                         settingsManager = settingsManager,
                         store = store,
-                        onBack = { showMap = false }
+                        onBack = { showMap = false },
+                        onPlanRoute = if (routePlanner != null) { { showRoutePlanning = true } } else null
                     )
                 }
                 showJules -> {

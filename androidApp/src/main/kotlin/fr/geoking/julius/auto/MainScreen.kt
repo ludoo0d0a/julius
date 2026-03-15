@@ -126,7 +126,7 @@ class MainScreen(
                     val lastUserMsg = lastMsg.text.lowercase()
                     val keywords = listOf("display map", "map", "carte", "gas stations", "stations service")
                     if (keywords.any { lastUserMsg.contains(it) }) {
-                        screenManager.push(MapPoiScreen(carContext, poiProvider, availabilityProviderFactory))
+                        screenManager.push(MapPoiScreen(carContext, poiProvider, availabilityProviderFactory, settingsManager))
                     }
                 }
 
@@ -199,7 +199,7 @@ class MainScreen(
                 override fun onTabSelected(tabContentId: String) {
                     when (tabContentId) {
                         TAB_SETTINGS -> screenManager.push(AutoSettingsScreen(carContext, settingsManager))
-                        TAB_MAP -> screenManager.push(MapPoiScreen(carContext, poiProvider, availabilityProviderFactory))
+                        TAB_MAP -> screenManager.push(MapPoiScreen(carContext, poiProvider, availabilityProviderFactory, settingsManager))
                         else -> {
                             activeTabId = tabContentId
                             invalidate()
