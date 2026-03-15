@@ -62,7 +62,7 @@ class GoogleAuthManager(
                 } else {
                     val msg = "Unexpected credential type: ${credential.javaClass.simpleName}"
                     Log.e(TAG, "signIn: $msg")
-                    conversationStore.recordError(null, "Google Auth: $msg")
+                    conversationStore().recordError(null, "Google Auth: $msg")
                     onResult(false, msg)
                 }
             } catch (e: GetCredentialException) {
@@ -95,7 +95,7 @@ class GoogleAuthManager(
                     googleUserName = null,
                     isLoggedIn = false
                 ))
-                conversationStore.userName = null
+                conversationStore().userName = null
                 Log.d(TAG, "signOut: success")
                 onResult(true)
             } catch (e: Exception) {

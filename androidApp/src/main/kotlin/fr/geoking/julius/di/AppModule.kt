@@ -4,6 +4,7 @@ import fr.geoking.julius.AndroidVoiceManager
 import fr.geoking.julius.AndroidActionExecutor
 import fr.geoking.julius.AppSettings
 import fr.geoking.julius.AndroidPermissionManager
+import fr.geoking.julius.GoogleAuthManager
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.agents.*
@@ -15,6 +16,7 @@ import fr.geoking.julius.shared.ActionExecutor
 import fr.geoking.julius.shared.PermissionManager
 import fr.geoking.julius.api.availability.BelibAvailabilityClient
 import fr.geoking.julius.api.availability.BelibAvailabilityProvider
+import fr.geoking.julius.api.availability.BorneAvailabilityProvider
 import fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory
 import fr.geoking.julius.api.datagouv.DataGouvCampingClient
 import fr.geoking.julius.api.datagouv.DataGouvCampingProvider
@@ -147,9 +149,11 @@ val appModule = module {
         }
     }
 
-    single { JulesClient(get()) }
-    single { SettingsManager(androidContext()) }
-    single { fr.geoking.julius.GoogleAuthManager(androidContext(), get(), { get<ConversationStore>() }) }
+    single<JulesClient> { JulesClient(get()) }
+    single<SettingsManager> { SettingsManager(androidContext()) }
+    single<GoogleAuthManager> {
+        GoogleAuthManager(androidContext(), get(), { get<ConversationStore>() })
+    }
     
     // Use the dynamic wrapper instead of a static agent
     single<ConversationalAgent> {
@@ -217,13 +221,13 @@ val appModule = module {
 
     // Borne availability (e.g. Belib Paris): factory returns provider for current location.
     single { BelibAvailabilityClient(get()) }
-    single { BelibAvailabilityProvider(get(), radiusKm = 10, limit = 200) }
-    single { BorneAvailabilityProviderFactory(get()) }
+    single<BorneAvailabilityProvider> { BelibAvailabilityProvider(get(), radiusKm = 10, limit = 200) }
+    single<BorneAvailabilityProviderFactory> { BorneAvailabilityProviderFactory(get()) }
 
     // Traffic (e.g. Luxembourg CITA): factory returns provider for current location.
     single { CitaTrafficClient(get()) }
     single { CitaTrafficProvider(get()) }
-    single {
+    single<TrafficProviderFactory> {
         TrafficProviderFactory(
             listOf(
                 GeographicRegion.Bbox(49.4, 5.7, 50.2, 6.6) to get<CitaTrafficProvider>()
@@ -249,7 +253,7 @@ val appModule = module {
     single { TransitAggregator(get(named("transitProviders")), get()) }
 
     // Parking POIs: LiveParking + ParkAPI + OSM, aggregated via factory
-    single { ParkingProviderFactory(get(), get()) }
+    single<ParkingProviderFactory> { ParkingProviderFactory(get(), get()) }
     single<ParkingAggregator> { get<ParkingProviderFactory>().createAggregator() }
 
     single { OpenTollDataHelper(androidContext()) }
@@ -270,7 +274,7 @@ val appModule = module {
     single { VoskTranscriber(androidContext(), modelDirPath = null) }
     single<LocalTranscriber> { get<VoskTranscriber>() }
     
-    single {
+    single<ConversationStore> {
         val settingsManager = get<SettingsManager>()
         ConversationStore(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),

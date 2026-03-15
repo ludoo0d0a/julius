@@ -1329,7 +1329,7 @@ fun SettingsScreenPreview() {
             initialSpeechLanguageTag = null
         )
     }
-    val mockAuthManager = remember { GoogleAuthManager(context, mockSettingsManager, store) }
+    val mockAuthManager = remember { GoogleAuthManager(context, mockSettingsManager, { store }) }
 
     SettingsScreen(
         settingsManager = mockSettingsManager,
