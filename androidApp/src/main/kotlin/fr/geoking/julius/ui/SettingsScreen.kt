@@ -1035,6 +1035,7 @@ fun SettingsScreenPreview() {
                 override fun speak(text: String, languageTag: String?) {}
                 override fun playAudio(bytes: ByteArray) {}
                 override fun stopSpeaking() {}
+                override fun setTranscriber(transcriber: suspend (ByteArray) -> String?) {}
             },
             actionExecutor = null,
             initialSpeechLanguageTag = null

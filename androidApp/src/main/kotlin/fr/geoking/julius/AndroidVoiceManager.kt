@@ -31,6 +31,7 @@ import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.shared.VoiceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -512,7 +513,7 @@ class AndroidVoiceManager(
         if (wakeWordDetectionJob != null) return
         Log.d(TAG, "Starting wake word detection")
         wakeWordDetectionJob = GlobalScope.launch(Dispatchers.IO) {
-            while (kotlinx.coroutines.isActive) {
+            while (isActive) {
                 if (_events.value == VoiceEvent.Silence && !isRecording && !isRecognizerActive) {
                     // This is a simplified placeholder for wake word detection.
                     // In a real scenario, we'd use a local engine like Porcupine.
