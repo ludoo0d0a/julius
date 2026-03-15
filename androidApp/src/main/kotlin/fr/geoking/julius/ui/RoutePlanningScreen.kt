@@ -57,6 +57,9 @@ import fr.geoking.julius.routing.RoutePlanner
 import fr.geoking.julius.routing.RoutingClient
 import fr.geoking.julius.toll.TollCalculator
 import fr.geoking.julius.toll.TollEstimate
+import fr.geoking.julius.traffic.TrafficInfo
+import fr.geoking.julius.traffic.TrafficProviderFactory
+import fr.geoking.julius.traffic.TrafficRequest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,6 +67,7 @@ fun RoutePlanningScreen(
     routePlanner: RoutePlanner,
     routingClient: RoutingClient,
     tollCalculator: TollCalculator,
+    trafficProviderFactory: TrafficProviderFactory? = null,
     poiProvider: PoiProvider,
     settingsManager: SettingsManager,
     onBack: () -> Unit
@@ -78,6 +82,7 @@ fun RoutePlanningScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var stations by remember { mutableStateOf<List<Poi>>(emptyList()) }
     var tollEstimate by remember { mutableStateOf<TollEstimate?>(null) }
+    var routeTraffic by remember { mutableStateOf<TrafficInfo?>(null) }
     var calculateTrigger by remember { mutableStateOf(0) }
 
     val hasLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -164,6 +169,7 @@ fun RoutePlanningScreen(
                         error = null
                         stations = emptyList()
                         tollEstimate = null
+                        routeTraffic = null
                         calculateTrigger++
                     }
                 },
@@ -191,6 +197,15 @@ fun RoutePlanningScreen(
                         "Estimated toll: €%.2f".format(toll.amountEur),
                         color = Color.White.copy(alpha = 0.9f),
                         style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+                routeTraffic?.let { info ->
+                    val roadSummary = info.events.map { it.roadRef }.distinct().sorted().joinToString(", ")
+                    Text(
+                        "Traffic (${info.providerId}): ${info.events.size} events on $roadSummary",
+                        color = Color.White.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.bodySmall
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                 }
@@ -250,8 +265,13 @@ fun RoutePlanningScreen(
         val route = routingClient.getRoute(oLat, oLon, dLat, dLon)
         if (route != null) {
             tollEstimate = tollCalculator.estimateToll(route.points, settings.vehicleType)
+            val trafficProviders = trafficProviderFactory?.getProvidersForRoute(route.points).orEmpty()
+            routeTraffic = trafficProviders.firstOrNull()?.let { provider ->
+                provider.getTraffic(TrafficRequest.Route(route.points))
+            }
         } else {
             tollEstimate = null
+            routeTraffic = null
         }
         val result = routePlanner.getStationsAlongRoute(oLat, oLon, dLat, dLon, poiProvider)
         loading = false

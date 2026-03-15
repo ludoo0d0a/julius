@@ -46,6 +46,10 @@ import fr.geoking.julius.providers.PoiCategory
 import fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory
 import fr.geoking.julius.providers.availability.matchAvailabilityToPois
 import fr.geoking.julius.providers.availability.StationAvailabilitySummary
+import fr.geoking.julius.traffic.TrafficInfo
+import fr.geoking.julius.traffic.TrafficProviderFactory
+import fr.geoking.julius.traffic.TrafficRequest
+import fr.geoking.julius.traffic.TrafficSeverity
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
@@ -81,6 +85,7 @@ private fun markerSizePxForZoom(zoom: Float): Int {
 fun MapScreen(
     poiProvider: PoiProvider,
     availabilityProviderFactory: BorneAvailabilityProviderFactory?,
+    trafficProviderFactory: TrafficProviderFactory? = null,
     settingsManager: fr.geoking.julius.SettingsManager,
     store: ConversationStore,
     onBack: () -> Unit,
@@ -94,6 +99,7 @@ fun MapScreen(
     val settings by settingsManager.settings.collectAsState()
     val selectedProvider = settings.selectedPoiProvider
     var pois by remember { mutableStateOf<List<Poi>>(emptyList()) }
+    var trafficInfo by remember { mutableStateOf<TrafficInfo?>(null) }
     var mapErrorMessage by remember(selectedProvider) { mutableStateOf<String?>(null) }
     var isErrorPaused by remember(selectedProvider) { mutableStateOf(false) }
     var retryCount by remember { mutableStateOf(0) }
@@ -188,6 +194,25 @@ fun MapScreen(
             } else {
                 availabilityByPoiId = emptyMap()
             }
+            val trafficProvider = trafficProviderFactory?.getProvider(centerLat, centerLng)
+            if (trafficProvider != null) {
+                try {
+                    val halfSpan = 0.15
+                    trafficInfo = trafficProvider.getTraffic(
+                        TrafficRequest.Bbox(
+                            centerLat - halfSpan,
+                            centerLng - halfSpan,
+                            centerLat + halfSpan,
+                            centerLng + halfSpan
+                        )
+                    )
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    trafficInfo = null
+                }
+            } else {
+                trafficInfo = null
+            }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             val msg = e.message?.takeIf { it.isNotBlank() } ?: e.toString()
@@ -196,6 +221,7 @@ fun MapScreen(
             store.recordError((e as? fr.geoking.julius.shared.NetworkException)?.httpCode, "Map ($selectedProvider): $msg")
             pois = emptyList()
             availabilityByPoiId = emptyMap()
+            trafficInfo = null
         }
     }
 
@@ -345,7 +371,10 @@ fun MapScreen(
                 GoogleMap(
                     modifier = Modifier.fillMaxSize(),
                     cameraPositionState = cameraPositionState,
-                    properties = MapProperties(isMyLocationEnabled = hasLocationPermission),
+                    properties = MapProperties(
+                        isMyLocationEnabled = hasLocationPermission,
+                        isTrafficEnabled = settings.mapTrafficEnabled
+                    ),
                     uiSettings = MapUiSettings(myLocationButtonEnabled = hasLocationPermission)
                 ) {
                     val mapContext = LocalContext.current
@@ -413,6 +442,24 @@ fun MapScreen(
                                 scope.launch { sheetState.show() }
                                 true
                             }
+                        )
+                    }
+                    trafficInfo?.events?.forEach { event ->
+                        val bbox = event.bbox ?: return@forEach
+                        val lat = (bbox.latMin + bbox.latMax) / 2
+                        val lon = (bbox.lonMin + bbox.lonMax) / 2
+                        val hue = when (event.severity) {
+                            TrafficSeverity.Normal -> 120f
+                            TrafficSeverity.Congestion -> 30f
+                            TrafficSeverity.Closure, TrafficSeverity.Accident, TrafficSeverity.Roadworks -> 0f
+                            TrafficSeverity.Unknown -> 60f
+                        }
+                        Marker(
+                            state = MarkerState(position = LatLng(lat, lon)),
+                            title = "${event.roadRef}${event.direction?.let { " ($it)" } ?: ""}",
+                            snippet = event.message,
+                            icon = BitmapDescriptorFactory.defaultMarker(hue),
+                            onClick = { true }
                         )
                     }
                 }

@@ -101,6 +101,7 @@ class MainActivity : ComponentActivity() {
             val routePlanner: RoutePlanner = get()
             val routingClient: RoutingClient = get()
             val tollCalculator: TollCalculator = get()
+            val trafficProviderFactory: fr.geoking.julius.traffic.TrafficProviderFactory = get()
 
             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             (permissionManager as? AndroidPermissionManager)?.setOnPermissionRequest { permission, deferred ->
@@ -129,6 +130,7 @@ class MainActivity : ComponentActivity() {
                     routePlanner = routePlanner,
                     routingClient = routingClient,
                     tollCalculator = tollCalculator,
+                    trafficProviderFactory = trafficProviderFactory,
                     inAppUpdateHelper = inAppUpdateHelper,
                     onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) }
                 )
@@ -159,6 +161,7 @@ fun MainUI(
     routePlanner: RoutePlanner? = null,
     routingClient: RoutingClient? = null,
     tollCalculator: TollCalculator? = null,
+    trafficProviderFactory: fr.geoking.julius.traffic.TrafficProviderFactory? = null,
     inAppUpdateHelper: InAppUpdateHelper? = null,
     onStartUpdate: (AppUpdateInfo) -> Unit = {}
 ) {
@@ -206,6 +209,7 @@ fun MainUI(
                         routePlanner = routePlanner,
                         routingClient = routingClient,
                         tollCalculator = tollCalculator,
+                        trafficProviderFactory = trafficProviderFactory,
                         poiProvider = poiProvider,
                         settingsManager = settingsManager,
                         onBack = { showRoutePlanning = false }
@@ -215,6 +219,7 @@ fun MainUI(
                     MapScreen(
                         poiProvider = poiProvider,
                         availabilityProviderFactory = availabilityProviderFactory,
+                        trafficProviderFactory = trafficProviderFactory,
                         settingsManager = settingsManager,
                         store = store,
                         onBack = { showMap = false },

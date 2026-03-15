@@ -167,6 +167,10 @@ dependencies {
     // Vosk offline STT (car mic path)
     implementation("com.alphacephei:vosk-android:0.3.75")
 
+    // Coil for loading API logos in About
+    implementation("io.coil-kt.coil3:coil-compose:${libs.versions.coil.get()}")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:${libs.versions.coil.get()}")
+
 }
 
 kotlin {

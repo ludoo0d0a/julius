@@ -67,6 +67,8 @@ data class AppSettings(
     val mapIrveOperator: String = DEFAULT_MAP_IRVE_OPERATOR,
     /** Selected connector types for IRVE (type_2, combo_ccs, chademo, ef, autre). Empty = show all. Applied when provider is DataGouvElec. */
     val selectedMapConnectorTypes: Set<String> = emptySet(),
+    /** Show Google traffic layer on the map (green / yellow / red). */
+    val mapTrafficEnabled: Boolean = false,
     /** EV range in km for route planning. */
     val evRangeKm: Int = DEFAULT_EV_RANGE_KM,
     /** Optional consumption in kWh/100 km; null = use range only. */
@@ -164,6 +166,7 @@ open class SettingsManager(context: Context) {
         val selectedMapConnectorTypes = if (!mapConnectorTypesStr.isNullOrBlank()) {
             mapConnectorTypesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
         } else emptySet()
+        val mapTrafficEnabled = prefs.getBoolean("map_traffic_enabled", false)
         val evRangeKm = prefs.getInt("ev_range_km", DEFAULT_EV_RANGE_KM).coerceIn(50, 1000)
         val evConsumptionKwhPer100km = if (prefs.contains("ev_consumption_kwh_100")) {
             prefs.getFloat("ev_consumption_kwh_100", 18f).takeIf { it > 0f }
@@ -192,6 +195,7 @@ open class SettingsManager(context: Context) {
             mapMinPowerKw = mapMinPowerKw,
             mapIrveOperator = mapIrveOperator,
             selectedMapConnectorTypes = selectedMapConnectorTypes,
+            mapTrafficEnabled = mapTrafficEnabled,
             evRangeKm = evRangeKm,
             evConsumptionKwhPer100km = evConsumptionKwhPer100km,
             openChargeMapKey = openChargeMapKey,
@@ -337,6 +341,11 @@ open class SettingsManager(context: Context) {
         _settings.value = _settings.value.copy(selectedMapConnectorTypes = types)
     }
 
+    open fun setMapTrafficEnabled(value: Boolean) {
+        prefs.edit().putBoolean("map_traffic_enabled", value).apply()
+        _settings.value = _settings.value.copy(mapTrafficEnabled = value)
+    }
+
     open fun setOverpassAmenityTypes(types: Set<String>) {
         val value = types.ifEmpty { setOf("toilets", "drinking_water") }
         prefs.edit().putString("overpass_amenity_types", value.joinToString(",")).apply()
@@ -408,6 +417,7 @@ open class SettingsManager(context: Context) {
             .putInt("map_min_power_kw", settings.mapMinPowerKw)
             .putString("map_irve_operator", settings.mapIrveOperator)
             .putString("map_connector_types", settings.selectedMapConnectorTypes.joinToString(","))
+            .putBoolean("map_traffic_enabled", settings.mapTrafficEnabled)
             .putInt("ev_range_km", settings.evRangeKm.coerceIn(50, 1000))
             .apply { settings.evConsumptionKwhPer100km?.let { putFloat("ev_consumption_kwh_100", it) } ?: remove("ev_consumption_kwh_100") }
             .putString("openchargemap_key", settings.openChargeMapKey)
@@ -487,6 +497,7 @@ open class SettingsManager(context: Context) {
             mapMinPowerKw = _settings.value.mapMinPowerKw,
             mapIrveOperator = _settings.value.mapIrveOperator,
             selectedMapConnectorTypes = _settings.value.selectedMapConnectorTypes,
+            mapTrafficEnabled = _settings.value.mapTrafficEnabled,
             evRangeKm = _settings.value.evRangeKm,
             evConsumptionKwhPer100km = _settings.value.evConsumptionKwhPer100km,
             openChargeMapKey = _settings.value.openChargeMapKey,

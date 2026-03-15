@@ -153,6 +153,9 @@ fun MapSettingsScreen(
     var selectedConnectorTypes by remember(settings.selectedMapConnectorTypes) {
         mutableStateOf(settings.selectedMapConnectorTypes)
     }
+    var selectedMapTrafficEnabled by remember(settings.mapTrafficEnabled) {
+        mutableStateOf(settings.mapTrafficEnabled)
+    }
     var selectedOverpassAmenities by remember(settings.selectedOverpassAmenityTypes) {
         mutableStateOf(settings.selectedOverpassAmenityTypes)
     }
@@ -185,6 +188,9 @@ fun MapSettingsScreen(
         }
         if (selectedConnectorTypes != settings.selectedMapConnectorTypes) {
             settingsManager.setMapConnectorTypes(selectedConnectorTypes)
+        }
+        if (selectedMapTrafficEnabled != settings.mapTrafficEnabled) {
+            settingsManager.setMapTrafficEnabled(selectedMapTrafficEnabled)
         }
         if (selectedOverpassAmenities != settings.selectedOverpassAmenityTypes) {
             settingsManager.setOverpassAmenityTypes(selectedOverpassAmenities)
@@ -254,6 +260,33 @@ fun MapSettingsScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                "Traffic layer",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                "Google traffic layer (green / yellow / red).",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Show traffic",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+                Switch(
+                    checked = selectedMapTrafficEnabled,
+                    onCheckedChange = { selectedMapTrafficEnabled = it }
+                )
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text(

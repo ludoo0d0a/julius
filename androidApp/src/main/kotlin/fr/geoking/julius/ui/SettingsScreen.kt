@@ -1,5 +1,7 @@
 package fr.geoking.julius.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.AppSettings
 import fr.geoking.julius.AppTheme
@@ -69,6 +73,37 @@ private val Lavender = Color(0xFFD1D5FF)
 private val DeepPurple = Color(0xFF21004C)
 private val DarkBackground = Color(0xFF0A0A0A)
 private val SeparatorColor = Color(0xFF2D2D44)
+
+/** Used in About screen: API/service name, website URL, optional logo URL. */
+private data class UsedApi(val name: String, val url: String, val logoUrl: String? = null)
+
+private val UsedApisList = listOf(
+    // AI / chat agents
+    UsedApi("OpenAI", "https://openai.com", "https://openai.com/favicon.ico"),
+    UsedApi("Google Gemini", "https://ai.google.dev", "https://www.gstatic.com/lamda/images/favicon_final_18032024.png"),
+    UsedApi("Perplexity", "https://perplexity.ai", "https://www.perplexity.ai/favicon.ico"),
+    UsedApi("ElevenLabs", "https://elevenlabs.io", "https://elevenlabs.io/favicon.ico"),
+    UsedApi("Deepgram", "https://deepgram.com", "https://deepgram.com/favicon.ico"),
+    UsedApi("OpenCode Zen", "https://opencode.ai", null),
+    UsedApi("Completions.me", "https://www.completions.me", null),
+    UsedApi("ApiFreeLLM", "https://apifreellm.com", null),
+    UsedApi("Jules (Google)", "https://jules.google.com", null),
+    // Routing & maps
+    UsedApi("OSRM", "https://project-osrm.org", "https://project-osrm.org/favicon.ico"),
+    UsedApi("Overpass API (OpenStreetMap)", "https://wiki.openstreetmap.org/wiki/Overpass_API", "https://www.openstreetmap.org/favicon.ico"),
+    // POI & fuel / charging
+    UsedApi("Open Charge Map", "https://openchargemap.org", "https://openchargemap.org/favicon.ico"),
+    UsedApi("data.gouv.fr", "https://www.data.gouv.fr", "https://www.data.gouv.fr/favicon.ico"),
+    UsedApi("ODRE (bornes IRVE)", "https://odre.opendatasoft.com", null),
+    UsedApi("Gas API (prix carburants)", "https://gas-api.ovh", null),
+    UsedApi("data.economie.gouv.fr", "https://data.economie.gouv.fr", null),
+    UsedApi("Routex / Wigeogis", "https://www.wigeogis.com", null),
+    UsedApi("Belib (Paris EV)", "https://opendata.paris.fr", null),
+    UsedApi("Hérault Data (camping-car)", "https://www.herault-data.fr", null),
+    // Traffic & toll
+    UsedApi("CITA (trafic Luxembourg)", "https://www.cita.lu", "https://www.cita.lu/favicon.ico"),
+    UsedApi("OpenTollData", "https://github.com/louis2038/OpenTollData", null),
+)
 
 @Composable
 fun SettingsScreen(
@@ -511,6 +546,7 @@ private fun TollDataSection(
 
 @Composable
 private fun AboutContent() {
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -527,6 +563,83 @@ private fun AboutContent() {
         AboutRow("Version name", BuildConfig.VERSION_NAME)
         AboutRow("Version code", BuildConfig.VERSION_CODE.toString())
         AboutRow("Build date", BuildConfig.BUILD_DATE)
+        Spacer(modifier = Modifier.height(32.dp))
+        Text(
+            text = "Used APIs & services",
+            color = Lavender.copy(alpha = 0.9f),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        UsedApisList.forEach { api ->
+            AboutApiRow(
+                name = api.name,
+                url = api.url,
+                logoUrl = api.logoUrl,
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(api.url))
+                    context.startActivity(intent)
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun AboutApiRow(
+    name: String,
+    url: String,
+    logoUrl: String?,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(DeepPurple, RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (logoUrl != null) {
+                AsyncImage(
+                    model = logoUrl,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp)
+                )
+            } else {
+                Text(
+                    text = name.first().uppercaseChar().toString(),
+                    color = Lavender,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = name,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = Uri.parse(url).host ?: url,
+                color = Lavender.copy(alpha = 0.7f),
+                fontSize = 12.sp
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+            contentDescription = "Open website",
+            tint = Lavender.copy(alpha = 0.8f),
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 

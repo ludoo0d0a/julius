@@ -22,6 +22,7 @@ play-services-location = "21.3.0"
 androidx-credentials = "1.5.0-rc01"
 googleid = "1.1.1"
 androidx-room = "2.6.1"
+coil = "3.4.0"
 
 [libraries]
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
@@ -69,6 +70,8 @@ googleid = { module = "com.google.android.libraries.identity.googleid:googleid",
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "androidx-room" }
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "androidx-room" }
 androidx-room-ksp = { module = "androidx.room:room-compiler", version.ref = "androidx-room" }
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

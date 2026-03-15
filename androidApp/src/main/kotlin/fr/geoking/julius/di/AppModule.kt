@@ -41,6 +41,10 @@ import fr.geoking.julius.routing.OsrmRoutingClient
 import fr.geoking.julius.routing.RoutePlanner
 import fr.geoking.julius.routing.RoutingClient
 import fr.geoking.julius.toll.OpenTollDataParser
+import fr.geoking.julius.traffic.CitaTrafficClient
+import fr.geoking.julius.traffic.CitaTrafficProvider
+import fr.geoking.julius.traffic.GeographicRegion
+import fr.geoking.julius.traffic.TrafficProviderFactory
 import fr.geoking.julius.toll.TollCalculator
 import fr.geoking.julius.ui.OpenTollDataHelper
 import org.koin.core.qualifier.named
@@ -207,6 +211,17 @@ val appModule = module {
     single { BelibAvailabilityClient(get()) }
     single { BelibAvailabilityProvider(get(), radiusKm = 10, limit = 200) }
     single { BorneAvailabilityProviderFactory(get()) }
+
+    // Traffic (e.g. Luxembourg CITA): factory returns provider for current location.
+    single { CitaTrafficClient(get()) }
+    single { CitaTrafficProvider(get()) }
+    single {
+        TrafficProviderFactory(
+            listOf(
+                GeographicRegion.Bbox(49.4, 5.7, 50.2, 6.6) to get<CitaTrafficProvider>()
+            )
+        )
+    }
 
     single<RoutingClient> { OsrmRoutingClient(get()) }
     single<RoutePlanner> { RoutePlanner(get()) }
