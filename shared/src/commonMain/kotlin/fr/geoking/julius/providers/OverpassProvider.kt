@@ -18,7 +18,9 @@ class OverpassProvider(
         PoiCategory.CaravanSite,
         PoiCategory.PicnicSite,
         PoiCategory.TruckStop,
-        PoiCategory.RestArea
+        PoiCategory.RestArea,
+        PoiCategory.Restaurant,
+        PoiCategory.FastFood
     )
 
     override suspend fun search(request: PoiSearchRequest): List<Poi> {
@@ -34,7 +36,8 @@ class OverpassProvider(
             if (highwayValues.isNotEmpty()) add("highway" to highwayValues)
         }
         if (tagFilters.isEmpty()) return emptyList()
-        val needsWays = PoiCategory.TruckStop in wanted || PoiCategory.RestArea in wanted
+        val needsWays = PoiCategory.TruckStop in wanted || PoiCategory.RestArea in wanted ||
+            PoiCategory.Restaurant in wanted || PoiCategory.FastFood in wanted
         val elements = if (needsWays) {
             client.queryNodesAndWaysWithTagFilters(
                 latitude = request.latitude,
@@ -55,13 +58,24 @@ class OverpassProvider(
         return elements.mapNotNull { el ->
             val category = PoiCategory.fromOsmTags(el.tags) ?: return@mapNotNull null
             if (category !in wanted) return@mapNotNull null
+            val restaurantDetails = when (category) {
+                PoiCategory.Restaurant, PoiCategory.FastFood -> RestaurantDetails(
+                    openingHours = el.openingHours()?.takeIf { it.isNotBlank() },
+                    cuisine = el.cuisine()?.takeIf { it.isNotBlank() },
+                    brand = el.brand()?.takeIf { it.isNotBlank() },
+                    isFastFood = category == PoiCategory.FastFood
+                )
+                else -> null
+            }
             Poi(
                 id = "osm:${el.id}",
                 name = el.name()?.takeIf { it.isNotBlank() } ?: categoryDisplayName(category),
                 address = el.address() ?: "",
                 latitude = el.lat,
                 longitude = el.lon,
-                poiCategory = category
+                poiCategory = category,
+                brand = el.brand()?.takeIf { it.isNotBlank() },
+                restaurantDetails = restaurantDetails
             )
         }
     }
@@ -76,6 +90,8 @@ class OverpassProvider(
         PoiCategory.Toilet -> "toilets"
         PoiCategory.DrinkingWater -> "drinking_water"
         PoiCategory.TruckStop -> "truck_stop"
+        PoiCategory.Restaurant -> "restaurant"
+        PoiCategory.FastFood -> "fast_food"
         else -> null
     }
 
@@ -99,6 +115,8 @@ class OverpassProvider(
         PoiCategory.PicnicSite -> "Picnic area"
         PoiCategory.TruckStop -> "Truck stop"
         PoiCategory.RestArea -> "Rest area"
+        PoiCategory.Restaurant -> "Restaurant"
+        PoiCategory.FastFood -> "Fast food"
         else -> c.name
     }
 }

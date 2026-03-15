@@ -22,13 +22,19 @@ enum class PoiCategory {
     /** Truck stops (OSM amenity=truck_stop). */
     TruckStop,
     /** Rest areas (OSM highway=rest_area). */
-    RestArea;
+    RestArea,
+    /** Restaurants (OSM amenity=restaurant). */
+    Restaurant,
+    /** Fast food (OSM amenity=fast_food). */
+    FastFood;
     companion object {
         /** OSM amenity tag value for this category, when applicable. */
         fun fromOsmAmenity(amenity: String): PoiCategory? = when (amenity) {
             "toilets" -> Toilet
             "drinking_water" -> DrinkingWater
             "truck_stop" -> TruckStop
+            "restaurant" -> Restaurant
+            "fast_food" -> FastFood
             else -> null
         }
         /** OSM tourism tag value for this category. */
@@ -84,6 +90,17 @@ data class IrveDetails(
 )
 
 /**
+ * Restaurant/fast food details from OSM (Overpass): opening hours, cuisine, brand.
+ * Used when [Poi.poiCategory] is Restaurant or FastFood and data comes from Overpass.
+ */
+data class RestaurantDetails(
+    val openingHours: String? = null,
+    val cuisine: String? = null,
+    val brand: String? = null,
+    val isFastFood: Boolean = false
+)
+
+/**
  * Fuel type and price at a gas station (e.g. from data.gouv.fr / gas-api.ovh).
  */
 data class FuelPrice(
@@ -123,7 +140,9 @@ data class Poi(
     /** Routex-only: amenities and opening hours for fullscreen details. */
     val routexDetails: RoutexSiteDetails? = null,
     /** IRVE-only: connector types, tarification, horaires, payment, etc. */
-    val irveDetails: IrveDetails? = null
+    val irveDetails: IrveDetails? = null,
+    /** Restaurant/fast food only: opening hours, cuisine, brand (e.g. from Overpass). */
+    val restaurantDetails: RestaurantDetails? = null
 )
 
 /**

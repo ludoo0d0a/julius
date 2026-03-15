@@ -380,6 +380,44 @@ fun PoiDetailCard(
                 }
             }
 
+            poi.restaurantDetails?.let { d ->
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.15f))
+                Spacer(modifier = Modifier.height(12.dp))
+                if (d.isFastFood) {
+                    Text(
+                        text = "Fast food",
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+                d.brand?.takeIf { it.isNotBlank() }?.let { text ->
+                    Text(
+                        text = "Enseigne: $text",
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+                d.cuisine?.takeIf { it.isNotBlank() }?.let { text ->
+                    Text(
+                        text = "Cuisine: $text",
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+                d.openingHours?.takeIf { it.isNotBlank() }?.let { text ->
+                    Text(
+                        text = "Horaires: $text",
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 13.sp
+                    )
+                }
+            }
+
         }
     }
 }

@@ -176,4 +176,7 @@ data class OverpassElement(
         val city = tags["addr:city"] ?: tags["addr:place"]
         listOfNotNull(house?.let { "$it $street" } ?: street, city).joinToString(", ")
     } ?: tags["address"]
+    fun openingHours(): String? = tags["opening_hours"]
+    fun cuisine(): String? = tags["cuisine"]
+    fun brand(): String? = tags["brand"]
 }

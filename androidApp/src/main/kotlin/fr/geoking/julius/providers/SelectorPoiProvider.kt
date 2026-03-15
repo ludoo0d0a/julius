@@ -45,6 +45,8 @@ class SelectorPoiProvider(
                         "picnic_site" -> PoiCategory.PicnicSite
                         "truck_stop" -> PoiCategory.TruckStop
                         "rest_area" -> PoiCategory.RestArea
+                        "restaurant" -> PoiCategory.Restaurant
+                        "fast_food" -> PoiCategory.FastFood
                         else -> null
                     }
                 }.toSet()

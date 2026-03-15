@@ -33,7 +33,7 @@ private val PROVIDER_OPTIONS = listOf(
     PoiProviderType.DataGouv to "data.gouv.fr (fuel)",
     PoiProviderType.DataGouvElec to "data.gouv.fr (IRVE)",
     PoiProviderType.OpenChargeMap to "Open Charge Map (EV)",
-    PoiProviderType.Overpass to "Overpass (OSM + data.gouv: toilets, water, camping, picnic)"
+    PoiProviderType.Overpass to "Overpass (OSM + data.gouv: toilets, water, camping, picnic, restaurants)"
 )
 
 /** Overpass / motorhome POI types: id used in settings, label for UI. */
@@ -44,7 +44,9 @@ val OVERPASS_AMENITY_OPTIONS = listOf(
     "caravan_site" to "Aire camping-car",
     "picnic_site" to "Picnic",
     "truck_stop" to "Truck stop",
-    "rest_area" to "Rest area"
+    "rest_area" to "Rest area",
+    "restaurant" to "Restaurant",
+    "fast_food" to "Fast food"
 )
 
 /** Vehicle type options for map/route POI relevance. */

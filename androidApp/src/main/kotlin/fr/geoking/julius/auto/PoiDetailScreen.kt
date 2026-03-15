@@ -97,6 +97,12 @@ class PoiDetailScreen(
             ).joinToString(", ").takeIf { it.isNotBlank() }?.let { lines.add("Paiement: $it") }
             d.conditionAcces?.takeIf { it.isNotBlank() }?.let { lines.add("Accès: $it") }
         }
+        poi.restaurantDetails?.let { d ->
+            if (d.isFastFood) lines.add("Fast food")
+            d.brand?.takeIf { it.isNotBlank() }?.let { lines.add("Enseigne: $it") }
+            d.cuisine?.takeIf { it.isNotBlank() }?.let { lines.add("Cuisine: $it") }
+            d.openingHours?.takeIf { it.isNotBlank() }?.let { lines.add("Horaires: $it") }
+        }
         return lines.joinToString("\n").ifBlank { "No extra details" }
     }
 
