@@ -31,7 +31,14 @@ private val PROVIDER_OPTIONS = listOf(
     PoiProviderType.GasApi to "gas-api.ovh",
     PoiProviderType.DataGouv to "data.gouv.fr (fuel)",
     PoiProviderType.DataGouvElec to "data.gouv.fr (IRVE)",
-    PoiProviderType.OpenChargeMap to "Open Charge Map (EV)"
+    PoiProviderType.OpenChargeMap to "Open Charge Map (EV)",
+    PoiProviderType.Overpass to "Overpass (OSM: toilets, water)"
+)
+
+/** Overpass amenity types: id used in settings, label for UI. */
+val OVERPASS_AMENITY_OPTIONS = listOf(
+    "toilets" to "Toilets",
+    "drinking_water" to "Drinking water"
 )
 
 /**
@@ -130,6 +137,9 @@ fun MapSettingsScreen(
     var selectedConnectorTypes by remember(settings.selectedMapConnectorTypes) {
         mutableStateOf(settings.selectedMapConnectorTypes)
     }
+    var selectedOverpassAmenities by remember(settings.selectedOverpassAmenityTypes) {
+        mutableStateOf(settings.selectedOverpassAmenityTypes)
+    }
     var evRangeKm by remember(settings.evRangeKm) { mutableStateOf(settings.evRangeKm.toString()) }
     var evConsumptionKwh by remember(settings.evConsumptionKwhPer100km) {
         mutableStateOf(settings.evConsumptionKwhPer100km?.toString() ?: "")
@@ -156,6 +166,9 @@ fun MapSettingsScreen(
         }
         if (selectedConnectorTypes != settings.selectedMapConnectorTypes) {
             settingsManager.setMapConnectorTypes(selectedConnectorTypes)
+        }
+        if (selectedOverpassAmenities != settings.selectedOverpassAmenityTypes) {
+            settingsManager.setOverpassAmenityTypes(selectedOverpassAmenities)
         }
         evRangeKm.toIntOrNull()?.coerceIn(50, 1000)?.let { km ->
             if (km != settings.evRangeKm) settingsManager.setEvRangeKm(km)
@@ -227,6 +240,40 @@ fun MapSettingsScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+            if (selectedProvider == PoiProviderType.Overpass) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "Amenity types (OpenStreetMap)",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "Show toilets, drinking water, etc. Data © OpenStreetMap contributors.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OVERPASS_AMENITY_OPTIONS.forEach { (id, label) ->
+                        FilterChip(
+                            selected = selectedOverpassAmenities.contains(id),
+                            onClick = {
+                                selectedOverpassAmenities = if (selectedOverpassAmenities.contains(id)) {
+                                    selectedOverpassAmenities - id
+                                } else {
+                                    selectedOverpassAmenities + id
+                                }
+                            },
+                            label = { Text(label) }
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))

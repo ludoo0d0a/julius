@@ -17,6 +17,8 @@ import fr.geoking.julius.providers.DataGouvProvider
 import fr.geoking.julius.providers.DataGouvElecProvider
 import fr.geoking.julius.providers.OpenChargeMapClient
 import fr.geoking.julius.providers.OpenChargeMapProvider
+import fr.geoking.julius.providers.OverpassClient
+import fr.geoking.julius.providers.OverpassProvider
 import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.providers.RoutexProvider
 import fr.geoking.julius.providers.JulesClient
@@ -165,6 +167,10 @@ val appModule = module {
     single<PoiProvider>(named("openchargemap")) {
         OpenChargeMapProvider(get(), radiusKm = 10, limit = 50)
     }
+    single { OverpassClient(get()) }
+    single<PoiProvider>(named("overpass")) {
+        OverpassProvider(get(), radiusKm = 5, limit = 100)
+    }
     single<PoiProvider>(named("selector")) {
         SelectorPoiProvider(
             routex = get(named("routex")),
@@ -173,6 +179,7 @@ val appModule = module {
             dataGouv = get(named("datagouv")),
             dataGouvElec = get(named("datagouvelec")),
             openChargeMap = get(named("openchargemap")),
+            overpass = get(named("overpass")),
             settingsManager = get()
         )
     }

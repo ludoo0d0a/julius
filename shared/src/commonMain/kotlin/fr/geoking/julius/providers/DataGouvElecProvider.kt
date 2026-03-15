@@ -20,6 +20,8 @@ class DataGouvElecProvider(
 
     private val dataGouvElecClient = DataGouvElecClient(client)
 
+    override fun supportedCategories(): Set<PoiCategory> = setOf(PoiCategory.Irve)
+
     override suspend fun getGasStations(
         latitude: Double,
         longitude: Double,

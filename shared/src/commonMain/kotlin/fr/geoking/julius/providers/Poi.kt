@@ -1,5 +1,28 @@
 package fr.geoking.julius.providers
 
+/**
+ * Category of POI for unified search. Extensible: add new values and wire providers as needed.
+ * Used by [PoiSearchRequest] and [Poi.poiCategory].
+ */
+enum class PoiCategory {
+    /** Fuel / gas stations (Routex, Etalab, GasApi, DataGouv). */
+    Gas,
+    /** EV charging / IRVE (DataGouvElec, OpenChargeMap). */
+    Irve,
+    /** Public toilets (e.g. Overpass amenity=toilets). */
+    Toilet,
+    /** Drinking water / fountains (e.g. Overpass amenity=drinking_water). */
+    DrinkingWater;
+    companion object {
+        /** OSM amenity tag value for this category, when applicable. */
+        fun fromOsmAmenity(amenity: String): PoiCategory? = when (amenity) {
+            "toilets" -> Toilet
+            "drinking_water" -> DrinkingWater
+            else -> null
+        }
+    }
+}
+
 /** Source of gas station data shown on the map. */
 enum class PoiProviderType {
     Routex,   // Wigeogis SiteFinder
@@ -7,7 +30,8 @@ enum class PoiProviderType {
     GasApi,  //  gas-api.ovh
     DataGouv, // data.gouv.fr (fuel)
     DataGouvElec, // data.gouv.fr IRVE (EV charging)
-    OpenChargeMap // openchargemap.org (EV, Europe/world)
+    OpenChargeMap, // openchargemap.org (EV, Europe/world)
+    Overpass  // OpenStreetMap Overpass API (toilets, drinking water, etc.)
 }
 
 /**
@@ -48,6 +72,8 @@ data class Poi(
     val brand: String? = null,
     /** True for IRVE / EV charging stations (e.g. data.gouv.fr IRVE). */
     val isElectric: Boolean = false,
+    /** Unified category (toilet, drinking water, gas, irve). Inferred from [isElectric] when null. */
+    val poiCategory: PoiCategory? = null,
     /** Nominal power in kW (IRVE only). Used for min-power filter. */
     val powerKw: Double? = null,
     /** Operator name (IRVE only). Used for operator filter. */
@@ -78,6 +104,18 @@ data class MapViewport(
     val zoom: Float,
     val mapWidthPx: Int,
     val mapHeightPx: Int
+)
+
+/**
+ * Unified POI search request. Used by [PoiProvider.search] for gas, IRVE, toilets, water, etc.
+ * Empty [categories] means "all categories supported by the provider" (provider-specific default).
+ */
+data class PoiSearchRequest(
+    val latitude: Double,
+    val longitude: Double,
+    val viewport: MapViewport? = null,
+    /** Requested POI categories. Empty = provider default (e.g. Gas+Irve for fuel providers). */
+    val categories: Set<PoiCategory> = emptySet()
 )
 
 /**
@@ -113,11 +151,33 @@ object MapPoiFilter {
     }
 }
 
+/**
+ * Unified POI provider: supports [search] by [PoiCategory] and optional legacy [getGasStations].
+ * New providers implement [search] and [supportedCategories]; [getGasStations] is for backward compatibility.
+ */
 interface PoiProvider {
+    /** Categories this provider can return. Used by the selector to build [PoiSearchRequest]. */
+    fun supportedCategories(): Set<PoiCategory> = setOf(PoiCategory.Gas)
+
     /**
-     * Fetches gas stations near the given center.
-     * When [viewport] is non-null, providers may use it to limit the search to the visible map
-     * (e.g. Routex uses zoom + size to compute API radius from the visible diameter).
+     * Unified search: returns POIs for the requested [request.categories] (or provider default if empty).
+     * Default implementation delegates to [getGasStations] and filters by category intersection.
+     */
+    suspend fun search(request: PoiSearchRequest): List<Poi> {
+        val cat = request.categories
+        val supported = supportedCategories()
+        val overlap = if (cat.isEmpty()) supported else cat.intersect(supported)
+        if (overlap.isEmpty() || (PoiCategory.Gas !in overlap && PoiCategory.Irve !in overlap)) {
+            return emptyList()
+        }
+        val list = getGasStations(request.latitude, request.longitude, request.viewport)
+            .map { p -> p.ensureCategory() }
+        return if (cat.isEmpty()) list else list.filter { it.poiCategory!! in overlap }
+    }
+
+    /**
+     * Fetches gas/IRVE stations near the given center (legacy).
+     * When [viewport] is non-null, providers may use it to limit the search to the visible map.
      */
     suspend fun getGasStations(
         latitude: Double,
@@ -125,6 +185,10 @@ interface PoiProvider {
         viewport: MapViewport? = null
     ): List<Poi>
 }
+
+private fun Poi.ensureCategory(): Poi = copy(
+    poiCategory = poiCategory ?: if (isElectric) PoiCategory.Irve else PoiCategory.Gas
+)
 
 class MockPoiProvider : PoiProvider {
     override suspend fun getGasStations(

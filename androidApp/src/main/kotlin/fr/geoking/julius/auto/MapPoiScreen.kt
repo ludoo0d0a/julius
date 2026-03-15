@@ -24,6 +24,8 @@ import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.providers.Poi
+import fr.geoking.julius.providers.PoiCategory
+import fr.geoking.julius.providers.PoiSearchRequest
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.providers.PoiProvider
@@ -76,7 +78,7 @@ class MapPoiScreen(
             Log.d("MapPoiScreen", "loadPois search center lat=$lat lon=$lon")
 
             try {
-                pois = poiProvider.getGasStations(lat, lon)
+                pois = poiProvider.search(PoiSearchRequest(lat, lon, null, emptySet()))
                 Log.d("MapPoiScreen", "pois loaded: ${pois.size}")
                 favoriteIds = favoritesRepo?.getFavorites()?.map { it.id }?.toSet() ?: emptySet()
                 val provider = availabilityProviderFactory.getProvider(lat, lon)
@@ -126,9 +128,13 @@ class MapPoiScreen(
                     .setNoItemsMessage("No gas stations found")
 
                 for (poi in pois) {
-                    val iconResId = when {
-                        poi.isElectric -> R.drawable.ic_poi_electric_rounded
-                        else -> BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_gas_rounded
+                    val iconResId = when (poi.poiCategory) {
+                        PoiCategory.Toilet -> R.drawable.ic_poi_toilet_rounded
+                        PoiCategory.DrinkingWater -> R.drawable.ic_poi_water_rounded
+                        else -> when {
+                            poi.isElectric -> R.drawable.ic_poi_electric_rounded
+                            else -> BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_gas_rounded
+                        }
                     }
                     val carIcon = CarIcon.Builder(IconCompat.createWithResource(carContext, iconResId)).build()
 

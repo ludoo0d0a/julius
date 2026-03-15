@@ -17,6 +17,8 @@ class GasApiProvider(
 
     private val gasApiClient = GasApiClient(client)
 
+    override fun supportedCategories(): Set<PoiCategory> = setOf(PoiCategory.Gas)
+
     override suspend fun getGasStations(
         latitude: Double,
         longitude: Double,

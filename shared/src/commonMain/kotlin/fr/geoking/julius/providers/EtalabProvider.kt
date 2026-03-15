@@ -17,6 +17,8 @@ class EtalabProvider(
 
     private val etalabClient = EtalabClient(client)
 
+    override fun supportedCategories(): Set<PoiCategory> = setOf(PoiCategory.Gas)
+
     override suspend fun getGasStations(
         latitude: Double,
         longitude: Double,

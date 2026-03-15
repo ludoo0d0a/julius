@@ -71,6 +71,8 @@ data class AppSettings(
     val evConsumptionKwhPer100km: Float? = null,
     /** Optional API key for Open Charge Map (api.openchargemap.io). */
     val openChargeMapKey: String = "",
+    /** When POI provider is Overpass: which amenity types to show (toilets, drinking_water). */
+    val selectedOverpassAmenityTypes: Set<String> = setOf("toilets", "drinking_water"),
     val openAiKey: String = "",
     val openAiModel: OpenAiModel = OpenAiModel.GPT_4O,
     val elevenLabsKey: String = "",
@@ -159,6 +161,9 @@ open class SettingsManager(context: Context) {
             prefs.getFloat("ev_consumption_kwh_100", 18f).takeIf { it > 0f }
         } else null
         val openChargeMapKey = prefs.getString("openchargemap_key", "") ?: ""
+        val overpassAmenityStr = prefs.getString("overpass_amenity_types", "toilets,drinking_water") ?: "toilets,drinking_water"
+        val selectedOverpassAmenityTypes = overpassAmenityStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+            .ifEmpty { setOf("toilets", "drinking_water") }
 
         return AppSettings(
             selectedPoiProvider = try {
@@ -177,6 +182,7 @@ open class SettingsManager(context: Context) {
             evRangeKm = evRangeKm,
             evConsumptionKwhPer100km = evConsumptionKwhPer100km,
             openChargeMapKey = openChargeMapKey,
+            selectedOverpassAmenityTypes = selectedOverpassAmenityTypes,
             openAiKey = openAiKey,
             openAiModel = try {
                 OpenAiModel.valueOf(prefs.getString("openai_model", OpenAiModel.GPT_4O.name) ?: OpenAiModel.GPT_4O.name)
@@ -311,6 +317,12 @@ open class SettingsManager(context: Context) {
         _settings.value = _settings.value.copy(selectedMapConnectorTypes = types)
     }
 
+    open fun setOverpassAmenityTypes(types: Set<String>) {
+        val value = types.ifEmpty { setOf("toilets", "drinking_water") }
+        prefs.edit().putString("overpass_amenity_types", value.joinToString(",")).apply()
+        _settings.value = _settings.value.copy(selectedOverpassAmenityTypes = value)
+    }
+
     open fun setEvRangeKm(km: Int) {
         val value = km.coerceIn(50, 1000)
         prefs.edit().putInt("ev_range_km", value).apply()
@@ -369,6 +381,7 @@ open class SettingsManager(context: Context) {
             .putInt("ev_range_km", settings.evRangeKm.coerceIn(50, 1000))
             .apply { settings.evConsumptionKwhPer100km?.let { putFloat("ev_consumption_kwh_100", it) } ?: remove("ev_consumption_kwh_100") }
             .putString("openchargemap_key", settings.openChargeMapKey)
+            .putString("overpass_amenity_types", settings.selectedOverpassAmenityTypes.joinToString(","))
             .putString("openai_key", settings.openAiKey)
             .putString("openai_model", settings.openAiModel.name)
             .putString("elevenlabs_key", settings.elevenLabsKey)

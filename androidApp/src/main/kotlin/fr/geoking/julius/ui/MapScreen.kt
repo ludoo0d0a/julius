@@ -41,6 +41,8 @@ import fr.geoking.julius.providers.MapViewport
 import fr.geoking.julius.providers.Poi
 import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.providers.PoiProviderType
+import fr.geoking.julius.providers.PoiSearchRequest
+import fr.geoking.julius.providers.PoiCategory
 import fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory
 import fr.geoking.julius.providers.availability.matchAvailabilityToPois
 import fr.geoking.julius.providers.availability.StationAvailabilitySummary
@@ -172,7 +174,7 @@ fun MapScreen(
             MapViewport(zoom = zoom, mapWidthPx = mapSizePx.width, mapHeightPx = mapSizePx.height)
         } else null
         try {
-            pois = poiProvider.getGasStations(centerLat, centerLng, viewport)
+            pois = poiProvider.search(PoiSearchRequest(centerLat, centerLng, viewport, emptySet()))
             val radiusKm = 10
             val availabilityProvider = availabilityProviderFactory?.getProvider(centerLat, centerLng)
             if (availabilityProvider != null) {
@@ -286,13 +288,31 @@ fun MapScreen(
                     }
                 }
             }
-            if (settings.isLoggedIn && (communityRepo != null || favoritesRepo != null)) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FilterChip(
+                    selected = false,
+                    onClick = { showMapSettings = true },
+                    label = {
+                        Text(
+                            when (selectedProvider) {
+                                PoiProviderType.Routex -> "Source: Routex"
+                                PoiProviderType.Etalab -> "Source: Etalab"
+                                PoiProviderType.GasApi -> "Source: Gas API"
+                                PoiProviderType.DataGouv -> "Source: data.gouv.fr"
+                                PoiProviderType.DataGouvElec -> "Source: IRVE"
+                                PoiProviderType.OpenChargeMap -> "Source: Open Charge Map"
+                                PoiProviderType.Overpass -> "Source: OSM (toilets, water)"
+                            }
+                        )
+                    }
+                )
+                if (settings.isLoggedIn && (communityRepo != null || favoritesRepo != null)) {
                     if (communityRepo != null) {
                         FilterChip(
                             selected = false,
@@ -339,16 +359,28 @@ fun MapScreen(
                         vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_electric_rounded, sizePx)
                             ?: defaultGasIcon
                     }
+                    val defaultToiletIcon = remember(mapContext, sizePx) {
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_toilet_rounded, sizePx) ?: defaultGasIcon
+                    }
+                    val defaultWaterIcon = remember(mapContext, sizePx) {
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_water_rounded, sizePx) ?: defaultGasIcon
+                    }
                     val iconCache = remember(mapContext, sizePx) {
                         mutableMapOf<Int, BitmapDescriptor>().apply {
                             put(R.drawable.ic_poi_gas_rounded, defaultGasIcon)
                             put(R.drawable.ic_poi_electric_rounded, defaultElectricIcon)
+                            put(R.drawable.ic_poi_toilet_rounded, defaultToiletIcon)
+                            put(R.drawable.ic_poi_water_rounded, defaultWaterIcon)
                         }
                     }
                     fun iconFor(poi: Poi): BitmapDescriptor {
-                        val iconResId = when {
-                            poi.isElectric -> R.drawable.ic_poi_electric_rounded
-                            else -> BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_gas_rounded
+                        val iconResId = when (poi.poiCategory) {
+                            PoiCategory.Toilet -> R.drawable.ic_poi_toilet_rounded
+                            PoiCategory.DrinkingWater -> R.drawable.ic_poi_water_rounded
+                            else -> when {
+                                poi.isElectric -> R.drawable.ic_poi_electric_rounded
+                                else -> BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_gas_rounded
+                            }
                         }
                         return iconCache.getOrPut(iconResId) {
                             vectorDrawableToBitmapDescriptor(mapContext, iconResId, sizePx) ?: defaultGasIcon

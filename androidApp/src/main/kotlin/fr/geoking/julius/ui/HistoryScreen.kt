@@ -2,6 +2,7 @@ package fr.geoking.julius.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -114,7 +115,7 @@ fun HistoryScreen(
 private fun HistoryMessageItem(item: HistoryItem) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = if (item.isUser) Alignment.End else Alignment.Start
+        horizontalArrangement = if (item.isUser) Arrangement.End else Arrangement.Start
     ) {
         Surface(
             color = if (item.isUser) Lavender.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.12f),

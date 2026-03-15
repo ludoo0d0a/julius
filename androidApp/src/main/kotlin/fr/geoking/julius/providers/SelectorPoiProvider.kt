@@ -4,7 +4,7 @@ import android.util.Log
 import fr.geoking.julius.SettingsManager
 
 /**
- * Delegates to the currently selected [PoiProvider] (Routex, Etalab, GasApi, DataGouv or DataGouvElec)
+ * Delegates to the currently selected [PoiProvider] (Routex, Etalab, GasApi, DataGouv, DataGouvElec, OpenChargeMap, Overpass)
  * based on [SettingsManager.settings].selectedPoiProvider.
  */
 class SelectorPoiProvider(
@@ -14,6 +14,7 @@ class SelectorPoiProvider(
     private val dataGouv: PoiProvider,
     private val dataGouvElec: PoiProvider,
     private val openChargeMap: PoiProvider,
+    private val overpass: PoiProvider,
     private val settingsManager: SettingsManager
 ) : PoiProvider {
 
@@ -24,6 +25,50 @@ class SelectorPoiProvider(
         PoiProviderType.DataGouv -> dataGouv
         PoiProviderType.DataGouvElec -> dataGouvElec
         PoiProviderType.OpenChargeMap -> openChargeMap
+        PoiProviderType.Overpass -> overpass
+    }
+
+    override suspend fun search(request: PoiSearchRequest): List<Poi> {
+        val settings = settingsManager.settings.value
+        val provider = settings.selectedPoiProvider
+        val categories = when (provider) {
+            PoiProviderType.Overpass -> settings.selectedOverpassAmenityTypes.mapNotNull { amenity ->
+                when (amenity) {
+                    "toilets" -> PoiCategory.Toilet
+                    "drinking_water" -> PoiCategory.DrinkingWater
+                    else -> null
+                }
+            }.toSet().ifEmpty { setOf(PoiCategory.Toilet, PoiCategory.DrinkingWater) }
+            else -> setOf(PoiCategory.Gas, PoiCategory.Irve)
+        }
+        val effectiveRequest = request.copy(categories = categories)
+        var result = currentProvider().search(effectiveRequest)
+        if (provider != PoiProviderType.Overpass) {
+            val selectedEnergies = settings.selectedMapEnergyTypes
+            if (selectedEnergies.isNotEmpty()) {
+                result = result.filter { MapPoiFilter.matchesEnergyFilter(it, selectedEnergies) }
+            }
+            if (provider == PoiProviderType.DataGouvElec) {
+                if (settings.mapMinPowerKw > 0) {
+                    val minKw = settings.mapMinPowerKw
+                    result = result.filter { poi -> poi.powerKw == null || poi.powerKw!! >= minKw }
+                }
+                if (settings.mapIrveOperator != "all") {
+                    val op = settings.mapIrveOperator.trim().lowercase()
+                    if (op.isNotEmpty()) {
+                        result = result.filter { poi -> poi.operator?.trim()?.lowercase()?.contains(op) == true }
+                    }
+                }
+            }
+            if (provider == PoiProviderType.DataGouvElec || provider == PoiProviderType.OpenChargeMap) {
+                if (settings.selectedMapConnectorTypes.isNotEmpty()) {
+                    val connectorSet = settings.selectedMapConnectorTypes
+                    result = result.filter { poi -> poi.irveDetails?.connectorTypes?.any { it in connectorSet } == true }
+                }
+            }
+        }
+        Log.d("SelectorPoiProvider", "search provider=$provider categories=$categories -> ${result.size} pois")
+        return result
     }
 
     override suspend fun getGasStations(

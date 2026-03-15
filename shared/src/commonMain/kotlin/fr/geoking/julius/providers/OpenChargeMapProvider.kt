@@ -10,6 +10,8 @@ class OpenChargeMapProvider(
     private val limit: Int = 50
 ) : PoiProvider {
 
+    override fun supportedCategories(): Set<PoiCategory> = setOf(PoiCategory.Irve)
+
     override suspend fun getGasStations(
         latitude: Double,
         longitude: Double,
