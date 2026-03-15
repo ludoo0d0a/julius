@@ -37,6 +37,18 @@
 # ---------------------------------------------------------------------------
 -keep class org.koin.** { *; }
 -keep class fr.geoking.julius.di.** { *; }
+-keepclassmembers class * {
+    @org.koin.core.annotation.* <fields>;
+    @org.koin.core.annotation.* <methods>;
+}
+# Keep constructors for Koin injection
+-keepclassmembers class fr.geoking.julius.** {
+    public <init>(...);
+}
+-keep class fr.geoking.julius.shared.ConversationStore { *; }
+-keep class fr.geoking.julius.shared.ConversationState { *; }
+-keep class fr.geoking.julius.shared.VoiceManager { *; }
+-keep class fr.geoking.julius.agents.ConversationalAgent { *; }
 
 # ---------------------------------------------------------------------------
 # Ktor (client HTTP, sérialisation JSON)

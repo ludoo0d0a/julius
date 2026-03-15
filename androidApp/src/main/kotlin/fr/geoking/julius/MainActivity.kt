@@ -255,8 +255,16 @@ fun MainUI(
 
 @Composable
 private fun StartupErrorContent(error: Throwable) {
-    val message = error.message ?: error.toString()
-    val detail = error.stackTraceToString().take(800)
+    val message = buildString {
+        append(error.message ?: error.toString())
+        var cause = error.cause
+        while (cause != null) {
+            append("\nCaused by: ")
+            append(cause.message ?: cause.toString())
+            cause = cause.cause
+        }
+    }
+    val detail = error.stackTraceToString().take(2000)
     MaterialTheme(colorScheme = darkColorScheme(background = Color(0xFF0F172A))) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Box(Modifier.fillMaxSize().padding(24.dp)) {
@@ -306,7 +314,7 @@ fun MainUIPreview() {
     val mockSettingsManager = rememberMockSettingsManager()
 
     val context = LocalContext.current
-    val mockAuthManager = remember { GoogleAuthManager(context, mockSettingsManager, mockStore) }
+    val mockAuthManager = remember { GoogleAuthManager(context, mockSettingsManager, { mockStore }) }
 
     MainUI(
         state = mockState,

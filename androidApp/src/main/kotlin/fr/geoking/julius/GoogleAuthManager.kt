@@ -18,8 +18,9 @@ private const val TAG = "GoogleAuth"
 class GoogleAuthManager(
     private val appContext: Context,
     private val settingsManager: SettingsManager,
-    private val conversationStore: ConversationStore
+    private val conversationStoreProvider: () -> ConversationStore
 ) {
+    private val conversationStore by lazy { conversationStoreProvider() }
     private val credentialManager = CredentialManager.create(appContext)
     private val scope = CoroutineScope(Dispatchers.Main)
 
