@@ -9,9 +9,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -39,17 +38,7 @@ fun VoiceMainContent(
     onAgentClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val displayText by remember {
-        derivedStateOf {
-            when {
-                state.currentTranscript.isNotBlank() -> state.currentTranscript
-                else -> {
-                    val defaultGreeting = if (settings.googleUserName != null) "Hello ${settings.googleUserName}, how can I help?" else "Hi, how can I help you"
-                    state.messages.lastOrNull()?.text ?: defaultGreeting
-                }
-            }
-        }
-    }
+    val displayText by store.displayText.collectAsState(initial = "")
 
     Box(
         modifier = modifier

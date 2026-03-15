@@ -9,11 +9,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -53,11 +56,23 @@ open class ConversationStore(
     private val _state = MutableStateFlow(ConversationState())
     val state: StateFlow<ConversationState> = _state.asStateFlow()
 
+    private val _userName = MutableStateFlow<String?>(null)
+    var userName: String?
+        get() = _userName.value
+        set(value) { _userName.value = value }
+
+    /** Text to show in the voice UI: current transcript, last assistant message, or default greeting. */
+    val displayText: StateFlow<String> = combine(_state, _userName) { s, name ->
+        when {
+            s.currentTranscript.isNotBlank() -> s.currentTranscript
+            else -> s.messages.lastOrNull()?.text ?: (if (name != null) "Hello $name, how can I help?" else "Hi, how can I help you")
+        }
+    }.stateIn(scope, SharingStarted.Eagerly, "Hi, how can I help you")
+
     private val maxContextMessages = 12
     
     // Configurable prompt or context
     var systemPrompt: String = "You are a helpful driving assistant. Keep answers short."
-    var userName: String? = null
     private var preferredSpeechLanguageTag: String? = initialSpeechLanguageTag
 
     init {
@@ -204,7 +219,7 @@ open class ConversationStore(
             "$speaker: ${msg.text.trim()}"
         }
         return buildString {
-            val basePrompt = if (userName != null) {
+            val basePrompt = if (_userName.value != null) {
                 "$systemPrompt The user's name is $userName."
             } else {
                 systemPrompt
@@ -213,7 +228,7 @@ open class ConversationStore(
             if (prompt.isNotBlank()) {
                 append("System: ")
                 append(prompt)
-                if (userName != null) {
+                if (_userName.value != null) {
                     append(" The user's name is $userName.")
                 }
                 append("\n\n")
