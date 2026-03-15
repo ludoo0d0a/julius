@@ -29,7 +29,8 @@ import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.community.LocalCommunityPoiRepository
 import fr.geoking.julius.community.LocalFavoritesRepository
-import fr.geoking.julius.community.db.createAppDatabase
+import fr.geoking.julius.community.storage.CommunityPoiStorage
+import fr.geoking.julius.community.storage.FavoritePoiStorage
 import fr.geoking.julius.routing.OsrmRoutingClient
 import fr.geoking.julius.routing.RoutePlanner
 import fr.geoking.julius.routing.RoutingClient
@@ -175,11 +176,9 @@ val appModule = module {
             settingsManager = get()
         )
     }
-    single { createAppDatabase(androidContext()) }
-    single { get<fr.geoking.julius.community.db.AppDatabase>().communityPoiDao() }
-    single { get<fr.geoking.julius.community.db.AppDatabase>().hiddenPoiDao() }
-    single { get<fr.geoking.julius.community.db.AppDatabase>().favoritePoiDao() }
-    single<CommunityPoiRepository> { LocalCommunityPoiRepository(get(), get()) }
+    single { CommunityPoiStorage(androidContext()) }
+    single { FavoritePoiStorage(androidContext()) }
+    single<CommunityPoiRepository> { LocalCommunityPoiRepository(get()) }
     single<FavoritesRepository> { LocalFavoritesRepository(get()) }
     single<PoiProvider> {
         MergedPoiProvider(base = get(named("selector")), communityRepo = get())

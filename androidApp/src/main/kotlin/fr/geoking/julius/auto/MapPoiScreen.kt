@@ -23,6 +23,8 @@ import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.providers.Poi
+import fr.geoking.julius.community.CommunityPoiRepository
+import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory
 import fr.geoking.julius.providers.availability.StationAvailabilitySummary
@@ -34,11 +36,14 @@ class MapPoiScreen(
     carContext: CarContext,
     private val poiProvider: PoiProvider,
     private val availabilityProviderFactory: BorneAvailabilityProviderFactory,
-    private val settingsManager: SettingsManager
+    private val settingsManager: SettingsManager,
+    private val communityRepo: CommunityPoiRepository? = null,
+    private val favoritesRepo: FavoritesRepository? = null
 ) : Screen(carContext) {
 
     private var pois: List<Poi> = emptyList()
     private var availabilityByPoiId: Map<String, StationAvailabilitySummary> = emptyMap()
+    private var favoriteIds: Set<String> = emptySet()
     private var isLoading = true
     /** Search center (user location or default) for anchor and POI fetch. */
     private var searchLat: Double = 48.8566
@@ -72,6 +77,7 @@ class MapPoiScreen(
             try {
                 pois = poiProvider.getGasStations(lat, lon)
                 Log.d("MapPoiScreen", "pois loaded: ${pois.size}")
+                favoriteIds = favoritesRepo?.getFavorites()?.map { it.id }?.toSet() ?: emptySet()
                 val provider = availabilityProviderFactory.getProvider(lat, lon)
                 if (provider != null) {
                     try {
@@ -135,8 +141,9 @@ class MapPoiScreen(
                         )
                         .build()
 
+                    val title = (if (poi.id in favoriteIds) "★ " else "") + (poi.name.ifBlank { " -no name- " })
                     val rowBuilder = Row.Builder()
-                        .setTitle(poi.name.ifBlank { " -no name- " })
+                        .setTitle(title)
                         .addText(poi.address.ifBlank { " -no address- " })
                         .setMetadata(metadata)
                         .setBrowsable(true)
@@ -171,17 +178,30 @@ class MapPoiScreen(
                 builder.setItemList(listBuilder.build())
             }
 
-            builder.setActionStrip(
-                ActionStrip.Builder()
-                    .addAction(
-                        Action.Builder()
-                            .setTitle("Refresh")
-                            .setIcon(CarIcon.Builder(androidx.core.graphics.drawable.IconCompat.createWithResource(carContext, fr.geoking.julius.R.drawable.ic_map)).build())
-                            .setOnClickListener { loadPois() }
-                            .build()
-                    )
-                    .build()
-            )
+            val actionStripBuilder = ActionStrip.Builder()
+                .addAction(
+                    Action.Builder()
+                        .setTitle("Refresh")
+                        .setIcon(CarIcon.Builder(androidx.core.graphics.drawable.IconCompat.createWithResource(carContext, fr.geoking.julius.R.drawable.ic_map)).build())
+                        .setOnClickListener { loadPois() }
+                        .build()
+                )
+            if (settingsManager.settings.value.isLoggedIn && communityRepo != null) {
+                actionStripBuilder.addAction(
+                    Action.Builder()
+                        .setTitle("Add POI")
+                        .setOnClickListener {
+                            lifecycleScope.launch {
+                                val loc = fr.geoking.julius.LocationHelper.getCurrentLocation(carContext)
+                                val clat = loc?.latitude ?: searchLat
+                                val clon = loc?.longitude ?: searchLon
+                                screenManager.push(AddPoiAutoScreen(carContext, communityRepo, clat, clon) { loadPois() })
+                            }
+                        }
+                        .build()
+                )
+            }
+            builder.setActionStrip(actionStripBuilder.build())
 
             builder.build()
         } catch (e: Exception) {

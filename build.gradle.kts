@@ -6,7 +6,9 @@ plugins {
     alias(libs.plugins.kotlinAndroid) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.composeCompiler) apply false
+    alias(libs.plugins.kotlinSerialization) apply false
 }
+
 
 tasks.register("clean", Delete::class) {
     delete(rootProject.layout.buildDirectory)
