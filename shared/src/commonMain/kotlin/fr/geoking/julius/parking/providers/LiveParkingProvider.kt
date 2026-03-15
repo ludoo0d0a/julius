@@ -2,11 +2,16 @@ package fr.geoking.julius.parking.providers
 
 import fr.geoking.julius.parking.ParkingPoi
 import fr.geoking.julius.parking.ParkingProvider
+import fr.geoking.julius.parking.ParkingRegion
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
  * Parking provider using [LiveParkingClient]. Covers areas where LiveParking has data
  * (e.g. Berlin, Cologne). Provides capacity and availability; no prices or opening hours.
+ * Serves [ParkingRegion.Germany] only.
  */
 class LiveParkingProvider(
     private val api: LiveParkingClient,
@@ -21,6 +26,8 @@ class LiveParkingProvider(
 
     override fun covers(lat: Double, lon: Double): Boolean =
         lat in latMin..latMax && lon in lonMin..lonMax
+
+    override fun servedRegions(): Set<ParkingRegion> = setOf(ParkingRegion.Germany)
 
     override suspend fun getParkingNearby(lat: Double, lon: Double, radiusMeters: Int): List<ParkingPoi> {
         val radiusKm = radiusMeters / 1000.0
@@ -47,12 +54,12 @@ class LiveParkingProvider(
 
     private fun haversineKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val r = 6371.0
-        val dLat = Math.toRadians(lat2 - lat1)
-        val dLon = Math.toRadians(lon2 - lon1)
-        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2)
-        val c = 2 * Math.atan2(sqrt(a), sqrt(1.0 - a))
+        val dLat = kotlin.math.PI * (lat2 - lat1) / 180.0
+        val dLon = kotlin.math.PI * (lon2 - lon1) / 180.0
+        val a = sin(dLat / 2) * sin(dLat / 2) +
+            cos(kotlin.math.PI * lat1 / 180.0) * cos(kotlin.math.PI * lat2 / 180.0) *
+            sin(dLon / 2) * sin(dLon / 2)
+        val c = 2 * atan2(sqrt(a), sqrt(1.0 - a))
         return r * c
     }
 }

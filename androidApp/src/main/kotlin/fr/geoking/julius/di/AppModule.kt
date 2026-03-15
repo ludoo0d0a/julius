@@ -40,6 +40,8 @@ import fr.geoking.julius.community.storage.FavoritePoiStorage
 import fr.geoking.julius.routing.OsrmRoutingClient
 import fr.geoking.julius.routing.RoutePlanner
 import fr.geoking.julius.routing.RoutingClient
+import fr.geoking.julius.parking.ParkingAggregator
+import fr.geoking.julius.parking.ParkingProviderFactory
 import fr.geoking.julius.transit.TransitAggregator
 import fr.geoking.julius.transit.TransitApiSelector
 import fr.geoking.julius.transit.TransitProvider
@@ -245,6 +247,10 @@ val appModule = module {
     }
     single { TransitApiSelector(get(named("transitProviders"))) }
     single { TransitAggregator(get(named("transitProviders")), get()) }
+
+    // Parking POIs: LiveParking + ParkAPI + OSM, aggregated via factory
+    single { ParkingProviderFactory(get(), get()) }
+    single<ParkingAggregator> { get<ParkingProviderFactory>().createAggregator() }
 
     single { OpenTollDataHelper(androidContext()) }
     single<TollCalculator> {

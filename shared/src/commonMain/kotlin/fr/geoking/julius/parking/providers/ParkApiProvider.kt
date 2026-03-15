@@ -2,6 +2,11 @@ package fr.geoking.julius.parking.providers
 
 import fr.geoking.julius.parking.ParkingPoi
 import fr.geoking.julius.parking.ParkingProvider
+import fr.geoking.julius.parking.ParkingRegion
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.PI
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
@@ -18,10 +23,12 @@ data class ParkApiCityConfig(
 /**
  * Parking provider using [ParkApiClient] (parkendd.de). Covers configured cities;
  * when (lat, lon) falls in a city bbox, fetches that city's lots and filters by distance.
+ * Serves regions where we have city configs (Germany, Switzerland, Denmark).
  */
 class ParkApiProvider(
     private val api: ParkApiClient,
-    private val cityConfigs: List<ParkApiCityConfig>
+    private val cityConfigs: List<ParkApiCityConfig>,
+    private val servedRegions: Set<ParkingRegion> = setOf(ParkingRegion.Germany, ParkingRegion.Switzerland, ParkingRegion.Denmark)
 ) : ParkingProvider {
 
     override val id: String = "parkapi"
@@ -30,6 +37,8 @@ class ParkApiProvider(
         cityConfigs.any { c ->
             lat in c.latMin..c.latMax && lon in c.lonMin..c.lonMax
         }
+
+    override fun servedRegions(): Set<ParkingRegion> = this.servedRegions
 
     override suspend fun getParkingNearby(lat: Double, lon: Double, radiusMeters: Int): List<ParkingPoi> {
         val config = cityConfigs.firstOrNull { c ->
@@ -60,12 +69,12 @@ class ParkApiProvider(
 
     private fun haversineKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val r = 6371.0
-        val dLat = Math.toRadians(lat2 - lat1)
-        val dLon = Math.toRadians(lon2 - lon1)
-        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2)
-        val c = 2 * Math.atan2(sqrt(a), sqrt(1.0 - a))
+        val dLat = PI * (lat2 - lat1) / 180.0
+        val dLon = PI * (lon2 - lon1) / 180.0
+        val a = sin(dLat / 2) * sin(dLat / 2) +
+            cos(PI * lat1 / 180.0) * cos(PI * lat2 / 180.0) *
+            sin(dLon / 2) * sin(dLon / 2)
+        val c = 2 * atan2(sqrt(a), sqrt(1.0 - a))
         return r * c
     }
 }
