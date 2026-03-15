@@ -14,6 +14,16 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
+/** Safely get results as a list; API may return results as array or single object. */
+private fun resultsAsList(obj: JsonObject): List<JsonElement> {
+    val results = obj["results"] ?: return emptyList()
+    return when (results) {
+        is JsonArray -> results
+        is JsonObject -> listOf(results)
+        else -> emptyList()
+    }
+}
+
 /**
  * Client for the French open data "Prix des carburants en France - Flux instantané - v2"
  * (Etalab / donnees.roulez-eco.fr), served via data.economie.gouv.fr Explore API.
@@ -54,10 +64,10 @@ class EtalabClient(
     internal fun parseRecords(body: String): List<EtalabStation> {
         val element = json.parseToJsonElement(body)
         val obj = element.jsonObject
-        val results = obj["results"]?.jsonArray ?: return emptyList()
+        val results = resultsAsList(obj)
         val stations = mutableMapOf<String, EtalabStation>()
         for (item in results) {
-            val record = item.jsonObject
+            val record = item as? JsonObject ?: continue
             parseStationFromRecord(record)?.let { station ->
                 // API may return one row per fuel type; merge by id so we keep one POI per station
                 stations[station.id] = stations[station.id]?.let { existing ->

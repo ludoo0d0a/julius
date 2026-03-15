@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,19 +47,11 @@ import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
-private val PROVIDER_OPTIONS = listOf(
-    PoiProviderType.Routex to "Routex (SiteFinder)",
-    PoiProviderType.Etalab to "Etalab (open data)",
-    PoiProviderType.GasApi to "gas-api.ovh",
-    PoiProviderType.DataGouv to "data.gouv.fr (fuel)",
-    PoiProviderType.DataGouvElec to "data.gouv.fr (IRVE)"
-)
-
-/** Converts a vector drawable to a BitmapDescriptor for map markers (fromResource only supports bitmaps). */
+/** Converts a vector drawable to a BitmapDescriptor for map markers (fromResource only supports bitmaps). Scales with zoom when sizePx varies. */
 private fun vectorDrawableToBitmapDescriptor(
     context: android.content.Context,
     drawableResId: Int,
-    sizePx: Int = 96
+    sizePx: Int
 ): BitmapDescriptor? {
     val drawable = ContextCompat.getDrawable(context, drawableResId) ?: return null
     val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
@@ -66,6 +59,12 @@ private fun vectorDrawableToBitmapDescriptor(
     drawable.setBounds(0, 0, sizePx, sizePx)
     drawable.draw(canvas)
     return BitmapDescriptorFactory.fromBitmap(bitmap)
+}
+
+/** Marker size in px from map zoom (base 96 at zoom 12; scales like other brand icons). */
+private fun markerSizePxForZoom(zoom: Float): Int {
+    val size = (96 * (zoom / 12f)).toInt()
+    return size.coerceIn(32, 128)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -85,7 +84,7 @@ fun MapScreen(
     var mapErrorMessage by remember(selectedProvider) { mutableStateOf<String?>(null) }
     var isErrorPaused by remember(selectedProvider) { mutableStateOf(false) }
     var retryCount by remember { mutableStateOf(0) }
-    var providerDropdownExpanded by remember { mutableStateOf(false) }
+    var showMapSettings by remember { mutableStateOf(false) }
 
     var hasLocationPermission by remember {
         mutableStateOf(
@@ -157,6 +156,14 @@ fun MapScreen(
         }
     }
 
+    if (showMapSettings) {
+        MapSettingsScreen(
+            settingsManager = settingsManager,
+            onDismiss = { showMapSettings = false }
+        )
+        return
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -174,6 +181,19 @@ fun MapScreen(
                     containerColor = Color(0xFF0F172A)
                 )
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showMapSettings = true },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Map settings"
+                )
+            }
         }
     ) { padding ->
         Column(
@@ -181,53 +201,6 @@ fun MapScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Provider listbox
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                ExposedDropdownMenuBox(
-                    expanded = providerDropdownExpanded,
-                    onExpandedChange = { providerDropdownExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = PROVIDER_OPTIONS.find { it.first == selectedProvider }?.second ?: selectedProvider.name,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Data source") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = providerDropdownExpanded) },
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
-                            focusedLabelColor = MaterialTheme.colorScheme.primary,
-                            unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
-                            cursorColor = Color.White,
-                            focusedTrailingIconColor = Color.White,
-                            unfocusedTrailingIconColor = Color.White.copy(alpha = 0.7f)
-                        )
-                    )
-                    ExposedDropdownMenu(
-                        expanded = providerDropdownExpanded,
-                        onDismissRequest = { providerDropdownExpanded = false }
-                    ) {
-                        PROVIDER_OPTIONS.forEach { (type, label) ->
-                            DropdownMenuItem(
-                                text = { Text(label) },
-                                onClick = {
-                                    settingsManager.setPoiProviderType(type)
-                                    providerDropdownExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-            }
             mapErrorMessage?.let { msg ->
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -277,23 +250,37 @@ fun MapScreen(
                     uiSettings = MapUiSettings(myLocationButtonEnabled = hasLocationPermission)
                 ) {
                     val mapContext = LocalContext.current
-                    val defaultMarkerIcon = remember(mapContext) {
-                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_gas_rounded)
+                    val zoom = cameraPositionState.position.zoom
+                    val sizePx = remember(zoom) { markerSizePxForZoom(zoom) }
+                    val defaultGasIcon = remember(mapContext, sizePx) {
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_gas_rounded, sizePx)
                             ?: BitmapDescriptorFactory.defaultMarker()
                     }
-                    val iconCache = remember(mapContext) {
-                        mutableMapOf(R.drawable.ic_poi_gas_rounded to defaultMarkerIcon)
+                    val defaultElectricIcon = remember(mapContext, sizePx) {
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_electric_rounded, sizePx)
+                            ?: defaultGasIcon
+                    }
+                    val iconCache = remember(mapContext, sizePx) {
+                        mutableMapOf<Int, BitmapDescriptor>().apply {
+                            put(R.drawable.ic_poi_gas_rounded, defaultGasIcon)
+                            put(R.drawable.ic_poi_electric_rounded, defaultElectricIcon)
+                        }
+                    }
+                    fun iconFor(poi: Poi): BitmapDescriptor {
+                        val iconResId = when {
+                            poi.isElectric -> R.drawable.ic_poi_electric_rounded
+                            else -> BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_gas_rounded
+                        }
+                        return iconCache.getOrPut(iconResId) {
+                            vectorDrawableToBitmapDescriptor(mapContext, iconResId, sizePx) ?: defaultGasIcon
+                        }
                     }
                     pois.forEach { poi ->
-                        val iconResId = BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_gas_rounded
-                        val markerIcon = iconCache.getOrPut(iconResId) {
-                            vectorDrawableToBitmapDescriptor(mapContext, iconResId) ?: defaultMarkerIcon
-                        }
                         Marker(
                             state = MarkerState(position = LatLng(poi.latitude, poi.longitude)),
                             title = poi.name,
                             snippet = poi.address,
-                            icon = markerIcon,
+                            icon = iconFor(poi),
                             onClick = {
                                 selectedPoi = poi
                                 scope.launch { sheetState.show() }

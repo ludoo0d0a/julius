@@ -45,6 +45,35 @@ class EtalabClientTest {
     }
 
     @Test
+    fun parseRecords_handlesResultsAsSingleObject() {
+        // API may return "results" as a single object instead of array
+        val body = """
+            {
+                "results": {
+                    "id": "2",
+                    "adresse": "10 Route de Lyon",
+                    "ville": "Lyon",
+                    "cp": "69001",
+                    "nom": "Station Lyon",
+                    "latitude": 45.7640,
+                    "longitude": 4.8357,
+                    "prix": [
+                        {"nom": "SP98", "valeur": 1950}
+                    ]
+                }
+            }
+        """.trimIndent()
+
+        val stations = client.parseRecords(body)
+        assertEquals(1, stations.size)
+        assertEquals("2", stations[0].id)
+        assertEquals("Station Lyon", stations[0].name)
+        assertEquals(1, stations[0].fuels.size)
+        assertEquals("SP98", stations[0].fuels[0].name)
+        assertEquals(1.95, stations[0].fuels[0].priceEur)
+    }
+
+    @Test
     fun parseGeo_prefersGeom() {
         val json = Json { ignoreUnknownKeys = true }
         val record = json.parseToJsonElement("""

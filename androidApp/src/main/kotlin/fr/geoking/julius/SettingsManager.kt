@@ -36,8 +36,13 @@ enum class GeminiModel(val modelName: String, val displayName: String) {
     GEMINI_1_5_PRO("gemini-1.5-pro", "Gemini 1.5 Pro")
 }
 
+/** Energy/fuel types for map POI filter (multi-select). */
+val DEFAULT_MAP_ENERGY_TYPES = setOf("sp95", "sp98", "gazole", "e85", "electric")
+
 data class AppSettings(
     val selectedPoiProvider: fr.geoking.julius.providers.PoiProviderType = fr.geoking.julius.providers.PoiProviderType.Routex,
+    /** Selected energy types to show on map (e.g. sp95, sp98, gazole, e85, electric). Empty = show all. */
+    val selectedMapEnergyTypes: Set<String> = DEFAULT_MAP_ENERGY_TYPES,
     val openAiKey: String = "",
     val openAiModel: OpenAiModel = OpenAiModel.GPT_4O,
     val elevenLabsKey: String = "",
@@ -105,6 +110,11 @@ open class SettingsManager(context: Context) {
             completionsMeKey, completionsMeModel, apifreellmKey, julesKey
         )
 
+        val energyTypesStr = prefs.getString("map_energy_types", null)
+        val selectedMapEnergyTypes = if (!energyTypesStr.isNullOrBlank()) {
+            energyTypesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        } else DEFAULT_MAP_ENERGY_TYPES
+
         return AppSettings(
             selectedPoiProvider = try {
                 fr.geoking.julius.providers.PoiProviderType.valueOf(
@@ -113,6 +123,7 @@ open class SettingsManager(context: Context) {
             } catch (e: IllegalArgumentException) {
                 fr.geoking.julius.providers.PoiProviderType.Routex
             },
+            selectedMapEnergyTypes = selectedMapEnergyTypes,
             openAiKey = openAiKey,
             openAiModel = try {
                 OpenAiModel.valueOf(prefs.getString("openai_model", OpenAiModel.GPT_4O.name) ?: OpenAiModel.GPT_4O.name)
@@ -216,6 +227,11 @@ open class SettingsManager(context: Context) {
         _settings.value = _settings.value.copy(selectedPoiProvider = type)
     }
 
+    open fun setMapEnergyTypes(types: Set<String>) {
+        prefs.edit().putString("map_energy_types", types.joinToString(",")).apply()
+        _settings.value = _settings.value.copy(selectedMapEnergyTypes = types)
+    }
+
     open fun saveSettings(settings: AppSettings) {
         saveSettingsInternal(settings)
     }
@@ -237,6 +253,7 @@ open class SettingsManager(context: Context) {
     private fun saveSettingsInternal(settings: AppSettings) {
         prefs.edit()
             .putString("poi_provider", settings.selectedPoiProvider.name)
+            .putString("map_energy_types", settings.selectedMapEnergyTypes.joinToString(","))
             .putString("openai_key", settings.openAiKey)
             .putString("openai_model", settings.openAiModel.name)
             .putString("elevenlabs_key", settings.elevenLabsKey)
@@ -302,6 +319,7 @@ open class SettingsManager(context: Context) {
     ) {
         val newSettings = AppSettings(
             selectedPoiProvider = _settings.value.selectedPoiProvider,
+            selectedMapEnergyTypes = _settings.value.selectedMapEnergyTypes,
             openAiKey = openAiKey,
             openAiModel = openAiModel,
             elevenLabsKey = elevenLabsKey,

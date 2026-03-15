@@ -49,6 +49,37 @@ class DataGouvClientTest {
     }
 
     @Test
+    fun parseRecords_handlesResultsAsSingleObject() {
+        // API may return "results" as a single object instead of array
+        val body = """
+            {
+                "results": {
+                    "id": "3",
+                    "adresse": "5 Avenue des Champs",
+                    "ville": "Marseille",
+                    "cp": "13001",
+                    "nom": "Station Marseille",
+                    "marque": "Shell",
+                    "latitude": 43.2965,
+                    "longitude": 5.3698,
+                    "prix": [
+                        {"nom": "E85", "valeur": 890, "maj": "2023-10-28T10:00:00Z"}
+                    ]
+                }
+            }
+        """.trimIndent()
+
+        val stations = client.parseRecords(body)
+        assertEquals(1, stations.size)
+        assertEquals("3", stations[0].id)
+        assertEquals("Station Marseille", stations[0].name)
+        assertEquals("Shell", stations[0].brand)
+        assertEquals(1, stations[0].prices.size)
+        assertEquals("E85", stations[0].prices[0].fuelName)
+        assertEquals(0.89, stations[0].prices[0].price)
+    }
+
+    @Test
     fun parseGeo_prefersGeom() {
         val json = Json { ignoreUnknownKeys = true }
         val record = json.parseToJsonElement("""

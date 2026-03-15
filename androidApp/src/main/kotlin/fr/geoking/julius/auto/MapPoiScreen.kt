@@ -99,7 +99,10 @@ class MapPoiScreen(
                     .setNoItemsMessage("No gas stations found")
 
                 for (poi in pois) {
-                    val iconResId = BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_gas_rounded
+                    val iconResId = when {
+                        poi.isElectric -> R.drawable.ic_poi_electric_rounded
+                        else -> BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_gas_rounded
+                    }
                     val carIcon = CarIcon.Builder(IconCompat.createWithResource(carContext, iconResId)).build()
 
                     val metadata = Metadata.Builder()

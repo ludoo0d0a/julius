@@ -40,6 +40,7 @@ class DataGouvElecProvider(
                 latitude = station.latitude,
                 longitude = station.longitude,
                 brand = station.brand,
+                isElectric = true,
                 fuelPrices = null
             )
         }

@@ -54,6 +54,10 @@ object BrandHelper {
         "rel.metz" to R.drawable.ic_brand_rel,
         "circle k" to R.drawable.ic_brand_circlek,
         "aral" to R.drawable.ic_brand_aral,
+        "carrefour" to R.drawable.ic_brand_carrefour,
+        "leclerc" to R.drawable.ic_brand_leclerc,
+        "e.leclerc" to R.drawable.ic_brand_leclerc,
+        "auchan" to R.drawable.ic_brand_auchan,
     )
 
     /** brand_id (lowercase) -> rounded brand icon drawable. Unlisted brands use ic_poi_gas_rounded. */
@@ -71,6 +75,10 @@ object BrandHelper {
         "rel.metz" to R.drawable.ic_brand_rel_rounded,
         "circle k" to R.drawable.ic_brand_circlek_rounded,
         "aral" to R.drawable.ic_brand_aral_rounded,
+        "carrefour" to R.drawable.ic_brand_carrefour_rounded,
+        "leclerc" to R.drawable.ic_brand_leclerc_rounded,
+        "e.leclerc" to R.drawable.ic_brand_leclerc_rounded,
+        "auchan" to R.drawable.ic_brand_auchan_rounded,
     )
 
     data class BrandInfo(

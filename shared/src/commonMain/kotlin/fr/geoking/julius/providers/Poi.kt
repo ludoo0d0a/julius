@@ -26,6 +26,8 @@ data class Poi(
     val latitude: Double,
     val longitude: Double,
     val brand: String? = null,
+    /** True for IRVE / EV charging stations (e.g. data.gouv.fr IRVE). */
+    val isElectric: Boolean = false,
     /** When provided by the provider (e.g. DataGouv), lists fuel types and prices. */
     val fuelPrices: List<FuelPrice>? = null,
     /** Site name (e.g. Routex site_name) for title. */

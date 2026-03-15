@@ -14,6 +14,16 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
+/** Safely get results as a list; API may return results as array or single object. */
+private fun resultsAsList(obj: JsonObject): List<JsonElement> {
+    val results = obj["results"] ?: return emptyList()
+    return when (results) {
+        is JsonArray -> results
+        is JsonObject -> listOf(results)
+        else -> emptyList()
+    }
+}
+
 /**
  * Client for the French open data "Prix des carburants en France - Flux quotidien"
  * (data.economie.gouv.fr), dataset [prix-carburants-quotidien].
@@ -56,11 +66,11 @@ class DataGouvClient(
     internal fun parseRecords(body: String): List<DataGouvStation> {
         val element = json.parseToJsonElement(body)
         val obj = element.jsonObject
-        val results = obj["results"]?.jsonArray ?: return emptyList()
+        val results = resultsAsList(obj)
         val stations = mutableMapOf<String, DataGouvStation>()
         for (item in results) {
-            val record = item.jsonObject
-            val fields = record["fields"]?.jsonObject ?: record
+            val record = item as? JsonObject ?: continue
+            val fields = record["fields"]?.let { f -> (f as? JsonObject) } ?: record
             parseStationFromRecord(fields)?.let { station ->
                 stations[station.id] = stations[station.id]?.let { existing ->
                     existing.copy(
