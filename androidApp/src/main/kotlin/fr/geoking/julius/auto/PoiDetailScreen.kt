@@ -12,7 +12,7 @@ import androidx.car.app.model.Template
 import androidx.core.graphics.drawable.IconCompat
 import fr.geoking.julius.R
 import fr.geoking.julius.providers.Poi
-import fr.geoking.julius.providers.availability.StationAvailabilitySummary
+import fr.geoking.julius.api.availability.StationAvailabilitySummary
 
 /**
  * Android Auto screen showing full POI details and a "Go to this station" action

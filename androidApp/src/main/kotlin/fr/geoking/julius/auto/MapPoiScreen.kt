@@ -29,9 +29,9 @@ import fr.geoking.julius.providers.PoiSearchRequest
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.providers.PoiProvider
-import fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory
-import fr.geoking.julius.providers.availability.StationAvailabilitySummary
-import fr.geoking.julius.providers.availability.matchAvailabilityToPois
+import fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory
+import fr.geoking.julius.api.availability.StationAvailabilitySummary
+import fr.geoking.julius.api.availability.matchAvailabilityToPois
 import fr.geoking.julius.ui.BrandHelper
 import kotlinx.coroutines.launch
 

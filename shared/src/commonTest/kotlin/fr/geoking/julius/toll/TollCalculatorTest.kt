@@ -1,6 +1,10 @@
 package fr.geoking.julius.toll
 
 import fr.geoking.julius.VehicleType
+import fr.geoking.julius.api.toll.ConnectionPrice
+import fr.geoking.julius.api.toll.OpenTollDataModel
+import fr.geoking.julius.api.toll.OpenTollNetwork
+import fr.geoking.julius.api.toll.TollBoothDescription
 import kotlin.test.Test
 import kotlin.test.assertNull
 import kotlin.test.assertTrue

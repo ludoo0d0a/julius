@@ -53,13 +53,13 @@ import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.VehicleType
 import fr.geoking.julius.providers.Poi
 import fr.geoking.julius.providers.PoiProvider
-import fr.geoking.julius.routing.RoutePlanner
-import fr.geoking.julius.routing.RoutingClient
+import fr.geoking.julius.api.routing.RoutePlanner
+import fr.geoking.julius.api.routing.RoutingClient
 import fr.geoking.julius.toll.TollCalculator
 import fr.geoking.julius.toll.TollEstimate
-import fr.geoking.julius.traffic.TrafficInfo
-import fr.geoking.julius.traffic.TrafficProviderFactory
-import fr.geoking.julius.traffic.TrafficRequest
+import fr.geoking.julius.api.traffic.TrafficInfo
+import fr.geoking.julius.api.traffic.TrafficProviderFactory
+import fr.geoking.julius.api.traffic.TrafficRequest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

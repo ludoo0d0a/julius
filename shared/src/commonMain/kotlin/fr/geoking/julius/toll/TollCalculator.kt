@@ -1,6 +1,7 @@
 package fr.geoking.julius.toll
 
 import fr.geoking.julius.VehicleType
+import fr.geoking.julius.api.toll.OpenTollDataModel
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos

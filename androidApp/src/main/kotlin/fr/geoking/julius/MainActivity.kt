@@ -25,7 +25,6 @@ import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.ConversationState
 import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.shared.PermissionManager
-import fr.geoking.julius.providers.MockPoiProvider
 import fr.geoking.julius.providers.PoiProvider
 import fr.geoking.julius.ui.JulesScreen
 import fr.geoking.julius.ui.MapScreen
@@ -33,9 +32,9 @@ import fr.geoking.julius.ui.PhoneMainScreen
 import fr.geoking.julius.ui.RoutePlanningScreen
 import fr.geoking.julius.ui.HistoryScreen
 import fr.geoking.julius.ui.SettingsScreen
-import fr.geoking.julius.providers.JulesClient
-import fr.geoking.julius.routing.RoutePlanner
-import fr.geoking.julius.routing.RoutingClient
+import fr.geoking.julius.api.jules.JulesClient
+import fr.geoking.julius.api.routing.RoutePlanner
+import fr.geoking.julius.api.routing.RoutingClient
 import fr.geoking.julius.toll.TollCalculator
 import fr.geoking.julius.ui.UpdateAvailableDialog
 import fr.geoking.julius.ui.UpdateDownloadedDialog

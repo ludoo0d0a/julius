@@ -32,7 +32,7 @@ import fr.geoking.julius.shared.DetailedError
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.providers.PoiProvider
-import fr.geoking.julius.providers.availability.BorneAvailabilityProviderFactory
+import fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory
 import fr.geoking.julius.shared.Role
 import fr.geoking.julius.shared.toHistoryScreenState
 import fr.geoking.julius.shared.VoiceEvent
