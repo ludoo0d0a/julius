@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,8 +26,8 @@ import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.ConversationState
 import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.shared.PermissionManager
-import fr.geoking.julius.poi.MockPoiProvider
-import fr.geoking.julius.poi.PoiProvider
+import fr.geoking.julius.di.MapDeps
+import fr.geoking.julius.di.MapModuleLoader
 import fr.geoking.julius.ui.JulesScreen
 import fr.geoking.julius.ui.MapScreen
 import fr.geoking.julius.ui.PhoneMainScreen
@@ -34,9 +35,6 @@ import fr.geoking.julius.ui.RoutePlanningScreen
 import fr.geoking.julius.ui.HistoryScreen
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.api.jules.JulesClient
-import fr.geoking.julius.api.routing.RoutePlanner
-import fr.geoking.julius.api.routing.RoutingClient
-import fr.geoking.julius.toll.TollCalculator
 import fr.geoking.julius.ui.UpdateAvailableDialog
 import fr.geoking.julius.ui.UpdateDownloadedDialog
 import fr.geoking.julius.ui.anim.AnimationPalettes
@@ -54,6 +52,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
@@ -71,6 +70,23 @@ class MainActivity : ComponentActivity() {
     }
 
     private val inAppUpdateHelper by lazy { InAppUpdateHelper(applicationContext) }
+    private val mapDepsState = MutableStateFlow<MapDeps?>(null)
+
+    private fun ensureMapDeps() {
+        if (mapDepsState.value != null) return
+        MapModuleLoader.ensureLoaded()
+        mapDepsState.value = MapDeps(
+            poiProvider = get(),
+            availabilityProviderFactory = get(),
+            communityRepo = get(),
+            favoritesRepo = get(),
+            trafficProviderFactory = get(),
+            routePlanner = get(),
+            routingClient = get(),
+            tollCalculator = get()
+        )
+    }
+
     private val updateResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
@@ -96,15 +112,8 @@ class MainActivity : ComponentActivity() {
             val settingsManager: SettingsManager = get()
             val authManager: GoogleAuthManager = get()
             val permissionManager: PermissionManager = get()
-            val poiProvider: PoiProvider = get()
-            val availabilityProviderFactory: fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory = get()
-            val communityRepo: fr.geoking.julius.community.CommunityPoiRepository = get()
-            val favoritesRepo: fr.geoking.julius.community.FavoritesRepository = get()
             val julesClient: JulesClient = get()
-            val routePlanner: RoutePlanner = get()
-            val routingClient: RoutingClient = get()
-            val tollCalculator: TollCalculator = get()
-            val trafficProviderFactory: fr.geoking.julius.api.traffic.TrafficProviderFactory = get()
+            // Map/route deps are resolved lazily when user opens map (see mapDepsState / ensureMapDeps)
 
             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             (permissionManager as? AndroidPermissionManager)?.setOnPermissionRequest { permission, deferred ->
@@ -130,15 +139,9 @@ class MainActivity : ComponentActivity() {
                     store = store,
                     settingsManager = settingsManager,
                     authManager = authManager,
-                    poiProvider = poiProvider,
-                    availabilityProviderFactory = availabilityProviderFactory,
-                    communityRepo = communityRepo,
-                    favoritesRepo = favoritesRepo,
+                    mapDepsState = mapDepsState,
+                    onRequestMapDeps = { ensureMapDeps() },
                     julesClient = julesClient,
-                    routePlanner = routePlanner,
-                    routingClient = routingClient,
-                    tollCalculator = tollCalculator,
-                    trafficProviderFactory = trafficProviderFactory,
                     inAppUpdateHelper = inAppUpdateHelper,
                     onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) }
                 )
@@ -161,24 +164,23 @@ fun MainUI(
     store: ConversationStore,
     settingsManager: SettingsManager,
     authManager: GoogleAuthManager,
-    poiProvider: PoiProvider,
-    availabilityProviderFactory: fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory? = null,
-    communityRepo: fr.geoking.julius.community.CommunityPoiRepository? = null,
-    favoritesRepo: fr.geoking.julius.community.FavoritesRepository? = null,
+    mapDepsState: kotlinx.coroutines.flow.StateFlow<MapDeps?>,
+    onRequestMapDeps: () -> Unit,
     julesClient: JulesClient,
-    routePlanner: RoutePlanner? = null,
-    routingClient: RoutingClient? = null,
-    tollCalculator: TollCalculator? = null,
-    trafficProviderFactory: fr.geoking.julius.api.traffic.TrafficProviderFactory? = null,
     inAppUpdateHelper: InAppUpdateHelper? = null,
     onStartUpdate: (AppUpdateInfo) -> Unit = {}
 ) {
+    val mapDeps by mapDepsState.collectAsState()
     var showSettings by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
     var showMap by remember { mutableStateOf(false) }
     var showRoutePlanning by remember { mutableStateOf(false) }
     var showJules by remember { mutableStateOf(false) }
     val settings by settingsManager.settings.collectAsState()
+
+    LaunchedEffect(showMap, showRoutePlanning) {
+        if (showMap || showRoutePlanning) onRequestMapDeps()
+    }
     val paletteIndex by AnimationPalettes.index.collectAsState()
     val palette = remember(paletteIndex) { AnimationPalettes.paletteFor(paletteIndex) }
     val fallbackUpdateFlow = remember { MutableStateFlow<AppUpdateInfo?>(null) }
@@ -212,29 +214,36 @@ fun MainUI(
                 showHistory -> {
                     HistoryScreen(state = state, onBack = { showHistory = false })
                 }
-                showMap && showRoutePlanning && routePlanner != null && routingClient != null && tollCalculator != null -> {
+                showMap && showRoutePlanning && mapDeps != null -> {
                     RoutePlanningScreen(
-                        routePlanner = routePlanner,
-                        routingClient = routingClient,
-                        tollCalculator = tollCalculator,
-                        trafficProviderFactory = trafficProviderFactory,
-                        poiProvider = poiProvider,
+                        routePlanner = mapDeps!!.routePlanner,
+                        routingClient = mapDeps!!.routingClient,
+                        tollCalculator = mapDeps!!.tollCalculator,
+                        trafficProviderFactory = mapDeps!!.trafficProviderFactory,
+                        poiProvider = mapDeps!!.poiProvider,
                         settingsManager = settingsManager,
                         onBack = { showRoutePlanning = false }
                     )
                 }
                 showMap -> {
-                    MapScreen(
-                        poiProvider = poiProvider,
-                        availabilityProviderFactory = availabilityProviderFactory,
-                        trafficProviderFactory = trafficProviderFactory,
-                        settingsManager = settingsManager,
-                        store = store,
-                        onBack = { showMap = false },
-                        onPlanRoute = if (routePlanner != null && routingClient != null && tollCalculator != null) { { showRoutePlanning = true } } else null,
-                        communityRepo = communityRepo,
-                        favoritesRepo = favoritesRepo
-                    )
+                    BackHandler { showMap = false }
+                    if (mapDeps != null) {
+                        MapScreen(
+                            poiProvider = mapDeps!!.poiProvider,
+                            availabilityProviderFactory = mapDeps!!.availabilityProviderFactory,
+                            trafficProviderFactory = mapDeps!!.trafficProviderFactory,
+                            settingsManager = settingsManager,
+                            store = store,
+                            onBack = { showMap = false },
+                            onPlanRoute = { showRoutePlanning = true },
+                            communityRepo = mapDeps!!.communityRepo,
+                            favoritesRepo = mapDeps!!.favoritesRepo
+                        )
+                    } else {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    }
                 }
                 showJules -> {
                     JulesScreen(
@@ -335,12 +344,14 @@ fun MainUIPreview() {
     val context = LocalContext.current
     val mockAuthManager = remember { GoogleAuthManager(context, mockSettingsManager, { mockStore }) }
 
+    val mapDepsFlow = remember { MutableStateFlow<MapDeps?>(null) }
     MainUI(
         state = mockState,
         store = mockStore,
         settingsManager = mockSettingsManager,
         authManager = mockAuthManager,
-        poiProvider = remember { MockPoiProvider() },
+        mapDepsState = mapDepsFlow,
+        onRequestMapDeps = {},
         julesClient = remember { JulesClient(HttpClient(OkHttp) {}) }
     )
 }
@@ -349,7 +360,7 @@ fun MainUIPreview() {
 private fun MapScreenPreview() {
     val mockSettingsManager = rememberMockSettingsManager()
     MapScreen(
-        poiProvider = remember { MockPoiProvider() },
+        poiProvider = remember { fr.geoking.julius.poi.MockPoiProvider() },
         availabilityProviderFactory = null,
         settingsManager = mockSettingsManager,
         store = rememberMockStore(),

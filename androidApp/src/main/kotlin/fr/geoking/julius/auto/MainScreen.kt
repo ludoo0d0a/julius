@@ -29,10 +29,7 @@ import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.DetailedError
-import fr.geoking.julius.community.CommunityPoiRepository
-import fr.geoking.julius.community.FavoritesRepository
-import fr.geoking.julius.poi.PoiProvider
-import fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory
+import fr.geoking.julius.di.MapDeps
 import fr.geoking.julius.shared.Role
 import fr.geoking.julius.shared.toHistoryScreenState
 import fr.geoking.julius.shared.VoiceEvent
@@ -45,10 +42,7 @@ class MainScreen(
     carContext: CarContext,
     private val store: ConversationStore,
     private val settingsManager: SettingsManager,
-    private val poiProvider: PoiProvider,
-    private val availabilityProviderFactory: BorneAvailabilityProviderFactory,
-    private val communityRepo: CommunityPoiRepository,
-    private val favoritesRepo: FavoritesRepository
+    private val getMapDeps: () -> MapDeps
 ) : Screen(carContext) {
 
     private var currentStatus: String = "Idle"
@@ -132,7 +126,8 @@ class MainScreen(
                     val lastUserMsg = lastMsg.text.lowercase()
                     val keywords = listOf("display map", "map", "carte", "gas stations", "stations service")
                     if (keywords.any { lastUserMsg.contains(it) }) {
-                        screenManager.push(MapPoiScreen(carContext, poiProvider, availabilityProviderFactory, settingsManager, communityRepo, favoritesRepo))
+                        val mapDeps = getMapDeps()
+                        screenManager.push(MapPoiScreen(carContext, mapDeps.poiProvider, mapDeps.availabilityProviderFactory, settingsManager, mapDeps.communityRepo, mapDeps.favoritesRepo))
                     }
                 }
 
@@ -205,7 +200,10 @@ class MainScreen(
                 override fun onTabSelected(tabContentId: String) {
                     when (tabContentId) {
                         TAB_SETTINGS -> screenManager.push(AutoSettingsScreen(carContext, settingsManager))
-                        TAB_MAP -> screenManager.push(MapPoiScreen(carContext, poiProvider, availabilityProviderFactory, settingsManager, communityRepo, favoritesRepo))
+                        TAB_MAP -> {
+                            val mapDeps = getMapDeps()
+                            screenManager.push(MapPoiScreen(carContext, mapDeps.poiProvider, mapDeps.availabilityProviderFactory, settingsManager, mapDeps.communityRepo, mapDeps.favoritesRepo))
+                        }
                         else -> {
                             activeTabId = tabContentId
                             invalidate()
