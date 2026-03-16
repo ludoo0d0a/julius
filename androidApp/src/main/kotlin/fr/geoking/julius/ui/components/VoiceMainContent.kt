@@ -91,8 +91,8 @@ fun VoiceMainContent(
         }
         Row(
             modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(start = 24.dp, top = 24.dp),
+                .align(Alignment.BottomStart)
+                .padding(start = 24.dp, bottom = 48.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             SettingsButton(onClick = onSettingsClick)

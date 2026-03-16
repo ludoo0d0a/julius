@@ -63,19 +63,32 @@ open class ConversationStore(
         get() = _userName.value
         set(value) { _userName.value = value }
 
+    // Configurable prompt or context
+    var systemPrompt: String = "You are a helpful driving assistant. Keep answers short."
+    private val _preferredSpeechLanguageTag = MutableStateFlow(initialSpeechLanguageTag)
+    val preferredSpeechLanguageTag: StateFlow<String?> = _preferredSpeechLanguageTag.asStateFlow()
+
     /** Text to show in the voice UI: current transcript, last assistant message, or default greeting. */
-    val displayText: StateFlow<String> = combine(_state, _userName) { s, name ->
+    val displayText: StateFlow<String> = combine(_state, _userName, _preferredSpeechLanguageTag) { s, name, lang ->
         when {
             s.currentTranscript.isNotBlank() -> s.currentTranscript
-            else -> s.messages.lastOrNull()?.text ?: (if (name != null) "Hello $name, how can I help?" else "Hi, how can I help you")
+            else -> s.messages.lastOrNull()?.text ?: getGreeting(name, lang)
         }
     }.stateIn(scope, SharingStarted.Eagerly, "Hi, how can I help you")
 
+    private fun getGreeting(name: String?, lang: String?): String {
+        val baseLang = lang?.take(2)?.lowercase()
+        return when (baseLang) {
+            "fr" -> if (name != null) "Bonjour $name, comment puis-je vous aider ?" else "Bonjour, comment puis-je vous aider ?"
+            "es" -> if (name != null) "Hola $name, ¿cómo puedo ayudarte?" else "Hola, ¿cómo puedo ayudarte?"
+            "de" -> if (name != null) "Hallo $name, wie kann ich dir helfen?" else "Hallo, wie kann ich dir helfen?"
+            "it" -> if (name != null) "Ciao $name, come posso aiutarti?" else "Ciao, come posso aiutarti?"
+            "pt" -> if (name != null) "Olá $name, como posso ajudar?" else "Olá, como posso ajudar?"
+            else -> if (name != null) "Hello $name, how can I help?" else "Hi, how can I help you"
+        }
+    }
+
     private val maxContextMessages = 12
-    
-    // Configurable prompt or context
-    var systemPrompt: String = "You are a helpful driving assistant. Keep answers short."
-    private var preferredSpeechLanguageTag: String? = initialSpeechLanguageTag
 
     init {
         voiceManager.setTranscriber { audioData ->
@@ -116,8 +129,15 @@ open class ConversationStore(
     // Made public to be called manually or from VoiceManager logic
     fun onUserFinishedSpeaking(text: String) {
         if (text.isBlank()) return
+
+        // 1. Explicit language switch (e.g. "speak in French")
         SpeechLanguageResolver.extractPreferredLanguageTag(text)?.let { preferredTag ->
-            preferredSpeechLanguageTag = preferredTag
+            _preferredSpeechLanguageTag.value = preferredTag
+        } ?: run {
+            // 2. Dynamic detection based on current input
+            SpeechLanguageResolver.detectLanguageTag(text)?.let { detectedTag ->
+                _preferredSpeechLanguageTag.value = detectedTag
+            }
         }
         
         scope.launch {
@@ -179,7 +199,7 @@ open class ConversationStore(
                 if (response.audio != null) {
                     voiceManager.playAudio(response.audio)
                 } else {
-                    val speechLanguageTag = preferredSpeechLanguageTag
+                    val speechLanguageTag = _preferredSpeechLanguageTag.value
                         ?: SpeechLanguageResolver.detectLanguageTag(response.text)
                     voiceManager.speak(response.text, speechLanguageTag)
                 }
@@ -225,18 +245,14 @@ open class ConversationStore(
             "$speaker: ${msg.text.trim()}"
         }
         return buildString {
-            val basePrompt = if (_userName.value != null) {
-                "$systemPrompt The user's name is $userName."
-            } else {
-                systemPrompt
-            }
-            val prompt = basePrompt.trim()
+            val langName = SpeechLanguageResolver.getLanguageName(_preferredSpeechLanguageTag.value)
+            val langInstruction = if (langName != null) " Respond in $langName." else ""
+            val nameInfo = if (_userName.value != null) " The user's name is $userName." else ""
+
+            val prompt = "$systemPrompt$nameInfo$langInstruction".trim()
             if (prompt.isNotBlank()) {
                 append("System: ")
                 append(prompt)
-                if (_userName.value != null) {
-                    append(" The user's name is $userName.")
-                }
                 append("\n\n")
             }
             if (history.isNotBlank()) {
