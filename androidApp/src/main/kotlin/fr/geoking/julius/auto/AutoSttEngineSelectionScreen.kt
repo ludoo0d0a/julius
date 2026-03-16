@@ -20,11 +20,13 @@ class AutoSttEngineSelectionScreen(
         val settings = settingsManager.settings.value
         val listBuilder = ItemList.Builder()
         SttEnginePreference.entries.forEach { pref ->
+            val isSelected = settings.sttEnginePreference == pref
             listBuilder.addItem(
                 Row.Builder()
                     .setTitle(sttEngineLabel(pref))
+                    .addText(if (isSelected) "Selected" else "")
                     .setOnClickListener {
-                        settingsManager.setSttEnginePreference(pref)
+                        settingsManager.saveSettings(settings.copy(sttEnginePreference = pref))
                         screenManager.pop()
                     }
                     .build()

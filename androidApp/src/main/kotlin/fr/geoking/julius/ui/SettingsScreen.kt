@@ -60,6 +60,7 @@ private enum class Screen {
     Theme,
     Agent,
     TextAnimation,
+    SttEngine,
     GoogleAccount,
     AgentConfig,
     FractalConfig,
@@ -139,6 +140,7 @@ fun SettingsScreen(
                     Screen.Theme -> "Theme"
                     Screen.Agent -> "Agent"
                     Screen.TextAnimation -> "Text animation"
+                    Screen.SttEngine -> "STT engine (car mic)"
                     Screen.AgentConfig -> "${current.selectedAgent.name} Config"
                     Screen.FractalConfig -> "Fractal Settings"
                     Screen.JulesConfig -> "Jules API"
@@ -184,6 +186,12 @@ fun SettingsScreen(
                         selected = current.textAnimation,
                         onSelect = {
                             save(settingsManager, current.copy(textAnimation = it))
+                        }
+                    )
+                    Screen.SttEngine -> SttEngineSelection(
+                        selected = current.sttEnginePreference,
+                        onSelect = {
+                            save(settingsManager, current.copy(sttEnginePreference = it))
                         }
                     )
                     Screen.AgentConfig -> AgentConfig(
@@ -256,11 +264,9 @@ private fun MainMenu(
     settings: AppSettings,
     authManager: GoogleAuthManager,
     onNavigate: (Screen) -> Unit,
-    onToggleExtendedActions: (Boolean) -> Unit,
-    onSttEnginePreferenceChange: (SttEnginePreference) -> Unit
+    onToggleExtendedActions: (Boolean) -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
-    var showSttEngineDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -344,7 +350,7 @@ private fun MainMenu(
         SettingsItem(
             label = "STT engine (car)",
             value = sttEnginePreferenceLabel(settings.sttEnginePreference),
-            onClick = { showSttEngineDialog = true }
+            onClick = { onNavigate(Screen.SttEngine) }
         )
 
         SettingsItem(
@@ -417,36 +423,6 @@ private fun MainMenu(
         )
     }
 
-    if (showSttEngineDialog) {
-        AlertDialog(
-            onDismissRequest = { showSttEngineDialog = false },
-            title = { Text("STT engine (car mic)", color = Color.White) },
-            text = {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    SttEnginePreference.entries.forEach { pref ->
-                        TextButton(
-                            onClick = {
-                                onSttEnginePreferenceChange(pref)
-                                showSttEngineDialog = false
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = sttEnginePreferenceLabel(pref),
-                                color = if (settings.sttEnginePreference == pref) Lavender else Color.White
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showSttEngineDialog = false }) {
-                    Text("Close", color = Lavender)
-                }
-            },
-            containerColor = DarkBackground
-        )
-    }
     SnackbarHost(
         hostState = snackbarHostState,
         modifier = Modifier.align(Alignment.BottomCenter)
@@ -539,6 +515,22 @@ private fun TollDataSection(
                 color = Color(0xFFFF6B6B),
                 fontSize = 14.sp,
                 modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun SttEngineSelection(
+    selected: SttEnginePreference,
+    onSelect: (SttEnginePreference) -> Unit
+) {
+    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        SttEnginePreference.entries.forEach { pref ->
+            SelectionItem(
+                label = sttEnginePreferenceLabel(pref),
+                isSelected = pref == selected,
+                onSelect = { onSelect(pref) }
             )
         }
     }
