@@ -134,6 +134,10 @@ class MapPoiScreen(
                         PoiCategory.Camping -> R.drawable.ic_poi_camping_rounded
                         PoiCategory.CaravanSite -> R.drawable.ic_poi_caravan_rounded
                         PoiCategory.PicnicSite -> R.drawable.ic_poi_picnic_rounded
+                        PoiCategory.TruckStop -> R.drawable.ic_poi_truck_rounded
+                        PoiCategory.RestArea -> R.drawable.ic_poi_rest_rounded
+                        PoiCategory.Restaurant -> R.drawable.ic_poi_restaurant_rounded
+                        PoiCategory.FastFood -> R.drawable.ic_poi_fastfood_rounded
                         else -> when {
                             poi.isElectric -> R.drawable.ic_poi_electric_rounded
                             else -> BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_gas_rounded

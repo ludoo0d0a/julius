@@ -437,7 +437,19 @@ fun MapScreen(
                     val defaultPicnicIcon = remember(mapContext, sizePx) {
                         vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_picnic_rounded, sizePx) ?: defaultGasIcon
                     }
-                    val iconCache = remember(mapContext, sizePx) {
+                    val defaultTruckIcon = remember(mapContext, sizePx) {
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_truck_rounded, sizePx) ?: defaultGasIcon
+                    }
+                    val defaultRestIcon = remember(mapContext, sizePx) {
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_rest_rounded, sizePx) ?: defaultGasIcon
+                    }
+                    val defaultRestaurantIcon = remember(mapContext, sizePx) {
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_restaurant_rounded, sizePx) ?: defaultGasIcon
+                    }
+                    val defaultFastFoodIcon = remember(mapContext, sizePx) {
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_fastfood_rounded, sizePx) ?: defaultGasIcon
+                    }
+                    val iconCache = remember(mapContext, sizePx, defaultTruckIcon, defaultRestIcon, defaultRestaurantIcon, defaultFastFoodIcon) {
                         mutableMapOf<Int, BitmapDescriptor>().apply {
                             put(R.drawable.ic_poi_gas_rounded, defaultGasIcon)
                             put(R.drawable.ic_poi_electric_rounded, defaultElectricIcon)
@@ -446,6 +458,10 @@ fun MapScreen(
                             put(R.drawable.ic_poi_camping_rounded, defaultCampingIcon)
                             put(R.drawable.ic_poi_caravan_rounded, defaultCaravanIcon)
                             put(R.drawable.ic_poi_picnic_rounded, defaultPicnicIcon)
+                            put(R.drawable.ic_poi_truck_rounded, defaultTruckIcon)
+                            put(R.drawable.ic_poi_rest_rounded, defaultRestIcon)
+                            put(R.drawable.ic_poi_restaurant_rounded, defaultRestaurantIcon)
+                            put(R.drawable.ic_poi_fastfood_rounded, defaultFastFoodIcon)
                         }
                     }
                     fun iconFor(poi: Poi): BitmapDescriptor {
@@ -455,6 +471,10 @@ fun MapScreen(
                             PoiCategory.Camping -> R.drawable.ic_poi_camping_rounded
                             PoiCategory.CaravanSite -> R.drawable.ic_poi_caravan_rounded
                             PoiCategory.PicnicSite -> R.drawable.ic_poi_picnic_rounded
+                            PoiCategory.TruckStop -> R.drawable.ic_poi_truck_rounded
+                            PoiCategory.RestArea -> R.drawable.ic_poi_rest_rounded
+                            PoiCategory.Restaurant -> R.drawable.ic_poi_restaurant_rounded
+                            PoiCategory.FastFood -> R.drawable.ic_poi_fastfood_rounded
                             else -> when {
                                 poi.isElectric -> R.drawable.ic_poi_electric_rounded
                                 else -> BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_gas_rounded
