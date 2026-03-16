@@ -78,10 +78,9 @@ private fun vectorDrawableToBitmapDescriptor(
     return BitmapDescriptorFactory.fromBitmap(bitmap)
 }
 
-/** Marker size in px from map zoom (base 96 at zoom 12; scales like other brand icons). */
+/** Marker size in px (fixed, not scaling with zoom). */
 private fun markerSizePxForZoom(zoom: Float): Int {
-    val size = (96 * (zoom / 12f)).toInt()
-    return size.coerceIn(32, 128)
+    return 80
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
