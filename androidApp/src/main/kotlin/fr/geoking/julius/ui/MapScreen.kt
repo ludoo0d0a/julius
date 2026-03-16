@@ -24,7 +24,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -278,8 +282,14 @@ fun MapScreen(
                 .padding(padding)
         ) {
             mapErrorMessage?.let { msg ->
+                val configuration = LocalConfiguration.current
+                val maxHeight = configuration.screenHeightDp.dp * 0.15f
+                val clipboardManager = LocalClipboardManager.current
+
                 Surface(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = maxHeight),
                     color = MaterialTheme.colorScheme.errorContainer,
                     shadowElevation = 2.dp
                 ) {
@@ -294,22 +304,47 @@ fun MapScreen(
                             text = msg,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             fontSize = 14.sp,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis
                         )
-                        Button(
-                            onClick = {
-                                mapErrorMessage = null
-                                isErrorPaused = false
-                                retryCount++
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error,
-                                contentColor = MaterialTheme.colorScheme.onError
-                            ),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier.height(32.dp)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Retry", fontSize = 12.sp)
+                            TextButton(
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(msg))
+                                },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("Copy", fontSize = 12.sp)
+                            }
+                            TextButton(
+                                onClick = {
+                                    mapErrorMessage = null
+                                },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("Ignore", fontSize = 12.sp)
+                            }
+                            Button(
+                                onClick = {
+                                    mapErrorMessage = null
+                                    isErrorPaused = false
+                                    retryCount++
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onError
+                                ),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("Retry", fontSize = 12.sp)
+                            }
                         }
                     }
                 }
