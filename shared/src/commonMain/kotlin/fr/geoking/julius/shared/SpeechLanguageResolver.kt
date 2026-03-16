@@ -36,6 +36,11 @@ object SpeechLanguageResolver {
         return aliasToTag[alias]
     }
 
+    fun getLanguageName(tag: String?): String? {
+        val baseTag = tag?.take(2)?.lowercase()
+        return languageAliases.find { it.tag == baseTag }?.aliases?.firstOrNull()?.replaceFirstChar { it.uppercase() }
+    }
+
     fun detectLanguageTag(text: String): String? {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return null
