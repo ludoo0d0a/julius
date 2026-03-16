@@ -48,6 +48,7 @@ import fr.geoking.julius.shared.SttEnginePreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -474,6 +475,19 @@ private fun TollDataSection(
     val downloaded = helper.isTollDataDownloaded(settings)
     val displayPath = helper.getDisplayPath(settings)
 
+    val fileInfo = remember(settings.tollDataPath) {
+        settings.tollDataPath?.let { path ->
+            val file = File(path)
+            if (file.exists()) {
+                val size = file.length()
+                val lastModified = file.lastModified()
+                val dateStr = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(lastModified))
+                val sizeStr = if (size > 1024 * 1024) "${size / (1024 * 1024)} MB" else "${size / 1024} KB"
+                "Size: $sizeStr, Downloaded: $dateStr"
+            } else null
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -493,44 +507,70 @@ private fun TollDataSection(
             fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(bottom = 2.dp)
         )
+        fileInfo?.let {
+            Text(
+                text = it,
+                color = Lavender.copy(alpha = 0.8f),
+                fontSize = 12.sp,
+                modifier = Modifier.padding(bottom = 2.dp)
+            )
+        }
         Text(
             text = "Path: $displayPath",
             color = Lavender,
             fontSize = 12.sp,
             modifier = Modifier.padding(bottom = 12.dp)
         )
-        when (val progress = downloadProgress) {
-            null -> {
-                Button(
-                    onClick = {
-                        downloadError = null
-                        downloadProgress = 0L to null
-                        scope.launch {
-                            val result = helper.download { bytes, total ->
-                                scope.launch(Dispatchers.Main) {
-                                    downloadProgress = bytes to total
+        if (!downloaded || downloadProgress != null) {
+            when (val progress = downloadProgress) {
+                null -> {
+                    Button(
+                        onClick = {
+                            downloadError = null
+                            downloadProgress = 0L to null
+                            scope.launch {
+                                val result = helper.download { bytes, total ->
+                                    scope.launch(Dispatchers.Main) {
+                                        downloadProgress = bytes to total
+                                    }
                                 }
+                                withContext(Dispatchers.Main) { downloadProgress = null }
+                                result.fold(
+                                    onSuccess = { path ->
+                                        withContext(Dispatchers.Main) {
+                                            onUpdate(
+                                                settings.copy(
+                                                    tollDataPath = path
+                                                )
+                                            )
+                                        }
+                                    },
+                                    onFailure = { e ->
+                                        withContext(Dispatchers.Main) {
+                                            downloadError = e.message ?: "Download failed"
+                                        }
+                                    }
+                                )
                             }
-                            withContext(Dispatchers.Main) { downloadProgress = null }
-                            result.fold(
-                                onSuccess = { path -> withContext(Dispatchers.Main) { onUpdate(settings.copy(tollDataPath = path)) } },
-                                onFailure = { e -> withContext(Dispatchers.Main) { downloadError = e.message ?: "Download failed" } }
-                            )
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Lavender, contentColor = DeepPurple)
-                ) {
-                    Text("Download toll data (OpenTollData)")
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Lavender,
+                            contentColor = DeepPurple
+                        )
+                    ) {
+                        Text("Download toll data (OpenTollData)")
+                    }
                 }
-            }
-            else -> {
-                val (bytes, total) = progress
-                val pct = if (total != null && total > 0) (100 * bytes / total).toInt() else null
-                Text(
-                    text = if (pct != null) "Downloading… $pct%" else "Downloading… ${bytes / (1024 * 1024)} MB",
-                    color = Lavender,
-                    fontSize = 14.sp
-                )
+
+                else -> {
+                    val (bytes, total) = progress
+                    val pct = if (total != null && total > 0) (100 * bytes / total).toInt() else null
+                    Text(
+                        text = if (pct != null) "Downloading… $pct%" else "Downloading… ${bytes / (1024 * 1024)} MB",
+                        color = Lavender,
+                        fontSize = 14.sp
+                    )
+                }
             }
         }
         downloadError?.let { err ->
