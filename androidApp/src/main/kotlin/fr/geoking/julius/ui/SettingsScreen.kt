@@ -265,7 +265,8 @@ private fun MainMenu(
     settings: AppSettings,
     authManager: GoogleAuthManager,
     onNavigate: (Screen) -> Unit,
-    onToggleExtendedActions: (Boolean) -> Unit
+    onToggleExtendedActions: (Boolean) -> Unit,
+    onSttEnginePreferenceChange: (SttEnginePreference) -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
