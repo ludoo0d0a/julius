@@ -71,30 +71,28 @@ class MainScreen(
     private val appManager: AppManager
         get() = carContext.getCarService(AppManager::class.java)
 
-    private val surfaceCallback = if (BuildConfig.CAR_USE_SURFACE) {
-        object : SurfaceCallback {
-            override fun onSurfaceAvailable(surfaceContainer: SurfaceContainer) {
-                surfaceReceived = true
-                fallbackCheckJob?.cancel()
-                fallbackCheckJob = null
-                surfaceRenderer?.stop()
-                val surface = surfaceContainer.surface ?: return
-                val w = surfaceContainer.width.coerceAtLeast(1)
-                val h = surfaceContainer.height.coerceAtLeast(1)
-                surfaceRenderer = AutoSurfaceRenderer(surface, w, h).apply {
-                    isActive = isListening
-                    start()
-                }
-            }
-
-            override fun onSurfaceDestroyed(surfaceContainer: SurfaceContainer) {
-                surfaceRenderer?.stop()
-                surfaceRenderer = null
-                surfaceContainer.surface?.release()
-                surfaceReceived = false
+    private val surfaceCallback = object : SurfaceCallback {
+        override fun onSurfaceAvailable(surfaceContainer: SurfaceContainer) {
+            surfaceReceived = true
+            fallbackCheckJob?.cancel()
+            fallbackCheckJob = null
+            surfaceRenderer?.stop()
+            val surface = surfaceContainer.surface ?: return
+            val w = surfaceContainer.width.coerceAtLeast(1)
+            val h = surfaceContainer.height.coerceAtLeast(1)
+            surfaceRenderer = AutoSurfaceRenderer(surface, w, h).apply {
+                isActive = isListening
+                start()
             }
         }
-    } else null
+
+        override fun onSurfaceDestroyed(surfaceContainer: SurfaceContainer) {
+            surfaceRenderer?.stop()
+            surfaceRenderer = null
+            surfaceContainer.surface?.release()
+            surfaceReceived = false
+        }
+    }
 
     init {
         lifecycleScope.launch {
@@ -188,8 +186,8 @@ class MainScreen(
     override fun onGetTemplate(): Template {
         return try {
             // NavigationTemplate CANNOT be wrapped in TabTemplate.
-            // If we are in Navigation mode (phone build), we return NavigationTemplate directly.
-            if (BuildConfig.CAR_USE_SURFACE && !useFallback) {
+            // For navigation apps, we render NavigationTemplate directly when not in fallback mode.
+            if (!useFallback) {
                 surfaceCallback?.let { appManager.setSurfaceCallback(it) }
                 scheduleFallbackIfNoSurface()
                 return buildNavigationTemplate()
@@ -228,7 +226,7 @@ class MainScreen(
 
             val templateToDisplay = when (activeTabId) {
                 TAB_ASSISTANT -> {
-                    if (BuildConfig.CAR_USE_SURFACE) appManager.setSurfaceCallback(null)
+                    appManager.setSurfaceCallback(null)
                     buildPaneTemplate()
                 }
                 TAB_HISTORY -> buildHistoryTemplate()

@@ -81,17 +81,7 @@ configure<ApplicationExtension> {
         useLibrary("org.apache.http.legacy")
     }
 
-    flavorDimensions += "distribution"
-    productFlavors {
-        create("play") {
-            dimension = "distribution"
-            buildConfigField("boolean", "CAR_USE_SURFACE", "false")
-        }
-        create("phone") {
-            dimension = "distribution"
-            buildConfigField("boolean", "CAR_USE_SURFACE", "true")
-        }
-    }
+    // Single Play flavor (no sideload/phone flavor). Surface usage is controlled at runtime.
 
     buildTypes {
         debug {

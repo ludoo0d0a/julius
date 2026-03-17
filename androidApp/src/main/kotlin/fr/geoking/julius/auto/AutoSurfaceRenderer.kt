@@ -1,18 +1,16 @@
 package fr.geoking.julius.auto
 
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.view.Surface
-import fr.geoking.julius.ui.anim.auto.FractalEffectSurface
-import fr.geoking.julius.ui.anim.auto.ParticlesEffectSurface
-import fr.geoking.julius.ui.anim.auto.SphereEffectSurface
-import fr.geoking.julius.ui.anim.auto.TrayLightEffectSurface
-import fr.geoking.julius.ui.anim.auto.WavesEffectSurface
-import fr.geoking.julius.ui.anim.AnimationPalettes
-import kotlin.math.PI
-import kotlin.math.sin
 
 /**
- * Renders the 4 Auto animations (Particles, Sphere, Waves, Fractal) onto an Android Auto Surface.
- * Runs on a dedicated thread; cycles through effects every 15s.
+ * Placeholder map renderer for Android Auto surface.
+ *
+ * This version does NOT render real map tiles yet; it just draws a dark
+ * background with a simple grid to visualize the surface. It is intentionally
+ * minimal so it can be replaced later by a proper tile-based map renderer.
  */
 class AutoSurfaceRenderer(
     private val surface: Surface,
@@ -28,13 +26,23 @@ class AutoSurfaceRenderer(
 
     private val width: Int = width.coerceAtLeast(1)
     private val height: Int = height.coerceAtLeast(1)
-    private val centerX: Float = width / 2f
-    private val centerY: Float = height / 2f
 
-    private val particlesEffect = ParticlesEffectSurface(
-        particleCount = PARTICLE_COUNT,
-        rayCount = RAY_COUNT
-    )
+    private val backgroundPaint = Paint().apply {
+        color = Color.rgb(10, 15, 20)
+        style = Paint.Style.FILL
+    }
+
+    private val gridPaint = Paint().apply {
+        color = Color.rgb(40, 60, 80)
+        style = Paint.Style.STROKE
+        strokeWidth = 1f
+    }
+
+    private val activePaint = Paint().apply {
+        color = Color.rgb(80, 200, 255)
+        style = Paint.Style.STROKE
+        strokeWidth = 4f
+    }
 
     private val drawThread = Thread(::runDrawLoop, "AutoSurfaceRenderer")
 
@@ -48,36 +56,10 @@ class AutoSurfaceRenderer(
     }
 
     private fun runDrawLoop() {
-        val startMs = System.currentTimeMillis()
         while (running) {
             val canvas = surface.lockCanvas(null) ?: break
             try {
-                val elapsed = (System.currentTimeMillis() - startMs) / 1000f
-                val effectIndex = ((System.currentTimeMillis() / EFFECT_CYCLE_MS) % 4).toInt()
-                val time = (System.currentTimeMillis() % 20_000L) / 20_000f
-                val timeRotation = (System.currentTimeMillis() % 15_000L) / 15_000f * 360f
-                val pulse = 0.5f + 0.5f * sin((System.currentTimeMillis() % 2000L) / 2000f * 2 * PI.toFloat())
-                val palette = AnimationPalettes.currentPalette()
-
-                when (effectIndex) {
-                    0 -> particlesEffect.draw(
-                        canvas, width, height, centerX, centerY,
-                        isActive, time, timeRotation, pulse, palette
-                    )
-                    1 -> SphereEffectSurface.draw(
-                        canvas, width, height, centerX, centerY,
-                        isActive, timeRotation, pulse, palette
-                    )
-                    2 -> WavesEffectSurface.draw(
-                        canvas, width, height, centerX, centerY,
-                        isActive, elapsed, pulse, palette
-                    )
-                    3 -> FractalEffectSurface.draw(
-                        canvas, width, height, centerX, centerY,
-                        isActive, elapsed, pulse, palette
-                    )
-                }
-                TrayLightEffectSurface.draw(canvas, width, height, isActive, pulse, palette)
+                drawPlaceholderMap(canvas)
             } finally {
                 try {
                     surface.unlockCanvasAndPost(canvas)
@@ -88,8 +70,32 @@ class AutoSurfaceRenderer(
     }
 
     companion object {
-        private const val PARTICLE_COUNT = 50
-        private const val RAY_COUNT = 8
-        private const val EFFECT_CYCLE_MS = 15_000L
+        private const val FRAME_DELAY_MS = 33L
+    }
+
+    private fun drawPlaceholderMap(canvas: Canvas) {
+        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), backgroundPaint)
+
+        val step = 80
+        var x = 0
+        while (x <= width) {
+            canvas.drawLine(x.toFloat(), 0f, x.toFloat(), height.toFloat(), gridPaint)
+            x += step
+        }
+        var y = 0
+        while (y <= height) {
+            canvas.drawLine(0f, y.toFloat(), width.toFloat(), y.toFloat(), gridPaint)
+            y += step
+        }
+
+        if (isActive) {
+            canvas.drawRect(
+                10f,
+                10f,
+                width.toFloat() - 10f,
+                height.toFloat() - 10f,
+                activePaint
+            )
+        }
     }
 }

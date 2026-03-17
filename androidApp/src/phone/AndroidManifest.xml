@@ -1,24 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
-    <!-- Surface + NavigationTemplate for Android Auto (sideload/phone build only; not allowed for Play Store) -->
-    <uses-permission android:name="androidx.car.app.ACCESS_SURFACE" />
-    <uses-permission android:name="androidx.car.app.NAVIGATION_TEMPLATES" />
-    <uses-permission android:name="androidx.car.app.MAP_TEMPLATES" />
-
-    <application>
-        <service
-            android:name="fr.geoking.julius.auto.VoiceAppService"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="androidx.car.app.CarAppService" />
-                <category android:name="androidx.car.app.category.MESSAGING"/>
-                <category android:name="androidx.car.app.category.NAVIGATION"/>
-            </intent-filter>
-            <meta-data
-                android:name="androidx.car.app.CarAppService.MEDIA_BROWSER_SERVICE"
-                android:value="fr.geoking.julius.auto.JuliusMediaService"
-                tools:replace="android:value" />
-        </service>
-    </application>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Phone flavor removed; this manifest is kept minimal to avoid affecting the single Play flavor. -->
 </manifest>

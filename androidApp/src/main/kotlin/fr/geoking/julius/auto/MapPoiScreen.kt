@@ -14,13 +14,15 @@ import androidx.car.app.model.CarIcon
 import androidx.car.app.model.CarLocation
 import androidx.car.app.model.ItemList
 import androidx.car.app.model.Header
+import androidx.car.app.model.ListTemplate
+import androidx.car.app.model.MapController
 import androidx.car.app.model.Metadata
 import androidx.car.app.model.MessageTemplate
 import androidx.car.app.model.Place
-import androidx.car.app.model.PlaceListMapTemplate
 import androidx.car.app.model.PlaceMarker
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
+import androidx.car.app.navigation.model.MapWithContentTemplate
 import fr.geoking.julius.poi.PoiProviderType
 import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.lifecycleScope
@@ -161,27 +163,10 @@ class MapPoiScreen(
         }
 
         return try {
-            val builder = PlaceListMapTemplate.Builder()
-                .setTitle(title)
-                .setHeaderAction(Action.BACK)
-                .setCurrentLocationEnabled(
-                    carContext.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-                    carContext.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                )
+            val listBuilder = ItemList.Builder()
+                .setNoItemsMessage("No gas stations found")
 
-            if (isLoading) {
-                builder.setLoading(true)
-            } else {
-                // Anchor at search center so the map shows both user area and POI markers
-                builder.setAnchor(
-                    Place.Builder(CarLocation.create(searchLat, searchLon))
-                        .setMarker(PlaceMarker.Builder().build())
-                        .build()
-                )
-
-                val listBuilder = ItemList.Builder()
-                    .setNoItemsMessage("No gas stations found")
-
+            if (!isLoading) {
                 for (poi in pois) {
                     val iconResId = when (poi.poiCategory) {
                         PoiCategory.Toilet -> R.drawable.ic_poi_toilet_rounded
@@ -199,20 +184,45 @@ class MapPoiScreen(
                     val metadata = Metadata.Builder()
                         .setPlace(
                             Place.Builder(CarLocation.create(poi.latitude, poi.longitude))
-                                .setMarker(PlaceMarker.Builder()
-                                    .setIcon(carIcon, PlaceMarker.TYPE_ICON)
-                                    .build())
+                                .setMarker(
+                                    PlaceMarker.Builder()
+                                        .setIcon(carIcon, PlaceMarker.TYPE_ICON)
+                                        .build()
+                                )
                                 .build()
                         )
                         .build()
 
-                    val title = (if (poi.id in favoriteIds) "★ " else "") + (poi.name.ifBlank { " -no name- " })
+                    val titleWithFavorite = (if (poi.id in favoriteIds) "★ " else "") + (poi.name.ifBlank { " -no name- " })
                     val rowBuilder = Row.Builder()
-                        .setTitle(title)
+                        .setTitle(titleWithFavorite)
                         .addText(poi.address.ifBlank { " -no address- " })
                         .setMetadata(metadata)
                         .setBrowsable(true)
-                        .setOnClickListener { screenManager.push(PoiDetailScreen(carContext, poi, availabilityByPoiId[poi.id], settingsManager.getPoiRating(poi.id))) }
+                        .setOnClickListener {
+                            // When a POI is selected, push the route preview screen
+                            // if routing components are available; otherwise fall back
+                            // to the detail screen.
+                            if (routePlanner != null && routingClient != null) {
+                                screenManager.push(
+                                    RoutePreviewScreen(
+                                        carContext = carContext,
+                                        destination = poi,
+                                        routePlanner = routePlanner,
+                                        routingClient = routingClient
+                                    )
+                                )
+                            } else {
+                                screenManager.push(
+                                    PoiDetailScreen(
+                                        carContext,
+                                        poi,
+                                        availabilityByPoiId[poi.id],
+                                        settingsManager.getPoiRating(poi.id)
+                                    )
+                                )
+                            }
+                        }
 
                     poi.fuelPrices?.takeIf { it.isNotEmpty() }?.let { prices ->
                         val priceLine = prices.joinToString(" · ") { fp ->
@@ -240,8 +250,17 @@ class MapPoiScreen(
 
                     listBuilder.addItem(rowBuilder.build())
                 }
-                builder.setItemList(listBuilder.build())
             }
+
+            val listTemplate = ListTemplate.Builder()
+                .setSingleList(listBuilder.build())
+                .setHeader(
+                    Header.Builder()
+                        .setTitle(title)
+                        .setStartHeaderAction(Action.BACK)
+                        .build()
+                )
+                .build()
 
             val actionStripBuilder = ActionStrip.Builder()
                 .addAction(
@@ -305,9 +324,28 @@ class MapPoiScreen(
                         .build()
                 )
             }
-            builder.setActionStrip(actionStripBuilder.build())
 
-            builder.build()
+            val actionStrip = actionStripBuilder.build()
+
+            // Map controller with basic map actions (recenter via POI reload).
+            val mapController = MapController.Builder()
+                .setMapActionStrip(
+                    ActionStrip.Builder()
+                        .addAction(
+                            Action.Builder()
+                                .setTitle("Recenter")
+                                .setOnClickListener { loadPois() }
+                                .build()
+                        )
+                        .build()
+                )
+                .build()
+
+            MapWithContentTemplate.Builder()
+                .setContentTemplate(listTemplate)
+                .setActionStrip(actionStrip)
+                .setMapController(mapController)
+                .build()
         } catch (e: Exception) {
             Log.e("MapPoiScreen", "Error building template", e)
             MessageTemplate.Builder("Failed to load map: ${e.message}")
