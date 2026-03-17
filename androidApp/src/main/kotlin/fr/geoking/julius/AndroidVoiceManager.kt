@@ -2,6 +2,9 @@ package fr.geoking.julius
 
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.util.Log
 import android.net.Uri
@@ -53,6 +56,9 @@ class AndroidVoiceManager(
     private var carContext: CarContext? = null
     private var isRecording = false
     private var wakeWordDetectionJob: kotlinx.coroutines.Job? = null
+
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private var audioFocusRequest: AudioFocusRequest? = null
 
     fun setCarContext(carContext: CarContext) {
         this.carContext = carContext
@@ -243,6 +249,7 @@ class AndroidVoiceManager(
                             if (_events.value == VoiceEvent.Speaking) {
                                 _events.value = VoiceEvent.Silence
                                 player.notifyStateChanged()
+                                abandonAudioFocus()
                             }
                             stopBargeInListening()
                         }
@@ -258,6 +265,7 @@ class AndroidVoiceManager(
                     if (_events.value == VoiceEvent.Speaking) {
                         _events.value = VoiceEvent.Silence
                         player.notifyStateChanged()
+                        abandonAudioFocus()
                     }
                     stopBargeInListening()
                 }
@@ -276,6 +284,7 @@ class AndroidVoiceManager(
 
     override fun startListening() {
         Log.d(TAG, "mic on: startListening()")
+        requestAudioFocus()
         val currentCarContext = carContext
         if (currentCarContext != null && BuildConfig.FLAVOR == "phone" && settingsManager.settings.value.useCarMic) {
             startCarListening(currentCarContext)
@@ -319,6 +328,7 @@ class AndroidVoiceManager(
                     mainHandler.post {
                         _events.value = VoiceEvent.Silence
                         player.notifyStateChanged()
+                        abandonAudioFocus()
                     }
                 }
             } catch (e: Exception) {
@@ -364,9 +374,13 @@ class AndroidVoiceManager(
                 speechRecognizer?.stopListening()
             }
         }
+        if (_events.value != VoiceEvent.Speaking && _events.value != VoiceEvent.Processing) {
+            abandonAudioFocus()
+        }
     }
     
     override fun speak(text: String, languageTag: String?) {
+        requestAudioFocus()
         _events.value = VoiceEvent.Speaking
         player.notifyStateChanged()
         updateTtsLanguage(languageTag)
@@ -407,6 +421,7 @@ class AndroidVoiceManager(
         stopBargeInListening()
         _events.value = VoiceEvent.Silence
         player.notifyStateChanged()
+        abandonAudioFocus()
     }
 
     private fun updateTtsLanguage(languageTag: String?) {
@@ -535,6 +550,35 @@ class AndroidVoiceManager(
         wakeWordDetectionJob = null
     }
 
+    private fun requestAudioFocus() {
+        if (carContext == null || !settingsManager.settings.value.muteMediaOnCar) return
+
+        Log.d(TAG, "Requesting Audio Focus")
+        val playbackAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+            .build()
+
+        audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+            .setAudioAttributes(playbackAttributes)
+            .setAcceptsDelayedFocusGain(true)
+            .setOnAudioFocusChangeListener { focusChange ->
+                Log.d(TAG, "Audio Focus change: $focusChange")
+            }
+            .build()
+
+        val result = audioManager.requestAudioFocus(audioFocusRequest!!)
+        Log.d(TAG, "Audio Focus request result: $result")
+    }
+
+    private fun abandonAudioFocus() {
+        if (audioFocusRequest != null) {
+            Log.d(TAG, "Abandoning Audio Focus")
+            audioManager.abandonAudioFocusRequest(audioFocusRequest!!)
+            audioFocusRequest = null
+        }
+    }
+
     private fun scheduleBargeInRestart() {
         if (bargeInRestartScheduled) return
         bargeInRestartScheduled = true
@@ -583,6 +627,7 @@ class AndroidVoiceManager(
             if (_events.value != VoiceEvent.Silence) {
                 _events.value = VoiceEvent.Silence
                 player.notifyStateChanged()
+                abandonAudioFocus()
             }
         }
     }

@@ -102,6 +102,7 @@ data class AppSettings(
     val extendedActionsEnabled: Boolean = false,
     val wakeWordEnabled: Boolean = false,
     val useCarMic: Boolean = false,
+    val muteMediaOnCar: Boolean = false,
     /** STT engine for car mic path: LocalOnly (Vosk only), LocalFirst (Vosk then agent), NativeOnly (agent only). */
     val sttEnginePreference: SttEnginePreference = SttEnginePreference.LocalFirst,
     val textAnimation: TextAnimation = TextAnimation.Fade,
@@ -253,6 +254,7 @@ open class SettingsManager(context: Context) {
             extendedActionsEnabled = prefs.getBoolean("extended_actions_enabled", false),
             wakeWordEnabled = prefs.getBoolean("wake_word_enabled", false),
             useCarMic = prefs.getBoolean("use_car_mic", false),
+            muteMediaOnCar = prefs.getBoolean("mute_media_on_car", false),
             sttEnginePreference = try {
                 SttEnginePreference.valueOf(prefs.getString("stt_engine_preference", SttEnginePreference.LocalFirst.name) ?: SttEnginePreference.LocalFirst.name)
             } catch (e: IllegalArgumentException) {
@@ -452,6 +454,7 @@ open class SettingsManager(context: Context) {
             .putBoolean("extended_actions_enabled", settings.extendedActionsEnabled)
             .putBoolean("wake_word_enabled", settings.wakeWordEnabled)
             .putBoolean("use_car_mic", settings.useCarMic)
+            .putBoolean("mute_media_on_car", settings.muteMediaOnCar)
             .putString("stt_engine_preference", settings.sttEnginePreference.name)
             .putString("text_animation", settings.textAnimation.name)
             .putString("local_model_path", settings.localModelPath)
@@ -491,6 +494,7 @@ open class SettingsManager(context: Context) {
         extendedActionsEnabled: Boolean = false,
         wakeWordEnabled: Boolean = false,
         useCarMic: Boolean = false,
+        muteMediaOnCar: Boolean = false,
         sttEnginePreference: SttEnginePreference = _settings.value.sttEnginePreference,
         localModelPath: String = _settings.value.localModelPath,
         selectedLocalModelVariant: String = _settings.value.selectedLocalModelVariant
@@ -532,6 +536,7 @@ open class SettingsManager(context: Context) {
             extendedActionsEnabled = extendedActionsEnabled,
             wakeWordEnabled = wakeWordEnabled,
             useCarMic = useCarMic,
+            muteMediaOnCar = muteMediaOnCar,
             sttEnginePreference = sttEnginePreference,
             textAnimation = _settings.value.textAnimation,
             localModelPath = localModelPath,
