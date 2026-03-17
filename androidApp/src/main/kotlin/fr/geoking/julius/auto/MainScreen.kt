@@ -35,9 +35,12 @@ import fr.geoking.julius.shared.toHistoryScreenState
 import fr.geoking.julius.shared.VoiceEvent
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 
+@OptIn(FlowPreview::class)
 class MainScreen(
     carContext: CarContext,
     private val store: ConversationStore,
@@ -104,6 +107,9 @@ class MainScreen(
 
         lifecycleScope.launch {
             store.state.collectLatest { state ->
+                val wasListening = isListening
+                val wasSpeaking = isSpeaking
+
                 isListening = state.status == VoiceEvent.Listening
                 isSpeaking = state.status == VoiceEvent.Speaking
                 surfaceRenderer?.isActive = isListening
@@ -131,7 +137,19 @@ class MainScreen(
                     }
                 }
 
-                invalidate()
+                // Only invalidate immediately if not listening or if status just changed
+                if (state.status != VoiceEvent.Listening || isListening != wasListening || isSpeaking != wasSpeaking) {
+                    invalidate()
+                }
+            }
+        }
+
+        // Separate collector for sampled transcript updates to avoid Android Auto refresh limits
+        lifecycleScope.launch {
+            store.state.sample(500).collectLatest { state ->
+                if (state.status == VoiceEvent.Listening) {
+                    invalidate()
+                }
             }
         }
     }

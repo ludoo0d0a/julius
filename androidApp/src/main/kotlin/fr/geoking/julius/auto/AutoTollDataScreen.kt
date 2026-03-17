@@ -30,6 +30,7 @@ class AutoTollDataScreen(
     private var downloadBytes: Long = 0L
     private var downloadTotal: Long? = null
     private var downloadError: String? = null
+    private var lastInvalidateTime: Long = 0L
 
     override fun onGetTemplate(): Template {
         val settings = settingsManager.settings.value
@@ -82,7 +83,11 @@ class AutoTollDataScreen(
                             lifecycleScope.launch(Dispatchers.Main) {
                                 downloadBytes = bytes
                                 downloadTotal = total
-                                invalidate()
+                                val now = System.currentTimeMillis()
+                                if (now - lastInvalidateTime > 500) {
+                                    lastInvalidateTime = now
+                                    invalidate()
+                                }
                             }
                         }
                         withContext(Dispatchers.Main) {
