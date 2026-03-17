@@ -81,8 +81,6 @@ configure<ApplicationExtension> {
         useLibrary("org.apache.http.legacy")
     }
 
-    // Single Play flavor (no sideload/phone flavor). Surface usage is controlled at runtime.
-
     buildTypes {
         debug {
             isDebuggable = true

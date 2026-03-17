@@ -18,12 +18,7 @@ Julius ("we", "our", or "the app") is a voice AI assistant for Android and Andro
 - **Purpose:** To communicate with AI services when you use cloud-based agents.
 - **Note:** The Embedded agent works fully offline and does not use the internet.
 
-### 1.3 Phone and Messaging (CALL_PHONE, SEND_SMS)
-
-- **Purpose:** To perform actions you request (e.g. "call X", "send SMS to Y").
-- **Processing:** Used only when you explicitly ask the assistant to make a call or send a message.
-
-### 1.4 Alarms (SET_ALARM)
+### 1.3 Alarms (SET_ALARM)
 
 - **Purpose:** To set alarms or reminders you request via voice.
 

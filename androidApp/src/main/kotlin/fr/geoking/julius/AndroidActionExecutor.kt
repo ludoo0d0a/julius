@@ -26,8 +26,10 @@ class AndroidActionExecutor(
         return try {
             when (action.type) {
                 ActionType.OPEN_APP -> openApp(action.target)
-                ActionType.SEND_MESSAGE -> sendMessage(action.target, action.data["message"] ?: "")
-                ActionType.MAKE_CALL -> makeCall(action.target)
+                ActionType.SEND_MESSAGE -> ActionResult(
+                    success = false,
+                    message = "SMS sending is temporarily disabled in this build."
+                )
                 ActionType.PLAY_MUSIC -> playMusic()
                 ActionType.NAVIGATE -> navigate(action.target, action.data)
                 ActionType.SET_ALARM -> setAlarm(action.data)
@@ -77,50 +79,7 @@ class AndroidActionExecutor(
         }
     }
 
-    private fun sendMessage(phoneNumber: String?, message: String): ActionResult {
-        if (phoneNumber == null || message.isEmpty()) {
-            return ActionResult(false, "Phone number or message missing")
-        }
-
-        try {
-            val intent = Intent(Intent.ACTION_SENDTO).apply {
-                data = Uri.parse("sms:$phoneNumber")
-                putExtra("sms_body", message)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            
-            if (intent.resolveActivity(context.packageManager) != null) {
-                context.startActivity(intent)
-                return ActionResult(true, "Opening message to $phoneNumber")
-            } else {
-                return ActionResult(false, "No messaging app available")
-            }
-        } catch (e: Exception) {
-            return ActionResult(false, "Failed to send message: ${e.message}")
-        }
-    }
-
-    private fun makeCall(phoneNumber: String?): ActionResult {
-        if (phoneNumber == null) {
-            return ActionResult(false, "Phone number missing")
-        }
-
-        try {
-            val intent = Intent(Intent.ACTION_CALL).apply {
-                data = Uri.parse("tel:$phoneNumber")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            
-            if (intent.resolveActivity(context.packageManager) != null) {
-                context.startActivity(intent)
-                return ActionResult(true, "Calling $phoneNumber")
-            } else {
-                return ActionResult(false, "No phone app available")
-            }
-        } catch (e: Exception) {
-            return ActionResult(false, "Failed to make call: ${e.message}")
-        }
-    }
+    // SMS / direct calling are disabled for Play policy compliance.
 
     private fun playMusic(): ActionResult {
         try {
@@ -267,7 +226,6 @@ class AndroidActionExecutor(
         val androidPermission = when (permission.lowercase()) {
             "location" -> Manifest.permission.ACCESS_FINE_LOCATION
             "contacts" -> Manifest.permission.READ_CONTACTS
-            "phone" -> Manifest.permission.CALL_PHONE
             else -> permission
         }
 
@@ -315,7 +273,6 @@ class AndroidActionExecutor(
             "messenger" to "com.facebook.orca",
             "youtube" to "com.google.android.youtube",
             "chrome" to "com.android.chrome",
-            "phone" to "com.android.dialer"
         )
     }
 }

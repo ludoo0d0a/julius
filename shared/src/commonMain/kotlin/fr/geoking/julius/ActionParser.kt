@@ -44,18 +44,6 @@ object ActionParser {
                 )
             }
             
-            // Make call commands - English: call, phone | French: appeler, téléphoner
-            lowerText.contains("call ") || lowerText.contains("phone ") || 
-            lowerText.contains("appeler ") || lowerText.contains("téléphoner ") ||
-            lowerText.contains("appelle ") || lowerText.contains("téléphone ") -> {
-                val phoneNumber = extractPhoneNumber(text)
-                return DeviceAction(
-                    type = ActionType.MAKE_CALL,
-                    target = phoneNumber,
-                    data = emptyMap()
-                )
-            }
-            
             // Navigate commands - English: navigate to, directions to, go to, drive to
             // French: naviguer vers, aller à, se rendre à, conduire à
             lowerText.contains("navigate to") || lowerText.contains("directions to") || 

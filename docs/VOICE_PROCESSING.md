@@ -8,7 +8,7 @@ Julius uses a turn-based, sequential pipeline where each step must complete befo
 
 ### Step 1: Speech-to-Text (STT)
 *   **Phone path:** `AndroidVoiceManager` uses the native Android `SpeechRecognizer` API (`android.speech`). When the system detects the user has finished speaking (`onResults`), it produces a text transcript and emits it via `transcribedText`.
-*   **Car mic path (Android Auto):** When "Use Car Microphone" is on (play flavor), the app records raw audio and passes it to a **transcriber** callback. The transcriber is composed in `ConversationStore` according to the **STT engine** setting:
+*   **Car mic path (Android Auto):** When "Use Car Microphone" is on, the app records raw audio and passes it to a **transcriber** callback. The transcriber is composed in `ConversationStore` according to the **STT engine** setting:
     *   **Local only:** Use only Vosk (on-device); no cloud fallback.
     *   **Local first:** Try Vosk first; if it returns null/blank, use the agent’s `transcribe()` when the agent supports STT (e.g. OpenAI, Deepgram).
     *   **Native only:** Do not use Vosk; use only the agent’s cloud STT when supported.

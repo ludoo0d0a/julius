@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 #
-# Debug Julius **play** flavor (playDebug) with Android Auto Desktop Head Unit (DHU)
-# and a USB-connected device. Performs checks, builds/installs playDebug, starts DHU,
-# then instructs how to attach the debugger.
+# Debug Julius with Android Auto Desktop Head Unit (DHU) and a USB-connected device.
+# Performs checks, builds/installs the debug variant, starts DHU, then instructs how to attach the debugger.
 #
 # Usage:
 #   ./scripts/debug-play-dhu.sh              # USB mode (default): build, install, run DHU
 #   ./scripts/debug-play-dhu.sh --adb         # Use ADB tunneling instead of USB accessory
-#   ./scripts/debug-play-dhu.sh --no-build    # Skip build/install (use existing playDebug on device)
+#   ./scripts/debug-play-dhu.sh --no-build    # Skip build/install (use existing debug build on device)
 #   ./scripts/debug-play-dhu.sh --no-dhu      # Only run checks + build/install; do not start DHU
 #
 # Prerequisites (script will check):
@@ -22,7 +21,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-VARIANT="playDebug"
+VARIANT="debug"
 MODULE="androidApp"
 
 # Colors for output (disable if not a TTY)
@@ -146,20 +145,20 @@ fi
 echo ""
 
 # -----------------------------------------------------------------------------
-# 5. Build and install playDebug
+# 5. Build and install debug
 # -----------------------------------------------------------------------------
 if [[ "$DO_BUILD" == true ]]; then
-  print_header "4. Build & install $VARIANT"
+  print_header "4. Build & install ($VARIANT)"
 
-  print_info "Running: ./gradlew :${MODULE}:installPlayDebug ..."
-  if ! ./gradlew ":${MODULE}:installPlayDebug" --no-daemon -q; then
+  print_info "Running: ./gradlew :${MODULE}:installDebug ..."
+  if ! ./gradlew ":${MODULE}:installDebug" --no-daemon -q; then
     print_fail "Build or install failed."
     exit 1
   fi
   print_ok "Installed $VARIANT on device."
 else
   print_header "4. Build & install (skipped with --no-build)"
-  print_warn "Ensure $VARIANT is already installed on the device."
+  print_warn "Ensure debug build is already installed on the device."
 fi
 
 # -----------------------------------------------------------------------------
@@ -172,7 +171,7 @@ if [[ "$DO_DHU" == false ]]; then
   print_info "1. Start DHU manually: ./scripts/run-dhu.sh"
   print_info "2. On phone: open Julius once so Android Auto sees it."
   print_info "3. In DHU window: start Android Auto session."
-  print_info "4. Android Studio: Run → Attach Debugger to Android Process → select Julius (play)."
+  print_info "4. Android Studio: Run → Attach Debugger to Android Process → select Julius."
   echo ""
   exit 0
 fi
@@ -183,7 +182,7 @@ echo ""
 echo -e "${BOLD}After DHU is running:${NC}"
 print_info "1. On phone: open Julius once so Android Auto sees it."
 print_info "2. In DHU window: start Android Auto session; Julius should appear."
-print_info "3. Android Studio: Run → Attach Debugger to Android Process → select Julius (play)."
+print_info "3. Android Studio: Run → Attach Debugger to Android Process → select Julius."
 print_info "4. Set breakpoints in VoiceAppService, VoiceSession, MainScreen, etc."
 echo ""
 

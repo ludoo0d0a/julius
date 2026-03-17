@@ -116,7 +116,7 @@ class AutoSettingsScreen(
         listBuilder.addItem(
             Row.Builder()
                 .setTitle("Use Car Microphone")
-                .addText("Play flavor only")
+                .addText("Android Auto session only")
                 .setToggle(
                     Toggle.Builder { checked ->
                         val current = settingsManager.settings.value

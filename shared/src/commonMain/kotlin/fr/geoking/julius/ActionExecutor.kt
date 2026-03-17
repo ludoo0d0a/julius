@@ -7,7 +7,6 @@ interface ActionExecutor {
 enum class ActionType {
     OPEN_APP,
     SEND_MESSAGE,
-    MAKE_CALL,
     PLAY_MUSIC,
     NAVIGATE,
     SET_ALARM,
