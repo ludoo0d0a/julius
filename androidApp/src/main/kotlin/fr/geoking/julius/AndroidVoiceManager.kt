@@ -89,6 +89,8 @@ class AndroidVoiceManager(
     private var pendingLanguageTag: String? = null
     private var isRecognizerActive: Boolean = false
     private var isBargeInActive: Boolean = false
+    private var isHeyJuliusKeywordBargeIn: Boolean = false
+    private var heyJuliusActivationInProgress: Boolean = false
     private var bargeInRestartScheduled: Boolean = false
     private var rmsCallCount: Int = 0
     private var bufferCallCount: Int = 0
@@ -242,6 +244,7 @@ class AndroidVoiceManager(
                             _events.value = VoiceEvent.Speaking
                             player.notifyStateChanged()
                         }
+                        startHeyJuliusBargeInIfNeeded()
                     }
 
                     override fun onDone(utteranceId: String?) {
@@ -378,17 +381,38 @@ class AndroidVoiceManager(
             abandonAudioFocus()
         }
     }
+
+    private fun cancelActiveRecognitionForSpeechOutput() {
+        isBargeInActive = false
+        bargeInRestartScheduled = false
+        if (isRecording) {
+            isRecording = false
+        }
+        if (isRecognizerActive) {
+            isRecognizerActive = false
+            mainHandler.post { speechRecognizer?.cancel() }
+        }
+    }
     
     override fun speak(text: String, languageTag: String?) {
+        // Avoid self-interruption by default. If "hey julius during speaking" is enabled, we keep a
+        // keyword-only barge-in recognizer running and only trigger on that phrase.
+        if (!settingsManager.settings.value.heyJuliusDuringSpeakingEnabled) {
+            cancelActiveRecognitionForSpeechOutput()
+        }
         requestAudioFocus()
         _events.value = VoiceEvent.Speaking
         player.notifyStateChanged()
         updateTtsLanguage(languageTag)
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "voice_ai_utterance")
-        startBargeInListening()
+        startHeyJuliusBargeInIfNeeded()
     }
 
     override fun playAudio(bytes: ByteArray) {
+        // Same rationale as speak().
+        if (!settingsManager.settings.value.heyJuliusDuringSpeakingEnabled) {
+            cancelActiveRecognitionForSpeechOutput()
+        }
         _events.value = VoiceEvent.Speaking
         player.notifyStateChanged()
         try {
@@ -402,11 +426,11 @@ class AndroidVoiceManager(
             mediaPlayer?.setDataSource(tempFile.absolutePath)
             mediaPlayer?.prepare()
             mediaPlayer?.start()
-            startBargeInListening()
         } catch (e: Exception) {
             e.printStackTrace()
             _events.value = VoiceEvent.Silence // Reset on error
         }
+        startHeyJuliusBargeInIfNeeded()
     }
 
     override fun stopSpeaking() {
@@ -492,8 +516,12 @@ class AndroidVoiceManager(
             rmsCallCount = 0
             bufferCallCount = 0
 
-            _partialText.value = ""
-            _transcribedText.value = ""
+            // Don't clear transcript/partial text when running the hidden barge-in recognizer
+            // (it would wipe the UI while Julius is speaking).
+            if (!bargeIn) {
+                _partialText.value = ""
+                _transcribedText.value = ""
+            }
 
             Log.d(TAG, "SpeechRecognizer.startListening() called")
             recognizer.startListening(intent)
@@ -511,10 +539,105 @@ class AndroidVoiceManager(
     private fun stopBargeInListening() {
         if (!isBargeInActive) return
         isBargeInActive = false
+        isHeyJuliusKeywordBargeIn = false
+        heyJuliusActivationInProgress = false
         if (isRecognizerActive) {
             speechRecognizer?.cancel()
             isRecognizerActive = false
         }
+    }
+
+    private fun startHeyJuliusBargeInIfNeeded() {
+        if (!settingsManager.settings.value.heyJuliusDuringSpeakingEnabled) return
+        if (_events.value != VoiceEvent.Speaking) return
+        if (isRecording) return
+        if (heyJuliusActivationInProgress) return
+        if (isRecognizerActive && isBargeInActive) return
+
+        isHeyJuliusKeywordBargeIn = true
+        startBargeInListening()
+    }
+
+    private fun normalizeForKeyword(text: String): String {
+        // Keep letters/numbers/spaces only, collapse whitespace, lowercase.
+        val cleaned = buildString(text.length) {
+            for (c in text) {
+                if (c.isLetterOrDigit() || c.isWhitespace()) append(c) else append(' ')
+            }
+        }
+        return cleaned
+            .lowercase(Locale.ROOT)
+            .trim()
+            .replace(Regex("\\s+"), " ")
+    }
+
+    private fun isHeyJulius(text: String): Boolean {
+        val n = normalizeForKeyword(text)
+        return Regex("\\bhey\\s+julius\\b").containsMatchIn(n)
+    }
+
+    private fun isStopKeyword(text: String): Boolean {
+        val n = normalizeForKeyword(text)
+        return Regex("\\bstop\\b").containsMatchIn(n)
+    }
+
+    private fun activateStopKeyword() {
+        Log.d(TAG, "\"stop\" detected: stop outputs + cancel recognition")
+        tts?.stop()
+        try {
+            if (mediaPlayer?.isPlaying == true) {
+                mediaPlayer?.stop()
+            }
+        } catch (e: IllegalStateException) {
+            e.printStackTrace()
+        }
+
+        stopBargeInListening()
+        if (isRecording) {
+            isRecording = false
+        }
+        if (isRecognizerActive) {
+            mainHandler.post { speechRecognizer?.cancel() }
+            isRecognizerActive = false
+        }
+
+        _partialText.value = ""
+        _transcribedText.value = ""
+        _events.value = VoiceEvent.Silence
+        player.notifyStateChanged()
+        abandonAudioFocus()
+    }
+
+    private fun activateHeyJulius() {
+        if (heyJuliusActivationInProgress) return
+        heyJuliusActivationInProgress = true
+        Log.d(TAG, "Hey Julius detected during speaking: interrupt + startListening")
+
+        // Stop audio output, but keep audio focus so we can immediately listen.
+        tts?.stop()
+        try {
+            if (mediaPlayer?.isPlaying == true) {
+                mediaPlayer?.stop()
+            }
+        } catch (e: IllegalStateException) {
+            e.printStackTrace()
+        }
+
+        // Cancel barge-in recognizer and restart normal listening shortly after.
+        isHeyJuliusKeywordBargeIn = false
+        if (isRecognizerActive) {
+            mainHandler.post { speechRecognizer?.cancel() }
+            isRecognizerActive = false
+        }
+        isBargeInActive = false
+
+        mainHandler.postDelayed(
+            {
+                heyJuliusActivationInProgress = false
+                startListening()
+            },
+            BARGE_IN_RESTART_DELAY_MS
+        )
     }
 
     private fun observeSettings() {
@@ -709,8 +832,23 @@ class AndroidVoiceManager(
         Log.d(TAG, "onResults: \"$text\"")
 
         if (isBargeInActive && _events.value == VoiceEvent.Speaking) {
+            if (isHeyJuliusKeywordBargeIn && text.isNotBlank() && isHeyJulius(text)) {
+                activateHeyJulius()
+                return
+            }
+            if (isHeyJuliusKeywordBargeIn && text.isNotBlank() && isStopKeyword(text)) {
+                activateStopKeyword()
+                return
+            }
+
+            // Keyword-only mode: ignore non-keyword speech while Julius is speaking.
+            if (isHeyJuliusKeywordBargeIn) {
+                scheduleBargeInRestart()
+                return
+            }
+
             if (text.isNotBlank()) {
-                // If we detected speech during barge-in, stop TTS and process it
+                // If we detected speech during normal barge-in, stop TTS and process it
                 tts?.stop()
                 try {
                     if (mediaPlayer?.isPlaying == true) {
@@ -737,18 +875,28 @@ class AndroidVoiceManager(
             Log.d(TAG, "onPartialResults: partial=\"$text\"")
 
             if (isBargeInActive && _events.value == VoiceEvent.Speaking) {
-                // In barge-in, as soon as we have a partial result, we stop TTS
-                tts?.stop()
-                try {
-                    if (mediaPlayer?.isPlaying == true) {
-                        mediaPlayer?.stop()
+                if (isHeyJuliusKeywordBargeIn) {
+                    if (isHeyJulius(text)) {
+                        activateHeyJulius()
+                    } else if (isStopKeyword(text)) {
+                        activateStopKeyword()
                     }
-                } catch (e: IllegalStateException) {
-                    e.printStackTrace()
+                    // Don't touch UI transcript while speaking; barge-in is hidden.
+                    return
+                } else {
+                    // In normal barge-in, as soon as we have a partial result, we stop TTS
+                    tts?.stop()
+                    try {
+                        if (mediaPlayer?.isPlaying == true) {
+                            mediaPlayer?.stop()
+                        }
+                    } catch (e: IllegalStateException) {
+                        e.printStackTrace()
+                    }
+                    isBargeInActive = false
+                    _events.value = VoiceEvent.Listening
+                    player.notifyStateChanged()
                 }
-                isBargeInActive = false
-                _events.value = VoiceEvent.Listening
-                player.notifyStateChanged()
             }
 
             _partialText.value = text

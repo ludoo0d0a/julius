@@ -17,7 +17,11 @@ import fr.geoking.julius.shared.PermissionManager
 import fr.geoking.julius.api.jules.JulesClient
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.plugins.HttpRequestRetry
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.HttpRequestTimeoutException
+import io.ktor.http.HttpMethod
+import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,7 +29,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
+import java.io.IOException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.util.Locale
+import kotlin.random.Random
 
 // Wrapper to switch agents at runtime without Koin reload
 class DynamicAgentWrapper(
@@ -97,6 +106,52 @@ class DynamicAgentWrapper(
 val appModule = module {
     single<HttpClient> {
         HttpClient(OkHttp) {
+            install(HttpRequestRetry) {
+                // Keep this conservative: we mostly want to smooth out flaky networks/timeouts
+                // without turning transient issues into long hangs or repeated side effects.
+                maxRetries = 2
+
+                retryIf { request, response ->
+                    // Only retry on status codes for idempotent methods, to avoid repeating side-effects.
+                    val method = request.method
+                    val idempotent =
+                        method == HttpMethod.Get ||
+                            method == HttpMethod.Head ||
+                            method == HttpMethod.Options
+
+                    if (!idempotent) return@retryIf false
+
+                    val status = response.status
+                    status == HttpStatusCode.TooManyRequests || status.value in 500..599
+                }
+
+                retryOnExceptionIf { _, cause ->
+                    when (cause) {
+                        is SocketTimeoutException -> true
+                        is HttpRequestTimeoutException -> true
+                        is ConnectException -> true
+                        is UnknownHostException -> true
+                        is IOException -> {
+                            // Typical transient socket failures on mobile networks.
+                            val msg = cause.message?.lowercase() ?: ""
+                            msg.contains("connection reset") ||
+                                msg.contains("broken pipe") ||
+                                msg.contains("software caused connection abort") ||
+                                msg.contains("unexpected end of stream")
+                        }
+                        else -> false
+                    }
+                }
+
+                // Exponential backoff with a little jitter.
+                delayMillis { retry ->
+                    val base = 300L
+                    val max = 3_000L
+                    val exp = (base shl retry.coerceAtMost(10)).coerceAtMost(max)
+                    val jitter = (exp * (0.15 + Random.nextDouble() * 0.25)).toLong()
+                    exp + jitter
+                }
+            }
             install(ContentNegotiation) {
                 json(Json {
                     ignoreUnknownKeys = true

@@ -2,6 +2,7 @@ package fr.geoking.julius.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.ConversationState
 import fr.geoking.julius.shared.HistoryItem
 import fr.geoking.julius.shared.toHistoryScreenState
@@ -41,6 +43,7 @@ private val DarkBackground = Color(0xFF0A0A0A)
 @Composable
 fun HistoryScreen(
     state: ConversationState,
+    store: ConversationStore,
     onBack: () -> Unit
 ) {
     BackHandler(onBack = onBack)
@@ -102,7 +105,10 @@ fun HistoryScreen(
                         .padding(16.dp)
                 ) {
                     screenState.items.forEach { item ->
-                        HistoryMessageItem(item = item)
+                        HistoryMessageItem(
+                            item = item,
+                            onClick = { store.speakAgain(item.text) }
+                        )
                         Spacer(modifier = Modifier.size(12.dp))
                     }
                 }
@@ -112,7 +118,10 @@ fun HistoryScreen(
 }
 
 @Composable
-private fun HistoryMessageItem(item: HistoryItem) {
+private fun HistoryMessageItem(
+    item: HistoryItem,
+    onClick: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (item.isUser) Arrangement.End else Arrangement.Start
@@ -125,7 +134,9 @@ private fun HistoryMessageItem(item: HistoryItem) {
                 bottomStart = if (item.isUser) 16.dp else 4.dp,
                 bottomEnd = if (item.isUser) 4.dp else 16.dp
             ),
-            modifier = Modifier.fillMaxWidth(0.85f)
+            modifier = Modifier
+                .fillMaxWidth(0.85f)
+                .clickable(onClick = onClick)
         ) {
             Text(
                 text = item.text,

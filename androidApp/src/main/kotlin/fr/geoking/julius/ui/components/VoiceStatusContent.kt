@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -89,20 +90,37 @@ fun VoiceStatusContent(
         )
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Main display text — larger, better line height, centered
-        AnimatedLetterText(
-            text = displayText.ifEmpty { " " },
-            animation = textAnimation,
-            color = Color.White,
-            style = TextStyle(
-                fontSize = DisplayTextFontSize,
-                lineHeight = DisplayTextLineHeight,
-                fontWeight = FontWeight.Normal,
-                letterSpacing = 0.15.sp
-            ),
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
+        if (status == VoiceEvent.Processing) {
+            CircularProgressIndicator(
+                color = Color.White.copy(alpha = 0.9f),
+                trackColor = Color.White.copy(alpha = 0.12f)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = displayText.ifBlank { " " },
+                color = Color.White.copy(alpha = 0.78f),
+                fontSize = 15.sp,
+                textAlign = TextAlign.Center,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
+            )
+        } else {
+            // Main display text — larger, better line height, centered
+            AnimatedLetterText(
+                text = displayText.ifEmpty { " " },
+                animation = textAnimation,
+                color = Color.White,
+                style = TextStyle(
+                    fontSize = DisplayTextFontSize,
+                    lineHeight = DisplayTextLineHeight,
+                    fontWeight = FontWeight.Normal,
+                    letterSpacing = 0.15.sp
+                ),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
 
         lastError?.let { error ->
             Spacer(modifier = Modifier.height(20.dp))

@@ -151,6 +151,20 @@ class AutoSettingsScreen(
                 .build()
         )
 
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("Hey Julius (during speaking)")
+                .addText("Say \"hey julius\" to interrupt and start listening")
+                .setToggle(
+                    Toggle.Builder { checked ->
+                        val current = settingsManager.settings.value
+                        settingsManager.saveSettings(current.copy(heyJuliusDuringSpeakingEnabled = checked))
+                        invalidate()
+                    }.setChecked(settings.heyJuliusDuringSpeakingEnabled).build()
+                )
+                .build()
+        )
+
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
             .setHeader(Header.Builder().setTitle("Settings").setStartHeaderAction(Action.BACK).build())

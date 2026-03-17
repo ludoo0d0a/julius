@@ -45,6 +45,7 @@ class MainScreen(
     carContext: CarContext,
     private val store: ConversationStore,
     private val settingsManager: SettingsManager,
+    private val julesClient: fr.geoking.julius.api.jules.JulesClient,
     private val getMapDeps: () -> MapDeps
 ) : Screen(carContext) {
 
@@ -199,6 +200,12 @@ class MainScreen(
                 .setContentId(TAB_HISTORY)
                 .build()
 
+            val julesTab = Tab.Builder()
+                .setTitle("Jules")
+                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_jules)).build())
+                .setContentId(TAB_JULES)
+                .build()
+
             val settingsTab = Tab.Builder()
                 .setTitle("Settings")
                 .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_settings)).build())
@@ -222,6 +229,9 @@ class MainScreen(
                             val mapDeps = getMapDeps()
                             screenManager.push(MapPoiScreen(carContext, mapDeps.poiProvider, mapDeps.availabilityProviderFactory, settingsManager, mapDeps.communityRepo, mapDeps.favoritesRepo))
                         }
+                        TAB_JULES -> {
+                            screenManager.push(AutoJulesScreen(carContext, store, settingsManager, julesClient))
+                        }
                         else -> {
                             activeTabId = tabContentId
                             invalidate()
@@ -233,6 +243,7 @@ class MainScreen(
                 .addTab(assistantTab)
                 .addTab(mapTab)
                 .addTab(historyTab)
+                .addTab(julesTab)
                 .addTab(settingsTab)
                 .setActiveTabContentId(activeTabId)
                 .setTabContents(TabContents.Builder(templateToDisplay).build())
@@ -258,6 +269,7 @@ class MainScreen(
                     .setTitle(senderLabel)
                     .addText(item.text)
                     .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, senderIcon)).build())
+                    .setOnClickListener { store.speakAgain(item.text) }
                     .build()
             )
         }
@@ -356,11 +368,16 @@ class MainScreen(
     }
 
     private fun buildPaneTemplate(): Template {
+        val isProcessing = store.state.value.status == VoiceEvent.Processing
         val themeCarIcon = if (isListening || isSpeaking) {
             dynamicActiveIcon ?: CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.auto_theme_active)).build()
         } else {
             dynamicIdleIcon ?: CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.auto_theme_idle)).build()
         }
+
+        val loaderIcon = DynamicImageGenerator.generateLoaderIcon(
+            DynamicImageGenerator.paletteIndexForAgent(settingsManager.settings.value.selectedAgent)
+        )
 
         val actionIconRes = if (isSpeaking) R.drawable.ic_stop else R.drawable.ic_speaker
         val actionIcon = CarIcon.Builder(
@@ -368,7 +385,7 @@ class MainScreen(
         ).build()
 
         val paneBuilder = Pane.Builder()
-            .setImage(themeCarIcon)
+            .setImage(if (isProcessing) loaderIcon else themeCarIcon)
 
         if (lastError != null) {
             val errorTitle = when (lastError!!.httpCode) {
@@ -391,7 +408,7 @@ class MainScreen(
             val lastAssistantMsg = messages.lastOrNull { it.sender == Role.Assistant }
 
             val statusRow = Row.Builder()
-                .setTitle(currentStatus)
+                .setTitle(if (isProcessing) "Processing" else currentStatus)
                 .addText(currentText) // Current transcript or last overall message
 
             paneBuilder.addRow(statusRow.build())
@@ -437,6 +454,7 @@ class MainScreen(
         private const val TAB_ASSISTANT = "assistant"
         private const val TAB_MAP = "map"
         private const val TAB_HISTORY = "history"
+        private const val TAB_JULES = "jules"
         private const val TAB_SETTINGS = "settings"
     }
 }

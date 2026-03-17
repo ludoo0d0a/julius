@@ -277,6 +277,7 @@ fun JulesScreen(
                             listState = listState,
                             inputText = inputText,
                             onInputChange = { inputText = it },
+                            voiceManager = voiceManager,
                             onSend = {
                                 val prompt = inputText.takeIf { it.isNotBlank() } ?: return@InConversationContent
                                 inputText = ""
@@ -478,6 +479,7 @@ private fun InConversationContent(
     listState: androidx.compose.foundation.lazy.LazyListState,
     inputText: String,
     onInputChange: (String) -> Unit,
+    voiceManager: fr.geoking.julius.shared.VoiceManager,
     onSend: () -> Unit,
     onBackToList: () -> Unit,
     loading: Boolean
@@ -525,7 +527,9 @@ private fun InConversationContent(
                         Card(
                             colors = CardDefaults.cardColors(containerColor = JulesCardUser),
                             shape = RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp),
-                            modifier = Modifier.widthIn(max = 280.dp)
+                            modifier = Modifier
+                                .widthIn(max = 280.dp)
+                                .clickable { voiceManager.speak(item.text) }
                         ) {
                             Text(
                                 text = item.text,
@@ -542,7 +546,9 @@ private fun InConversationContent(
                         Card(
                             colors = CardDefaults.cardColors(containerColor = JulesCardAgent),
                             shape = RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp),
-                            modifier = Modifier.widthIn(max = 320.dp)
+                            modifier = Modifier
+                                .widthIn(max = 320.dp)
+                                .clickable { voiceManager.speak(item.text) }
                         ) {
                             Text(
                                 text = item.text,

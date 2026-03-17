@@ -217,7 +217,7 @@ fun MainUI(
                     SettingsScreen(settingsManager, authManager, state.errorLog) { showSettings = false }
                 }
                 showHistory -> {
-                    HistoryScreen(state = state, onBack = { showHistory = false })
+                    HistoryScreen(state = state, store = store, onBack = { showHistory = false })
                 }
                 showMap && showRoutePlanning && mapDeps != null -> {
                     RoutePlanningScreen(

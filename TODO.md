@@ -1,3 +1,74 @@
+# Android Auto: in-app map zoom + north-up / heading toggle
+
+## Goal
+
+In Android Auto, allow the user to:
+
+- Zoom in/out on the in-app map
+- Switch map orientation between **North-up** and **Heading-up** (and provide a "recenter" action)
+
+## Current state
+
+- The Auto POI map uses `PlaceListMapTemplate` in `androidApp/src/main/kotlin/fr/geoking/julius/auto/MapPoiScreen.kt`.
+- `PlaceListMapTemplate` is **host-rendered** and does **not** provide direct camera control (zoom/bearing), so true in-app zoom + north-up/heading requires a **surface-based navigation map**.
+
+## Implementation plan (later)
+
+### 0) UX: show loader in MessageTemplate fallbacks
+
+- When the Auto UI shows a `MessageTemplate` as a fallback (e.g. during transitions/opening the map, or any temporary "please wait" state), call `setLoading(true)` so the user gets immediate feedback.
+- Ensure the loader is removed once the surface/map is ready (swap to the real template and `setLoading(false)`).
+
+### 1) Move POI map screen to a surface-enabled map template
+
+- Replace `PlaceListMapTemplate` with a navigation map template that supports pan/zoom input callbacks:
+  - Preferred: `androidx.car.app.navigation.model.MapTemplate` or the modern replacement for `PlaceListNavigationTemplate`
+  - Ensure the template includes a **map action strip** with `Action.PAN` so the host routes pan/zoom gestures to `SurfaceCallback` (`onScroll`, `onScale`, `onFling`).
+- Register a `SurfaceCallback` (via `AppManager.setSurfaceCallback`) for the map screen (not just `MainScreen`).
+
+### 2) Render the map on the provided `Surface`
+
+- Implement a dedicated renderer (similar in spirit to `AutoSurfaceRenderer`) that can draw:
+  - Base map tiles (provider decision required) OR a simplified vector map (if you keep it lightweight)
+  - POI markers
+  - Current location indicator (if permission granted)
+- Maintain a camera state:
+  - Center lat/lon
+  - Zoom level (float)
+  - Bearing (degrees), controlled by orientation mode
+
+### 3) Add UI controls (map action strip)
+
+Add map controls with icons (required for map action strips):
+
+- **Pan**: `Action.PAN`
+- **Zoom in / Zoom out**: explicit actions that adjust zoom level
+- **Compass / North-up toggle**:
+  - Toggle between `NorthUp` (bearing = 0) and `HeadingUp` (bearing follows car/device heading)
+- **Recenter**:
+  - Center camera on current location (or on the current search anchor)
+
+### 4) Heading source
+
+- Use the best available heading source in car context:
+  - If you already have heading in your location pipeline, reuse it.
+  - Otherwise, derive from location bearing when moving, with smoothing to avoid jitter.
+
+### 5) Where to wire it
+
+- New/updated files likely needed:
+  - `androidApp/src/main/kotlin/fr/geoking/julius/auto/MapPoiScreen.kt` (template + actions)
+  - New renderer, e.g. `androidApp/src/main/kotlin/fr/geoking/julius/auto/AutoMapSurfaceRenderer.kt`
+  - Potential shared camera state model (optional)
+- Ensure refresh limits: avoid frequent `invalidate()`; update surface rendering continuously without template refresh spam.
+
+## Acceptance criteria
+
+- User can enter pan mode and **zoom** the map in Android Auto.
+- User can tap a **North/Compass** control to switch between **north-up** and **heading-up**.
+- User can **recenter** to current position quickly.
+- POI markers remain visible and selection still opens `PoiDetailScreen`.
+
 # Julius – TODO & roadmap
 
 ## Features comparison: Julius vs ChargeMap-style apps

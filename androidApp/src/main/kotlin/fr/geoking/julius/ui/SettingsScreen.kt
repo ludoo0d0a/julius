@@ -168,6 +168,9 @@ fun SettingsScreen(
                         onToggleMuteMediaOnCar = {
                             save(settingsManager, current.copy(muteMediaOnCar = it))
                         },
+                        onToggleHeyJuliusDuringSpeaking = {
+                            save(settingsManager, current.copy(heyJuliusDuringSpeakingEnabled = it))
+                        },
                         onSttEnginePreferenceChange = {
                             save(settingsManager, current.copy(sttEnginePreference = it))
                         }
@@ -270,6 +273,7 @@ private fun MainMenu(
     onNavigate: (Screen) -> Unit,
     onToggleExtendedActions: (Boolean) -> Unit,
     onToggleMuteMediaOnCar: (Boolean) -> Unit,
+    onToggleHeyJuliusDuringSpeaking: (Boolean) -> Unit,
     onSttEnginePreferenceChange: (SttEnginePreference) -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -392,6 +396,48 @@ private fun MainMenu(
                 Switch(
                     checked = settings.muteMediaOnCar,
                     onCheckedChange = onToggleMuteMediaOnCar,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Lavender,
+                        checkedTrackColor = DeepPurple,
+                        uncheckedThumbColor = Color.Gray,
+                        uncheckedTrackColor = Color.DarkGray
+                    )
+                )
+            }
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 24.dp),
+                thickness = 0.5.dp,
+                color = SeparatorColor
+            )
+        }
+
+        // "Hey Julius" during speaking toggle
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 24.dp, vertical = 24.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Hey Julius (during speaking)",
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "Say \"hey julius\" to interrupt and start listening",
+                        color = Lavender.copy(alpha = 0.7f),
+                        fontSize = 16.sp
+                    )
+                }
+                Switch(
+                    checked = settings.heyJuliusDuringSpeakingEnabled,
+                    onCheckedChange = onToggleHeyJuliusDuringSpeaking,
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Lavender,
                         checkedTrackColor = DeepPurple,

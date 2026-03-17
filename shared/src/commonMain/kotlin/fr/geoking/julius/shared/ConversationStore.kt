@@ -6,6 +6,7 @@ import fr.geoking.julius.agents.AgentResponse
 import fr.geoking.julius.agents.ToolCall
 import fr.geoking.julius.shared.ActionParser
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,6 +59,8 @@ open class ConversationStore(
     private val _state = MutableStateFlow(ConversationState())
     val state: StateFlow<ConversationState> = _state.asStateFlow()
 
+    private var activeProcessingJob: Job? = null
+
     private val _userName = MutableStateFlow<String?>(null)
     var userName: String?
         get() = _userName.value
@@ -90,6 +93,12 @@ open class ConversationStore(
 
     private val maxContextMessages = 12
 
+    /**
+     * When false, incoming final transcriptions will NOT be auto-sent to the conversational agent.
+     * This is useful for flows that reuse STT (e.g. Android Auto "Jules" prompt creation).
+     */
+    var autoSendFinalTranscripts: Boolean = true
+
     init {
         voiceManager.setTranscriber { audioData ->
             when (sttPreference()) {
@@ -120,10 +129,36 @@ open class ConversationStore(
              // If we get a final transcription, we send it
              if (text.isNotBlank()) {
                  _state.value = _state.value.copy(currentTranscript = text)
-                 // Auto-send when transcription stabilizes
-                 onUserFinishedSpeaking(text)
+                 if (isStopCommand(text)) {
+                     stopAllActions()
+                     return@onEach
+                 }
+                 // Auto-send when transcription stabilizes (unless disabled by a feature flow)
+                 if (autoSendFinalTranscripts) {
+                     onUserFinishedSpeaking(text)
+                 }
              }
         }.launchIn(scope)
+    }
+
+    private fun isStopCommand(text: String): Boolean {
+        val normalized = text
+            .lowercase()
+            .trim()
+            .replace(Regex("[^\\p{L}\\p{N}\\s]"), " ")
+            .replace(Regex("\\s+"), " ")
+        return Regex("\\bstop\\b").containsMatchIn(normalized)
+    }
+
+    fun stopAllActions() {
+        activeProcessingJob?.cancel()
+        activeProcessingJob = null
+        voiceManager.stopSpeaking()
+        voiceManager.stopListening()
+        _state.value = _state.value.copy(
+            status = VoiceEvent.Silence,
+            currentTranscript = ""
+        )
     }
 
     // Made public to be called manually or from VoiceManager logic
@@ -140,7 +175,8 @@ open class ConversationStore(
             }
         }
         
-        scope.launch {
+        activeProcessingJob?.cancel()
+        activeProcessingJob = scope.launch {
             try {
                 // 1. Add User Message
                 val userMsg = ChatMessage("u_${getCurrentTimeMillis()}", Role.User, text)
@@ -203,6 +239,8 @@ open class ConversationStore(
                         ?: SpeechLanguageResolver.detectLanguageTag(response.text)
                     voiceManager.speak(response.text, speechLanguageTag)
                 }
+            } catch (e: CancellationException) {
+                _state.value = _state.value.copy(status = VoiceEvent.Silence)
             } catch (e: NetworkException) {
                 val msg = e.message ?: "Unknown network error"
                 log.e(e) { "Network error: $msg (httpCode=${e.httpCode})" }
@@ -274,6 +312,18 @@ open class ConversationStore(
 
     fun stopSpeaking() {
         voiceManager.stopSpeaking()
+    }
+
+    fun clearTranscript() {
+        _state.value = _state.value.copy(currentTranscript = "")
+    }
+
+    /** Speaks an existing message again without sending it to the agent. */
+    fun speakAgain(text: String) {
+        if (text.isBlank()) return
+        val speechLanguageTag = _preferredSpeechLanguageTag.value
+            ?: SpeechLanguageResolver.detectLanguageTag(text)
+        voiceManager.speak(text, speechLanguageTag)
     }
 
     fun clearConversation() {

@@ -1,8 +1,10 @@
 package fr.geoking.julius.auto
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
+import android.net.Uri
 import android.util.Log
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
@@ -237,6 +239,24 @@ class MapPoiScreen(
                         .setTitle("Settings")
                         .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_settings)).build())
                         .setOnClickListener { screenManager.push(AutoMapSettingsScreen(carContext, settingsManager)) }
+                        .build()
+                )
+                .addAction(
+                    Action.Builder()
+                        .setTitle("Recenter")
+                        .setOnClickListener { loadPois() }
+                        .build()
+                )
+                .addAction(
+                    Action.Builder()
+                        .setTitle("Open map")
+                        .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
+                        .setOnClickListener {
+                            val intent = Intent(CarContext.ACTION_NAVIGATE).apply {
+                                data = Uri.parse("geo:$searchLat,$searchLon?q=${Uri.encode("Map")}")
+                            }
+                            carContext.startCarApp(intent)
+                        }
                         .build()
                 )
             if (settingsManager.settings.value.isLoggedIn && communityRepo != null) {

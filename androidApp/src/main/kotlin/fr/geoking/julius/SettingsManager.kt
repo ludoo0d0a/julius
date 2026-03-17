@@ -101,6 +101,8 @@ data class AppSettings(
     val fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium,
     val extendedActionsEnabled: Boolean = false,
     val wakeWordEnabled: Boolean = false,
+    /** If enabled, saying "hey julius" while Julius is speaking will stop TTS and start listening. */
+    val heyJuliusDuringSpeakingEnabled: Boolean = false,
     val useCarMic: Boolean = false,
     val muteMediaOnCar: Boolean = false,
     /** STT engine for car mic path: LocalOnly (Vosk only), LocalFirst (Vosk then agent), NativeOnly (agent only). */
@@ -253,6 +255,7 @@ open class SettingsManager(context: Context) {
             },
             extendedActionsEnabled = prefs.getBoolean("extended_actions_enabled", false),
             wakeWordEnabled = prefs.getBoolean("wake_word_enabled", false),
+            heyJuliusDuringSpeakingEnabled = prefs.getBoolean("hey_julius_during_speaking_enabled", false),
             useCarMic = prefs.getBoolean("use_car_mic", false),
             muteMediaOnCar = prefs.getBoolean("mute_media_on_car", false),
             sttEnginePreference = try {
@@ -453,6 +456,7 @@ open class SettingsManager(context: Context) {
             .putString("fractal_color_intensity", settings.fractalColorIntensity.name)
             .putBoolean("extended_actions_enabled", settings.extendedActionsEnabled)
             .putBoolean("wake_word_enabled", settings.wakeWordEnabled)
+            .putBoolean("hey_julius_during_speaking_enabled", settings.heyJuliusDuringSpeakingEnabled)
             .putBoolean("use_car_mic", settings.useCarMic)
             .putBoolean("mute_media_on_car", settings.muteMediaOnCar)
             .putString("stt_engine_preference", settings.sttEnginePreference.name)
@@ -493,6 +497,7 @@ open class SettingsManager(context: Context) {
         fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium,
         extendedActionsEnabled: Boolean = false,
         wakeWordEnabled: Boolean = false,
+        heyJuliusDuringSpeakingEnabled: Boolean = false,
         useCarMic: Boolean = false,
         muteMediaOnCar: Boolean = false,
         sttEnginePreference: SttEnginePreference = _settings.value.sttEnginePreference,
@@ -535,6 +540,7 @@ open class SettingsManager(context: Context) {
             fractalColorIntensity = fractalColorIntensity,
             extendedActionsEnabled = extendedActionsEnabled,
             wakeWordEnabled = wakeWordEnabled,
+            heyJuliusDuringSpeakingEnabled = heyJuliusDuringSpeakingEnabled,
             useCarMic = useCarMic,
             muteMediaOnCar = muteMediaOnCar,
             sttEnginePreference = sttEnginePreference,

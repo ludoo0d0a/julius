@@ -6,11 +6,13 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RadialGradient
 import android.graphics.Shader
+import android.graphics.RectF
 import androidx.car.app.model.CarIcon
 import androidx.core.graphics.drawable.IconCompat
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.ui.anim.AnimationPalette
 import fr.geoking.julius.ui.anim.AnimationPalettes
+import kotlin.math.min
 import kotlin.random.Random
 
 /**
@@ -21,6 +23,8 @@ object DynamicImageGenerator {
 
     private const val ICON_WIDTH = 400
     private const val ICON_HEIGHT = 400
+
+    private val loaderIconCache = mutableMapOf<Int, CarIcon>()
 
     private val agentPaletteMap = mapOf(
         AgentType.OpenAI to 0,     // Aurora
@@ -47,6 +51,18 @@ object DynamicImageGenerator {
 
         return CarIcon.Builder(IconCompat.createWithBitmap(bitmap)).build()
     }
+
+    fun generateLoaderIcon(paletteIndex: Int): CarIcon {
+        return loaderIconCache.getOrPut(paletteIndex) {
+            val palette = AnimationPalettes.paletteFor(paletteIndex)
+            val bitmap = Bitmap.createBitmap(ICON_WIDTH, ICON_HEIGHT, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            drawLoader(canvas, palette)
+            CarIcon.Builder(IconCompat.createWithBitmap(bitmap)).build()
+        }
+    }
+
+    fun paletteIndexForAgent(agentType: AgentType): Int = agentPaletteMap[agentType] ?: 0
 
     private fun drawShinyBackground(canvas: Canvas, palette: AnimationPalette, isActive: Boolean) {
         val width = canvas.width.toFloat()
@@ -130,6 +146,53 @@ object DynamicImageGenerator {
         )
         paint.alpha = 40
         canvas.drawRect(0f, 0f, width, height, paint)
+        paint.shader = null
+    }
+
+    private fun drawLoader(canvas: Canvas, palette: AnimationPalette) {
+        val width = canvas.width.toFloat()
+        val height = canvas.height.toFloat()
+        val cx = width / 2f
+        val cy = height / 2f
+        val size = min(width, height)
+        val radius = size * 0.22f
+        val stroke = size * 0.05f
+
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+        // Background: deep radial gradient, tinted by palette primary
+        paint.shader = RadialGradient(
+            cx, cy, size * 0.9f,
+            intArrayOf(palette.primary, 0xFF020617.toInt()),
+            floatArrayOf(0f, 1f),
+            Shader.TileMode.CLAMP
+        )
+        canvas.drawRect(0f, 0f, width, height, paint)
+        paint.shader = null
+
+        // Ring track
+        paint.style = Paint.Style.STROKE
+        paint.strokeCap = Paint.Cap.ROUND
+        paint.strokeWidth = stroke
+        paint.color = Color.WHITE
+        paint.alpha = 45
+        val oval = RectF(cx - radius, cy - radius, cx + radius, cy + radius)
+        canvas.drawArc(oval, 0f, 360f, false, paint)
+
+        // Bright arc segment (static loader cue)
+        paint.alpha = 200
+        canvas.drawArc(oval, -90f, 270f, false, paint)
+
+        // Subtle center glow
+        paint.style = Paint.Style.FILL
+        paint.shader = RadialGradient(
+            cx, cy, radius * 1.6f,
+            intArrayOf(Color.WHITE, Color.TRANSPARENT),
+            floatArrayOf(0f, 1f),
+            Shader.TileMode.CLAMP
+        )
+        paint.alpha = 35
+        canvas.drawCircle(cx, cy, radius * 1.6f, paint)
         paint.shader = null
     }
 }
