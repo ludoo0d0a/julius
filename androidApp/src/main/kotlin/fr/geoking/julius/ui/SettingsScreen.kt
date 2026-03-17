@@ -165,6 +165,9 @@ fun SettingsScreen(
                         onToggleExtendedActions = {
                             save(settingsManager, current.copy(extendedActionsEnabled = it))
                         },
+                        onToggleMuteMediaOnCar = {
+                            save(settingsManager, current.copy(muteMediaOnCar = it))
+                        },
                         onSttEnginePreferenceChange = {
                             save(settingsManager, current.copy(sttEnginePreference = it))
                         }
@@ -266,6 +269,7 @@ private fun MainMenu(
     authManager: GoogleAuthManager,
     onNavigate: (Screen) -> Unit,
     onToggleExtendedActions: (Boolean) -> Unit,
+    onToggleMuteMediaOnCar: (Boolean) -> Unit,
     onSttEnginePreferenceChange: (SttEnginePreference) -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -360,6 +364,48 @@ private fun MainMenu(
             value = settings.googleUserName ?: "Not connected",
             onClick = { onNavigate(Screen.GoogleAccount) }
         )
+
+        // Mute Radio (Car) Toggle
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 24.dp, vertical = 24.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Mute Radio (Car)",
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "Mute media in Android Auto when Julius is active",
+                        color = Lavender.copy(alpha = 0.7f),
+                        fontSize = 16.sp
+                    )
+                }
+                Switch(
+                    checked = settings.muteMediaOnCar,
+                    onCheckedChange = onToggleMuteMediaOnCar,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Lavender,
+                        checkedTrackColor = DeepPurple,
+                        uncheckedThumbColor = Color.Gray,
+                        uncheckedTrackColor = Color.DarkGray
+                    )
+                )
+            }
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 24.dp),
+                thickness = 0.5.dp,
+                color = SeparatorColor
+            )
+        }
         
         // Extended Actions Toggle
         Column(
