@@ -25,7 +25,7 @@ class EtalabClientTest {
                         "latitude": 48.8566,
                         "longitude": 2.3522,
                         "prix": [
-                            {"nom": "Gazole", "valeur": 1800}
+                            {"nom": "Gazole", "valeur": 1.8}
                         ]
                     }
                 ]
@@ -58,7 +58,7 @@ class EtalabClientTest {
                     "latitude": 45.7640,
                     "longitude": 4.8357,
                     "prix": [
-                        {"nom": "SP98", "valeur": 1950}
+                        {"nom": "SP98", "valeur": 1.95}
                     ]
                 }
             }
