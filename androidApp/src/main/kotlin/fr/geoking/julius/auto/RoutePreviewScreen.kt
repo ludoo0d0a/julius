@@ -172,11 +172,10 @@ class RoutePreviewScreen(
             )
             .build()
 
+        // Note: With the current Car App Library, destination / guidance details are provided
+        // by the navigation host rather than directly on the template builder.
         return NavigationTemplate.Builder()
             .setActionStrip(actionStrip)
-            .setDestination(
-                CarLocation.create(destination.latitude, destination.longitude)
-            )
             .build()
     }
 }
