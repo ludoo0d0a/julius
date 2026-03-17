@@ -114,6 +114,7 @@ class MainActivity : ComponentActivity() {
             val authManager: GoogleAuthManager = get()
             val permissionManager: PermissionManager = get()
             val julesClient: JulesClient = get()
+            val voiceManager: fr.geoking.julius.shared.VoiceManager = get()
             // Map/route deps are resolved lazily when user opens map (see mapDepsState / ensureMapDeps)
 
             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
@@ -143,6 +144,7 @@ class MainActivity : ComponentActivity() {
                     mapDepsState = mapDepsState,
                     onRequestMapDeps = { ensureMapDeps() },
                     julesClient = julesClient,
+                    voiceManager = voiceManager,
                     inAppUpdateHelper = inAppUpdateHelper,
                     onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) }
                 )
@@ -168,6 +170,7 @@ fun MainUI(
     mapDepsState: kotlinx.coroutines.flow.StateFlow<MapDeps?>,
     onRequestMapDeps: () -> Unit,
     julesClient: JulesClient,
+    voiceManager: fr.geoking.julius.shared.VoiceManager,
     inAppUpdateHelper: InAppUpdateHelper? = null,
     onStartUpdate: (AppUpdateInfo) -> Unit = {}
 ) {
@@ -251,7 +254,8 @@ fun MainUI(
                     JulesScreen(
                         onBack = { showJules = false },
                         julesClient = julesClient,
-                        settingsManager = settingsManager
+                        settingsManager = settingsManager,
+                        voiceManager = voiceManager
                     )
                 }
                 else -> {
@@ -354,7 +358,8 @@ fun MainUIPreview() {
         authManager = mockAuthManager,
         mapDepsState = mapDepsFlow,
         onRequestMapDeps = {},
-        julesClient = remember { JulesClient(HttpClient(OkHttp) {}) }
+        julesClient = remember { JulesClient(HttpClient(OkHttp) {}) },
+        voiceManager = mockStore.voiceManager
     )
 }
 

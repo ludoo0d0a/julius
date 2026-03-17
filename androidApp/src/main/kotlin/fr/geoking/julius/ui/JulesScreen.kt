@@ -75,7 +75,8 @@ private val JulesListBg = Color(0xFF1E293B)
 fun JulesScreen(
     onBack: () -> Unit,
     julesClient: JulesClient,
-    settingsManager: SettingsManager
+    settingsManager: SettingsManager,
+    voiceManager: fr.geoking.julius.shared.VoiceManager
 ) {
     BackHandler { onBack() }
 
@@ -153,25 +154,29 @@ fun JulesScreen(
         }
     }
 
-    fun refreshActivities() {
+    suspend fun refreshActivitiesInternal() {
         val session = currentSession ?: return
         if (apiKey.isBlank()) return
-        scope.launch {
-            loading = true
-            clearError()
-            try {
-                val resp = julesClient.listActivities(apiKey, session.id, pageSize = 50)
-                chatItems.clear()
-                chatItems.addAll(julesClient.activitiesToChatItems(resp.activities))
-                listState.animateScrollToItem(chatItems.size.coerceAtLeast(0))
-            } catch (e: Exception) {
-                error = when {
-                    e is NetworkException && e.httpCode == 401 -> "Invalid API key."
-                    else -> "Failed to load messages: ${e.message ?: "Unknown error"}"
-                }
+        loading = true
+        clearError()
+        try {
+            val resp = julesClient.listActivities(apiKey, session.id, pageSize = 50)
+            chatItems.clear()
+            chatItems.addAll(julesClient.activitiesToChatItems(resp.activities))
+            if (chatItems.isNotEmpty()) {
+                listState.animateScrollToItem(chatItems.size - 1)
             }
-            loading = false
+        } catch (e: Exception) {
+            error = when {
+                e is NetworkException && e.httpCode == 401 -> "Invalid API key."
+                else -> "Failed to load messages: ${e.message ?: "Unknown error"}"
+            }
         }
+        loading = false
+    }
+
+    fun refreshActivities() {
+        scope.launch { refreshActivitiesInternal() }
     }
 
     LaunchedEffect(apiKey) {
@@ -279,9 +284,24 @@ fun JulesScreen(
                                     loading = true
                                     clearError()
                                     try {
+                                        val oldLastId = chatItems.lastOrNull { it is JulesChatItem.AgentMessage }?.let {
+                                            (it as JulesChatItem.AgentMessage).id
+                                        }
+
                                         julesClient.sendMessage(apiKey, currentSession!!.id, prompt)
-                                        kotlinx.coroutines.delay(1500)
-                                        refreshActivities()
+
+                                        // Poll for response
+                                        var foundNew = false
+                                        repeat(10) {
+                                            kotlinx.coroutines.delay(2000)
+                                            refreshActivitiesInternal()
+                                            val newLastAgentMsg = chatItems.lastOrNull { it is JulesChatItem.AgentMessage } as? JulesChatItem.AgentMessage
+                                            if (newLastAgentMsg != null && newLastAgentMsg.id != oldLastId) {
+                                                voiceManager.speak(newLastAgentMsg.text)
+                                                foundNew = true
+                                                return@repeat
+                                            }
+                                        }
                                     } catch (e: Exception) {
                                         error = e.message ?: "Failed to send"
                                     }
