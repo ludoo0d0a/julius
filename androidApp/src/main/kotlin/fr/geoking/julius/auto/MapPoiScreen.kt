@@ -15,13 +15,13 @@ import androidx.car.app.model.CarLocation
 import androidx.car.app.model.ItemList
 import androidx.car.app.model.Header
 import androidx.car.app.model.ListTemplate
-import androidx.car.app.model.MapController
 import androidx.car.app.model.Metadata
 import androidx.car.app.model.MessageTemplate
 import androidx.car.app.model.Place
 import androidx.car.app.model.PlaceMarker
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
+import androidx.car.app.navigation.model.MapController
 import androidx.car.app.navigation.model.MapWithContentTemplate
 import fr.geoking.julius.poi.PoiProviderType
 import androidx.core.graphics.drawable.IconCompat

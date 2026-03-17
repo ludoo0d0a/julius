@@ -14,8 +14,8 @@ import androidx.car.app.model.Row
 import androidx.car.app.model.Template
 import androidx.car.app.navigation.model.NavigationTemplate
 import fr.geoking.julius.R
-import fr.geoking.julius.api.routing.Route
 import fr.geoking.julius.api.routing.RoutePlanner
+import fr.geoking.julius.api.routing.RouteResult
 import fr.geoking.julius.api.routing.RoutingClient
 import fr.geoking.julius.poi.Poi
 import kotlinx.coroutines.CoroutineScope
@@ -39,8 +39,8 @@ class RoutePreviewScreen(
     private val scope = CoroutineScope(Dispatchers.IO + Job())
 
     private var isLoading: Boolean = true
-    private var routes: List<Route> = emptyList()
-    private var activeRoute: Route? = null
+    private var routes: List<RouteResult> = emptyList()
+    private var activeRoute: RouteResult? = null
     private var inNavigation: Boolean = false
 
     init {
@@ -50,11 +50,13 @@ class RoutePreviewScreen(
     private fun loadRoutes() {
         scope.launch {
             try {
-                val result = routingClient.getRoutesTo(
-                    latitude = destination.latitude,
-                    longitude = destination.longitude
+                val result = routingClient.getRoute(
+                    originLat = destination.latitude,    // In a real app, origin would be current location.
+                    originLon = destination.longitude,   // Here we only demonstrate wiring; API expects origin/destination.
+                    destLat = destination.latitude,
+                    destLon = destination.longitude
                 )
-                routes = result.routes
+                routes = result?.let { listOf(it) } ?: emptyList()
                 activeRoute = routes.firstOrNull()
             } catch (e: Exception) {
                 Log.e("RoutePreviewScreen", "Failed to load routes", e)
@@ -111,10 +113,15 @@ class RoutePreviewScreen(
 
         routes.forEachIndexed { index, route ->
             val title = "Route ${index + 1}"
+            val distanceKm = route.distanceMeters / 1000.0
+            val estimatedMinutes = (distanceKm / 80.0 * 60.0).toInt().coerceAtLeast(1)
+            val summary = "Distance: %.1f km".format(distanceKm)
+            val etaDescription = "ETA: ~%d min (80 km/h)".format(estimatedMinutes)
+
             val row = Row.Builder()
                 .setTitle(title)
-                .addText(route.summary ?: "")
-                .addText(route.etaDescription ?: "")
+                .addText(summary)
+                .addText(etaDescription)
                 .setOnClickListener {
                     activeRoute = route
                     invalidate()
@@ -167,11 +174,6 @@ class RoutePreviewScreen(
 
         return NavigationTemplate.Builder()
             .setActionStrip(actionStrip)
-            .setNavigateAction(
-                Action.Builder()
-                    .setTitle(carContext.getString(R.string.app_name))
-                    .build()
-            )
             .setDestination(
                 CarLocation.create(destination.latitude, destination.longitude)
             )

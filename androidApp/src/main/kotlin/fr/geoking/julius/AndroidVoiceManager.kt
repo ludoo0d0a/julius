@@ -289,7 +289,9 @@ class AndroidVoiceManager(
         Log.d(TAG, "mic on: startListening()")
         requestAudioFocus()
         val currentCarContext = carContext
-        if (currentCarContext != null && BuildConfig.FLAVOR == "phone" && settingsManager.settings.value.useCarMic) {
+        // Use the car's microphone whenever a car context is available and the setting is enabled.
+        // We no longer gate this on a specific Gradle flavor so that non-flavored builds work.
+        if (currentCarContext != null && settingsManager.settings.value.useCarMic) {
             startCarListening(currentCarContext)
         } else {
             startListeningInternal(stopOutputs = true, bargeIn = false)
