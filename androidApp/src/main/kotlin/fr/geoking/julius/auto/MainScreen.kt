@@ -134,7 +134,21 @@ class MainScreen(
                     val keywords = listOf("display map", "map", "carte", "gas stations", "stations service")
                     if (keywords.any { lastUserMsg.contains(it) }) {
                         val mapDeps = getMapDeps()
-                        screenManager.push(MapPoiScreen(carContext, mapDeps.poiProvider, mapDeps.availabilityProviderFactory, settingsManager, mapDeps.communityRepo, mapDeps.favoritesRepo))
+                        screenManager.push(
+                            MapPoiScreen(
+                                carContext = carContext,
+                                poiProvider = mapDeps.poiProvider,
+                                availabilityProviderFactory = mapDeps.availabilityProviderFactory,
+                                settingsManager = settingsManager,
+                                routePlanner = mapDeps.routePlanner,
+                                routingClient = mapDeps.routingClient,
+                                tollCalculator = mapDeps.tollCalculator,
+                                trafficProviderFactory = mapDeps.trafficProviderFactory,
+                                geocodingClient = mapDeps.geocodingClient,
+                                communityRepo = mapDeps.communityRepo,
+                                favoritesRepo = mapDeps.favoritesRepo
+                            )
+                        )
                     }
                 }
 
@@ -227,7 +241,21 @@ class MainScreen(
                         TAB_SETTINGS -> screenManager.push(AutoSettingsScreen(carContext, settingsManager))
                         TAB_MAP -> {
                             val mapDeps = getMapDeps()
-                            screenManager.push(MapPoiScreen(carContext, mapDeps.poiProvider, mapDeps.availabilityProviderFactory, settingsManager, mapDeps.communityRepo, mapDeps.favoritesRepo))
+                            screenManager.push(
+                                MapPoiScreen(
+                                    carContext = carContext,
+                                    poiProvider = mapDeps.poiProvider,
+                                    availabilityProviderFactory = mapDeps.availabilityProviderFactory,
+                                    settingsManager = settingsManager,
+                                    routePlanner = mapDeps.routePlanner,
+                                    routingClient = mapDeps.routingClient,
+                                    tollCalculator = mapDeps.tollCalculator,
+                                    trafficProviderFactory = mapDeps.trafficProviderFactory,
+                                    geocodingClient = mapDeps.geocodingClient,
+                                    communityRepo = mapDeps.communityRepo,
+                                    favoritesRepo = mapDeps.favoritesRepo
+                                )
+                            )
                         }
                         TAB_JULES -> {
                             screenManager.push(AutoJulesScreen(carContext, store, settingsManager, julesClient))

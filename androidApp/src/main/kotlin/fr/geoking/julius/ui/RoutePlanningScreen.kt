@@ -60,6 +60,7 @@ import fr.geoking.julius.toll.TollEstimate
 import fr.geoking.julius.api.traffic.TrafficInfo
 import fr.geoking.julius.api.traffic.TrafficProviderFactory
 import fr.geoking.julius.api.traffic.TrafficRequest
+import fr.geoking.julius.api.geocoding.GeocodingClient
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,15 +70,15 @@ fun RoutePlanningScreen(
     tollCalculator: TollCalculator,
     trafficProviderFactory: TrafficProviderFactory? = null,
     poiProvider: PoiProvider,
+    geocodingClient: GeocodingClient,
     settingsManager: SettingsManager,
     onBack: () -> Unit
 ) {
     BackHandler(onBack = onBack)
     val context = LocalContext.current
-    var originLat by remember { mutableStateOf("") }
-    var originLon by remember { mutableStateOf("") }
-    var destLat by remember { mutableStateOf("") }
-    var destLon by remember { mutableStateOf("") }
+    var originQuery by remember { mutableStateOf("") }
+    var destQuery by remember { mutableStateOf("") }
+    var useCurrentLocationAsOrigin by remember { mutableStateOf(true) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var stations by remember { mutableStateOf<List<Poi>>(emptyList()) }
@@ -86,15 +87,6 @@ fun RoutePlanningScreen(
     var calculateTrigger by remember { mutableStateOf(0) }
 
     val hasLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-    LaunchedEffect(Unit) {
-        if (hasLocation && originLat.isEmpty()) {
-            val loc = LocationHelper.getCurrentLocation(context)
-            loc?.let {
-                originLat = "%.4f".format(it.latitude)
-                originLon = "%.4f".format(it.longitude)
-            }
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -120,61 +112,56 @@ fun RoutePlanningScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            Text("Origin (latitude, longitude)", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelMedium)
+            Text("Origin", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelMedium)
             Spacer(modifier = Modifier.height(4.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = originLat,
-                    onValueChange = { originLat = it.filter { c -> c.isDigit() || c == '-' || c == '.' }.take(12) },
-                    label = { Text("Lat") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                androidx.compose.material3.Switch(
+                    checked = useCurrentLocationAsOrigin,
+                    onCheckedChange = { useCurrentLocationAsOrigin = it }
                 )
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    if (useCurrentLocationAsOrigin) "Use my current location" else "Enter an address / city",
+                    color = Color.White.copy(alpha = 0.9f)
+                )
+            }
+            if (!useCurrentLocationAsOrigin) {
+                Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
-                    value = originLon,
-                    onValueChange = { originLon = it.filter { c -> c.isDigit() || c == '-' || c == '.' }.take(12) },
-                    label = { Text("Lon") },
+                    value = originQuery,
+                    onValueChange = { originQuery = it.take(120) },
+                    label = { Text("Origin address or city") },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f)
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Text("Destination (latitude, longitude)", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelMedium)
+            Text("Destination", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelMedium)
             Spacer(modifier = Modifier.height(4.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = destLat,
-                    onValueChange = { destLat = it.filter { c -> c.isDigit() || c == '-' || c == '.' }.take(12) },
-                    label = { Text("Lat") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f)
-                )
-                OutlinedTextField(
-                    value = destLon,
-                    onValueChange = { destLon = it.filter { c -> c.isDigit() || c == '-' || c == '.' }.take(12) },
-                    label = { Text("Lon") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            OutlinedTextField(
+                value = destQuery,
+                onValueChange = { destQuery = it.take(120) },
+                label = { Text("Destination address or city") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                modifier = Modifier.fillMaxWidth()
+            )
             Spacer(modifier = Modifier.height(24.dp))
             Button(
                 onClick = {
-                    if (originLat.isNotBlank() && originLon.isNotBlank() && destLat.isNotBlank() && destLon.isNotBlank()) {
-                        loading = true
-                        error = null
-                        stations = emptyList()
-                        tollEstimate = null
-                        routeTraffic = null
-                        calculateTrigger++
-                    }
+                    loading = true
+                    error = null
+                    stations = emptyList()
+                    tollEstimate = null
+                    routeTraffic = null
+                    calculateTrigger++
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !loading && originLat.isNotBlank() && originLon.isNotBlank() && destLat.isNotBlank() && destLon.isNotBlank()
+                enabled = !loading && destQuery.isNotBlank() && (useCurrentLocationAsOrigin || originQuery.isNotBlank())
             ) {
                 Text(if (loading) "Calculating…" else "Calculate route")
             }
@@ -252,32 +239,66 @@ fun RoutePlanningScreen(
 
     LaunchedEffect(calculateTrigger) {
         if (calculateTrigger == 0) return@LaunchedEffect
-        val oLat = originLat.toDoubleOrNull()
-        val oLon = originLon.toDoubleOrNull()
-        val dLat = destLat.toDoubleOrNull()
-        val dLon = destLon.toDoubleOrNull()
-        if (oLat == null || oLon == null || dLat == null || dLon == null) {
-            loading = false
-            error = "Enter valid coordinates"
-            return@LaunchedEffect
-        }
-        val settings = settingsManager.settings.value
-        val route = routingClient.getRoute(oLat, oLon, dLat, dLon)
-        if (route != null) {
-            tollEstimate = tollCalculator.estimateToll(route.points, settings.vehicleType)
-            val trafficProviders = trafficProviderFactory?.getProvidersForRoute(route.points).orEmpty()
-            routeTraffic = trafficProviders.firstOrNull()?.let { provider ->
-                provider.getTraffic(TrafficRequest.Route(route.points))
+        try {
+            val origin = if (useCurrentLocationAsOrigin) {
+                if (!hasLocation) {
+                    loading = false
+                    error = "Location permission is required to use current location"
+                    return@LaunchedEffect
+                }
+                val loc = LocationHelper.getCurrentLocation(context)
+                if (loc == null) {
+                    loading = false
+                    error = "Could not determine current location"
+                    return@LaunchedEffect
+                }
+                Pair("Current location", loc.latitude to loc.longitude)
+            } else {
+                val results = geocodingClient.geocode(originQuery, limit = 1)
+                val first = results.firstOrNull()
+                if (first == null) {
+                    loading = false
+                    error = "Origin not found"
+                    return@LaunchedEffect
+                }
+                Pair(first.label, first.latitude to first.longitude)
             }
-        } else {
-            tollEstimate = null
-            routeTraffic = null
+
+            val destResults = geocodingClient.geocode(destQuery, limit = 1)
+            val destFirst = destResults.firstOrNull()
+            if (destFirst == null) {
+                loading = false
+                error = "Destination not found"
+                return@LaunchedEffect
+            }
+            val destination = Pair(destFirst.label, destFirst.latitude to destFirst.longitude)
+
+            val (oLat, oLon) = origin.second
+            val (dLat, dLon) = destination.second
+
+            val settings = settingsManager.settings.value
+            val route = routingClient.getRoute(oLat, oLon, dLat, dLon)
+            if (route != null) {
+                tollEstimate = tollCalculator.estimateToll(route.points, settings.vehicleType)
+                val trafficProviders = trafficProviderFactory?.getProvidersForRoute(route.points).orEmpty()
+                routeTraffic = trafficProviders.firstOrNull()?.let { provider ->
+                    provider.getTraffic(TrafficRequest.Route(route.points))
+                }
+            } else {
+                tollEstimate = null
+                routeTraffic = null
+            }
+
+            val result = routePlanner.getStationsAlongRoute(oLat, oLon, dLat, dLon, poiProvider)
+            loading = false
+            result.fold(
+                onSuccess = { stations = it },
+                onFailure = { error = it.message ?: "Route failed" }
+            )
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            loading = false
+            error = e.message ?: e.toString()
         }
-        val result = routePlanner.getStationsAlongRoute(oLat, oLon, dLat, dLon, poiProvider)
-        loading = false
-        result.fold(
-            onSuccess = { stations = it },
-            onFailure = { error = it.message ?: "Route failed" }
-        )
     }
 }

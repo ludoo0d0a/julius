@@ -35,6 +35,11 @@ import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory
 import fr.geoking.julius.api.availability.StationAvailabilitySummary
+import fr.geoking.julius.api.geocoding.GeocodingClient
+import fr.geoking.julius.api.routing.RoutePlanner
+import fr.geoking.julius.api.routing.RoutingClient
+import fr.geoking.julius.api.traffic.TrafficProviderFactory
+import fr.geoking.julius.toll.TollCalculator
 import kotlinx.coroutines.flow.collectLatest
 import fr.geoking.julius.api.availability.matchAvailabilityToPois
 import fr.geoking.julius.ui.BrandHelper
@@ -47,6 +52,11 @@ class MapPoiScreen(
     private val poiProvider: PoiProvider,
     private val availabilityProviderFactory: BorneAvailabilityProviderFactory,
     private val settingsManager: SettingsManager,
+    private val routePlanner: RoutePlanner? = null,
+    private val routingClient: RoutingClient? = null,
+    private val tollCalculator: TollCalculator? = null,
+    private val trafficProviderFactory: TrafficProviderFactory? = null,
+    private val geocodingClient: GeocodingClient? = null,
     private val communityRepo: CommunityPoiRepository? = null,
     private val favoritesRepo: FavoritesRepository? = null
 ) : Screen(carContext) {
@@ -241,24 +251,45 @@ class MapPoiScreen(
                         .setOnClickListener { screenManager.push(AutoMapSettingsScreen(carContext, settingsManager)) }
                         .build()
                 )
-                .addAction(
+
+            if (routePlanner != null && routingClient != null && tollCalculator != null && geocodingClient != null) {
+                actionStripBuilder.addAction(
                     Action.Builder()
-                        .setTitle("Recenter")
-                        .setOnClickListener { loadPois() }
-                        .build()
-                )
-                .addAction(
-                    Action.Builder()
-                        .setTitle("Open map")
-                        .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
+                        .setTitle("Plan route")
                         .setOnClickListener {
-                            val intent = Intent(CarContext.ACTION_NAVIGATE).apply {
-                                data = Uri.parse("geo:$searchLat,$searchLon?q=${Uri.encode("Map")}")
-                            }
-                            carContext.startCarApp(intent)
+                            screenManager.push(
+                                AutoRoutePlanningScreen(
+                                    carContext = carContext,
+                                    routePlanner = routePlanner,
+                                    routingClient = routingClient,
+                                    poiProvider = poiProvider,
+                                    geocodingClient = geocodingClient,
+                                    settingsManager = settingsManager
+                                )
+                            )
                         }
                         .build()
                 )
+            }
+
+            actionStripBuilder.addAction(
+                Action.Builder()
+                    .setTitle("Recenter")
+                    .setOnClickListener { loadPois() }
+                    .build()
+            )
+            actionStripBuilder.addAction(
+                Action.Builder()
+                    .setTitle("Open map")
+                    .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
+                    .setOnClickListener {
+                        val intent = Intent(CarContext.ACTION_NAVIGATE).apply {
+                            data = Uri.parse("geo:$searchLat,$searchLon?q=${Uri.encode("Map")}")
+                        }
+                        carContext.startCarApp(intent)
+                    }
+                    .build()
+            )
             if (settingsManager.settings.value.isLoggedIn && communityRepo != null) {
                 actionStripBuilder.addAction(
                     Action.Builder()

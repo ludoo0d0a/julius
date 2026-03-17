@@ -13,6 +13,7 @@ import fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory
 import fr.geoking.julius.api.routing.RoutePlanner
 import fr.geoking.julius.api.routing.RoutingClient
 import fr.geoking.julius.api.traffic.TrafficProviderFactory
+import fr.geoking.julius.api.geocoding.GeocodingClient
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.poi.PoiProvider
@@ -42,7 +43,8 @@ class VoiceSession : Session(), KoinComponent {
                 trafficProviderFactory = get<TrafficProviderFactory>(),
                 routePlanner = get<RoutePlanner>(),
                 routingClient = get<RoutingClient>(),
-                tollCalculator = get<TollCalculator>()
+                tollCalculator = get<TollCalculator>(),
+                geocodingClient = get<GeocodingClient>()
             )
         }
         return cachedMapDeps!!

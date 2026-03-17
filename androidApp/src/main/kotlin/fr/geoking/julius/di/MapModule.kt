@@ -21,6 +21,8 @@ import fr.geoking.julius.api.routing.OsrmRoutingClient
 import fr.geoking.julius.api.routing.RoutePlanner
 import fr.geoking.julius.api.routing.RoutingClient
 import fr.geoking.julius.api.routex.RoutexProvider
+import fr.geoking.julius.api.geocoding.AdresseDataGouvGeocodingClient
+import fr.geoking.julius.api.geocoding.GeocodingClient
 import fr.geoking.julius.api.transit.BelgiumTransitProvider
 import fr.geoking.julius.api.transit.FranceTransitProvider
 import fr.geoking.julius.api.transit.LuxembourgTransitProvider
@@ -127,6 +129,7 @@ val mapModule = module {
 
     single<RoutingClient> { OsrmRoutingClient(get()) }
     single<RoutePlanner> { RoutePlanner(get()) }
+    single<GeocodingClient> { AdresseDataGouvGeocodingClient(get()) }
 
     // Transit (bus/tram): location-based provider selection (France, Luxembourg, Belgium).
     single<TransitProvider>(named("fr_ratp")) { FranceTransitProvider(get()) }
@@ -167,7 +170,8 @@ data class MapDeps(
     val trafficProviderFactory: TrafficProviderFactory,
     val routePlanner: RoutePlanner,
     val routingClient: RoutingClient,
-    val tollCalculator: TollCalculator
+    val tollCalculator: TollCalculator,
+    val geocodingClient: GeocodingClient
 )
 
 /**

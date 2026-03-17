@@ -84,7 +84,8 @@ class MainActivity : ComponentActivity() {
             trafficProviderFactory = get(),
             routePlanner = get(),
             routingClient = get(),
-            tollCalculator = get()
+            tollCalculator = get(),
+            geocodingClient = get()
         )
     }
 
@@ -226,6 +227,7 @@ fun MainUI(
                         tollCalculator = mapDeps!!.tollCalculator,
                         trafficProviderFactory = mapDeps!!.trafficProviderFactory,
                         poiProvider = mapDeps!!.poiProvider,
+                        geocodingClient = mapDeps!!.geocodingClient,
                         settingsManager = settingsManager,
                         onBack = { showRoutePlanning = false }
                     )
