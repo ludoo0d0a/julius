@@ -19,6 +19,7 @@ import androidx.car.app.model.PlaceListMapTemplate
 import androidx.car.app.model.PlaceMarker
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
+import fr.geoking.julius.poi.PoiProviderType
 import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.R
@@ -31,6 +32,7 @@ import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory
 import fr.geoking.julius.api.availability.StationAvailabilitySummary
+import kotlinx.coroutines.flow.collectLatest
 import fr.geoking.julius.api.availability.matchAvailabilityToPois
 import fr.geoking.julius.ui.BrandHelper
 import kotlinx.coroutines.launch
@@ -53,7 +55,11 @@ class MapPoiScreen(
     private var searchLon: Double = 2.3522
 
     init {
-        loadPois()
+        lifecycleScope.launch {
+            settingsManager.settings.collectLatest {
+                loadPois()
+            }
+        }
     }
 
     private fun loadPois() {
@@ -105,9 +111,16 @@ class MapPoiScreen(
     }
 
     override fun onGetTemplate(): Template {
+        val settings = settingsManager.settings.value
+        val title = when (settings.selectedPoiProvider) {
+            PoiProviderType.DataGouvElec, PoiProviderType.OpenChargeMap -> "EV Chargers"
+            PoiProviderType.Overpass -> "Places"
+            else -> "Gas Stations"
+        }
+
         return try {
             val builder = PlaceListMapTemplate.Builder()
-                .setTitle("Gas Stations")
+                .setTitle(title)
                 .setHeaderAction(Action.BACK)
                 .setCurrentLocationEnabled(
                     carContext.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
@@ -191,9 +204,9 @@ class MapPoiScreen(
             val actionStripBuilder = ActionStrip.Builder()
                 .addAction(
                     Action.Builder()
-                        .setTitle("Refresh")
-                        .setIcon(CarIcon.Builder(androidx.core.graphics.drawable.IconCompat.createWithResource(carContext, fr.geoking.julius.R.drawable.ic_map)).build())
-                        .setOnClickListener { loadPois() }
+                        .setTitle("Settings")
+                        .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_settings)).build())
+                        .setOnClickListener { screenManager.push(AutoMapSettingsScreen(carContext, settingsManager)) }
                         .build()
                 )
             if (settingsManager.settings.value.isLoggedIn && communityRepo != null) {
