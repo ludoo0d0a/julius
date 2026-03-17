@@ -27,7 +27,7 @@ class DataGouvClientTest {
                         "latitude": 48.8566,
                         "longitude": 2.3522,
                         "prix": [
-                            {"nom": "Gazole", "valeur": 1800, "maj": "2023-10-27T12:00:00Z"}
+                            {"nom": "Gazole", "valeur": 1.8, "maj": "2023-10-27T12:00:00Z"}
                         ]
                     }
                 ]
@@ -63,7 +63,7 @@ class DataGouvClientTest {
                     "latitude": 43.2965,
                     "longitude": 5.3698,
                     "prix": [
-                        {"nom": "E85", "valeur": 890, "maj": "2023-10-28T10:00:00Z"}
+                        {"nom": "E85", "valeur": 0.89, "maj": "2023-10-28T10:00:00Z"}
                     ]
                 }
             }

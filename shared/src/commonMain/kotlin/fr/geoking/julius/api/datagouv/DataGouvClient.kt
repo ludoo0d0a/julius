@@ -1,5 +1,6 @@
 package fr.geoking.julius.api.datagouv
 
+import fr.geoking.julius.poi.IrveDetails
 import fr.geoking.julius.shared.NetworkException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
@@ -10,6 +11,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -72,6 +74,7 @@ class DataGouvClient(
             val record = item as? JsonObject ?: continue
             val fields = record["fields"]?.let { f -> (f as? JsonObject) } ?: record
             parseStationFromRecord(fields)?.let { station ->
+                // API may return one row per fuel type; merge by id so we keep one POI per station
                 stations[station.id] = stations[station.id]?.let { existing ->
                     existing.copy(
                         prices = (existing.prices + station.prices).distinctBy { it.fuelName }
@@ -83,18 +86,18 @@ class DataGouvClient(
     }
 
     internal fun parseStationFromRecord(record: JsonObject): DataGouvStation? {
-        val id = record["id"]?.jsonPrimitive?.content
-            ?: record["id_"]?.jsonPrimitive?.content
+        val id = record["id"]?.jsonPrimitive?.contentOrNull
+            ?: record["id_"]?.jsonPrimitive?.contentOrNull
             ?: return null
         val (lat, lng) = parseGeo(record) ?: return null
-        val adresse = record["adresse"]?.jsonPrimitive?.content?.trim().orEmpty()
-        val ville = record["ville"]?.jsonPrimitive?.content?.trim().orEmpty()
-        val cp = record["cp"]?.jsonPrimitive?.content?.trim().orEmpty()
+        val adresse = record["adresse"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+        val ville = record["ville"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+        val cp = record["cp"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
         val address = listOf(adresse, cp, ville).filter { it.isNotBlank() }.joinToString(", ")
-        val name = record["nom"]?.jsonPrimitive?.content?.trim()
-            ?: record["name"]?.jsonPrimitive?.content?.trim()
+        val name = record["nom"]?.jsonPrimitive?.contentOrNull?.trim()
+            ?: record["name"]?.jsonPrimitive?.contentOrNull?.trim()
             ?: "Station $id"
-        val brand = record["marque"]?.jsonPrimitive?.content?.trim()
+        val brand = record["marque"]?.jsonPrimitive?.contentOrNull?.trim()
         val prices = parsePrices(record)
         return DataGouvStation(
             id = id,
@@ -108,53 +111,77 @@ class DataGouvClient(
     }
 
     internal fun parseGeo(record: JsonObject): Pair<Double, Double>? {
-        val lat = record["latitude"]?.jsonPrimitive?.content?.toDoubleOrNull()
-        val lng = record["longitude"]?.jsonPrimitive?.content?.toDoubleOrNull()
+        val lat = record["latitude"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
+        val lng = record["longitude"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
         if (lat != null && lng != null) return Pair(lat, lng)
+
         val geo = record["geom"]?.jsonObject
             ?: record["geolocation"]?.jsonObject
             ?: record["coordonnees_geo"]?.jsonObject
+
         if (geo != null) {
+            // Handle GeoJSON-style { "type": "Point", "coordinates": [lng, lat] }
             val coords = geo["coordinates"]?.jsonArray
             if (coords != null && coords.size >= 2) {
-                val lng2 = (coords[0] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toDoubleOrNull()
-                val lat2 = (coords[1] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toDoubleOrNull()
+                val lng2 = coords[0].jsonPrimitive.contentOrNull?.toDoubleOrNull()
+                val lat2 = coords[1].jsonPrimitive.contentOrNull?.toDoubleOrNull()
                 if (lat2 != null && lng2 != null) return Pair(lat2, lng2)
             }
+            // Handle ODS Explore v2.1 style { "lat": 48.8, "lon": 2.3 }
+            val latVal = geo["lat"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
+            val lonVal = geo["lon"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
+                ?: geo["lng"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
+            if (latVal != null && lonVal != null) return Pair(latVal, lonVal)
         }
         return null
     }
 
     private fun parsePrices(record: JsonObject): List<DataGouvPrice> {
         val list = mutableListOf<DataGouvPrice>()
-        val prix = record["prix"]?.jsonArray ?: return list
-        for (p in prix) {
-            val obj = p as? JsonObject ?: continue
-            val nom = obj["nom"]?.jsonPrimitive?.content ?: obj["name"]?.jsonPrimitive?.content ?: continue
-            val raw = obj["valeur"]?.jsonPrimitive?.content?.toIntOrNull()
-                ?: obj["value"]?.jsonPrimitive?.content?.toIntOrNull()
-            val outOfStock = obj["rupture"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: false
-            val maj = obj["maj"]?.jsonPrimitive?.content
-            if (raw != null) {
-                list.add(DataGouvPrice(
-                    fuelName = nom,
-                    price = raw / 1000.0,
-                    updatedAt = maj,
-                    outOfStock = outOfStock
-                ))
+        val prixElement = record["prix"]
+        val prixArray = try {
+            if (prixElement is kotlinx.serialization.json.JsonPrimitive && prixElement.content.startsWith("[")) {
+                json.parseToJsonElement(prixElement.content).jsonArray
+            } else {
+                prixElement?.jsonArray
+            }
+        } catch (e: Exception) {
+            null
+        }
+
+        if (prixArray != null) {
+            for (p in prixArray) {
+                val obj = p as? JsonObject ?: continue
+                val nom = obj["nom"]?.jsonPrimitive?.contentOrNull ?: obj["name"]?.jsonPrimitive?.contentOrNull ?: continue
+                val raw = obj["valeur"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
+                    ?: obj["value"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
+                val outOfStock = obj["rupture"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+                val maj = obj["maj"]?.jsonPrimitive?.contentOrNull
+                if (raw != null) {
+                    list.add(DataGouvPrice(
+                        fuelName = nom,
+                        price = raw,
+                        updatedAt = maj,
+                        outOfStock = outOfStock
+                    ))
+                }
             }
         }
-        // Single fuel per record (flattened)
-        val singleNom = record["prix_nom"]?.jsonPrimitive?.content
-        val singleVal = record["prix_valeur"]?.jsonPrimitive?.content?.toIntOrNull()
-        val singleRupture = record["prix_rupture"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: false
-        if (list.isEmpty() && singleNom != null && singleVal != null) {
-            list.add(DataGouvPrice(
-                fuelName = singleNom,
-                price = singleVal / 1000.0,
-                updatedAt = record["prix_maj"]?.jsonPrimitive?.content,
-                outOfStock = singleRupture
-            ))
+
+        // Single fuel per record (flattened): prix_nom, prix_valeur
+        val singleNom = record["prix_nom"]?.jsonPrimitive?.contentOrNull
+        val singleVal = record["prix_valeur"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
+        val singleRupture = record["prix_rupture"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+        if (singleNom != null && singleVal != null) {
+            val exists = list.any { it.fuelName == singleNom }
+            if (!exists) {
+                list.add(DataGouvPrice(
+                    fuelName = singleNom,
+                    price = singleVal,
+                    updatedAt = record["prix_maj"]?.jsonPrimitive?.contentOrNull,
+                    outOfStock = singleRupture
+                ))
+            }
         }
         return list
     }

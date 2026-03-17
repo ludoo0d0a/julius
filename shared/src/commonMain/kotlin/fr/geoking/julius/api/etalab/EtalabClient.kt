@@ -10,6 +10,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -81,22 +82,22 @@ class EtalabClient(
     }
 
     internal fun parseStationFromRecord(record: JsonObject): EtalabStation? {
-        val id = record["id"]?.jsonPrimitive?.content
-            ?: record["id_"]?.jsonPrimitive?.content
+        val id = record["id"]?.jsonPrimitive?.contentOrNull
+            ?: record["id_"]?.jsonPrimitive?.contentOrNull
             ?: return null
         val (lat, lng) = parseGeo(record) ?: return null
-        val adresse = record["adresse"]?.jsonPrimitive?.content?.trim().orEmpty()
-        val ville = record["ville"]?.jsonPrimitive?.content?.trim().orEmpty()
-        val cp = record["cp"]?.jsonPrimitive?.content?.trim().orEmpty()
+        val adresse = record["adresse"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+        val ville = record["ville"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+        val cp = record["cp"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
         val address = listOf(adresse, cp, ville).filter { it.isNotBlank() }.joinToString(", ")
-        val name = record["nom"]?.jsonPrimitive?.content?.trim()
-            ?: record["name"]?.jsonPrimitive?.content?.trim()
+        val name = record["nom"]?.jsonPrimitive?.contentOrNull?.trim()
+            ?: record["name"]?.jsonPrimitive?.contentOrNull?.trim()
             ?: "Station $id"
-        val pop = record["pop"]?.jsonPrimitive?.content
+        val pop = record["pop"]?.jsonPrimitive?.contentOrNull
         val brand = when (pop) {
             "A" -> "Autoroute"
             "R" -> "Route"
-            else -> record["marque"]?.jsonPrimitive?.content?.trim()
+            else -> record["marque"]?.jsonPrimitive?.contentOrNull?.trim()
         }
         val fuels = parseFuels(record)
         return EtalabStation(
@@ -111,38 +112,61 @@ class EtalabClient(
     }
 
     internal fun parseGeo(record: JsonObject): Pair<Double, Double>? {
-        val lat = record["latitude"]?.jsonPrimitive?.content?.toDoubleOrNull()
-        val lng = record["longitude"]?.jsonPrimitive?.content?.toDoubleOrNull()
+        val lat = record["latitude"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
+        val lng = record["longitude"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
         if (lat != null && lng != null) return Pair(lat, lng)
         val geo = record["geom"]?.jsonObject
             ?: record["geolocation"]?.jsonObject
             ?: record["coordonnees_geo"]?.jsonObject
         if (geo != null) {
+            // Handle GeoJSON-style { "type": "Point", "coordinates": [lng, lat] }
             val coords = geo["coordinates"]?.jsonArray
             if (coords != null && coords.size >= 2) {
-                val lng2 = (coords[0] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toDoubleOrNull()
-                val lat2 = (coords[1] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toDoubleOrNull()
+                val lng2 = coords[0].jsonPrimitive.contentOrNull?.toDoubleOrNull()
+                val lat2 = coords[1].jsonPrimitive.contentOrNull?.toDoubleOrNull()
                 if (lat2 != null && lng2 != null) return Pair(lat2, lng2)
             }
+            // Handle ODS Explore v2.1 style { "lat": 48.8, "lon": 2.3 }
+            val latVal = geo["lat"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
+            val lonVal = geo["lon"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
+                ?: geo["lng"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
+            if (latVal != null && lonVal != null) return Pair(latVal, lonVal)
         }
         return null
     }
 
     private fun parseFuels(record: JsonObject): List<EtalabFuelPrice> {
         val list = mutableListOf<EtalabFuelPrice>()
-        val prix = record["prix"]?.jsonArray ?: return list
-        for (p in prix) {
-            val obj = p as? JsonObject ?: continue
-            val nom = obj["nom"]?.jsonPrimitive?.content ?: obj["name"]?.jsonPrimitive?.content ?: continue
-            val raw = obj["valeur"]?.jsonPrimitive?.content?.toIntOrNull()
-                ?: obj["value"]?.jsonPrimitive?.content?.toIntOrNull()
-            if (raw != null) list.add(EtalabFuelPrice(name = nom, priceEur = raw / 1000.0))
+        val prixElement = record["prix"] ?: return list
+        val prixArray = try {
+            when {
+                prixElement is kotlinx.serialization.json.JsonPrimitive && prixElement.content.startsWith("[") ->
+                    json.parseToJsonElement(prixElement.content).jsonArray
+                prixElement is JsonArray -> prixElement
+                else -> null
+            }
+        } catch (e: Exception) {
+            null
         }
+
+        if (prixArray != null) {
+            for (p in prixArray) {
+                val obj = p as? JsonObject ?: continue
+                val nom = obj["nom"]?.jsonPrimitive?.contentOrNull ?: obj["name"]?.jsonPrimitive?.contentOrNull ?: continue
+                val raw = obj["valeur"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
+                    ?: obj["value"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
+                if (raw != null) list.add(EtalabFuelPrice(name = nom, priceEur = raw))
+            }
+        }
+
         // Single fuel per record (flattened): prix_nom, prix_valeur
-        val singleNom = record["prix_nom"]?.jsonPrimitive?.content
-        val singleVal = record["prix_valeur"]?.jsonPrimitive?.content?.toIntOrNull()
-        if (list.isEmpty() && singleNom != null && singleVal != null) {
-            list.add(EtalabFuelPrice(name = singleNom, priceEur = singleVal / 1000.0))
+        val singleNom = record["prix_nom"]?.jsonPrimitive?.contentOrNull
+        val singleVal = record["prix_valeur"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
+        if (singleNom != null && singleVal != null) {
+            val exists = list.any { it.name == singleNom }
+            if (!exists) {
+                list.add(EtalabFuelPrice(name = singleNom, priceEur = singleVal))
+            }
         }
         return list
     }

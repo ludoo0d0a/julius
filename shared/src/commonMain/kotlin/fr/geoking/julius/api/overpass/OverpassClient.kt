@@ -2,9 +2,12 @@ package fr.geoking.julius.api.overpass
 
 import fr.geoking.julius.shared.NetworkException
 import io.ktor.client.HttpClient
+import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.Parameters
+import io.ktor.http.contentType
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -77,7 +80,12 @@ class OverpassClient(
             out body ${limit.coerceIn(1, 500)};
         """.trimIndent()
 
-        val response = client.post(baseUrl) { setBody(query) }
+        val response = client.submitForm(
+            url = baseUrl,
+            formParameters = Parameters.build {
+                append("data", query)
+            }
+        )
         val body = response.bodyAsText()
         if (response.status.value != 200) {
             throw NetworkException(response.status.value, "Overpass API error: ${body.take(500)}")
@@ -116,7 +124,12 @@ class OverpassClient(
             out center ${limit.coerceIn(1, 500)};
         """.trimIndent()
 
-        val response = client.post(baseUrl) { setBody(query) }
+        val response = client.submitForm(
+            url = baseUrl,
+            formParameters = Parameters.build {
+                append("data", query)
+            }
+        )
         val body = response.bodyAsText()
         if (response.status.value != 200) {
             throw NetworkException(response.status.value, "Overpass API error: ${body.take(500)}")

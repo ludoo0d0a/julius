@@ -57,7 +57,7 @@ class DataGouvElecClient(
         val lngHi = longitude + deltaLng
         val where = "consolidated_latitude > $latLo and consolidated_latitude < $latHi and consolidated_longitude > $lngLo and consolidated_longitude < $lngHi"
         val encodedWhere = where.encodeURLParameter()
-        val requestLimit = (limit * 2).coerceAtLeast(100).coerceAtMost(200) // fetch more PDC rows to aggregate into stations
+        val requestLimit = (limit * 2).coerceAtLeast(50).coerceAtMost(100) // fetch more PDC rows to aggregate into stations
         val url = "$baseUrl/records?where=$encodedWhere&limit=$requestLimit"
 
         val response = client.get(url)
