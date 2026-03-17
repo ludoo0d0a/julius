@@ -49,7 +49,7 @@ enum class Role {
 open class ConversationStore(
     private val scope: CoroutineScope,
     private val agent: ConversationalAgent, // Swapped ChatService for Agent
-    private val voiceManager: VoiceManager,
+    val voiceManager: VoiceManager,
     private val actionExecutor: ActionExecutor? = null,
     private val initialSpeechLanguageTag: String? = null,
     private val localTranscriber: LocalTranscriber = NoLocalTranscriber,
