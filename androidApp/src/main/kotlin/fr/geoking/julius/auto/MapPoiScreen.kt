@@ -22,6 +22,7 @@ import androidx.car.app.model.Template
 import fr.geoking.julius.poi.PoiProviderType
 import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.lifecycleScope
+import fr.geoking.julius.AppSettings
 import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.poi.Poi
@@ -35,6 +36,8 @@ import fr.geoking.julius.api.availability.StationAvailabilitySummary
 import kotlinx.coroutines.flow.collectLatest
 import fr.geoking.julius.api.availability.matchAvailabilityToPois
 import fr.geoking.julius.ui.BrandHelper
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class MapPoiScreen(
@@ -56,11 +59,38 @@ class MapPoiScreen(
 
     init {
         lifecycleScope.launch {
-            settingsManager.settings.collectLatest {
-                loadPois()
-            }
+            settingsManager.settings
+                .map { s ->
+                    PoiRelatedSettings(
+                        s.selectedPoiProvider,
+                        s.selectedMapEnergyTypes,
+                        s.mapEnseigneType,
+                        s.selectedMapServices,
+                        s.mapMinPowerKw,
+                        s.mapIrveOperator,
+                        s.selectedMapConnectorTypes,
+                        s.selectedOverpassAmenityTypes,
+                        s.vehicleType
+                    )
+                }
+                .distinctUntilChanged()
+                .collectLatest {
+                    loadPois()
+                }
         }
     }
+
+    private data class PoiRelatedSettings(
+        val provider: PoiProviderType,
+        val energies: Set<String>,
+        val enseigne: String,
+        val services: Set<String>,
+        val minPower: Int,
+        val operator: String,
+        val connectors: Set<String>,
+        val amenities: Set<String>,
+        val vehicleType: fr.geoking.julius.VehicleType
+    )
 
     private fun loadPois() {
         lifecycleScope.launch {
