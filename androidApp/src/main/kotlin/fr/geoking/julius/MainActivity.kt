@@ -36,7 +36,6 @@ import fr.geoking.julius.ui.HistoryScreen
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.ui.UpdateAvailableDialog
-import fr.geoking.julius.ui.UpdateDownloadedDialog
 import fr.geoking.julius.ui.anim.AnimationPalettes
 import com.google.android.play.core.appupdate.AppUpdateInfo
 import fr.geoking.julius.update.InAppUpdateHelper
@@ -201,13 +200,6 @@ fun MainUI(
         UpdateAvailableDialog(
             onCancel = { inAppUpdateHelper?.dismissUpdate() },
             onUpdate = { updateAvailable?.let { onStartUpdate(it) } }
-        )
-    }
-    val fallbackDownloadedFlow = remember { MutableStateFlow(false) }
-    val updateDownloaded by (inAppUpdateHelper?.updateDownloaded ?: fallbackDownloadedFlow).collectAsState(initial = false)
-    if (updateDownloaded) {
-        UpdateDownloadedDialog(
-            onRestart = { inAppUpdateHelper?.completeUpdate() }
         )
     }
 
