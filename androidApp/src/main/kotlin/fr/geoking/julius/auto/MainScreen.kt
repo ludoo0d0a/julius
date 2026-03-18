@@ -62,7 +62,7 @@ class MainScreen(
     private var dynamicActiveIcon: CarIcon? = null
 
     /** When true, use MessageTemplate (fallback) instead of NavigationTemplate. */
-    private var useFallback: Boolean = false
+    private var useFallback: Boolean = true
     /** True once we have received a surface (so we don't fall back unnecessarily). */
     private var surfaceReceived: Boolean = false
     private var fallbackCheckJob: Job? = null
@@ -212,12 +212,6 @@ class MainScreen(
                 .setContentId(TAB_HISTORY)
                 .build()
 
-            val julesTab = Tab.Builder()
-                .setTitle("Jules")
-                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_jules)).build())
-                .setContentId(TAB_JULES)
-                .build()
-
             val settingsTab = Tab.Builder()
                 .setTitle("Settings")
                 .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_settings)).build())
@@ -255,9 +249,6 @@ class MainScreen(
                                 )
                             )
                         }
-                        TAB_JULES -> {
-                            screenManager.push(AutoJulesScreen(carContext, store, settingsManager, julesClient))
-                        }
                         else -> {
                             activeTabId = tabContentId
                             invalidate()
@@ -269,7 +260,6 @@ class MainScreen(
                 .addTab(assistantTab)
                 .addTab(mapTab)
                 .addTab(historyTab)
-                .addTab(julesTab)
                 .addTab(settingsTab)
                 .setActiveTabContentId(activeTabId)
                 .setTabContents(TabContents.Builder(templateToDisplay).build())
@@ -448,6 +438,17 @@ class MainScreen(
                 )
             }
         }
+
+        // Add row for Jules to preserve access since the tab was removed
+        paneBuilder.addRow(
+            Row.Builder()
+                .setTitle("Jules")
+                .addText("Open Jules code assistant")
+                .setOnClickListener {
+                    screenManager.push(AutoJulesScreen(carContext, store, settingsManager, julesClient))
+                }
+                .build()
+        )
 
         paneBuilder.addAction(
             Action.Builder()
