@@ -230,6 +230,7 @@ class MapPoiScreen(
                     }
                     .build()
             )
+
             if (settingsManager.settings.value.isLoggedIn && communityRepo != null) {
                 actionStripBuilder.addAction(
                     Action.Builder()

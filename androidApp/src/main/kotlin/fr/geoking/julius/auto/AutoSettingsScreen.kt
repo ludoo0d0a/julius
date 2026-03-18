@@ -5,11 +5,15 @@ import androidx.car.app.Screen
 import androidx.car.app.model.*
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.api.jules.JulesClient
+import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.SttEnginePreference
 
 class AutoSettingsScreen(
     carContext: CarContext,
-    private val settingsManager: SettingsManager
+    private val settingsManager: SettingsManager,
+    private val store: ConversationStore,
+    private val julesClient: JulesClient
 ) : Screen(carContext) {
 
     override fun onGetTemplate(): Template {
@@ -81,6 +85,16 @@ class AutoSettingsScreen(
                 .addText("French highway toll estimation")
                 .setOnClickListener {
                     screenManager.push(AutoTollDataScreen(carContext, settingsManager))
+                }
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("Jules")
+                .addText("Open Jules code assistant")
+                .setOnClickListener {
+                    screenManager.push(AutoJulesScreen(carContext, store, settingsManager, julesClient))
                 }
                 .build()
         )
