@@ -84,71 +84,11 @@ fun UpdateAvailableDialog(
     }
 }
 
-/**
- * Dialog shown when a flexible update has finished downloading. Restart installs and restarts the app.
- */
-@Composable
-fun UpdateDownloadedDialog(
-    onRestart: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Dialog(
-        onDismissRequest = { },
-        properties = DialogProperties(
-            dismissOnBackPress = false,
-            dismissOnClickOutside = false
-        )
-    ) {
-        Surface(
-            color = dialogSurfaceColor,
-            shape = MaterialTheme.shapes.large
-        ) {
-            Column(
-                modifier = modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
-            ) {
-                Text(
-                    text = "Update ready",
-                    color = Color.White,
-                    fontSize = 20.sp,
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "The new version has been downloaded. Restart the app to install.",
-                    color = Color.White.copy(alpha = 0.9f),
-                    fontSize = 14.sp,
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Start
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Button(onClick = onRestart) {
-                        Text("Restart")
-                    }
-                }
-            }
-        }
-    }
-}
-
 @Preview(showBackground = true, backgroundColor = 0xFF0F172A)
 @Composable
 private fun UpdateAvailableDialogPreview() {
     UpdateAvailableDialog(
         onCancel = {},
         onUpdate = {}
-    )
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF0F172A)
-@Composable
-private fun UpdateDownloadedDialogPreview() {
-    UpdateDownloadedDialog(
-        onRestart = {}
     )
 }

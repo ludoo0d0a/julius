@@ -16,8 +16,8 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Helps check for and start in-app updates (Play Core). When an update is available,
- * [updateAvailable] emits the [AppUpdateInfo]. After a flexible update is downloaded,
- * [updateDownloaded] becomes true and the app should call [completeUpdate] to install.
+ * [updateAvailable] emits the [AppUpdateInfo]. Once a flexible update is downloaded,
+ * the app will automatically call [completeUpdate] to install and restart.
  */
 class InAppUpdateHelper(
     private val context: android.content.Context
@@ -27,12 +27,9 @@ class InAppUpdateHelper(
     private val _updateAvailable = MutableStateFlow<AppUpdateInfo?>(null)
     val updateAvailable: StateFlow<AppUpdateInfo?> = _updateAvailable.asStateFlow()
 
-    private val _updateDownloaded = MutableStateFlow(false)
-    val updateDownloaded: StateFlow<Boolean> = _updateDownloaded.asStateFlow()
-
     private val installStateListener = InstallStateUpdatedListener { state ->
         if (state.installStatus() == InstallStatus.DOWNLOADED) {
-            _updateDownloaded.value = true
+            completeUpdate()
         }
     }
 
@@ -74,11 +71,10 @@ class InAppUpdateHelper(
     }
 
     /**
-     * Call when the user confirms they want to install the downloaded update (flexible flow).
+     * Installs the downloaded update and restarts the app.
      */
     fun completeUpdate() {
         appUpdateManager.completeUpdate()
-        _updateDownloaded.value = false
     }
 
     /**
