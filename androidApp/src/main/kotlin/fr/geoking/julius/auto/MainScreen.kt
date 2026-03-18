@@ -230,7 +230,7 @@ class MainScreen(
             TabTemplate.Builder(object : TabTemplate.TabCallback {
                 override fun onTabSelected(tabContentId: String) {
                     when (tabContentId) {
-                        TAB_SETTINGS -> screenManager.push(AutoSettingsScreen(carContext, settingsManager))
+                        TAB_SETTINGS -> screenManager.push(AutoSettingsScreen(carContext, settingsManager, store, julesClient))
                         TAB_MAP -> {
                             val mapDeps = getMapDeps()
                             screenManager.push(
@@ -359,7 +359,7 @@ class MainScreen(
                         ).build()
                     )
                     .setOnClickListener {
-                        screenManager.push(AutoSettingsScreen(carContext, settingsManager))
+                        screenManager.push(AutoSettingsScreen(carContext, settingsManager, store, julesClient))
                     }
                     .build()
             )
@@ -432,31 +432,13 @@ class MainScreen(
             if (lastAssistantMsg != null) {
                 paneBuilder.addRow(
                     Row.Builder()
-                        .setTitle("Julius")
+                        .setTitle("Assistant")
                         .addText(lastAssistantMsg.text.take(100) + if (lastAssistantMsg.text.length > 100) "..." else "")
                         .build()
                 )
             }
         }
 
-        // Add row for Jules to preserve access since the tab was removed
-        paneBuilder.addRow(
-            Row.Builder()
-                .setTitle("Jules")
-                .addText("Open Jules code assistant")
-                .setOnClickListener {
-                    screenManager.push(AutoJulesScreen(carContext, store, settingsManager, julesClient))
-                }
-                .build()
-        )
-
-        paneBuilder.addAction(
-            Action.Builder()
-                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_swap_horiz)).build())
-                .setTitle(settingsManager.settings.value.selectedAgent.name)
-                .setOnClickListener { cycleToNextAgent() }
-                .build()
-        )
         paneBuilder.addAction(
             Action.Builder()
                 .setIcon(actionIcon)
@@ -470,8 +452,14 @@ class MainScreen(
                 }
                 .build()
         )
+        paneBuilder.addAction(
+            Action.Builder()
+                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_swap_horiz)).build())
+                .setOnClickListener { cycleToNextAgent() }
+                .build()
+        )
         return PaneTemplate.Builder(paneBuilder.build())
-            .setHeader(Header.Builder().setTitle("Julius Assistant").build())
+            .setHeader(Header.Builder().setTitle("Assistant").build())
             .build()
     }
 
