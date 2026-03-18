@@ -17,6 +17,7 @@ class AutoPoiProviderSelectionScreen(
         PoiProviderType.DataGouv to "data.gouv.fr",
         PoiProviderType.DataGouvElec to "data.gouv.fr (EV)",
         PoiProviderType.OpenChargeMap to "Open Charge Map",
+        PoiProviderType.Chargy to "Chargy (Luxembourg)",
         PoiProviderType.Overpass to "Overpass"
     )
 

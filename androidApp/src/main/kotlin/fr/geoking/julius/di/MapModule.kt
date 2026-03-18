@@ -6,6 +6,7 @@ import fr.geoking.julius.api.availability.BelibAvailabilityClient
 import fr.geoking.julius.api.availability.BelibAvailabilityProvider
 import fr.geoking.julius.api.availability.BorneAvailabilityProvider
 import fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory
+import fr.geoking.julius.api.chargy.ChargyProvider
 import fr.geoking.julius.api.datagouv.DataGouvCampingClient
 import fr.geoking.julius.api.datagouv.DataGouvCampingProvider
 import fr.geoking.julius.api.datagouv.DataGouvElecProvider
@@ -78,6 +79,9 @@ val mapModule = module {
     single<PoiProvider>(named("openchargemap")) {
         OpenChargeMapProvider(get(), radiusKm = 10, limit = 50)
     }
+    single<PoiProvider>(named("chargy")) {
+        ChargyProvider(get(), radiusKm = 15, limit = 100)
+    }
     single { OverpassClient(get()) }
     single<PoiProvider>(named("overpass")) {
         OverpassProvider(get(), radiusKm = 5, limit = 100)
@@ -94,6 +98,7 @@ val mapModule = module {
             dataGouv = get(named("datagouv")),
             dataGouvElec = get(named("datagouvelec")),
             openChargeMap = get(named("openchargemap")),
+            chargy = get(named("chargy")),
             overpass = get(named("overpass")),
             dataGouvCamping = get(named("datagouvcamping")),
             settingsManager = get()
