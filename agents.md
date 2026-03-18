@@ -355,6 +355,8 @@ Julius supports multiple AI agents, each with different capabilities, pricing mo
 
 ### Development Workflow
 
+**Pull Requests:** When creating a PR, always enable auto-merge.
+
 **Adding a new agent:**
 1. Create new class in `shared/src/commonMain/kotlin/fr/geoking/julius/agents/`
 2. Implement `ConversationalAgent` interface
