@@ -39,7 +39,8 @@ data class ConversationState(
 data class ChatMessage(
     val id: String,
     val sender: Role,
-    val text: String
+    val text: String,
+    val timestamp: Long
 )
 
 enum class Role {
@@ -54,7 +55,8 @@ open class ConversationStore(
     private val actionExecutor: ActionExecutor? = null,
     private val initialSpeechLanguageTag: String? = null,
     private val localTranscriber: LocalTranscriber = NoLocalTranscriber,
-    private val sttPreference: () -> SttEnginePreference = { SttEnginePreference.NativeOnly }
+    private val sttPreference: () -> SttEnginePreference = { SttEnginePreference.NativeOnly },
+    private val persistence: MessagePersistence? = null
 ) {
     private val _state = MutableStateFlow(ConversationState())
     val state: StateFlow<ConversationState> = _state.asStateFlow()
@@ -100,6 +102,12 @@ open class ConversationStore(
     var autoSendFinalTranscripts: Boolean = true
 
     init {
+        scope.launch {
+            persistence?.loadMessages()?.let {
+                _state.value = _state.value.copy(messages = it)
+            }
+        }
+
         voiceManager.setTranscriber { audioData ->
             when (sttPreference()) {
                 SttEnginePreference.NativeOnly ->
@@ -179,7 +187,7 @@ open class ConversationStore(
         activeProcessingJob = scope.launch {
             try {
                 // 1. Add User Message
-                val userMsg = ChatMessage("u_${getCurrentTimeMillis()}", Role.User, text)
+                val userMsg = ChatMessage("u_${getCurrentTimeMillis()}", Role.User, text, getCurrentTimeMillis())
                 updateMessages(userMsg)
                 
                 // 2. Call AI (offload to Default dispatcher to avoid blocking main thread)
@@ -225,11 +233,9 @@ open class ConversationStore(
                 
                 // 5. Add AI Message (with action result if any)
                 val responseText = response.text + actionResultMessage
-                val aiMsg = ChatMessage("a_${getCurrentTimeMillis()}", Role.Assistant, responseText)
-                _state.value = _state.value.copy(
-                    messages = _state.value.messages + aiMsg,
-                    currentTranscript = ""
-                )
+                val aiMsg = ChatMessage("a_${getCurrentTimeMillis()}", Role.Assistant, responseText, getCurrentTimeMillis())
+                updateMessages(aiMsg)
+                _state.value = _state.value.copy(currentTranscript = "")
 
                 // 6. Speak (text without action result message for cleaner audio)
                 if (response.audio != null) {
@@ -274,6 +280,9 @@ open class ConversationStore(
     private fun updateMessages(msg: ChatMessage) {
         val current = _state.value.messages
         _state.value = _state.value.copy(messages = current + msg)
+        scope.launch {
+            persistence?.saveMessage(msg)
+        }
     }
 
     private fun buildContextPrompt(messages: List<ChatMessage>): String {
@@ -332,6 +341,9 @@ open class ConversationStore(
             currentTranscript = "",
             lastError = null
         )
+        scope.launch {
+            persistence?.clearMessages()
+        }
     }
 
     /** Records an error into [ConversationState.errorLog] and [lastError] for later debugging (e.g. map provider failures). */

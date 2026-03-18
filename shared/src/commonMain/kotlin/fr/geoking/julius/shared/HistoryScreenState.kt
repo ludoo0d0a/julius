@@ -22,7 +22,8 @@ data class HistoryScreenState(
  */
 data class HistoryItem(
     val text: String,
-    val isUser: Boolean
+    val isUser: Boolean,
+    val timestamp: Long
 )
 
 /**
@@ -37,7 +38,8 @@ fun ConversationState.toHistoryScreenState(
     items = messages.map { msg ->
         HistoryItem(
             text = msg.text,
-            isUser = msg.sender == Role.User
+            isUser = msg.sender == Role.User,
+            timestamp = msg.timestamp
         )
     }
 )

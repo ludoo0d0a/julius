@@ -27,6 +27,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import java.time.Instant
+import java.time.Duration
+import java.time.format.DateTimeFormatter
+import java.time.ZoneId
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -98,6 +102,9 @@ fun HistoryScreen(
                     fontSize = 16.sp
                 )
             } else {
+                val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
+                val nowInstant = remember { Instant.now() }
+
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -105,6 +112,26 @@ fun HistoryScreen(
                         .padding(16.dp)
                 ) {
                     screenState.items.forEach { item ->
+                        val itemInstant = remember(item.timestamp) { Instant.ofEpochMilli(item.timestamp) }
+                        val isOlderThanOneHour = remember(itemInstant, nowInstant) {
+                            Duration.between(itemInstant, nowInstant).toHours() >= 1
+                        }
+
+                        if (isOlderThanOneHour) {
+                            val timeText = remember(itemInstant) {
+                                itemInstant.atZone(ZoneId.systemDefault()).format(timeFormatter)
+                            }
+                            Text(
+                                text = timeText,
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 11.sp,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 4.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+
                         HistoryMessageItem(
                             item = item,
                             onClick = { store.speakAgain(item.text) }
