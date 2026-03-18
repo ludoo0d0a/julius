@@ -3,6 +3,12 @@ name: Deploy to Google Play Store
 on:
   push:
   workflow_dispatch:
+    inputs:
+      changesNotSentForReview:
+        description: 'Set to true to commit changes without sending for review automatically'
+        required: true
+        type: boolean
+        default: true
 
 jobs:
   build-and-release:
@@ -81,3 +87,4 @@ jobs:
           track: internal
           status: draft
           whatsNewDirectory: .github/play-release-notes
+          changesNotSentForReview: ${{ github.event.inputs.changesNotSentForReview || 'true' }}
