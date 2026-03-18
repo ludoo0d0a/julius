@@ -15,6 +15,10 @@ import fr.geoking.julius.voice.VoskTranscriber
 import fr.geoking.julius.shared.ActionExecutor
 import fr.geoking.julius.shared.PermissionManager
 import fr.geoking.julius.api.jules.JulesClient
+import fr.geoking.julius.shared.MessagePersistence
+import fr.geoking.julius.persistence.AppDatabase
+import fr.geoking.julius.persistence.RoomMessagePersistence
+import androidx.room.Room
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpRequestRetry
@@ -186,6 +190,19 @@ val appModule = module {
         AndroidActionExecutor(androidContext(), get())
     }
 
+    single<AppDatabase> {
+        Room.databaseBuilder(
+            androidContext(),
+            AppDatabase::class.java, "julius-db"
+        ).build()
+    }
+
+    single { get<AppDatabase>().chatMessageDao() }
+
+    single<MessagePersistence> {
+        RoomMessagePersistence(get())
+    }
+
     single { VoskTranscriber(androidContext(), modelDirPath = null) }
     single<LocalTranscriber> { get<VoskTranscriber>() }
     
@@ -198,7 +215,8 @@ val appModule = module {
             actionExecutor = get(),
             initialSpeechLanguageTag = resolveInitialSpeechLanguageTag(),
             localTranscriber = get(),
-            sttPreference = { settingsManager.settings.value.sttEnginePreference }
+            sttPreference = { settingsManager.settings.value.sttEnginePreference },
+            persistence = get()
         )
     }
 }

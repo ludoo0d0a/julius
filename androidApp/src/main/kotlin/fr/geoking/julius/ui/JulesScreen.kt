@@ -53,6 +53,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.time.Duration
+import java.time.Instant
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -507,6 +511,9 @@ private fun InConversationContent(
                 modifier = Modifier.weight(1f)
             )
         }
+        val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
+        val nowInstant = remember { Instant.now() }
+
         LazyColumn(
             state = listState,
             modifier = Modifier.weight(1f),
@@ -519,6 +526,37 @@ private fun InConversationContent(
                     is JulesChatItem.AgentMessage -> it.id
                 }
             }) { item ->
+                val createTime = when (item) {
+                    is JulesChatItem.UserMessage -> item.createTime
+                    is JulesChatItem.AgentMessage -> item.createTime
+                }
+
+                val itemTime = remember(createTime) {
+                    try {
+                        OffsetDateTime.parse(createTime)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+
+                if (itemTime != null) {
+                    val isOlderThanOneHour = remember(itemTime, nowInstant) {
+                        Duration.between(itemTime.toInstant(), nowInstant).toHours() >= 1
+                    }
+
+                    if (isOlderThanOneHour) {
+                        Text(
+                            text = itemTime.format(timeFormatter),
+                            color = Color.White.copy(alpha = 0.5f),
+                            fontSize = 11.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 4.dp),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+
                 when (item) {
                     is JulesChatItem.UserMessage -> Row(
                         modifier = Modifier.fillMaxWidth(),
