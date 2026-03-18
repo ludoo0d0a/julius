@@ -6,25 +6,21 @@ import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.net.Uri
 import android.util.Log
-import androidx.car.app.AppManager
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
-import androidx.car.app.SurfaceCallback
-import androidx.car.app.SurfaceContainer
 import androidx.car.app.model.Action
 import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.CarIcon
 import androidx.car.app.model.CarLocation
 import androidx.car.app.model.ItemList
 import androidx.car.app.model.Header
-import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.Metadata
 import androidx.car.app.model.MessageTemplate
+import androidx.car.app.model.PlaceListMapTemplate
 import androidx.car.app.model.Place
 import androidx.car.app.model.PlaceMarker
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
-import androidx.car.app.navigation.model.NavigationTemplate
 import fr.geoking.julius.poi.PoiProviderType
 import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.lifecycleScope
@@ -64,30 +60,6 @@ class MapPoiScreen(
     private val communityRepo: CommunityPoiRepository? = null,
     private val favoritesRepo: FavoritesRepository? = null
 ) : Screen(carContext) {
-
-    private val appManager: AppManager
-        get() = carContext.getCarService(AppManager::class.java)
-
-    private var surfaceRenderer: AutoSurfaceRenderer? = null
-
-    private val surfaceCallback = object : SurfaceCallback {
-        override fun onSurfaceAvailable(surfaceContainer: SurfaceContainer) {
-            surfaceRenderer?.stop()
-            val surface = surfaceContainer.surface ?: return
-            val w = surfaceContainer.width.coerceAtLeast(1)
-            val h = surfaceContainer.height.coerceAtLeast(1)
-            surfaceRenderer = AutoSurfaceRenderer(surface, w, h).apply {
-                isActive = false
-                start()
-            }
-        }
-
-        override fun onSurfaceDestroyed(surfaceContainer: SurfaceContainer) {
-            surfaceRenderer?.stop()
-            surfaceRenderer = null
-            surfaceContainer.surface?.release()
-        }
-    }
 
     private var pois: List<Poi> = emptyList()
     private var availabilityByPoiId: Map<String, StationAvailabilitySummary> = emptyMap()
@@ -178,79 +150,133 @@ class MapPoiScreen(
             isLoading = false
             invalidate()
         }
-        appManager.setSurfaceCallback(surfaceCallback)
     }
 
     override fun onGetTemplate(): Template {
         return try {
-            val actionStripBuilder = ActionStrip.Builder()
-                .addAction(
-                    Action.Builder()
-                        .setTitle("Settings")
-                        .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_settings)).build())
-                        .setOnClickListener { screenManager.push(AutoMapSettingsScreen(carContext, settingsManager)) }
-                        .build()
-                )
+            val actions = mutableListOf<Action>()
 
-            if (routePlanner != null && routingClient != null && tollCalculator != null && geocodingClient != null) {
-                actionStripBuilder.addAction(
-                    Action.Builder()
-                        .setTitle("Plan route")
-                        .setOnClickListener {
-                            screenManager.push(
-                                AutoRoutePlanningScreen(
-                                    carContext = carContext,
-                                    routePlanner = routePlanner,
-                                    routingClient = routingClient,
-                                    poiProvider = poiProvider,
-                                    geocodingClient = geocodingClient,
-                                    settingsManager = settingsManager
-                                )
-                            )
-                        }
-                        .build()
-                )
-            }
+            // 1) Always available actions (keep <= 4 for this template).
+            actions += Action.Builder()
+                .setTitle("Settings")
+                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_settings)).build())
+                .setOnClickListener { screenManager.push(AutoMapSettingsScreen(carContext, settingsManager)) }
+                .build()
 
-            actionStripBuilder.addAction(
-                Action.Builder()
-                    .setTitle("Recenter")
-                    .setOnClickListener { loadPois() }
-                    .build()
-            )
-            actionStripBuilder.addAction(
-                Action.Builder()
-                    .setTitle("Open map")
-                    .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
+            actions += Action.Builder()
+                .setTitle("Recenter")
+                .setOnClickListener { loadPois() }
+                .build()
+
+            actions += Action.Builder()
+                .setTitle("Open map")
+                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
+                .setOnClickListener {
+                    val intent = Intent(CarContext.ACTION_NAVIGATE).apply {
+                        data = Uri.parse("geo:$searchLat,$searchLon?q=${Uri.encode("Map")}")
+                    }
+                    carContext.startCarApp(intent)
+                }
+                .build()
+
+            // 2) One optional action depending on availability.
+            val hasRoutePlanning = routePlanner != null && routingClient != null && tollCalculator != null && geocodingClient != null
+            val hasCommunity = settingsManager.settings.value.isLoggedIn && communityRepo != null
+            if (hasCommunity) {
+                actions += Action.Builder()
+                    .setTitle("Add POI")
                     .setOnClickListener {
-                        val intent = Intent(CarContext.ACTION_NAVIGATE).apply {
-                            data = Uri.parse("geo:$searchLat,$searchLon?q=${Uri.encode("Map")}")
+                        lifecycleScope.launch {
+                            val loc = fr.geoking.julius.LocationHelper.getCurrentLocation(carContext)
+                            val clat = loc?.latitude ?: searchLat
+                            val clon = loc?.longitude ?: searchLon
+                            screenManager.push(AddPoiAutoScreen(carContext, communityRepo, clat, clon) { loadPois() })
                         }
-                        carContext.startCarApp(intent)
                     }
                     .build()
-            )
-
-            if (settingsManager.settings.value.isLoggedIn && communityRepo != null) {
-                actionStripBuilder.addAction(
-                    Action.Builder()
-                        .setTitle("Add POI")
-                        .setOnClickListener {
-                            lifecycleScope.launch {
-                                val loc = fr.geoking.julius.LocationHelper.getCurrentLocation(carContext)
-                                val clat = loc?.latitude ?: searchLat
-                                val clon = loc?.longitude ?: searchLon
-                                screenManager.push(AddPoiAutoScreen(carContext, communityRepo, clat, clon) { loadPois() })
-                            }
-                        }
-                        .build()
-                )
+            } else if (hasRoutePlanning) {
+                actions += Action.Builder()
+                    .setTitle("Plan route")
+                    .setOnClickListener {
+                        screenManager.push(
+                            AutoRoutePlanningScreen(
+                                carContext = carContext,
+                                routePlanner = routePlanner!!,
+                                routingClient = routingClient!!,
+                                poiProvider = poiProvider,
+                                geocodingClient = geocodingClient!!,
+                                settingsManager = settingsManager
+                            )
+                        )
+                    }
+                    .build()
             }
 
+            val actionStripBuilder = ActionStrip.Builder()
+            actions.take(4).forEach { actionStripBuilder.addAction(it) }
             val actionStrip = actionStripBuilder.build()
 
-            NavigationTemplate.Builder()
+            val title = "Nearby POIs"
+
+            if (isLoading) {
+                return PlaceListMapTemplate.Builder()
+                    .setHeaderAction(Action.BACK)
+                    .setTitle(title)
+                    .setLoading(true)
+                    .setActionStrip(actionStrip)
+                    .setCurrentLocationEnabled(true)
+                    .build()
+            }
+
+            // Build POI rows with Place metadata so the host can render markers.
+            val itemListBuilder = ItemList.Builder()
+                .setNoItemsMessage("No POIs found")
+
+            val limitedPois = pois.take(10)
+            limitedPois.forEach { poi ->
+                val place = Place.Builder(CarLocation.create(poi.latitude, poi.longitude))
+                    .setMarker(
+                        PlaceMarker.Builder()
+                            .setIcon(
+                                CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_poi_gas)).build(),
+                                PlaceMarker.TYPE_ICON
+                            )
+                            .setLabel("POI")
+                            .build()
+                    )
+                    .build()
+
+                val availability = availabilityByPoiId[poi.id]
+
+                val row = Row.Builder()
+                    .setTitle(poi.siteName?.takeIf { it.isNotBlank() } ?: poi.name.ifBlank { "POI" })
+                    .addText(poi.addressLocal?.takeIf { it.isNotBlank() } ?: poi.address.ifBlank { "${poi.latitude}, ${poi.longitude}" })
+                    .setMetadata(Metadata.Builder().setPlace(place).build())
+                    .setBrowsable(true)
+                    .setOnClickListener {
+                        screenManager.push(
+                            PoiDetailScreen(
+                                carContext = carContext,
+                                poi = poi,
+                                availabilitySummary = availability,
+                                rating = null
+                            )
+                        )
+                    }
+                    .build()
+
+                itemListBuilder.addItem(row)
+            }
+
+            val anchorPlace = Place.Builder(CarLocation.create(searchLat, searchLon)).build()
+
+            return PlaceListMapTemplate.Builder()
+                .setHeaderAction(Action.BACK)
+                .setTitle(title)
+                .setAnchor(anchorPlace)
+                .setCurrentLocationEnabled(true)
                 .setActionStrip(actionStrip)
+                .setItemList(itemListBuilder.build())
                 .build()
         } catch (e: Exception) {
             Log.e("MapPoiScreen", "Error building template", e)

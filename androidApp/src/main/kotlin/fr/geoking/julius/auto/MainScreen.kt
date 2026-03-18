@@ -1,11 +1,8 @@
 package fr.geoking.julius.auto
 
 import android.util.Log
-import androidx.car.app.AppManager
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
-import androidx.car.app.SurfaceCallback
-import androidx.car.app.SurfaceContainer
 import androidx.car.app.model.Action
 import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.CarIcon
@@ -20,7 +17,6 @@ import androidx.car.app.model.Tab
 import androidx.car.app.model.TabContents
 import androidx.car.app.model.TabTemplate
 import androidx.car.app.model.Template
-import androidx.car.app.navigation.model.NavigationTemplate
 import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.AgentType
@@ -33,8 +29,6 @@ import fr.geoking.julius.di.MapDeps
 import fr.geoking.julius.shared.Role
 import fr.geoking.julius.shared.toHistoryScreenState
 import fr.geoking.julius.shared.VoiceEvent
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.sample
@@ -61,39 +55,6 @@ class MainScreen(
     private var dynamicIdleIcon: CarIcon? = null
     private var dynamicActiveIcon: CarIcon? = null
 
-    /** When true, use MessageTemplate (fallback) instead of NavigationTemplate. */
-    private var useFallback: Boolean = true
-    /** True once we have received a surface (so we don't fall back unnecessarily). */
-    private var surfaceReceived: Boolean = false
-    private var fallbackCheckJob: Job? = null
-    private var surfaceRenderer: AutoSurfaceRenderer? = null
-
-    private val appManager: AppManager
-        get() = carContext.getCarService(AppManager::class.java)
-
-    private val surfaceCallback = object : SurfaceCallback {
-        override fun onSurfaceAvailable(surfaceContainer: SurfaceContainer) {
-            surfaceReceived = true
-            fallbackCheckJob?.cancel()
-            fallbackCheckJob = null
-            surfaceRenderer?.stop()
-            val surface = surfaceContainer.surface ?: return
-            val w = surfaceContainer.width.coerceAtLeast(1)
-            val h = surfaceContainer.height.coerceAtLeast(1)
-            surfaceRenderer = AutoSurfaceRenderer(surface, w, h).apply {
-                isActive = isListening
-                start()
-            }
-        }
-
-        override fun onSurfaceDestroyed(surfaceContainer: SurfaceContainer) {
-            surfaceRenderer?.stop()
-            surfaceRenderer = null
-            surfaceContainer.surface?.release()
-            surfaceReceived = false
-        }
-    }
-
     init {
         lifecycleScope.launch {
             settingsManager.settings.collectLatest { settings ->
@@ -111,7 +72,6 @@ class MainScreen(
 
                 isListening = state.status == VoiceEvent.Listening
                 isSpeaking = state.status == VoiceEvent.Speaking
-                surfaceRenderer?.isActive = isListening
                 currentStatus = state.status.name
                 lastError = state.lastError
                 currentText = when {
@@ -185,15 +145,7 @@ class MainScreen(
 
     override fun onGetTemplate(): Template {
         return try {
-            // NavigationTemplate CANNOT be wrapped in TabTemplate.
-            // For navigation apps, we render NavigationTemplate directly when not in fallback mode.
-            if (!useFallback) {
-                surfaceCallback?.let { appManager.setSurfaceCallback(it) }
-                scheduleFallbackIfNoSurface()
-                return buildNavigationTemplate()
-            }
-
-            // Otherwise, we use the Tabbed interface with PaneTemplate
+            // POI category: keep a single Tabbed UI (no NavigationTemplate / no turn-by-turn surface).
             val assistantTab = Tab.Builder()
                 .setTitle("Assistant")
                 .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_home)).build())
@@ -220,7 +172,6 @@ class MainScreen(
 
             val templateToDisplay = when (activeTabId) {
                 TAB_ASSISTANT -> {
-                    appManager.setSurfaceCallback(null)
                     buildPaneTemplate()
                 }
                 TAB_HISTORY -> buildHistoryTemplate()
@@ -310,79 +261,6 @@ class MainScreen(
             .build()
     }
 
-    /** If we never receive a surface after showing NavigationTemplate, switch to MessageTemplate. */
-    private fun scheduleFallbackIfNoSurface() {
-        if (surfaceReceived) return
-        fallbackCheckJob?.cancel()
-        fallbackCheckJob = lifecycleScope.launch {
-            delay(FALLBACK_DELAY_MS)
-            if (!surfaceReceived) {
-                useFallback = true
-                invalidate()
-            }
-        }
-    }
-
-    private fun buildNavigationTemplate(): Template {
-        val actionIconRes = if (isSpeaking) R.drawable.ic_stop else R.drawable.ic_speaker
-        val actionIcon = CarIcon.Builder(
-            IconCompat.createWithResource(carContext, actionIconRes)
-        ).build()
-
-        val actionStrip = ActionStrip.Builder()
-            .addAction(
-                Action.Builder()
-                    .setIcon(
-                        CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_swap_horiz)).build()
-                    )
-                    .setTitle(settingsManager.settings.value.selectedAgent.name)
-                    .setOnClickListener { cycleToNextAgent() }
-                    .build()
-            )
-            .addAction(
-                Action.Builder()
-                    .setIcon(
-                        CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_history)).build()
-                    )
-                    .setOnClickListener {
-                        activeTabId = TAB_HISTORY
-                        useFallback = true // Switch to tabbed view to show history
-                        invalidate()
-                    }
-                    .build()
-            )
-            .addAction(
-                Action.Builder()
-                    .setIcon(
-                        CarIcon.Builder(
-                            IconCompat.createWithResource(carContext, R.drawable.ic_settings)
-                        ).build()
-                    )
-                    .setOnClickListener {
-                        screenManager.push(AutoSettingsScreen(carContext, settingsManager, store, julesClient))
-                    }
-                    .build()
-            )
-            .addAction(
-                Action.Builder()
-                    .setIcon(actionIcon)
-                    .setTitle(if (isListening || isSpeaking) "Stop" else "Speak")
-                    .setOnClickListener {
-                        when {
-                            isSpeaking -> store.stopSpeaking()
-                            isListening -> store.stopListening()
-                            else -> store.startListening()
-                        }
-                    }
-                    .build()
-            )
-            .build()
-
-        return NavigationTemplate.Builder()
-            .setActionStrip(actionStrip)
-            .build()
-    }
-
     private fun buildPaneTemplate(): Template {
         val isProcessing = store.state.value.status == VoiceEvent.Processing
         val themeCarIcon = if (isListening || isSpeaking) {
@@ -465,7 +343,6 @@ class MainScreen(
 
     companion object {
         private const val TAG = "MainScreen"
-        private const val FALLBACK_DELAY_MS = 3000L
         private const val TAB_ASSISTANT = "assistant"
         private const val TAB_MAP = "map"
         private const val TAB_HISTORY = "history"

@@ -7,11 +7,10 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.SET_ALARM" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- POI category doesn't require media playback foreground service. -->
 
     <!-- Android Auto: required for NAVIGATION category + map/navigation templates (Play validation) -->
     <uses-permission android:name="androidx.car.app.MAP_TEMPLATES" />
-    <uses-permission android:name="androidx.car.app.NAVIGATION_TEMPLATES" />
     <uses-permission android:name="androidx.car.app.ACCESS_SURFACE" />
 
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
@@ -44,20 +43,7 @@
             android:label="@string/app_name">
             <intent-filter>
                 <action android:name="androidx.car.app.CarAppService" />
-                <category android:name="androidx.car.app.category.NAVIGATION"/>
-            </intent-filter>
-            <meta-data
-                android:name="androidx.car.app.CarAppService.MEDIA_BROWSER_SERVICE"
-                android:value=".auto.JuliusMediaService" />
-        </service>
-
-        <!-- Media Service for Dashboard Tile -->
-        <service
-            android:name=".auto.JuliusMediaService"
-            android:exported="true"
-            android:foregroundServiceType="mediaPlayback">
-            <intent-filter>
-                <action android:name="androidx.media3.session.MediaSessionService" />
+                <category android:name="androidx.car.app.category.POI"/>
             </intent-filter>
         </service>
 

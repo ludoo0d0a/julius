@@ -1,18 +1,18 @@
 package fr.geoking.julius.auto
 
+import android.content.Intent
 import android.util.Log
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.Action
 import androidx.car.app.model.ActionStrip
-import androidx.car.app.model.CarLocation
 import androidx.car.app.model.Header
 import androidx.car.app.model.ItemList
 import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.MessageTemplate
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
-import androidx.car.app.navigation.model.NavigationTemplate
+import android.net.Uri
 import fr.geoking.julius.R
 import fr.geoking.julius.api.routing.RoutePlanner
 import fr.geoking.julius.api.routing.RouteResult
@@ -27,7 +27,7 @@ import kotlinx.coroutines.launch
  * Simple route preview screen:
  * - Fetches 1+ routes using RoutingClient / RoutePlanner
  * - Shows them in a list
- * - Starts guidance by switching to a minimal NavigationTemplate when user presses Start.
+ * - Starts navigation by launching the external navigation app.
  */
 class RoutePreviewScreen(
     carContext: CarContext,
@@ -41,7 +41,6 @@ class RoutePreviewScreen(
     private var isLoading: Boolean = true
     private var routes: List<RouteResult> = emptyList()
     private var activeRoute: RouteResult? = null
-    private var inNavigation: Boolean = false
 
     init {
         loadRoutes()
@@ -71,9 +70,7 @@ class RoutePreviewScreen(
 
     override fun onGetTemplate(): Template {
         return try {
-            if (inNavigation && activeRoute != null) {
-                buildNavigationTemplate()
-            } else if (isLoading) {
+            if (isLoading) {
                 MessageTemplate.Builder("Calculating route...")
                     .setHeader(
                         Header.Builder()
@@ -140,10 +137,7 @@ class RoutePreviewScreen(
                 Action.Builder()
                     .setTitle("Start")
                     .setOnClickListener {
-                        if (activeRoute != null) {
-                            inNavigation = true
-                            invalidate()
-                        }
+                        if (activeRoute != null) startExternalNavigation()
                     }
                     .build()
             )
@@ -156,27 +150,14 @@ class RoutePreviewScreen(
             .build()
     }
 
-    private fun buildNavigationTemplate(): Template {
-        // Minimal NavigationTemplate – actual turn-by-turn instructions and updates
-        // are expected to be provided by your routing / navigation engine on the
-        // surface (via AutoSurfaceRenderer) and by updating travel estimates here.
-        val actionStrip = ActionStrip.Builder()
-            .addAction(
-                Action.Builder()
-                    .setTitle("Stop")
-                    .setOnClickListener {
-                        inNavigation = false
-                        finish()
-                    }
-                    .build()
-            )
-            .build()
-
-        // Note: With the current Car App Library, destination / guidance details are provided
-        // by the navigation host rather than directly on the template builder.
-        return NavigationTemplate.Builder()
-            .setActionStrip(actionStrip)
-            .build()
+    private fun startExternalNavigation() {
+        val title = destination.name.ifBlank { destination.address.ifBlank { "Destination" } }
+        val navigateIntent = Intent(CarContext.ACTION_NAVIGATE).apply {
+            data = Uri.parse("geo:${destination.latitude},${destination.longitude}?q=${Uri.encode(title)}")
+        }
+        carContext.startCarApp(navigateIntent)
+        // Let host switch apps; popping keeps your stack clean if the user returns.
+        screenManager.pop()
     }
 }
 
