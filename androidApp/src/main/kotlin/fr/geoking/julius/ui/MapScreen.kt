@@ -367,6 +367,7 @@ fun MapScreen(
                                 PoiProviderType.DataGouv -> "Source: data.gouv.fr"
                                 PoiProviderType.DataGouvElec -> "Source: IRVE"
                                 PoiProviderType.OpenChargeMap -> "Source: Open Charge Map"
+                                PoiProviderType.Chargy -> "Source: Chargy (real-time)"
                                 PoiProviderType.Overpass -> "Source: OSM + data.gouv (camping, picnic…)"
                             }
                         )

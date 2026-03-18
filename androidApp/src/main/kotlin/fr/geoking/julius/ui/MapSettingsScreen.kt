@@ -26,6 +26,7 @@ private val PROVIDER_OPTIONS = listOf(
     PoiProviderType.DataGouv to "data.gouv.fr (fuel)",
     PoiProviderType.DataGouvElec to "data.gouv.fr (IRVE)",
     PoiProviderType.OpenChargeMap to "Open Charge Map (EV)",
+    PoiProviderType.Chargy to "Chargy (Luxembourg)",
     PoiProviderType.Overpass to "Overpass (OSM + data.gouv)"
 )
 
@@ -275,7 +276,7 @@ fun MapSettingsScreen(
             }
 
             // Group 4: EV Specific (Conditional)
-            if (selectedProvider == PoiProviderType.DataGouvElec || selectedProvider == PoiProviderType.OpenChargeMap) {
+            if (selectedProvider == PoiProviderType.DataGouvElec || selectedProvider == PoiProviderType.OpenChargeMap || selectedProvider == PoiProviderType.Chargy) {
                 SettingsGroup(title = "EV Filters") {
                     CompactDropdown(
                         label = "Opérateur",

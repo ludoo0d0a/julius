@@ -69,6 +69,7 @@ enum class PoiProviderType {
     DataGouv, // data.gouv.fr (fuel)
     DataGouvElec, // data.gouv.fr IRVE (EV charging)
     OpenChargeMap, // openchargemap.org (EV, Europe/world)
+    Chargy, // Chargy.lu (Luxembourg real-time)
     Overpass  // OpenStreetMap Overpass API (toilets, drinking water, etc.)
 }
 
@@ -88,7 +89,11 @@ data class IrveDetails(
     val paymentCb: Boolean? = null,
     val paymentAutre: Boolean? = null,
     /** "Accès libre" / "Accès réservé". */
-    val conditionAcces: String? = null
+    val conditionAcces: String? = null,
+    /** Real-time availability: number of free connectors. */
+    val availableConnectors: Int? = null,
+    /** Real-time availability: total number of connectors. */
+    val totalConnectors: Int? = null
 )
 
 /**

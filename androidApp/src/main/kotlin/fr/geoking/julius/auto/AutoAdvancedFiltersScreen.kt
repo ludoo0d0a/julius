@@ -15,7 +15,7 @@ class AutoAdvancedFiltersScreen(
         val settings = settingsManager.settings.value
         val listBuilder = ItemList.Builder()
 
-        if (settings.selectedPoiProvider == PoiProviderType.DataGouvElec || settings.selectedPoiProvider == PoiProviderType.OpenChargeMap) {
+        if (settings.selectedPoiProvider == PoiProviderType.DataGouvElec || settings.selectedPoiProvider == PoiProviderType.OpenChargeMap || settings.selectedPoiProvider == PoiProviderType.Chargy) {
             listBuilder.addItem(
                 Row.Builder()
                     .setTitle("Opérateur")

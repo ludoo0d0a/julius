@@ -15,6 +15,7 @@ class SelectorPoiProvider(
     private val dataGouv: PoiProvider,
     private val dataGouvElec: PoiProvider,
     private val openChargeMap: PoiProvider,
+    private val chargy: PoiProvider,
     private val overpass: PoiProvider,
     private val dataGouvCamping: PoiProvider?,
     private val settingsManager: SettingsManager
@@ -27,6 +28,7 @@ class SelectorPoiProvider(
         PoiProviderType.DataGouv -> dataGouv
         PoiProviderType.DataGouvElec -> dataGouvElec
         PoiProviderType.OpenChargeMap -> openChargeMap
+        PoiProviderType.Chargy -> chargy
         PoiProviderType.Overpass -> overpass
     }
 
@@ -73,6 +75,14 @@ class SelectorPoiProvider(
             val seenIds = result.mapTo(mutableSetOf()) { it.id }
             result = result + extra.filter { it.id !in seenIds }
         }
+        if (PoiCategory.Irve in categories &&
+            request.latitude in 49.4..50.2 && request.longitude in 5.7..6.6 &&
+            provider != PoiProviderType.Chargy) {
+            val extra = chargy.search(effectiveRequest)
+            val seenIds = result.mapTo(mutableSetOf()) { it.id }
+            result = result + extra.filter { it.id !in seenIds }
+        }
+
         if (provider != PoiProviderType.Overpass) {
             val selectedEnergies = settings.selectedMapEnergyTypes
             if (selectedEnergies.isNotEmpty()) {
@@ -90,7 +100,7 @@ class SelectorPoiProvider(
                     }
                 }
             }
-            if (provider == PoiProviderType.DataGouvElec || provider == PoiProviderType.OpenChargeMap) {
+            if (provider == PoiProviderType.DataGouvElec || provider == PoiProviderType.OpenChargeMap || provider == PoiProviderType.Chargy) {
                 if (settings.selectedMapConnectorTypes.isNotEmpty()) {
                     val connectorSet = settings.selectedMapConnectorTypes
                     result = result.filter { poi -> poi.irveDetails?.connectorTypes?.any { it in connectorSet } == true }
@@ -109,6 +119,13 @@ class SelectorPoiProvider(
         val settings = settingsManager.settings.value
         val provider = settings.selectedPoiProvider
         var result = currentProvider().getGasStations(latitude, longitude, viewport)
+
+        if (latitude in 49.4..50.2 && longitude in 5.7..6.6 && provider != PoiProviderType.Chargy) {
+            val extra = chargy.getGasStations(latitude, longitude, viewport)
+            val seenIds = result.mapTo(mutableSetOf()) { it.id }
+            result = result + extra.filter { it.id !in seenIds }
+        }
+
         val selectedEnergies = settings.selectedMapEnergyTypes
         if (selectedEnergies.isNotEmpty()) {
             result = result.filter { MapPoiFilter.matchesEnergyFilter(it, selectedEnergies) }
@@ -129,7 +146,7 @@ class SelectorPoiProvider(
                 }
             }
         }
-        if (provider == PoiProviderType.DataGouvElec || provider == PoiProviderType.OpenChargeMap) {
+        if (provider == PoiProviderType.DataGouvElec || provider == PoiProviderType.OpenChargeMap || provider == PoiProviderType.Chargy) {
             if (settings.selectedMapConnectorTypes.isNotEmpty()) {
                 val connectorSet = settings.selectedMapConnectorTypes
                 result = result.filter { poi ->

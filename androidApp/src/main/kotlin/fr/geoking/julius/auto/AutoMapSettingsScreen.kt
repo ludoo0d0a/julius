@@ -60,6 +60,7 @@ class AutoMapSettingsScreen(
 
         if (settings.selectedPoiProvider == PoiProviderType.DataGouvElec ||
             settings.selectedPoiProvider == PoiProviderType.OpenChargeMap ||
+            settings.selectedPoiProvider == PoiProviderType.Chargy ||
             settings.selectedPoiProvider == PoiProviderType.Overpass) {
             listBuilder.addItem(
                 Row.Builder()
