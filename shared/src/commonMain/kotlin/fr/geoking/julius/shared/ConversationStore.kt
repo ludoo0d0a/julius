@@ -4,7 +4,6 @@ import androidx.compose.runtime.Stable
 import fr.geoking.julius.agents.ConversationalAgent
 import fr.geoking.julius.agents.AgentResponse
 import fr.geoking.julius.agents.ToolCall
-import fr.geoking.julius.shared.ActionParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
