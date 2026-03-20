@@ -158,6 +158,12 @@ class MapPoiScreen(
 
             // 1) Always available actions (keep <= 4 for this template).
             actions += Action.Builder()
+                .setTitle("Home")
+                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_home)).build())
+                .setOnClickListener { screenManager.popToRoot() }
+                .build()
+
+            actions += Action.Builder()
                 .setTitle("Settings")
                 .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_settings)).build())
                 .setOnClickListener { screenManager.push(AutoMapSettingsScreen(carContext, settingsManager)) }
@@ -217,12 +223,14 @@ class MapPoiScreen(
             val actionStrip = actionStripBuilder.build()
 
             val title = "Nearby POIs"
+            val anchorPlace = Place.Builder(CarLocation.create(searchLat, searchLon)).build()
 
             if (isLoading) {
                 return PlaceListMapTemplate.Builder()
                     .setHeaderAction(Action.BACK)
                     .setTitle(title)
                     .setLoading(true)
+                    .setAnchor(anchorPlace)
                     .setActionStrip(actionStrip)
                     .setCurrentLocationEnabled(true)
                     .build()
@@ -267,8 +275,6 @@ class MapPoiScreen(
 
                 itemListBuilder.addItem(row)
             }
-
-            val anchorPlace = Place.Builder(CarLocation.create(searchLat, searchLon)).build()
 
             return PlaceListMapTemplate.Builder()
                 .setHeaderAction(Action.BACK)
