@@ -190,24 +190,22 @@ val appModule = module {
         AndroidActionExecutor(androidContext(), get())
     }
 
-    single<AppDatabase> {
-        Room.databaseBuilder(
-            androidContext(),
-            AppDatabase::class.java, "julius-db"
-        ).build()
-    }
-
-    single { get<AppDatabase>().chatMessageDao() }
-
-    single<MessagePersistence> {
-        RoomMessagePersistence(get())
-    }
-
     single { VoskTranscriber(androidContext(), modelDirPath = null) }
     single<LocalTranscriber> { get<VoskTranscriber>() }
     
     single<ConversationStore> {
         val settingsManager = get<SettingsManager>()
+
+        val persistence = try {
+            val db = Room.databaseBuilder(
+                androidContext(),
+                AppDatabase::class.java, "julius-db"
+            ).build()
+            RoomMessagePersistence(db.chatMessageDao())
+        } catch (e: Throwable) {
+            android.util.Log.e("AppModule", "Failed to initialize Room persistence", e)
+            null
+        }
 
         ConversationStore(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
@@ -217,7 +215,7 @@ val appModule = module {
             initialSpeechLanguageTag = resolveInitialSpeechLanguageTag(),
             localTranscriber = get(),
             sttPreference = { settingsManager.settings.value.sttEnginePreference },
-            persistence = getOrNull()
+            persistence = persistence
         )
     }
 }
