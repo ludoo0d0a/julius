@@ -77,7 +77,7 @@ class OverpassClient(
             (
             $unionParts
             );
-            out body ${limit.coerceIn(1, 500)};
+            out body qt ${limit.coerceIn(1, 500)};
         """.trimIndent()
 
         val response = client.submitForm(
@@ -121,7 +121,7 @@ class OverpassClient(
             (
             $unionParts
             );
-            out center ${limit.coerceIn(1, 500)};
+            out center qt ${limit.coerceIn(1, 500)};
         """.trimIndent()
 
         val response = client.submitForm(
