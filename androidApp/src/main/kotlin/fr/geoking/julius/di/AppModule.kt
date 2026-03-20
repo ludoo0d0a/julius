@@ -208,6 +208,7 @@ val appModule = module {
     
     single<ConversationStore> {
         val settingsManager = get<SettingsManager>()
+
         ConversationStore(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             agent = get(),
@@ -216,7 +217,7 @@ val appModule = module {
             initialSpeechLanguageTag = resolveInitialSpeechLanguageTag(),
             localTranscriber = get(),
             sttPreference = { settingsManager.settings.value.sttEnginePreference },
-            persistence = get()
+            persistence = getOrNull()
         )
     }
 }
