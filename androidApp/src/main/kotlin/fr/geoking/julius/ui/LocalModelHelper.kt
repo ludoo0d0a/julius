@@ -9,32 +9,64 @@ import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
+import fr.geoking.julius.AgentType
+
 /**
- * Available local GGUF model variants. User can choose which to download in Local agent settings.
+ * Available local model variants grouped by agent.
  */
 enum class LocalModelVariant(
+    val agentType: AgentType,
     val displayName: String,
     val sizeDescription: String,
     val fileName: String,
     val downloadUrl: String
 ) {
-    Phi2Q4_0(
+    // GGUF Models (Llamatik, llama.cpp, PocketPal)
+    Phi2Gguf(
+        AgentType.Llamatik,
         displayName = "Phi-2 (Q4_0)",
-        sizeDescription = "~1.6 GB, good quality for small devices",
+        sizeDescription = "~1.6 GB, GGUF",
         fileName = "phi-2.Q4_0.gguf",
         downloadUrl = "https://huggingface.co/TheBloke/phi-2-GGUF/resolve/main/phi-2.Q4_0.gguf"
     ),
-    Gemma2BQ4_0(
+    Gemma2BGguf(
+        AgentType.Llamatik,
         displayName = "Gemma 2B (Q4_0)",
-        sizeDescription = "~1.4 GB, optimized for mobile",
+        sizeDescription = "~1.4 GB, GGUF",
         fileName = "gemma-2-2b-Q4_0.gguf",
         downloadUrl = "https://huggingface.co/tensorblock/gemma-2-2b-GGUF/resolve/main/gemma-2-2b-Q4_0.gguf"
     ),
-    TinyLlamaQ4_0(
-        displayName = "TinyLlama (Q4_0)",
-        sizeDescription = "~650 MB, fastest but lower quality",
-        fileName = "ggml-model-q4_0.gguf",
-        downloadUrl = "https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v0.2-GGUF/resolve/main/ggml-model-q4_0.gguf"
+    Qwen05BGguf(
+        AgentType.LlamaCpp,
+        displayName = "Qwen 2.5 0.5B (Q4_K_M)",
+        sizeDescription = "~390 MB, GGUF",
+        fileName = "qwen2.5-0.5b-instruct-q4_k_m.gguf",
+        downloadUrl = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
+    ),
+
+    // MediaPipe / Gemini Nano / AI Edge (.bin / .task)
+    Gemma2BMediaPipe(
+        AgentType.GeminiNano,
+        displayName = "Gemma 2B IT (Int4)",
+        sizeDescription = "~1.35 GB, MediaPipe",
+        fileName = "gemma-1.1-2b-it-gpu-int4.bin",
+        downloadUrl = "https://huggingface.co/google/gemma-1.1-2b-it-gpu-int4/resolve/main/gemma-1.1-2b-it-gpu-int4.bin"
+    ),
+    Phi2MediaPipe(
+        AgentType.MediaPipe,
+        displayName = "Phi-2 (Int4)",
+        sizeDescription = "~1.5 GB, MediaPipe",
+        fileName = "phi-2-gpu-int4.bin",
+        downloadUrl = "https://huggingface.co/google/phi-2-gpu-int4/resolve/main/phi-2-gpu-int4.bin"
+    ),
+
+    // MLC-LLM (Multi-file, but we point to a main one for identification)
+    Llama3Mlc(
+        AgentType.MlcLlm,
+        displayName = "Llama-3-8B (Q4f16_1)",
+        sizeDescription = "~4.5 GB, MLC format",
+        fileName = "llama-3-8b-q4f16_1.mlc",
+        downloadUrl = "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f16_1-MLC/resolve/main/params/ndarray-cache.json"
     )
 }
 
@@ -50,14 +82,13 @@ class LocalModelHelper(private val context: Context) {
     }
 
     private fun fileForVariant(variant: LocalModelVariant): File =
-        File(context.filesDir, "models/${variant.fileName}")
+        File(context.filesDir, "models/${variant.agentType.name}/${variant.fileName}")
 
     /**
-     * Returns true if the model is available: either at the stored path (absolute file)
-     * or in assets (asset-relative path).
+     * Returns true if the model for the given agent is available.
      */
-    fun isModelDownloaded(settings: AppSettings): Boolean {
-        val path = settings.localModelPath
+    fun isModelDownloaded(settings: AppSettings, agentType: AgentType): Boolean {
+        val path = getModelPathForAgent(settings, agentType)
         if (path.isBlank()) return false
         return if (isAbsolutePath(path)) {
             File(path).exists()
@@ -71,6 +102,14 @@ class LocalModelHelper(private val context: Context) {
         }
     }
 
+    private fun getModelPathForAgent(settings: AppSettings, agentType: AgentType): String {
+        return when (agentType) {
+            AgentType.Llamatik -> settings.llamatikModelPath
+            // For now, other local agents use the same path if not explicitly separated
+            else -> settings.llamatikModelPath
+        }
+    }
+
     /**
      * Returns true if the given variant has been downloaded (file exists in app storage).
      */
@@ -80,8 +119,8 @@ class LocalModelHelper(private val context: Context) {
     /**
      * Path to show in UI (absolute path or "assets: models/...").
      */
-    fun getDisplayPath(settings: AppSettings): String {
-        val path = settings.localModelPath
+    fun getDisplayPath(settings: AppSettings, agentType: AgentType): String {
+        val path = getModelPathForAgent(settings, agentType)
         if (path.isBlank()) return DEFAULT_ASSET_PATH
         return if (isAbsolutePath(path)) path else "assets: $path"
     }
@@ -94,7 +133,7 @@ class LocalModelHelper(private val context: Context) {
 
     /**
      * Downloads the given variant to app files dir. Reports progress (bytes read, total if known).
-     * Returns the absolute path to use as [AppSettings.localModelPath] on success.
+     * Returns the absolute path to use as [AppSettings.llamatikModelPath] on success.
      */
     suspend fun download(
         variant: LocalModelVariant,

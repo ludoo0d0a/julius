@@ -8,7 +8,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-enum class AgentType { OpenAI, ElevenLabs, Deepgram, Native, Gemini, FirebaseAI, OpenCodeZen, CompletionsMe, ApiFreeLLM, Local, Offline }
+enum class AgentType {
+    OpenAI, ElevenLabs, Deepgram, Native, Gemini, FirebaseAI, OpenCodeZen, CompletionsMe, ApiFreeLLM,
+    Llamatik, GeminiNano, RunAnywhere, MlcLlm, LlamaCpp, MediaPipe, AiEdge, PocketPal, Offline
+}
 
 val DEFAULT_AGENT = AgentType.Gemini
 
@@ -113,10 +116,10 @@ data class AppSettings(
     /** STT engine for car mic path: LocalOnly (Vosk only), LocalFirst (Vosk then agent), NativeOnly (agent only). */
     val sttEnginePreference: SttEnginePreference = SttEnginePreference.LocalFirst,
     val textAnimation: TextAnimation = TextAnimation.Fade,
-    /** Path to local GGUF model: asset-relative (e.g. "models/phi-2.Q4_0.gguf") or absolute path after download. */
-    val localModelPath: String = "models/phi-2.Q4_0.gguf",
-    /** Selected local model variant for download UI; must match [fr.geoking.julius.ui.LocalModelVariant].name (e.g. Phi2Q4_0). */
-    val selectedLocalModelVariant: String = "Phi2Q4_0",
+    /** Path to Llamatik GGUF model: asset-relative (e.g. "models/phi-2.Q4_0.gguf") or absolute path after download. */
+    val llamatikModelPath: String = "models/phi-2.Q4_0.gguf",
+    /** Selected Llamatik model variant for download UI; must match [fr.geoking.julius.ui.LocalModelVariant].name (e.g. Phi2Q4_0). */
+    val selectedLlamatikModelVariant: String = "Phi2Q4_0",
     val lastJulesRepoId: String = "",
     val lastJulesRepoName: String = "",
     val googleUserName: String? = null,
@@ -283,8 +286,8 @@ open class SettingsManager(context: Context) {
             } catch (e: IllegalArgumentException) {
                 TextAnimation.Fade
             },
-            localModelPath = prefs.getString("local_model_path", "models/phi-2.Q4_0.gguf") ?: "models/phi-2.Q4_0.gguf",
-            selectedLocalModelVariant = prefs.getString("selected_local_model_variant", "Phi2Q4_0") ?: "Phi2Q4_0",
+            llamatikModelPath = prefs.getString("llamatik_model_path", "models/phi-2.Q4_0.gguf") ?: "models/phi-2.Q4_0.gguf",
+            selectedLlamatikModelVariant = prefs.getString("selected_llamatik_model_variant", "Phi2Q4_0") ?: "Phi2Q4_0",
             tollDataPath = prefs.getString("toll_data_path", null),
             mobiliteitLuxembourgKey = mobiliteitLuxembourgKey,
             lastJulesRepoId = lastJulesRepoId,
@@ -481,8 +484,8 @@ open class SettingsManager(context: Context) {
             .putBoolean("mute_media_on_car", settings.muteMediaOnCar)
             .putString("stt_engine_preference", settings.sttEnginePreference.name)
             .putString("text_animation", settings.textAnimation.name)
-            .putString("local_model_path", settings.localModelPath)
-            .putString("selected_local_model_variant", settings.selectedLocalModelVariant)
+            .putString("llamatik_model_path", settings.llamatikModelPath)
+            .putString("selected_llamatik_model_variant", settings.selectedLlamatikModelVariant)
             .apply { settings.tollDataPath?.let { putString("toll_data_path", it) } ?: remove("toll_data_path") }
             .putString("last_jules_repo_id", settings.lastJulesRepoId)
             .putString("last_jules_repo_name", settings.lastJulesRepoName)
@@ -521,8 +524,8 @@ open class SettingsManager(context: Context) {
         useCarMic: Boolean = false,
         muteMediaOnCar: Boolean = false,
         sttEnginePreference: SttEnginePreference = _settings.value.sttEnginePreference,
-        localModelPath: String = _settings.value.localModelPath,
-        selectedLocalModelVariant: String = _settings.value.selectedLocalModelVariant
+        llamatikModelPath: String = _settings.value.llamatikModelPath,
+        selectedLlamatikModelVariant: String = _settings.value.selectedLlamatikModelVariant
     ) {
         val newSettings = AppSettings(
             selectedPoiProvider = _settings.value.selectedPoiProvider,
@@ -566,8 +569,8 @@ open class SettingsManager(context: Context) {
             muteMediaOnCar = muteMediaOnCar,
             sttEnginePreference = sttEnginePreference,
             textAnimation = _settings.value.textAnimation,
-            localModelPath = localModelPath,
-            selectedLocalModelVariant = selectedLocalModelVariant,
+            llamatikModelPath = llamatikModelPath,
+            selectedLlamatikModelVariant = selectedLlamatikModelVariant,
             tollDataPath = _settings.value.tollDataPath,
             lastJulesRepoId = _settings.value.lastJulesRepoId,
             lastJulesRepoName = _settings.value.lastJulesRepoName,

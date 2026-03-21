@@ -67,11 +67,16 @@ class AutoSettingsScreen(
             )
         }
 
-        if (settings.selectedAgent == AgentType.Local) {
+        val isLocalAgent = settings.selectedAgent in listOf(
+            AgentType.Llamatik, AgentType.GeminiNano, AgentType.RunAnywhere,
+            AgentType.MlcLlm, AgentType.LlamaCpp, AgentType.MediaPipe,
+            AgentType.AiEdge, AgentType.PocketPal
+        )
+        if (isLocalAgent) {
             listBuilder.addItem(
                 Row.Builder()
-                    .setTitle("Download model (Llamatik)")
-                    .addText("Download GGUF model for offline use")
+                    .setTitle("Download model (${settings.selectedAgent.name})")
+                    .addText("Download model for offline use")
                     .setOnClickListener {
                         screenManager.push(AutoLocalModelScreen(carContext, settingsManager))
                     }
