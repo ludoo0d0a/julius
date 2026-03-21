@@ -58,6 +58,7 @@ import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.community.isCommunityPoiId
+import fr.geoking.julius.ui.components.FilterFab
 import fr.geoking.julius.ui.map.AddPoiSheet
 import fr.geoking.julius.ui.map.PoiDetailCard
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
@@ -262,16 +263,23 @@ fun MapScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showMapSettings = true },
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                shape = MaterialTheme.shapes.medium
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Map settings"
-                )
+                FilterFab(settingsManager = settingsManager)
+
+                FloatingActionButton(
+                    onClick = { showMapSettings = true },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Map settings"
+                    )
+                }
             }
         }
     ) { padding ->

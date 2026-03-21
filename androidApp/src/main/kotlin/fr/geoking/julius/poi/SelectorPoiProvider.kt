@@ -88,23 +88,25 @@ class SelectorPoiProvider(
             if (selectedEnergies.isNotEmpty()) {
                 result = result.filter { MapPoiFilter.matchesEnergyFilter(it, selectedEnergies) }
             }
-            if (provider == PoiProviderType.DataGouvElec) {
-                if (settings.mapMinPowerKw > 0) {
-                    val minKw = settings.mapMinPowerKw
-                    result = result.filter { poi -> poi.powerKw == null || poi.powerKw!! >= minKw }
-                }
-                if (settings.mapIrveOperator != "all") {
-                    val op = settings.mapIrveOperator.trim().lowercase()
-                    if (op.isNotEmpty()) {
-                        result = result.filter { poi -> poi.operator?.trim()?.lowercase()?.contains(op) == true }
-                    }
+            if (settings.mapBrand != "all") {
+                val brandId = settings.mapBrand.lowercase()
+                result = result.filter { poi -> poi.isElectric || poi.brand?.lowercase() == brandId }
+            }
+
+            // Apply IRVE filters (power, operator, connectors) to all electric stations regardless of provider
+            if (settings.mapMinPowerKw > 0) {
+                val minKw = settings.mapMinPowerKw
+                result = result.filter { poi -> !poi.isElectric || poi.powerKw == null || poi.powerKw!! >= minKw }
+            }
+            if (settings.mapIrveOperator != "all") {
+                val op = settings.mapIrveOperator.trim().lowercase()
+                if (op.isNotEmpty()) {
+                    result = result.filter { poi -> !poi.isElectric || poi.operator?.trim()?.lowercase()?.contains(op) == true }
                 }
             }
-            if (provider == PoiProviderType.DataGouvElec || provider == PoiProviderType.OpenChargeMap || provider == PoiProviderType.Chargy) {
-                if (settings.selectedMapConnectorTypes.isNotEmpty()) {
-                    val connectorSet = settings.selectedMapConnectorTypes
-                    result = result.filter { poi -> poi.irveDetails?.connectorTypes?.any { it in connectorSet } == true }
-                }
+            if (settings.selectedMapConnectorTypes.isNotEmpty()) {
+                val connectorSet = settings.selectedMapConnectorTypes
+                result = result.filter { poi -> !poi.isElectric || poi.irveDetails?.connectorTypes?.any { it in connectorSet } == true }
             }
         }
         Log.d("SelectorPoiProvider", "search provider=$provider categories=$categories -> ${result.size} pois")
@@ -130,29 +132,25 @@ class SelectorPoiProvider(
         if (selectedEnergies.isNotEmpty()) {
             result = result.filter { MapPoiFilter.matchesEnergyFilter(it, selectedEnergies) }
         }
-        if (provider == PoiProviderType.DataGouvElec) {
-            if (settings.mapMinPowerKw > 0) {
-                val minKw = settings.mapMinPowerKw
-                result = result.filter { poi ->
-                    poi.powerKw == null || poi.powerKw!! >= minKw
-                }
-            }
-            if (settings.mapIrveOperator != "all") {
-                val op = settings.mapIrveOperator.trim().lowercase()
-                if (op.isNotEmpty()) {
-                    result = result.filter { poi ->
-                        poi.operator?.trim()?.lowercase()?.contains(op) == true
-                    }
-                }
+        if (settings.mapBrand != "all") {
+            val brandId = settings.mapBrand.lowercase()
+            result = result.filter { poi -> poi.isElectric || poi.brand?.lowercase() == brandId }
+        }
+
+        // Apply IRVE filters
+        if (settings.mapMinPowerKw > 0) {
+            val minKw = settings.mapMinPowerKw
+            result = result.filter { poi -> !poi.isElectric || poi.powerKw == null || poi.powerKw!! >= minKw }
+        }
+        if (settings.mapIrveOperator != "all") {
+            val op = settings.mapIrveOperator.trim().lowercase()
+            if (op.isNotEmpty()) {
+                result = result.filter { poi -> !poi.isElectric || poi.operator?.trim()?.lowercase()?.contains(op) == true }
             }
         }
-        if (provider == PoiProviderType.DataGouvElec || provider == PoiProviderType.OpenChargeMap || provider == PoiProviderType.Chargy) {
-            if (settings.selectedMapConnectorTypes.isNotEmpty()) {
-                val connectorSet = settings.selectedMapConnectorTypes
-                result = result.filter { poi ->
-                    poi.irveDetails?.connectorTypes?.any { it in connectorSet } == true
-                }
-            }
+        if (settings.selectedMapConnectorTypes.isNotEmpty()) {
+            val connectorSet = settings.selectedMapConnectorTypes
+            result = result.filter { poi -> !poi.isElectric || poi.irveDetails?.connectorTypes?.any { it in connectorSet } == true }
         }
         Log.d("SelectorPoiProvider", "selected=$provider lat=$latitude lon=$longitude -> ${result.size} pois (energy+power+operator+connector filter)")
         return result
