@@ -19,8 +19,13 @@ class RoomMessagePersistence(
         )
     }
 
-    override suspend fun loadMessages(): List<ChatMessage> {
-        return dao.getAllMessages().map { entity ->
+    override suspend fun loadMessages(limit: Int?): List<ChatMessage> {
+        val entities = if (limit != null) {
+            dao.getLastMessages(limit).reversed()
+        } else {
+            dao.getAllMessages()
+        }
+        return entities.map { entity ->
             ChatMessage(
                 id = entity.id,
                 sender = Role.valueOf(entity.sender),
@@ -32,5 +37,9 @@ class RoomMessagePersistence(
 
     override suspend fun clearMessages() {
         dao.clearAll()
+    }
+
+    override suspend fun cleanupOldMessages(threshold: Long) {
+        dao.deleteOlderThan(threshold)
     }
 }
