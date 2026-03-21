@@ -18,8 +18,8 @@ class AutoAdvancedFiltersScreen(
         if (settings.selectedPoiProvider == PoiProviderType.DataGouvElec || settings.selectedPoiProvider == PoiProviderType.OpenChargeMap || settings.selectedPoiProvider == PoiProviderType.Chargy) {
             listBuilder.addItem(
                 Row.Builder()
-                    .setTitle("Opérateur")
-                    .addText(settings.mapIrveOperator)
+                    .setTitle("Operators")
+                    .addText(if (settings.mapIrveOperators.isEmpty()) "All" else settings.mapIrveOperators.joinToString(", "))
                     .setOnClickListener {
                         screenManager.push(AutoMapIrveOperatorSelectionScreen(carContext, settingsManager))
                     }
@@ -28,8 +28,8 @@ class AutoAdvancedFiltersScreen(
 
             listBuilder.addItem(
                 Row.Builder()
-                    .setTitle("Min. Power")
-                    .addText("${settings.mapMinPowerKw} kW")
+                    .setTitle("Power Range")
+                    .addText(if (settings.mapPowerLevels.isEmpty()) "All" else settings.mapPowerLevels.joinToString(", ") { "${it}kW+" })
                     .setOnClickListener {
                         screenManager.push(AutoMapIrvePowerSelectionScreen(carContext, settingsManager))
                     }

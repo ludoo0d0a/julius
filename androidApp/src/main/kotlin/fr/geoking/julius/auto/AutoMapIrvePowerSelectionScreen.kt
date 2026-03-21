@@ -16,14 +16,15 @@ class AutoMapIrvePowerSelectionScreen(
         val listBuilder = ItemList.Builder()
 
         MAP_IRVE_POWER_OPTIONS.forEach { (kw, label) ->
-            val isSelected = settings.mapMinPowerKw == kw
-            val displayLabel = if (isSelected) "$label (Selected)" else label
+            val isSelected = settings.mapPowerLevels.contains(kw)
             listBuilder.addItem(
                 Row.Builder()
-                    .setTitle(displayLabel)
+                    .setTitle(label)
+                    .addText(if (isSelected) "Active" else "Inactive")
                     .setOnClickListener {
-                        settingsManager.setMapMinPowerKw(kw)
-                        screenManager.pop()
+                        val newLevels = if (settings.mapPowerLevels.contains(kw)) settings.mapPowerLevels - kw else settings.mapPowerLevels + kw
+                        settingsManager.setMapPowerLevels(newLevels)
+                        invalidate()
                     }
                     .build()
             )

@@ -43,6 +43,8 @@ object BrandHelper {
         "allego" to "Allego",
         "lidl" to "Lidl",
         "chargy" to "Chargy",
+        "atlante" to "Atlante",
+        "zunder" to "Zunder",
     )
 
     /** brand_id (lowercase) -> brand icon drawable. Unlisted brands use ic_poi_gas. */
@@ -71,6 +73,8 @@ object BrandHelper {
         "allego" to R.drawable.ic_brand_allego,
         "lidl" to R.drawable.ic_brand_lidl,
         "chargy" to R.drawable.ic_poi_electric,
+        "atlante" to R.drawable.ic_poi_electric,
+        "zunder" to R.drawable.ic_poi_electric,
     )
 
     /** brand_id (lowercase) -> rounded brand icon drawable. Unlisted brands use ic_poi_gas_rounded. */
@@ -99,6 +103,20 @@ object BrandHelper {
         "allego" to R.drawable.ic_brand_allego_rounded,
         "lidl" to R.drawable.ic_brand_lidl_rounded,
         "chargy" to R.drawable.ic_poi_electric_rounded,
+        "atlante" to R.drawable.ic_poi_electric_rounded,
+        "zunder" to R.drawable.ic_poi_electric_rounded,
+    )
+
+    /** brand_id (lowercase) -> is gas station brand. */
+    private val gasBrands = setOf(
+        "total", "totalenergies", "bp", "shell", "esso", "esso express", "eni", "repsol", "omv", "avia",
+        "q8", "agip", "carrefour", "leclerc", "auchan", "intermarche", "casino", "rel", "rel.metz",
+        "circle k", "eurogarages", "aral", "jet", "elf", "migrol", "coop", "migros"
+    )
+
+    /** brand_id (lowercase) -> is electric charging brand. */
+    private val electricBrands = setOf(
+        "tesla", "ionity", "fastned", "allego", "lidl", "chargy", "atlante", "zunder", "totalenergies"
     )
 
     data class BrandInfo(
@@ -133,5 +151,21 @@ object BrandHelper {
 
         // 3. No match: return null to let UI handle fallback icon (plug vs pump)
         return null
+    }
+
+    /** Returns list of brands for fuel (gas). */
+    fun getGasBrands(): List<Pair<String, String>> {
+        return brandNames.filterKeys { it in gasBrands }
+            .entries.map { it.key to it.value }
+            .distinctBy { it.second }
+            .sortedBy { it.second }
+    }
+
+    /** Returns list of brands for electric charging. */
+    fun getElectricBrands(): List<Pair<String, String>> {
+        return brandNames.filterKeys { it in electricBrands }
+            .entries.map { it.key to it.value }
+            .distinctBy { it.second }
+            .sortedBy { it.second }
     }
 }

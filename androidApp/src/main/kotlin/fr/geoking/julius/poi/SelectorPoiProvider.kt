@@ -88,20 +88,35 @@ class SelectorPoiProvider(
             if (selectedEnergies.isNotEmpty()) {
                 result = result.filter { MapPoiFilter.matchesEnergyFilter(it, selectedEnergies) }
             }
-            if (settings.mapBrand != "all") {
-                val brandId = settings.mapBrand.lowercase()
-                result = result.filter { poi -> poi.isElectric || poi.brand?.lowercase() == brandId }
+            if (settings.mapBrands.isNotEmpty()) {
+                val brandIds = settings.mapBrands.map { it.lowercase() }.toSet()
+                result = result.filter { poi ->
+                    poi.isElectric || (poi.brand?.lowercase()?.let { it in brandIds } ?: false)
+                }
             }
 
             // Apply IRVE filters (power, operator, connectors) to all electric stations regardless of provider
-            if (settings.mapMinPowerKw > 0) {
-                val minKw = settings.mapMinPowerKw
-                result = result.filter { poi -> !poi.isElectric || poi.powerKw == null || poi.powerKw!! >= minKw }
+            if (settings.mapPowerLevels.isNotEmpty()) {
+                val levels = settings.mapPowerLevels
+                result = result.filter { poi ->
+                    !poi.isElectric || poi.powerKw == null || levels.any { level ->
+                        val p = poi.powerKw!!
+                        when (level) {
+                            0 -> true
+                            20 -> p in 20.0..49.9
+                            50 -> p in 50.0..99.9
+                            100 -> p in 100.0..199.9
+                            200 -> p in 200.0..299.9
+                            300 -> p >= 300.0
+                            else -> p >= level
+                        }
+                    }
+                }
             }
-            if (settings.mapIrveOperator != "all") {
-                val op = settings.mapIrveOperator.trim().lowercase()
-                if (op.isNotEmpty()) {
-                    result = result.filter { poi -> !poi.isElectric || poi.operator?.trim()?.lowercase()?.contains(op) == true }
+            if (settings.mapIrveOperators.isNotEmpty()) {
+                val operators = settings.mapIrveOperators.map { it.trim().lowercase() }
+                result = result.filter { poi ->
+                    !poi.isElectric || operators.any { op -> poi.operator?.trim()?.lowercase()?.contains(op) == true }
                 }
             }
             if (settings.selectedMapConnectorTypes.isNotEmpty()) {
@@ -132,20 +147,35 @@ class SelectorPoiProvider(
         if (selectedEnergies.isNotEmpty()) {
             result = result.filter { MapPoiFilter.matchesEnergyFilter(it, selectedEnergies) }
         }
-        if (settings.mapBrand != "all") {
-            val brandId = settings.mapBrand.lowercase()
-            result = result.filter { poi -> poi.isElectric || poi.brand?.lowercase() == brandId }
+        if (settings.mapBrands.isNotEmpty()) {
+            val brandIds = settings.mapBrands.map { it.lowercase() }.toSet()
+            result = result.filter { poi ->
+                poi.isElectric || (poi.brand?.lowercase()?.let { it in brandIds } ?: false)
+            }
         }
 
         // Apply IRVE filters
-        if (settings.mapMinPowerKw > 0) {
-            val minKw = settings.mapMinPowerKw
-            result = result.filter { poi -> !poi.isElectric || poi.powerKw == null || poi.powerKw!! >= minKw }
+        if (settings.mapPowerLevels.isNotEmpty()) {
+            val levels = settings.mapPowerLevels
+            result = result.filter { poi ->
+                !poi.isElectric || poi.powerKw == null || levels.any { level ->
+                    val p = poi.powerKw!!
+                    when (level) {
+                        0 -> true
+                        20 -> p in 20.0..49.9
+                        50 -> p in 50.0..99.9
+                        100 -> p in 100.0..199.9
+                        200 -> p in 200.0..299.9
+                        300 -> p >= 300.0
+                        else -> p >= level
+                    }
+                }
+            }
         }
-        if (settings.mapIrveOperator != "all") {
-            val op = settings.mapIrveOperator.trim().lowercase()
-            if (op.isNotEmpty()) {
-                result = result.filter { poi -> !poi.isElectric || poi.operator?.trim()?.lowercase()?.contains(op) == true }
+        if (settings.mapIrveOperators.isNotEmpty()) {
+            val operators = settings.mapIrveOperators.map { it.trim().lowercase() }
+            result = result.filter { poi ->
+                !poi.isElectric || operators.any { op -> poi.operator?.trim()?.lowercase()?.contains(op) == true }
             }
         }
         if (settings.selectedMapConnectorTypes.isNotEmpty()) {

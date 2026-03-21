@@ -6,7 +6,7 @@ import androidx.car.app.model.*
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.ui.BrandHelper
 
-class AutoMapIrveOperatorSelectionScreen(
+class AutoMapBrandSelectionScreen(
     carContext: CarContext,
     private val settingsManager: SettingsManager
 ) : Screen(carContext) {
@@ -14,17 +14,18 @@ class AutoMapIrveOperatorSelectionScreen(
     override fun onGetTemplate(): Template {
         val settings = settingsManager.settings.value
         val listBuilder = ItemList.Builder()
-        val operators = BrandHelper.getElectricBrands()
+        val brands = BrandHelper.getGasBrands()
 
-        operators.forEach { (id, label) ->
-            val isSelected = settings.mapIrveOperators.contains(id)
+        brands.forEach { (id, label) ->
+            val isSelected = settings.mapBrands.contains(id)
             listBuilder.addItem(
                 Row.Builder()
                     .setTitle(label)
                     .addText(if (isSelected) "Active" else "Inactive")
                     .setOnClickListener {
-                        val newOps = if (settings.mapIrveOperators.contains(id)) settings.mapIrveOperators - id else settings.mapIrveOperators + id
-                        settingsManager.setMapIrveOperators(newOps)
+                        val current = settingsManager.settings.value.mapBrands
+                        val next = if (isSelected) current - id else current + id
+                        settingsManager.setMapBrands(next)
                         invalidate()
                     }
                     .build()
@@ -33,7 +34,7 @@ class AutoMapIrveOperatorSelectionScreen(
 
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
-            .setHeader(Header.Builder().setTitle("Opérateur").setStartHeaderAction(Action.BACK).build())
+            .setHeader(Header.Builder().setTitle("Brands").setStartHeaderAction(Action.BACK).build())
             .build()
     }
 }

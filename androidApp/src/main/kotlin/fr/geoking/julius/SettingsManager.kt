@@ -39,19 +39,19 @@ enum class GeminiModel(val modelName: String, val displayName: String) {
 }
 
 /** Energy/fuel types for map POI filter (multi-select). Aligned with prix-carburants.gouv.fr. */
-val DEFAULT_MAP_ENERGY_TYPES = setOf("gazole", "sp98", "sp95_e10", "sp95", "gplc", "e85", "electric")
+val DEFAULT_MAP_ENERGY_TYPES = setOf("gazole", "sp98", "sp95_e10", "sp95", "gplc", "e85")
 
 /** Enseigne type for map filter, aligned with prix-carburants.gouv.fr. "all" = Toutes les enseignes. */
 const val DEFAULT_MAP_ENSEIGNE_TYPE = "all"
 
-/** Min power filter for IRVE (kW). 0 = no filter. Aligned with LibreChargeMap. */
-const val DEFAULT_MAP_MIN_POWER_KW = 0
+/** Power buckets for IRVE filter (kW). Empty = all. */
+val DEFAULT_MAP_POWER_LEVELS = emptySet<Int>()
 
-/** IRVE operator filter. "all" = Tous les opérateurs. */
-const val DEFAULT_MAP_IRVE_OPERATOR = "all"
+/** IRVE operator filter. Empty = all. */
+val DEFAULT_MAP_IRVE_OPERATORS = emptySet<String>()
 
-/** Brand filter. "all" = Toutes les enseignes. */
-const val DEFAULT_MAP_BRAND = "all"
+/** Brand filter. Empty = all. */
+val DEFAULT_MAP_BRANDS = emptySet<String>()
 
 /** Default EV range in km for route planning. */
 const val DEFAULT_EV_RANGE_KM = 300
@@ -62,14 +62,14 @@ data class AppSettings(
     val selectedMapEnergyTypes: Set<String> = DEFAULT_MAP_ENERGY_TYPES,
     /** Type d'enseigne: "all", "major", "gms", "independant". Filter applied when provider supplies data. */
     val mapEnseigneType: String = DEFAULT_MAP_ENSEIGNE_TYPE,
-    /** Filter by brand id (lowercase), "all" = show all brands. */
-    val mapBrand: String = DEFAULT_MAP_BRAND,
+    /** Filter by brand ids (lowercase), empty = show all brands. */
+    val mapBrands: Set<String> = DEFAULT_MAP_BRANDS,
     /** Selected service ids for map filter (e.g. bornes_electriques, automate_cb). Applied when provider supplies data. */
     val selectedMapServices: Set<String> = emptySet(),
-    /** Min power in kW for IRVE stations (0 = no filter). Applied when provider is DataGouvElec. */
-    val mapMinPowerKw: Int = DEFAULT_MAP_MIN_POWER_KW,
-    /** IRVE operator filter: "all", "atlante", "avia", "zunder", "ionity", "fastned", "tesla". Applied when provider is DataGouvElec. */
-    val mapIrveOperator: String = DEFAULT_MAP_IRVE_OPERATOR,
+    /** Power buckets in kW for IRVE stations (empty = all). Applied when provider is DataGouvElec. */
+    val mapPowerLevels: Set<Int> = DEFAULT_MAP_POWER_LEVELS,
+    /** IRVE operator filter: empty = all. Applied when provider is DataGouvElec. */
+    val mapIrveOperators: Set<String> = DEFAULT_MAP_IRVE_OPERATORS,
     /** Selected connector types for IRVE (type_2, combo_ccs, chademo, ef, autre). Empty = show all. Applied when provider is DataGouvElec. */
     val selectedMapConnectorTypes: Set<String> = emptySet(),
     /** Show Google traffic layer on the map (green / yellow / red). */
@@ -169,10 +169,18 @@ open class SettingsManager(context: Context) {
         val selectedMapServices = if (!mapServicesStr.isNullOrBlank()) {
             mapServicesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
         } else emptySet()
-        val mapMinPowerKw = prefs.getInt("map_min_power_kw", DEFAULT_MAP_MIN_POWER_KW)
-            .coerceIn(0, 300)
-        val mapIrveOperator = prefs.getString("map_irve_operator", DEFAULT_MAP_IRVE_OPERATOR) ?: DEFAULT_MAP_IRVE_OPERATOR
-        val mapBrand = prefs.getString("map_brand", DEFAULT_MAP_BRAND) ?: DEFAULT_MAP_BRAND
+        val mapPowerLevelsStr = prefs.getString("map_power_levels", null)
+        val mapPowerLevels = if (!mapPowerLevelsStr.isNullOrBlank()) {
+            mapPowerLevelsStr.split(",").mapNotNull { it.trim().toIntOrNull() }.toSet()
+        } else DEFAULT_MAP_POWER_LEVELS
+        val mapIrveOperatorsStr = prefs.getString("map_irve_operators", null)
+        val mapIrveOperators = if (!mapIrveOperatorsStr.isNullOrBlank()) {
+            mapIrveOperatorsStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        } else DEFAULT_MAP_IRVE_OPERATORS
+        val mapBrandsStr = prefs.getString("map_brands", null)
+        val mapBrands = if (!mapBrandsStr.isNullOrBlank()) {
+            mapBrandsStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        } else DEFAULT_MAP_BRANDS
         val mapConnectorTypesStr = prefs.getString("map_connector_types", null)
         val selectedMapConnectorTypes = if (!mapConnectorTypesStr.isNullOrBlank()) {
             mapConnectorTypesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
@@ -205,9 +213,9 @@ open class SettingsManager(context: Context) {
             selectedMapEnergyTypes = selectedMapEnergyTypes,
             mapEnseigneType = mapEnseigneType,
             selectedMapServices = selectedMapServices,
-            mapMinPowerKw = mapMinPowerKw,
-            mapIrveOperator = mapIrveOperator,
-            mapBrand = mapBrand,
+            mapPowerLevels = mapPowerLevels,
+            mapIrveOperators = mapIrveOperators,
+            mapBrands = mapBrands,
             selectedMapConnectorTypes = selectedMapConnectorTypes,
             mapTrafficEnabled = mapTrafficEnabled,
             evRangeKm = evRangeKm,
@@ -342,20 +350,19 @@ open class SettingsManager(context: Context) {
         _settings.value = _settings.value.copy(selectedMapServices = services)
     }
 
-    open fun setMapMinPowerKw(kw: Int) {
-        val value = kw.coerceIn(0, 300)
-        prefs.edit().putInt("map_min_power_kw", value).apply()
-        _settings.value = _settings.value.copy(mapMinPowerKw = value)
+    open fun setMapPowerLevels(levels: Set<Int>) {
+        prefs.edit().putString("map_power_levels", levels.joinToString(",")).apply()
+        _settings.value = _settings.value.copy(mapPowerLevels = levels)
     }
 
-    open fun setMapIrveOperator(operator: String) {
-        prefs.edit().putString("map_irve_operator", operator).apply()
-        _settings.value = _settings.value.copy(mapIrveOperator = operator)
+    open fun setMapIrveOperators(operators: Set<String>) {
+        prefs.edit().putString("map_irve_operators", operators.joinToString(",")).apply()
+        _settings.value = _settings.value.copy(mapIrveOperators = operators)
     }
 
-    open fun setMapBrand(brand: String) {
-        prefs.edit().putString("map_brand", brand).apply()
-        _settings.value = _settings.value.copy(mapBrand = brand)
+    open fun setMapBrands(brands: Set<String>) {
+        prefs.edit().putString("map_brands", brands.joinToString(",")).apply()
+        _settings.value = _settings.value.copy(mapBrands = brands)
     }
 
     open fun setMapConnectorTypes(types: Set<String>) {
@@ -436,9 +443,9 @@ open class SettingsManager(context: Context) {
             .putString("map_energy_types", settings.selectedMapEnergyTypes.joinToString(","))
             .putString("map_enseigne_type", settings.mapEnseigneType)
             .putString("map_services", settings.selectedMapServices.joinToString(","))
-            .putInt("map_min_power_kw", settings.mapMinPowerKw)
-            .putString("map_irve_operator", settings.mapIrveOperator)
-            .putString("map_brand", settings.mapBrand)
+            .putString("map_power_levels", settings.mapPowerLevels.joinToString(","))
+            .putString("map_irve_operators", settings.mapIrveOperators.joinToString(","))
+            .putString("map_brands", settings.mapBrands.joinToString(","))
             .putString("map_connector_types", settings.selectedMapConnectorTypes.joinToString(","))
             .putBoolean("map_traffic_enabled", settings.mapTrafficEnabled)
             .putInt("ev_range_km", settings.evRangeKm.coerceIn(50, 1000))
@@ -522,9 +529,9 @@ open class SettingsManager(context: Context) {
             selectedMapEnergyTypes = _settings.value.selectedMapEnergyTypes,
             mapEnseigneType = _settings.value.mapEnseigneType,
             selectedMapServices = _settings.value.selectedMapServices,
-            mapMinPowerKw = _settings.value.mapMinPowerKw,
-            mapIrveOperator = _settings.value.mapIrveOperator,
-            mapBrand = _settings.value.mapBrand,
+            mapPowerLevels = _settings.value.mapPowerLevels,
+            mapIrveOperators = _settings.value.mapIrveOperators,
+            mapBrands = _settings.value.mapBrands,
             selectedMapConnectorTypes = _settings.value.selectedMapConnectorTypes,
             mapTrafficEnabled = _settings.value.mapTrafficEnabled,
             evRangeKm = _settings.value.evRangeKm,
