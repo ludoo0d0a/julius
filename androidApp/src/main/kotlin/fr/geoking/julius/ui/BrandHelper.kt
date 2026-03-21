@@ -9,7 +9,7 @@ import fr.geoking.julius.R
 object BrandHelper {
 
     /** Known brand_id (lowercase) -> company display name. */
-    private val brandNames = mapOf(
+    val brandNames = mapOf(
         "total" to "Total",
         "totalenergies" to "TotalEnergies",
         "bp" to "BP",
