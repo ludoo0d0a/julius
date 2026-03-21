@@ -15,7 +15,7 @@ class AutoMapEnergySelectionScreen(
         val settings = settingsManager.settings.value
         val listBuilder = ItemList.Builder()
 
-        MAP_ENERGY_OPTIONS.take(6).forEach { (id, label) ->
+        MAP_ENERGY_OPTIONS.filter { it.first != "electric" }.take(6).forEach { (id, label) ->
             val isSelected = settings.selectedMapEnergyTypes.contains(id)
             listBuilder.addItem(
                 Row.Builder()

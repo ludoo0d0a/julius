@@ -36,12 +36,12 @@ fun FilterFab(
 
     val activeFilterCount = remember(settings, filterMode) {
         if (filterMode == 0) {
-            val brandFilter = if (settings.mapBrand != "all") 1 else 0
+            val brandFilter = if (settings.mapBrands.isNotEmpty()) 1 else 0
             val energyFilter = if (settings.selectedMapEnergyTypes.size < DEFAULT_MAP_ENERGY_TYPES.size) 1 else 0
             brandFilter + energyFilter
         } else {
-            val operatorFilter = if (settings.mapIrveOperator != "all") 1 else 0
-            val powerFilter = if (settings.mapMinPowerKw > 0) 1 else 0
+            val operatorFilter = if (settings.mapIrveOperators.isNotEmpty()) 1 else 0
+            val powerFilter = if (settings.mapPowerLevels.isNotEmpty()) 1 else 0
             val connectorFilter = if (settings.selectedMapConnectorTypes.isNotEmpty()) 1 else 0
             operatorFilter + powerFilter + connectorFilter
         }
@@ -150,56 +150,133 @@ fun FilterFab(
 private fun FuelFilters(settingsManager: SettingsManager) {
     val settings by settingsManager.settings.collectAsState()
 
-    val brandOptions = remember {
-        listOf("all" to "Toutes les enseignes") + BrandHelper.brandNames.entries
-            .map { it.key to it.value }
-            .distinctBy { it.second }
-            .sortedBy { it.second }
-    }
+    val brandOptions = remember { BrandHelper.getGasBrands() }
 
-    FilterSectionTitle("Brand")
-    CompactDropdownField(
-        options = brandOptions,
-        selectedOption = settings.mapBrand,
-        onOptionSelected = { settingsManager.setMapBrand(it as String) }
-    )
+    FilterSectionTitle("Brands")
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        brandOptions.forEach { (id, label) ->
+            FilterChip(
+                selected = settings.mapBrands.contains(id),
+                onClick = {
+                    val newBrands = if (settings.mapBrands.contains(id)) settings.mapBrands - id else settings.mapBrands + id
+                    settingsManager.setMapBrands(newBrands)
+                },
+                label = { Text(label) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    labelColor = Color.White,
+                    containerColor = Color(0xFF334155)
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = settings.mapBrands.contains(id),
+                    borderColor = Color.White.copy(alpha = 0.3f),
+                    selectedBorderColor = MaterialTheme.colorScheme.primary
+                )
+            )
+        }
+    }
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    FilterSectionTitle("Fuel Type")
-    CompactDropdownField(
-        options = listOf("all" to "Tous") + MAP_ENERGY_OPTIONS,
-        selectedOption = if (settings.selectedMapEnergyTypes.size >= 7) "all" else settings.selectedMapEnergyTypes.firstOrNull() ?: "all",
-        onOptionSelected = {
-            val id = it as String
-            if (id == "all") {
-                settingsManager.setMapEnergyTypes(DEFAULT_MAP_ENERGY_TYPES)
-            } else {
-                settingsManager.setMapEnergyTypes(setOf(id))
-            }
+    FilterSectionTitle("Fuel Types")
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        MAP_ENERGY_OPTIONS.filter { it.first != "electric" }.forEach { (id, label) ->
+            FilterChip(
+                selected = settings.selectedMapEnergyTypes.contains(id),
+                onClick = {
+                    val newEnergies = if (settings.selectedMapEnergyTypes.contains(id)) settings.selectedMapEnergyTypes - id else settings.selectedMapEnergyTypes + id
+                    settingsManager.setMapEnergyTypes(newEnergies)
+                },
+                label = { Text(label) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    labelColor = Color.White,
+                    containerColor = Color(0xFF334155)
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = settings.selectedMapEnergyTypes.contains(id),
+                    borderColor = Color.White.copy(alpha = 0.3f),
+                    selectedBorderColor = MaterialTheme.colorScheme.primary
+                )
+            )
         }
-    )
+    }
 }
 
 @Composable
 private fun ElectricFilters(settingsManager: SettingsManager) {
     val settings by settingsManager.settings.collectAsState()
+    val brandOptions = remember { BrandHelper.getElectricBrands() }
 
-    FilterSectionTitle("Operator")
-    CompactDropdownField(
-        options = MAP_IRVE_OPERATOR_OPTIONS,
-        selectedOption = settings.mapIrveOperator,
-        onOptionSelected = { settingsManager.setMapIrveOperator(it as String) }
-    )
+    FilterSectionTitle("Brands / Operators")
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        brandOptions.forEach { (id, label) ->
+            FilterChip(
+                selected = settings.mapIrveOperators.contains(id),
+                onClick = {
+                    val newOps = if (settings.mapIrveOperators.contains(id)) settings.mapIrveOperators - id else settings.mapIrveOperators + id
+                    settingsManager.setMapIrveOperators(newOps)
+                },
+                label = { Text(label) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    labelColor = Color.White,
+                    containerColor = Color(0xFF334155)
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = settings.mapIrveOperators.contains(id),
+                    borderColor = Color.White.copy(alpha = 0.3f),
+                    selectedBorderColor = MaterialTheme.colorScheme.primary
+                )
+            )
+        }
+    }
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    FilterSectionTitle("Min. Power")
-    CompactDropdownField(
-        options = MAP_IRVE_POWER_OPTIONS,
-        selectedOption = settings.mapMinPowerKw,
-        onOptionSelected = { settingsManager.setMapMinPowerKw(it as Int) }
-    )
+    FilterSectionTitle("Power Range")
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        MAP_IRVE_POWER_OPTIONS.forEach { (id, label) ->
+            FilterChip(
+                selected = settings.mapPowerLevels.contains(id),
+                onClick = {
+                    val newLevels = if (settings.mapPowerLevels.contains(id)) settings.mapPowerLevels - id else settings.mapPowerLevels + id
+                    settingsManager.setMapPowerLevels(newLevels)
+                },
+                label = { Text(label) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    labelColor = Color.White,
+                    containerColor = Color(0xFF334155)
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = settings.mapPowerLevels.contains(id),
+                    borderColor = Color.White.copy(alpha = 0.3f),
+                    selectedBorderColor = MaterialTheme.colorScheme.primary
+                )
+            )
+        }
+    }
 }
 
 @Composable

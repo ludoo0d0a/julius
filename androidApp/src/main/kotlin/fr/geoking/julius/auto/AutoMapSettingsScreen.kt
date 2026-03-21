@@ -51,7 +51,7 @@ class AutoMapSettingsScreen(
         listBuilder.addItem(
             Row.Builder()
                 .setTitle("General Filters")
-                .addText("Energy, Enseigne, Services")
+                .addText("Energy, Brands, Enseigne, Services")
                 .setOnClickListener {
                     screenManager.push(AutoGeneralFiltersScreen(carContext, settingsManager))
                 }

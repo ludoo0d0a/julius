@@ -42,4 +42,25 @@ class BrandHelperTest {
         val info = BrandHelper.getBrandInfo("Some Unknown Brand")
         assertNull(info)
     }
+
+    @Test
+    fun testGasBrandsCategorization() {
+        val gasBrands = BrandHelper.getGasBrands()
+        val ids = gasBrands.map { it.first }
+        assert(ids.contains("total"))
+        assert(ids.contains("shell"))
+        assert(!ids.contains("tesla"))
+        assert(!ids.contains("ionity"))
+    }
+
+    @Test
+    fun testElectricBrandsCategorization() {
+        val electricBrands = BrandHelper.getElectricBrands()
+        val ids = electricBrands.map { it.first }
+        assert(ids.contains("tesla"))
+        assert(ids.contains("ionity"))
+        assert(ids.contains("totalenergies"))
+        assert(!ids.contains("shell"))
+        assert(!ids.contains("bp"))
+    }
 }
