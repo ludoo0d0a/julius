@@ -15,10 +15,30 @@ class AutoAgentSelectionScreen(
         val settings = settingsManager.settings.value
         val listBuilder = ItemList.Builder()
 
-        AgentType.entries.forEach { agentType ->
+        val localAgents = listOf(
+            AgentType.Llamatik, AgentType.GeminiNano, AgentType.RunAnywhere,
+            AgentType.MlcLlm, AgentType.LlamaCpp, AgentType.MediaPipe,
+            AgentType.AiEdge, AgentType.PocketPal, AgentType.Offline
+        )
+        val remoteAgents = AgentType.entries.filter { it !in localAgents }
+
+        remoteAgents.forEach { agentType ->
             listBuilder.addItem(
                 Row.Builder()
                     .setTitle(agentType.name)
+                    .setOnClickListener {
+                        settingsManager.saveSettings(settings.copy(selectedAgent = agentType))
+                        screenManager.pop()
+                    }
+                    .build()
+            )
+        }
+
+        localAgents.forEach { agentType ->
+            val label = if (agentType != AgentType.Offline) "${agentType.name} (local)" else agentType.name
+            listBuilder.addItem(
+                Row.Builder()
+                    .setTitle(label)
                     .setOnClickListener {
                         settingsManager.saveSettings(settings.copy(selectedAgent = agentType))
                         screenManager.pop()

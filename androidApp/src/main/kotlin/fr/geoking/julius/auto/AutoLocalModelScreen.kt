@@ -64,7 +64,7 @@ class AutoLocalModelScreen(
         }
 
         val listBuilder = ItemList.Builder()
-        for (variant in LocalModelVariant.entries) {
+        for (variant in LocalModelVariant.entries.filter { it.agentType == settings.selectedAgent }) {
             val isDownloaded = helper.isVariantDownloaded(variant)
             val subtitle = if (isDownloaded) "Downloaded" else variant.sizeDescription
             listBuilder.addItem(
@@ -77,8 +77,8 @@ class AutoLocalModelScreen(
                             val path = helper.getDownloadDestinationPath(variant)
                             settingsManager.saveSettings(
                                 settings.copy(
-                                    localModelPath = path,
-                                    selectedLocalModelVariant = variant.name
+                                    llamatikModelPath = path,
+                                    selectedLlamatikModelVariant = variant.name
                                 )
                             )
                             screenManager.pop()
@@ -107,8 +107,8 @@ class AutoLocalModelScreen(
                                             val current = settingsManager.settings.value
                                             settingsManager.saveSettings(
                                                 current.copy(
-                                                    localModelPath = path,
-                                                    selectedLocalModelVariant = variant.name
+                                                    llamatikModelPath = path,
+                                                    selectedLlamatikModelVariant = variant.name
                                                 )
                                             )
                                         },

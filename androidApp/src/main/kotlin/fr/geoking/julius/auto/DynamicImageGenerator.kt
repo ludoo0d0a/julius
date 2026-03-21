@@ -36,7 +36,7 @@ object DynamicImageGenerator {
         AgentType.OpenCodeZen to 1, // Sunset
         AgentType.CompletionsMe to 0, // Aurora
         AgentType.ApiFreeLLM to 2, // Ocean
-        AgentType.Local to 2,     // Ocean
+        AgentType.Llamatik to 2,  // Ocean
         AgentType.Offline to 6     // Micro
     )
 
