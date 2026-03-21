@@ -41,6 +41,7 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 import fr.geoking.julius.R
+import fr.geoking.julius.poi.MapPoiFilter
 import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiProvider
@@ -475,10 +476,27 @@ fun MapScreen(
                     }
                     val poisToShow = if (showFavoritesOnly && favoriteIds.isNotEmpty()) pois.filter { it.id in favoriteIds } else pois
                     poisToShow.forEach { poi ->
+                        val priceLabel = remember(poi, settings.selectedMapEnergyTypes, settings.useVehicleFilter, settings.vehicleEnergy, settings.vehicleGasTypes) {
+                            if (poi.isElectric) {
+                                poi.irveDetails?.tarification?.let { t ->
+                                    // Try to find a price like "0.45" or "0,45"
+                                    val regex = Regex("""(\d+[.,]\d{2})""")
+                                    regex.find(t)?.value?.replace(",", ".")?.let { "$it €" }
+                                }
+                            } else {
+                                val preferredEnergies = if (settings.useVehicleFilter) settings.vehicleGasTypes else settings.selectedMapEnergyTypes
+                                val price = poi.fuelPrices?.filter { p ->
+                                    val id = MapPoiFilter.fuelNameToId(p.fuelName)
+                                    id != null && (preferredEnergies.isEmpty() || id in preferredEnergies)
+                                }?.minByOrNull { it.price }?.price
+                                price?.let { "%.2f €".format(it) }
+                            }
+                        }
+
                         Marker(
                             state = MarkerState(position = LatLng(poi.latitude, poi.longitude)),
-                            title = poi.name,
-                            snippet = poi.address,
+                            title = priceLabel ?: poi.name,
+                            snippet = if (priceLabel != null) poi.name else poi.address,
                             icon = iconFor(poi),
                             onClick = {
                                 selectedPoi = poi

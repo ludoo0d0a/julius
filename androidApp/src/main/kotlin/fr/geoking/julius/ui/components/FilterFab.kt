@@ -25,16 +25,21 @@ fun FilterFab(
     val sheetState = rememberModalBottomSheetState()
 
     // Mode: 0 for Fuel, 1 for Electric
-    var filterMode by remember(settings.selectedPoiProvider) {
+    var filterMode by remember(settings.selectedPoiProvider, settings.useVehicleFilter, settings.vehicleEnergy) {
         mutableStateOf(
-            if (settings.selectedPoiProvider == PoiProviderType.DataGouvElec ||
-                settings.selectedPoiProvider == PoiProviderType.OpenChargeMap ||
-                settings.selectedPoiProvider == PoiProviderType.Chargy
-            ) 1 else 0
+            if (settings.useVehicleFilter) {
+                if (settings.vehicleEnergy == "electric") 1 else 0
+            } else {
+                if (settings.selectedPoiProvider == PoiProviderType.DataGouvElec ||
+                    settings.selectedPoiProvider == PoiProviderType.OpenChargeMap ||
+                    settings.selectedPoiProvider == PoiProviderType.Chargy
+                ) 1 else 0
+            }
         )
     }
 
     val activeFilterCount = remember(settings, filterMode) {
+        if (settings.useVehicleFilter) return@remember 1
         if (filterMode == 0) {
             val brandFilter = if (settings.mapBrands.isNotEmpty()) 1 else 0
             val energyFilter = if (settings.selectedMapEnergyTypes.size < DEFAULT_MAP_ENERGY_TYPES.size) 1 else 0
@@ -73,12 +78,26 @@ fun FilterFab(
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 32.dp)
             ) {
-                Text(
-                    "Search Filters",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color.White,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Search Filters",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White
+                    )
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("For my car", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                        Switch(
+                            checked = settings.useVehicleFilter,
+                            onCheckedChange = { settingsManager.setUseVehicleFilter(it) },
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
+                }
 
                 SingleChoiceSegmentedButtonRow(
                     modifier = Modifier
@@ -127,10 +146,21 @@ fun FilterFab(
                     )
                 }
 
-                if (filterMode == 0) {
-                    FuelFilters(settingsManager)
+                if (settings.useVehicleFilter) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
+                        Text(
+                            "Vehicle filters active: ${if (settings.vehicleEnergy == "electric") "Electric" else "Fuel"}\n" +
+                            "Using your car's predefined preferences.",
+                            color = Color.White.copy(alpha = 0.7f),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 } else {
-                    ElectricFilters(settingsManager)
+                    if (filterMode == 0) {
+                        FuelFilters(settingsManager)
+                    } else {
+                        ElectricFilters(settingsManager)
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))

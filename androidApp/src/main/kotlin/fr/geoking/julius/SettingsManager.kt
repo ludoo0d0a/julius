@@ -59,7 +59,16 @@ val DEFAULT_MAP_BRANDS = emptySet<String>()
 /** Default EV range in km for route planning. */
 const val DEFAULT_EV_RANGE_KM = 300
 
+enum class FuelCard { None, Routex }
+
 data class AppSettings(
+    val vehicleBrand: String = "",
+    val vehicleModel: String = "",
+    val vehicleEnergy: String = "gas", // gas, electric
+    val vehicleGasTypes: Set<String> = DEFAULT_MAP_ENERGY_TYPES,
+    val vehiclePowerLevels: Set<Int> = DEFAULT_MAP_POWER_LEVELS,
+    val fuelCard: FuelCard = FuelCard.None,
+    val useVehicleFilter: Boolean = false,
     val selectedPoiProvider: fr.geoking.julius.poi.PoiProviderType = fr.geoking.julius.poi.PoiProviderType.Routex,
     /** Selected energy types to show on map (e.g. sp95, sp98, gazole, e85, electric). Empty = show all. */
     val selectedMapEnergyTypes: Set<String> = DEFAULT_MAP_ENERGY_TYPES,
@@ -205,7 +214,32 @@ open class SettingsManager(context: Context) {
             VehicleType.Car
         }
 
+        val vehicleBrand = prefs.getString("vehicle_brand", "") ?: ""
+        val vehicleModel = prefs.getString("vehicle_model", "") ?: ""
+        val vehicleEnergy = prefs.getString("vehicle_energy", "gas") ?: "gas"
+        val vehicleGasTypesStr = prefs.getString("vehicle_gas_types", null)
+        val vehicleGasTypes = if (!vehicleGasTypesStr.isNullOrBlank()) {
+            vehicleGasTypesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        } else DEFAULT_MAP_ENERGY_TYPES
+        val vehiclePowerLevelsStr = prefs.getString("vehicle_power_levels", null)
+        val vehiclePowerLevels = if (!vehiclePowerLevelsStr.isNullOrBlank()) {
+            vehiclePowerLevelsStr.split(",").mapNotNull { it.trim().toIntOrNull() }.toSet()
+        } else DEFAULT_MAP_POWER_LEVELS
+        val fuelCard = try {
+            FuelCard.valueOf(prefs.getString("fuel_card", FuelCard.None.name) ?: FuelCard.None.name)
+        } catch (e: IllegalArgumentException) {
+            FuelCard.None
+        }
+        val useVehicleFilter = prefs.getBoolean("use_vehicle_filter", false)
+
         return AppSettings(
+            vehicleBrand = vehicleBrand,
+            vehicleModel = vehicleModel,
+            vehicleEnergy = vehicleEnergy,
+            vehicleGasTypes = vehicleGasTypes,
+            vehiclePowerLevels = vehiclePowerLevels,
+            fuelCard = fuelCard,
+            useVehicleFilter = useVehicleFilter,
             selectedPoiProvider = try {
                 fr.geoking.julius.poi.PoiProviderType.valueOf(
                     prefs.getString("poi_provider", fr.geoking.julius.poi.PoiProviderType.Routex.name) ?: fr.geoking.julius.poi.PoiProviderType.Routex.name
@@ -394,6 +428,41 @@ open class SettingsManager(context: Context) {
         _settings.value = _settings.value.copy(vehicleType = type)
     }
 
+    open fun setVehicleBrand(brand: String) {
+        prefs.edit().putString("vehicle_brand", brand).apply()
+        _settings.value = _settings.value.copy(vehicleBrand = brand)
+    }
+
+    open fun setVehicleModel(model: String) {
+        prefs.edit().putString("vehicle_model", model).apply()
+        _settings.value = _settings.value.copy(vehicleModel = model)
+    }
+
+    open fun setVehicleEnergy(energy: String) {
+        prefs.edit().putString("vehicle_energy", energy).apply()
+        _settings.value = _settings.value.copy(vehicleEnergy = energy)
+    }
+
+    open fun setVehicleGasTypes(types: Set<String>) {
+        prefs.edit().putString("vehicle_gas_types", types.joinToString(",")).apply()
+        _settings.value = _settings.value.copy(vehicleGasTypes = types)
+    }
+
+    open fun setVehiclePowerLevels(levels: Set<Int>) {
+        prefs.edit().putString("vehicle_power_levels", levels.joinToString(",")).apply()
+        _settings.value = _settings.value.copy(vehiclePowerLevels = levels)
+    }
+
+    open fun setFuelCard(card: FuelCard) {
+        prefs.edit().putString("fuel_card", card.name).apply()
+        _settings.value = _settings.value.copy(fuelCard = card)
+    }
+
+    open fun setUseVehicleFilter(use: Boolean) {
+        prefs.edit().putBoolean("use_vehicle_filter", use).apply()
+        _settings.value = _settings.value.copy(useVehicleFilter = use)
+    }
+
     open fun setEvRangeKm(km: Int) {
         val value = km.coerceIn(50, 1000)
         prefs.edit().putInt("ev_range_km", value).apply()
@@ -442,6 +511,13 @@ open class SettingsManager(context: Context) {
 
     private fun saveSettingsInternal(settings: AppSettings) {
         prefs.edit()
+            .putString("vehicle_brand", settings.vehicleBrand)
+            .putString("vehicle_model", settings.vehicleModel)
+            .putString("vehicle_energy", settings.vehicleEnergy)
+            .putString("vehicle_gas_types", settings.vehicleGasTypes.joinToString(","))
+            .putString("vehicle_power_levels", settings.vehiclePowerLevels.joinToString(","))
+            .putString("fuel_card", settings.fuelCard.name)
+            .putBoolean("use_vehicle_filter", settings.useVehicleFilter)
             .putString("poi_provider", settings.selectedPoiProvider.name)
             .putString("map_energy_types", settings.selectedMapEnergyTypes.joinToString(","))
             .putString("map_enseigne_type", settings.mapEnseigneType)
@@ -528,6 +604,13 @@ open class SettingsManager(context: Context) {
         selectedLlamatikModelVariant: String = _settings.value.selectedLlamatikModelVariant
     ) {
         val newSettings = AppSettings(
+            vehicleBrand = _settings.value.vehicleBrand,
+            vehicleModel = _settings.value.vehicleModel,
+            vehicleEnergy = _settings.value.vehicleEnergy,
+            vehicleGasTypes = _settings.value.vehicleGasTypes,
+            vehiclePowerLevels = _settings.value.vehiclePowerLevels,
+            fuelCard = _settings.value.fuelCard,
+            useVehicleFilter = _settings.value.useVehicleFilter,
             selectedPoiProvider = _settings.value.selectedPoiProvider,
             selectedMapEnergyTypes = _settings.value.selectedMapEnergyTypes,
             mapEnseigneType = _settings.value.mapEnseigneType,

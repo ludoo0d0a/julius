@@ -184,6 +184,27 @@ fun MainUI(
     LaunchedEffect(Unit) {
         val intent = (context as? Activity)?.intent
         if (intent?.data?.scheme == "julius" && intent.data?.host == "map") {
+            val path = intent.data?.path
+            val currentSettings = settingsManager.settings.value
+            if (path == "/gas_stations") {
+                if (currentSettings.useVehicleFilter && currentSettings.vehicleEnergy == "gas") {
+                    // Already configured for car, just show map
+                } else if (currentSettings.vehicleBrand.isNotEmpty() && currentSettings.vehicleEnergy == "gas") {
+                    settingsManager.setUseVehicleFilter(true)
+                } else {
+                    settingsManager.setPoiProviderType(fr.geoking.julius.poi.PoiProviderType.Routex)
+                    settingsManager.setUseVehicleFilter(false)
+                }
+            } else if (path == "/electric_stations") {
+                if (currentSettings.useVehicleFilter && currentSettings.vehicleEnergy == "electric") {
+                    // Already configured
+                } else if (currentSettings.vehicleBrand.isNotEmpty() && currentSettings.vehicleEnergy == "electric") {
+                    settingsManager.setUseVehicleFilter(true)
+                } else {
+                    settingsManager.setPoiProviderType(fr.geoking.julius.poi.PoiProviderType.DataGouvElec)
+                    settingsManager.setUseVehicleFilter(false)
+                }
+            }
             showMap = true
         }
     }
