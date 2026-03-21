@@ -37,6 +37,12 @@ object BrandHelper {
         "migrol" to "Migrol",
         "coop" to "Coop",
         "migros" to "Migros",
+        "tesla" to "Tesla",
+        "ionity" to "Ionity",
+        "fastned" to "Fastned",
+        "allego" to "Allego",
+        "lidl" to "Lidl",
+        "chargy" to "Chargy",
     )
 
     /** brand_id (lowercase) -> brand icon drawable. Unlisted brands use ic_poi_gas. */
@@ -59,6 +65,12 @@ object BrandHelper {
         "leclerc" to R.drawable.ic_brand_leclerc,
         "e.leclerc" to R.drawable.ic_brand_leclerc,
         "auchan" to R.drawable.ic_brand_auchan,
+        "tesla" to R.drawable.ic_brand_tesla,
+        "ionity" to R.drawable.ic_brand_ionity,
+        "fastned" to R.drawable.ic_brand_fastned,
+        "allego" to R.drawable.ic_brand_allego,
+        "lidl" to R.drawable.ic_brand_lidl,
+        "chargy" to R.drawable.ic_poi_electric,
     )
 
     /** brand_id (lowercase) -> rounded brand icon drawable. Unlisted brands use ic_poi_gas_rounded. */
@@ -81,6 +93,12 @@ object BrandHelper {
         "leclerc" to R.drawable.ic_brand_leclerc_rounded,
         "e.leclerc" to R.drawable.ic_brand_leclerc_rounded,
         "auchan" to R.drawable.ic_brand_auchan_rounded,
+        "tesla" to R.drawable.ic_brand_tesla_rounded,
+        "ionity" to R.drawable.ic_brand_ionity_rounded,
+        "fastned" to R.drawable.ic_brand_fastned_rounded,
+        "allego" to R.drawable.ic_brand_allego_rounded,
+        "lidl" to R.drawable.ic_brand_lidl_rounded,
+        "chargy" to R.drawable.ic_poi_electric_rounded,
     )
 
     data class BrandInfo(
@@ -92,14 +110,28 @@ object BrandHelper {
     fun getBrandInfo(brandId: String?): BrandInfo? {
         if (brandId.isNullOrBlank()) return null
         val normalized = brandId.trim().lowercase()
-        val name = brandNames[normalized] ?: brandId.trim().takeIf { it.isNotBlank() }
-            ?: return null
-        val iconResId = brandIcons[normalized] ?: R.drawable.ic_poi_gas
-        val roundedIconResId = roundedBrandIcons[normalized] ?: R.drawable.ic_poi_gas_rounded
-        return BrandInfo(
-            displayName = name,
-            iconResId = iconResId,
-            roundedIconResId = roundedIconResId
-        )
+
+        // 1. Try fuzzy match first
+        val fuzzyEntry = brandNames.entries.find { normalized.contains(it.key) }
+        if (fuzzyEntry != null) {
+            val key = fuzzyEntry.key
+            return BrandInfo(
+                displayName = fuzzyEntry.value,
+                iconResId = brandIcons[key] ?: R.drawable.ic_poi_gas,
+                roundedIconResId = roundedBrandIcons[key] ?: R.drawable.ic_poi_gas_rounded
+            )
+        }
+
+        // 2. Exact match (redundant if fuzzy match caught it, but safe)
+        if (brandNames.containsKey(normalized)) {
+            return BrandInfo(
+                displayName = brandNames[normalized]!!,
+                iconResId = brandIcons[normalized] ?: R.drawable.ic_poi_gas,
+                roundedIconResId = roundedBrandIcons[normalized] ?: R.drawable.ic_poi_gas_rounded
+            )
+        }
+
+        // 3. No match: return null to let UI handle fallback icon (plug vs pump)
+        return null
     }
 }

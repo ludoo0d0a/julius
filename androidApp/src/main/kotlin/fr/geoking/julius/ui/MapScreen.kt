@@ -465,7 +465,7 @@ fun MapScreen(
                             PoiCategory.CaravanSite -> R.drawable.ic_poi_caravan_rounded
                             PoiCategory.PicnicSite -> R.drawable.ic_poi_picnic_rounded
                             else -> when {
-                                poi.isElectric -> R.drawable.ic_poi_electric_rounded
+                                poi.isElectric -> BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_electric_rounded
                                 else -> BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_gas_rounded
                             }
                         }
