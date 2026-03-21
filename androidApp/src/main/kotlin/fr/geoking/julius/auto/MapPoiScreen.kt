@@ -16,7 +16,7 @@ import androidx.car.app.model.ItemList
 import androidx.car.app.model.Header
 import androidx.car.app.model.Metadata
 import androidx.car.app.model.MessageTemplate
-import androidx.car.app.model.PlaceListMapTemplate
+import androidx.car.app.navigation.model.MapTemplate
 import androidx.car.app.model.Place
 import androidx.car.app.model.PlaceMarker
 import androidx.car.app.model.Row
@@ -226,17 +226,15 @@ class MapPoiScreen(
             val anchorPlace = Place.Builder(CarLocation.create(searchLat, searchLon)).build()
 
             if (isLoading) {
-                return PlaceListMapTemplate.Builder()
-                    .setHeaderAction(Action.BACK)
-                    .setTitle(title)
-                    .setLoading(true)
-                    .setAnchor(anchorPlace)
+                return MapTemplate.Builder()
+                    .setHeader(Header.Builder().setTitle(title).setStartHeaderAction(Action.BACK).build())
                     .setActionStrip(actionStrip)
-                    .setCurrentLocationEnabled(true)
                     .build()
             }
 
-            // Build POI rows with Place metadata so the host can render markers.
+            // Build POI rows.
+            // Marker metadata is still useful if the template supports host-rendered markers on top of our surface,
+            // but MapTemplate usually expects the app to render markers on the surface.
             val itemListBuilder = ItemList.Builder()
                 .setNoItemsMessage("No POIs found")
 
@@ -276,11 +274,8 @@ class MapPoiScreen(
                 itemListBuilder.addItem(row)
             }
 
-            return PlaceListMapTemplate.Builder()
-                .setHeaderAction(Action.BACK)
-                .setTitle(title)
-                .setAnchor(anchorPlace)
-                .setCurrentLocationEnabled(true)
+            return MapTemplate.Builder()
+                .setHeader(Header.Builder().setTitle(title).setStartHeaderAction(Action.BACK).build())
                 .setActionStrip(actionStrip)
                 .setItemList(itemListBuilder.build())
                 .build()
