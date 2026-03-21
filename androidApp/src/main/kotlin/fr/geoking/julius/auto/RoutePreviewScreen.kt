@@ -151,13 +151,9 @@ class RoutePreviewScreen(
     }
 
     private fun startExternalNavigation() {
-        val title = destination.name.ifBlank { destination.address.ifBlank { "Destination" } }
-        val navigateIntent = Intent(CarContext.ACTION_NAVIGATE).apply {
-            data = Uri.parse("geo:${destination.latitude},${destination.longitude}?q=${Uri.encode(title)}")
-        }
-        carContext.startCarApp(navigateIntent)
-        // Let host switch apps; popping keeps your stack clean if the user returns.
-        screenManager.pop()
+        // To be compliant with the NAVIGATION category, we push a screen that uses NavigationTemplate
+        // instead of relying solely on external intents.
+        screenManager.push(GuidanceScreen(carContext, destination))
     }
 }
 

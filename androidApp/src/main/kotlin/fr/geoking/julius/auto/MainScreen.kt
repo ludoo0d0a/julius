@@ -145,7 +145,7 @@ class MainScreen(
 
     override fun onGetTemplate(): Template {
         return try {
-            // POI category: keep a single Tabbed UI (no NavigationTemplate / no turn-by-turn surface).
+            // Navigation category: Tabbed UI providing access to Assistant, Map, History and Settings.
             val assistantTab = Tab.Builder()
                 .setTitle("Assistant")
                 .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_home)).build())
