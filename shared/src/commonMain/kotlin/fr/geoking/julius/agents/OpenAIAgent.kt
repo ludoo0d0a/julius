@@ -19,6 +19,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import fr.geoking.julius.shared.ActionType
 import fr.geoking.julius.shared.DeviceAction
@@ -151,7 +152,38 @@ class OpenAIAgent(
         val tools = if (toolsEnabled) {
             listOf(
                 Tool("function", FunctionDef("get_battery_level", "Get the current battery level percentage of the device", buildJsonObject { put("type", "object") })),
-                Tool("function", FunctionDef("get_volume_levels", "Get the current system volume levels (media, alarm, ring)", buildJsonObject { put("type", "object") }))
+                Tool("function", FunctionDef("get_volume_levels", "Get the current system volume levels (media, alarm, ring)", buildJsonObject { put("type", "object") })),
+                Tool("function", FunctionDef("find_gas_stations_nearby", "Find nearby gas stations or fuel prices", buildJsonObject { put("type", "object") })),
+                Tool("function", FunctionDef("find_parking_nearby", "Find nearby parking spaces", buildJsonObject { put("type", "object") })),
+                Tool("function", FunctionDef("find_restaurants_nearby", "Find nearby restaurants", buildJsonObject { put("type", "object") })),
+                Tool("function", FunctionDef("find_fastfood_nearby", "Find nearby fast food outlets", buildJsonObject { put("type", "object") })),
+                Tool("function", FunctionDef("find_service_area_nearby", "Find nearby highway service areas or rest stops", buildJsonObject { put("type", "object") })),
+                Tool("function", FunctionDef("get_traffic_info", "Get current traffic information and show traffic layer", buildJsonObject { put("type", "object") })),
+                Tool("function", FunctionDef("play_music", "Play music or start a music app", buildJsonObject { put("type", "object") })),
+                Tool("function", FunctionDef("play_audiobook", "Play an audiobook or start an audiobook app", buildJsonObject { put("type", "object") })),
+                Tool("function", FunctionDef("call_contact", "Call a specific contact or phone number", buildJsonObject {
+                    put("type", "object")
+                    put("properties", buildJsonObject {
+                        put("number", buildJsonObject {
+                            put("type", "string")
+                            put("description", "The phone number or contact name to call")
+                        })
+                    })
+                    put("required", Json.parseToJsonElement("[\"number\"]"))
+                })),
+                Tool("function", FunctionDef("find_nearest_hospital", "Find the nearest hospital or emergency room", buildJsonObject { put("type", "object") })),
+                Tool("function", FunctionDef("request_roadside_assistance", "Request roadside assistance or breakdown service", buildJsonObject { put("type", "object") })),
+                Tool("function", FunctionDef("emergency_call", "Initiate an emergency call (e.g., 112)", buildJsonObject { put("type", "object") })),
+                Tool("function", FunctionDef("navigate_to", "Navigate to a specific destination", buildJsonObject {
+                    put("type", "object")
+                    put("properties", buildJsonObject {
+                        put("destination", buildJsonObject {
+                            put("type", "string")
+                            put("description", "The destination address or place name")
+                        })
+                    })
+                    put("required", Json.parseToJsonElement("[\"destination\"]"))
+                }))
             )
         } else null
 
@@ -185,9 +217,34 @@ class OpenAIAgent(
             val type = when (tc.function.name) {
                 "get_battery_level" -> ActionType.GET_BATTERY_LEVEL
                 "get_volume_levels" -> ActionType.GET_VOLUME_LEVEL
+                "find_gas_stations_nearby" -> ActionType.FIND_GAS_STATIONS
+                "find_parking_nearby" -> ActionType.FIND_PARKING
+                "find_restaurants_nearby" -> ActionType.FIND_RESTAURANTS
+                "find_fastfood_nearby" -> ActionType.FIND_FASTFOOD
+                "find_service_area_nearby" -> ActionType.FIND_SERVICE_AREA
+                "get_traffic_info" -> ActionType.GET_TRAFFIC
+                "play_music" -> ActionType.PLAY_MUSIC
+                "play_audiobook" -> ActionType.PLAY_AUDIOBOOK
+                "call_contact" -> ActionType.CALL_CONTACT
+                "find_nearest_hospital" -> ActionType.FIND_HOSPITAL
+                "request_roadside_assistance" -> ActionType.ROADSIDE_ASSISTANCE
+                "emergency_call" -> ActionType.EMERGENCY_CALL
+                "navigate_to" -> ActionType.NAVIGATE
                 else -> null
             }
-            type?.let { ToolCall(tc.id, DeviceAction(it)) }
+
+            val target = try {
+                val args = json.parseToJsonElement(tc.function.arguments).jsonObject
+                when (tc.function.name) {
+                    "call_contact" -> args["number"]?.toString()?.removeSurrounding("\"")
+                    "navigate_to" -> args["destination"]?.toString()?.removeSurrounding("\"")
+                    else -> null
+                }
+            } catch (e: Exception) {
+                null
+            }
+
+            type?.let { ToolCall(tc.id, DeviceAction(it, target)) }
         }
 
         // 2. Get Audio

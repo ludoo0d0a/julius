@@ -179,6 +179,14 @@ fun MainUI(
     var showHistory by remember { mutableStateOf(false) }
     var showMap by remember { mutableStateOf(false) }
     var showRoutePlanning by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        val intent = (context as? Activity)?.intent
+        if (intent?.data?.scheme == "julius" && intent.data?.host == "map") {
+            showMap = true
+        }
+    }
     var showJules by remember { mutableStateOf(false) }
     val settings by settingsManager.settings.collectAsState()
 

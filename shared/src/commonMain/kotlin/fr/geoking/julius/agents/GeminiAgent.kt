@@ -39,7 +39,7 @@ class GeminiAgent(
     private val toolsEnabled: Boolean = false,
     private val systemInstruction: String = "You are Julius, a friendly voice assistant for Android and Android Auto. " +
         "Keep responses concise and natural for text-to-speech: short sentences, avoid bullet points or long lists. " +
-        "Be helpful, conversational, and direct. When the user asks for device actions (battery, volume), use the provided tools.",
+        "Be helpful, conversational, and direct. When the user asks for actions (navigation, fuel, parking, music, etc.), use the provided tools.",
     private val temperature: Float = 0.7f,
     private val maxOutputTokens: Int = 1024
 ) : ConversationalAgent {
@@ -149,7 +149,38 @@ class GeminiAgent(
                 listOf(
                     Tool(listOf(
                         FunctionDeclaration("get_battery_level", "Get the current battery level percentage of the device", buildJsonObject { put("type", "object") }),
-                        FunctionDeclaration("get_volume_levels", "Get the current system volume levels (media, alarm, ring)", buildJsonObject { put("type", "object") })
+                        FunctionDeclaration("get_volume_levels", "Get the current system volume levels (media, alarm, ring)", buildJsonObject { put("type", "object") }),
+                        FunctionDeclaration("find_gas_stations_nearby", "Find nearby gas stations or fuel prices", buildJsonObject { put("type", "object") }),
+                        FunctionDeclaration("find_parking_nearby", "Find nearby parking spaces", buildJsonObject { put("type", "object") }),
+                        FunctionDeclaration("find_restaurants_nearby", "Find nearby restaurants", buildJsonObject { put("type", "object") }),
+                        FunctionDeclaration("find_fastfood_nearby", "Find nearby fast food outlets", buildJsonObject { put("type", "object") }),
+                        FunctionDeclaration("find_service_area_nearby", "Find nearby highway service areas or rest stops", buildJsonObject { put("type", "object") }),
+                        FunctionDeclaration("get_traffic_info", "Get current traffic information and show traffic layer", buildJsonObject { put("type", "object") }),
+                        FunctionDeclaration("play_music", "Play music or start a music app", buildJsonObject { put("type", "object") }),
+                        FunctionDeclaration("play_audiobook", "Play an audiobook or start an audiobook app", buildJsonObject { put("type", "object") }),
+                        FunctionDeclaration("call_contact", "Call a specific contact or phone number", buildJsonObject {
+                            put("type", "object")
+                            put("properties", buildJsonObject {
+                                put("number", buildJsonObject {
+                                    put("type", "string")
+                                    put("description", "The phone number or contact name to call")
+                                })
+                            })
+                            put("required", Json.parseToJsonElement("[\"number\"]"))
+                        }),
+                        FunctionDeclaration("find_nearest_hospital", "Find the nearest hospital or emergency room", buildJsonObject { put("type", "object") }),
+                        FunctionDeclaration("request_roadside_assistance", "Request roadside assistance or breakdown service", buildJsonObject { put("type", "object") }),
+                        FunctionDeclaration("emergency_call", "Initiate an emergency call (e.g., 112)", buildJsonObject { put("type", "object") }),
+                        FunctionDeclaration("navigate_to", "Navigate to a specific destination", buildJsonObject {
+                            put("type", "object")
+                            put("properties", buildJsonObject {
+                                put("destination", buildJsonObject {
+                                    put("type", "string")
+                                    put("description", "The destination address or place name")
+                                })
+                            })
+                            put("required", Json.parseToJsonElement("[\"destination\"]"))
+                        })
                     ))
                 )
             } else null
@@ -208,11 +239,31 @@ class GeminiAgent(
                 val type = when (fc.name) {
                     "get_battery_level" -> ActionType.GET_BATTERY_LEVEL
                     "get_volume_levels" -> ActionType.GET_VOLUME_LEVEL
+                    "find_gas_stations_nearby" -> ActionType.FIND_GAS_STATIONS
+                    "find_parking_nearby" -> ActionType.FIND_PARKING
+                    "find_restaurants_nearby" -> ActionType.FIND_RESTAURANTS
+                    "find_fastfood_nearby" -> ActionType.FIND_FASTFOOD
+                    "find_service_area_nearby" -> ActionType.FIND_SERVICE_AREA
+                    "get_traffic_info" -> ActionType.GET_TRAFFIC
+                    "play_music" -> ActionType.PLAY_MUSIC
+                    "play_audiobook" -> ActionType.PLAY_AUDIOBOOK
+                    "call_contact" -> ActionType.CALL_CONTACT
+                    "find_nearest_hospital" -> ActionType.FIND_HOSPITAL
+                    "request_roadside_assistance" -> ActionType.ROADSIDE_ASSISTANCE
+                    "emergency_call" -> ActionType.EMERGENCY_CALL
+                    "navigate_to" -> ActionType.NAVIGATE
                     else -> null
                 }
+
+                val target = when (fc.name) {
+                    "call_contact" -> fc.args["number"]?.toString()?.removeSurrounding("\"")
+                    "navigate_to" -> fc.args["destination"]?.toString()?.removeSurrounding("\"")
+                    else -> null
+                }
+
                 // Gemini function calls don't have explicit IDs in the same way as OpenAI in simple REST,
                 // but we need one for our internal model.
-                type?.let { ToolCall(fc.name, DeviceAction(it)) }
+                type?.let { ToolCall(fc.name, DeviceAction(it, target)) }
             }
 
             return AgentResponse(text, null, toolCalls = toolCalls) // Audio null = Use System TTS

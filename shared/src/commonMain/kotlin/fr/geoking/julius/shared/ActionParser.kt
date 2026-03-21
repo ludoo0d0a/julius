@@ -89,6 +89,71 @@ object ActionParser {
                     )
                 )
             }
+
+            // Find gas stations
+            lowerText.contains("gas station") || lowerText.contains("station essence") ||
+            lowerText.contains("trouver de l'essence") || lowerText.contains("carburant") -> {
+                return DeviceAction(type = ActionType.FIND_GAS_STATIONS)
+            }
+
+            // Find parking
+            lowerText.contains("parking") || lowerText.contains("garer") -> {
+                return DeviceAction(type = ActionType.FIND_PARKING)
+            }
+
+            // Find restaurants
+            lowerText.contains("restaurant") || lowerText.contains("trouver à manger") ||
+            lowerText.contains("où manger") -> {
+                return DeviceAction(type = ActionType.FIND_RESTAURANTS)
+            }
+
+            // Find fast food
+            lowerText.contains("fast food") || lowerText.contains("mcdo") ||
+            lowerText.contains("burger king") -> {
+                return DeviceAction(type = ActionType.FIND_FASTFOOD)
+            }
+
+            // Find service area
+            lowerText.contains("service area") || lowerText.contains("aire de repos") ||
+            lowerText.contains("aire d'autoroute") -> {
+                return DeviceAction(type = ActionType.FIND_SERVICE_AREA)
+            }
+
+            // Get traffic
+            lowerText.contains("traffic") || lowerText.contains("trafic") ||
+            lowerText.contains("bouchon") -> {
+                return DeviceAction(type = ActionType.GET_TRAFFIC)
+            }
+
+            // Play audiobook
+            lowerText.contains("audiobook") || lowerText.contains("livre audio") -> {
+                return DeviceAction(type = ActionType.PLAY_AUDIOBOOK)
+            }
+
+            // Emergency call
+            lowerText.contains("emergency call") || lowerText.contains("appeler les secours") ||
+            lowerText.contains("112") || lowerText.contains("samu") || lowerText.contains("police") -> {
+                return DeviceAction(type = ActionType.EMERGENCY_CALL)
+            }
+
+            // Call contact
+            lowerText.contains("call ") || lowerText.contains("calling ") ||
+            lowerText.contains("appeler ") || lowerText.contains("appelle ") -> {
+                val target = extractCallTarget(text)
+                return DeviceAction(type = ActionType.CALL_CONTACT, target = target)
+            }
+
+            // Find hospital
+            lowerText.contains("hospital") || lowerText.contains("hôpital") ||
+            lowerText.contains("urgences") -> {
+                return DeviceAction(type = ActionType.FIND_HOSPITAL)
+            }
+
+            // Roadside assistance
+            lowerText.contains("roadside assistance") || lowerText.contains("dépannage") ||
+            lowerText.contains("assistance") -> {
+                return DeviceAction(type = ActionType.ROADSIDE_ASSISTANCE)
+            }
         }
         
         return null
@@ -277,6 +342,21 @@ object ActionParser {
         } else {
             "Alarm"
         }
+    }
+
+    private fun extractCallTarget(text: String): String? {
+        val patterns = listOf(
+            Regex("call(?:ing)? (.+)", RegexOption.IGNORE_CASE),
+            Regex("appeler (.+)", RegexOption.IGNORE_CASE),
+            Regex("appelle (.+)", RegexOption.IGNORE_CASE)
+        )
+        for (pattern in patterns) {
+            val match = pattern.find(text)
+            if (match != null) {
+                return match.groupValues[1].trim().removeSuffix(".")
+            }
+        }
+        return null
     }
     
     private fun resolveAppPackage(appName: String): String? {
