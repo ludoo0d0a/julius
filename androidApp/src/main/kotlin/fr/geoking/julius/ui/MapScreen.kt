@@ -169,7 +169,7 @@ fun MapScreen(
         }
     }
 
-    LaunchedEffect(selectedProvider, settings.selectedMapEnergyTypes, settings.mapMinPowerKw, settings.mapIrveOperator, settings.selectedMapConnectorTypes, cameraPositionState.position, mapSizePx, retryCount) {
+    LaunchedEffect(selectedProvider, settings.selectedMapEnergyTypes, settings.mapPowerLevels, settings.mapIrveOperators, settings.mapBrands, settings.selectedMapConnectorTypes, cameraPositionState.position, mapSizePx, retryCount) {
         if (!hasLocationPermission) {
             launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }

@@ -102,8 +102,11 @@ open class ConversationStore(
 
     init {
         scope.launch {
-            persistence?.loadMessages()?.let {
-                _state.value = _state.value.copy(messages = it)
+            persistence?.let {
+                val oneWeekAgo = getCurrentTimeMillis() - 7L * 24 * 60 * 60 * 1000
+                it.cleanupOldMessages(oneWeekAgo)
+                val lastMessages = it.loadMessages(limit = 20)
+                _state.value = _state.value.copy(messages = lastMessages)
             }
         }
 

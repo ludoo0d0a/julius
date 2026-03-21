@@ -67,7 +67,7 @@ class DynamicAgentWrapper(
         append("|").append(settings.completionsMeKey.take(8))
         append("|").append(settings.completionsMeModel)
         append("|").append(settings.apifreellmKey.take(8))
-        append("|").append(settings.localModelPath)
+        append("|").append(settings.llamatikModelPath)
     }
     
     override suspend fun process(input: String): AgentResponse {
@@ -96,7 +96,14 @@ class DynamicAgentWrapper(
             AgentType.OpenCodeZen -> OpenCodeZenAgent(client, apiKey = settings.opencodeZenKey, model = settings.opencodeZenModel)
             AgentType.CompletionsMe -> CompletionsMeAgent(client, apiKey = settings.completionsMeKey, model = settings.completionsMeModel)
             AgentType.ApiFreeLLM -> ApiFreeLLMAgent(client, apiKey = settings.apifreellmKey)
-            AgentType.Local -> LocalAgent(modelPath = settings.localModelPath) // No API key needed - runs offline
+            AgentType.Llamatik -> LocalAgent(modelPath = settings.llamatikModelPath) // No API key needed - runs offline
+            AgentType.GeminiNano -> LocalPlaceholderAgent("Gemini Nano", settings.llamatikModelPath)
+            AgentType.RunAnywhere -> LocalPlaceholderAgent("RunAnywhere", settings.llamatikModelPath)
+            AgentType.MlcLlm -> LocalPlaceholderAgent("MLC-LLM", settings.llamatikModelPath)
+            AgentType.LlamaCpp -> LocalPlaceholderAgent("llama.cpp", settings.llamatikModelPath)
+            AgentType.MediaPipe -> LocalPlaceholderAgent("MediaPipe GenAI", settings.llamatikModelPath)
+            AgentType.AiEdge -> LocalPlaceholderAgent("AI Edge Gallery", settings.llamatikModelPath)
+            AgentType.PocketPal -> LocalPlaceholderAgent("PocketPal AI", settings.llamatikModelPath)
             AgentType.Offline -> OfflineAgent() // Fully offline agent - math, counting, hangman, quotes
             }
             cachedAgent = newAgent
@@ -200,7 +207,7 @@ val appModule = module {
             val db = Room.databaseBuilder(
                 androidContext(),
                 AppDatabase::class.java, "julius-db"
-            ).build()
+            ).fallbackToDestructiveMigration().build()
             RoomMessagePersistence(db.chatMessageDao())
         } catch (e: Throwable) {
             android.util.Log.e("AppModule", "Failed to initialize Room persistence", e)

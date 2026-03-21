@@ -873,27 +873,70 @@ private fun AgentSelection(
     onSelect: (AgentType) -> Unit,
     onConfigure: () -> Unit
 ) {
+    val localAgents = listOf(
+        AgentType.Llamatik, AgentType.GeminiNano, AgentType.RunAnywhere,
+        AgentType.MlcLlm, AgentType.LlamaCpp, AgentType.MediaPipe,
+        AgentType.AiEdge, AgentType.PocketPal, AgentType.Offline
+    )
+    val remoteAgents = AgentType.entries.filter { it !in localAgents }
+
     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-        AgentType.entries.forEach { agent ->
-            SelectionItem(
-                label = agent.name,
-                isSelected = agent == selected,
-                onSelect = { onSelect(agent) },
-                extra = {
-                    if (agent == selected) {
-                        Text(
-                            text = "Configure",
-                            color = Lavender,
-                            fontSize = 16.sp,
-                            modifier = Modifier
-                                .clickable(onClick = onConfigure)
-                                .padding(8.dp)
-                        )
-                    }
-                }
-            )
+        Text(
+            text = "Cloud AI",
+            color = Lavender,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+        )
+        remoteAgents.forEach { agent ->
+            AgentSelectionItem(agent, selected, onSelect, onConfigure)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "On-Device AI (Local)",
+            color = Lavender,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+        )
+        localAgents.forEach { agent ->
+            AgentSelectionItem(agent, selected, onSelect, onConfigure)
         }
     }
+}
+
+@Composable
+private fun AgentSelectionItem(
+    agent: AgentType,
+    selected: AgentType,
+    onSelect: (AgentType) -> Unit,
+    onConfigure: () -> Unit
+) {
+    val isLocal = agent in listOf(
+        AgentType.Llamatik, AgentType.GeminiNano, AgentType.RunAnywhere,
+        AgentType.MlcLlm, AgentType.LlamaCpp, AgentType.MediaPipe,
+        AgentType.AiEdge, AgentType.PocketPal, AgentType.Offline
+    )
+    val label = if (isLocal && agent != AgentType.Offline) "${agent.name} (local)" else agent.name
+
+    SelectionItem(
+        label = label,
+        isSelected = agent == selected,
+        onSelect = { onSelect(agent) },
+        extra = {
+            if (agent == selected) {
+                Text(
+                    text = "Configure",
+                    color = Lavender,
+                    fontSize = 16.sp,
+                    modifier = Modifier
+                        .clickable(onClick = onConfigure)
+                        .padding(8.dp)
+                )
+            }
+        }
+    )
 }
 
 @Composable
@@ -1033,70 +1076,88 @@ private fun AgentConfig(
             AgentType.ApiFreeLLM -> {
                 ConfigTextField("ApiFreeLLM Key (sign in with Google at apifreellm.com)", settings.apifreellmKey) { onUpdate(settings.copy(apifreellmKey = it)) }
             }
-            AgentType.Local -> {
+            AgentType.Llamatik, AgentType.GeminiNano, AgentType.RunAnywhere,
+            AgentType.MlcLlm, AgentType.LlamaCpp, AgentType.MediaPipe,
+            AgentType.AiEdge, AgentType.PocketPal -> {
+                val agent = settings.selectedAgent
                 val context = LocalContext.current
                 val helper = remember(context) { LocalModelHelper(context) }
                 val scope = rememberCoroutineScope()
                 var downloadProgress by remember { mutableStateOf<Pair<Long, Long?>?>(null) }
                 var downloadError by remember { mutableStateOf<String?>(null) }
 
-                val selectedVariant = remember(settings.selectedLocalModelVariant) {
-                    LocalModelVariant.entries.find { it.name == settings.selectedLocalModelVariant } ?: LocalModelVariant.Phi2Q4_0
+                val selectedVariant = remember(settings.selectedLlamatikModelVariant, agent) {
+                    LocalModelVariant.entries
+                        .filter { it.agentType == agent }
+                        .find { it.name == settings.selectedLlamatikModelVariant }
+                        ?: LocalModelVariant.entries.firstOrNull { it.agentType == agent }
                 }
-                val downloaded = helper.isModelDownloaded(settings)
-                val variantDownloaded = helper.isVariantDownloaded(selectedVariant)
-                val displayPath = helper.getDisplayPath(settings)
+                val downloaded = helper.isModelDownloaded(settings, agent)
+                val variantDownloaded = selectedVariant?.let { helper.isVariantDownloaded(it) } ?: false
+                val displayPath = helper.getDisplayPath(settings, agent)
 
                 Text(
-                    "This agent runs offline using a local GGUF model. Choose a variant below and download, or use a model in assets.",
+                    "This agent runs offline using a local model. Choose a variant below and download, or use a model in assets.",
                     color = Lavender,
                     fontSize = 14.sp,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
-                Text(
-                    text = "Model variant",
-                    color = Lavender,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
-                LocalModelVariant.entries.forEach { variant ->
-                    val isSelected = variant == selectedVariant
-                    val isVariantDown = helper.isVariantDownloaded(variant)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .clickable { onUpdate(settings.copy(selectedLocalModelVariant = variant.name)) }
-                            .padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = isSelected,
-                            onClick = { onUpdate(settings.copy(selectedLocalModelVariant = variant.name)) },
-                            colors = RadioButtonDefaults.colors(selectedColor = Lavender, unselectedColor = Lavender)
-                        )
-                        Column(modifier = Modifier.padding(start = 8.dp)) {
-                            Text(
-                                text = variant.displayName,
-                                color = Color.White,
-                                fontSize = 15.sp
+
+                val variants = LocalModelVariant.entries.filter { it.agentType == agent }
+                if (variants.isEmpty()) {
+                    Text(
+                        text = "No pre-configured models available for ${agent.name} yet.",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(vertical = 12.dp)
+                    )
+                } else {
+                    Text(
+                        text = "Model variant",
+                        color = Lavender,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    variants.forEach { variant ->
+                        val isSelected = variant == selectedVariant
+                        val isVariantDown = helper.isVariantDownloaded(variant)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .clickable { onUpdate(settings.copy(selectedLlamatikModelVariant = variant.name)) }
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { onUpdate(settings.copy(selectedLlamatikModelVariant = variant.name)) },
+                                colors = RadioButtonDefaults.colors(selectedColor = Lavender, unselectedColor = Lavender)
                             )
-                            Text(
-                                text = variant.sizeDescription,
-                                color = Lavender,
-                                fontSize = 12.sp
-                            )
-                            if (isVariantDown) {
+                            Column(modifier = Modifier.padding(start = 8.dp)) {
                                 Text(
-                                    text = "Downloaded",
-                                    color = Color(0xFF7FFF7F),
-                                    fontSize = 11.sp
+                                    text = variant.displayName,
+                                    color = Color.White,
+                                    fontSize = 15.sp
                                 )
+                                Text(
+                                    text = variant.sizeDescription,
+                                    color = Lavender,
+                                    fontSize = 12.sp
+                                )
+                                if (isVariantDown) {
+                                    Text(
+                                        text = "Downloaded",
+                                        color = Color(0xFF7FFF7F),
+                                        fontSize = 11.sp
+                                    )
+                                }
                             }
                         }
                     }
                 }
+
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = if (downloaded) "Current model: Downloaded" else "Current model: Not downloaded",
@@ -1113,7 +1174,7 @@ private fun AgentConfig(
                 )
                 when (val progress = downloadProgress) {
                     null -> {
-                        if (!variantDownloaded) {
+                        if (!variantDownloaded && selectedVariant != null) {
                             Button(
                                 onClick = {
                                     downloadError = null
@@ -1126,7 +1187,7 @@ private fun AgentConfig(
                                         }
                                         withContext(Dispatchers.Main) { downloadProgress = null }
                                         result.fold(
-                                            onSuccess = { path -> withContext(Dispatchers.Main) { onUpdate(settings.copy(localModelPath = path)) } },
+                                            onSuccess = { path -> withContext(Dispatchers.Main) { onUpdate(settings.copy(llamatikModelPath = path)) } },
                                             onFailure = { e -> withContext(Dispatchers.Main) { downloadError = e.message ?: "Download failed" } }
                                         )
                                     }

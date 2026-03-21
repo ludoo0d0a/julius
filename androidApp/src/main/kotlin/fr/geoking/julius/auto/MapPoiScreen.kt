@@ -78,8 +78,9 @@ class MapPoiScreen(
                         s.selectedMapEnergyTypes,
                         s.mapEnseigneType,
                         s.selectedMapServices,
-                        s.mapMinPowerKw,
-                        s.mapIrveOperator,
+                        s.mapPowerLevels,
+                        s.mapIrveOperators,
+                        s.mapBrands,
                         s.selectedMapConnectorTypes,
                         s.selectedOverpassAmenityTypes,
                         s.vehicleType
@@ -97,8 +98,9 @@ class MapPoiScreen(
         val energies: Set<String>,
         val enseigne: String,
         val services: Set<String>,
-        val minPower: Int,
-        val operator: String,
+        val powerLevels: Set<Int>,
+        val operators: Set<String>,
+        val brands: Set<String>,
         val connectors: Set<String>,
         val amenities: Set<String>,
         val vehicleType: fr.geoking.julius.VehicleType

@@ -43,6 +43,8 @@ object BrandHelper {
         "allego" to "Allego",
         "lidl" to "Lidl",
         "chargy" to "Chargy",
+        "atlante" to "Atlante",
+        "zunder" to "Zunder",
         "freshmile" to "Freshmile",
         "superu" to "Super U",
         "système u" to "Système U",
@@ -79,6 +81,8 @@ object BrandHelper {
         "allego" to R.drawable.ic_brand_allego,
         "lidl" to R.drawable.ic_brand_lidl,
         "chargy" to R.drawable.ic_poi_electric,
+        "atlante" to R.drawable.ic_poi_electric,
+        "zunder" to R.drawable.ic_poi_electric,
         "freshmile" to R.drawable.ic_brand_freshmile,
         "superu" to R.drawable.ic_brand_superu,
         "système u" to R.drawable.ic_brand_superu,
@@ -115,6 +119,8 @@ object BrandHelper {
         "allego" to R.drawable.ic_brand_allego_rounded,
         "lidl" to R.drawable.ic_brand_lidl_rounded,
         "chargy" to R.drawable.ic_poi_electric_rounded,
+        "atlante" to R.drawable.ic_poi_electric_rounded,
+        "zunder" to R.drawable.ic_poi_electric_rounded,
         "freshmile" to R.drawable.ic_brand_freshmile_rounded,
         "superu" to R.drawable.ic_brand_superu_rounded,
         "système u" to R.drawable.ic_brand_superu_rounded,
@@ -123,6 +129,21 @@ object BrandHelper {
         "supermarché match" to R.drawable.ic_brand_match_rounded,
         "powerdot" to R.drawable.ic_brand_powerdot_rounded,
         "driveco" to R.drawable.ic_brand_driveco_rounded,
+    )
+
+    /** brand_id (lowercase) -> is gas station brand. */
+    private val gasBrands = setOf(
+        "total", "totalenergies", "bp", "shell", "esso", "esso express", "eni", "repsol", "omv", "avia",
+        "q8", "agip", "carrefour", "leclerc", "auchan", "intermarche", "casino", "rel", "rel.metz",
+        "circle k", "eurogarages", "aral", "jet", "elf", "migrol", "coop", "migros",
+        "superu", "système u", "match", "supermarché match"
+    )
+
+    /** brand_id (lowercase) -> is electric charging brand. */
+    private val electricBrands = setOf(
+        "tesla", "ionity", "fastned", "allego", "lidl", "chargy", "atlante", "zunder", "totalenergies",
+        "freshmile", "superu", "système u", "coopérative u", "match", "supermarché match",
+        "powerdot", "driveco", "carrefour", "leclerc", "auchan"
     )
 
     data class BrandInfo(
@@ -157,5 +178,21 @@ object BrandHelper {
 
         // 3. No match: return null to let UI handle fallback icon (plug vs pump)
         return null
+    }
+
+    /** Returns list of brands for fuel (gas). */
+    fun getGasBrands(): List<Pair<String, String>> {
+        return brandNames.filterKeys { it in gasBrands }
+            .entries.map { it.key to it.value }
+            .distinctBy { it.second }
+            .sortedBy { it.second }
+    }
+
+    /** Returns list of brands for electric charging. */
+    fun getElectricBrands(): List<Pair<String, String>> {
+        return brandNames.filterKeys { it in electricBrands }
+            .entries.map { it.key to it.value }
+            .distinctBy { it.second }
+            .sortedBy { it.second }
     }
 }
