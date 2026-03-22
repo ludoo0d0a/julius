@@ -42,7 +42,7 @@ enum class GeminiModel(val modelName: String, val displayName: String) {
 }
 
 /** Energy/fuel types for map POI filter (multi-select). Aligned with prix-carburants.gouv.fr. */
-val DEFAULT_MAP_ENERGY_TYPES = setOf("gazole", "sp98", "sp95_e10", "sp95", "gplc", "e85")
+val DEFAULT_MAP_ENERGY_TYPES = setOf("gazole", "sp98", "sp95", "gplc", "e85")
 
 /** Enseigne type for map filter, aligned with prix-carburants.gouv.fr. "all" = Toutes les enseignes. */
 const val DEFAULT_MAP_ENSEIGNE_TYPE = "all"
@@ -174,7 +174,9 @@ open class SettingsManager(context: Context) {
 
         val energyTypesStr = prefs.getString("map_energy_types", null)
         val selectedMapEnergyTypes = if (!energyTypesStr.isNullOrBlank()) {
-            energyTypesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+            energyTypesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                .map { if (it == "sp95_e10") "sp95" else it }
+                .toSet()
         } else DEFAULT_MAP_ENERGY_TYPES
         val mapEnseigneType = prefs.getString("map_enseigne_type", DEFAULT_MAP_ENSEIGNE_TYPE) ?: DEFAULT_MAP_ENSEIGNE_TYPE
         val mapServicesStr = prefs.getString("map_services", null)
@@ -187,11 +189,22 @@ open class SettingsManager(context: Context) {
         } else DEFAULT_MAP_POWER_LEVELS
         val mapIrveOperatorsStr = prefs.getString("map_irve_operators", null)
         val mapIrveOperators = if (!mapIrveOperatorsStr.isNullOrBlank()) {
-            mapIrveOperatorsStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+            mapIrveOperatorsStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                .map { if (it == "totalenergies") "total" else it }
+                .toSet()
         } else DEFAULT_MAP_IRVE_OPERATORS
         val mapBrandsStr = prefs.getString("map_brands", null)
         val mapBrands = if (!mapBrandsStr.isNullOrBlank()) {
-            mapBrandsStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+            mapBrandsStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                .map {
+                    when (it) {
+                        "totalenergies" -> "total"
+                        "esso express" -> "esso"
+                        "e.leclerc" -> "leclerc"
+                        else -> it
+                    }
+                }
+                .toSet()
         } else DEFAULT_MAP_BRANDS
         val mapConnectorTypesStr = prefs.getString("map_connector_types", null)
         val selectedMapConnectorTypes = if (!mapConnectorTypesStr.isNullOrBlank()) {
@@ -219,7 +232,9 @@ open class SettingsManager(context: Context) {
         val vehicleEnergy = prefs.getString("vehicle_energy", "gas") ?: "gas"
         val vehicleGasTypesStr = prefs.getString("vehicle_gas_types", null)
         val vehicleGasTypes = if (!vehicleGasTypesStr.isNullOrBlank()) {
-            vehicleGasTypesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+            vehicleGasTypesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                .map { if (it == "sp95_e10") "sp95" else it }
+                .toSet()
         } else DEFAULT_MAP_ENERGY_TYPES
         val vehiclePowerLevelsStr = prefs.getString("vehicle_power_levels", null)
         val vehiclePowerLevels = if (!vehiclePowerLevelsStr.isNullOrBlank()) {
