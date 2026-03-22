@@ -179,6 +179,33 @@ fun FilterFab(
                     )
                 }
 
+                if (favoritesFilterEnabled && onShowFavoritesOnlyChange != null) {
+                    FilterSectionTitle("Favorites")
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = showFavoritesOnly,
+                            onClick = { onShowFavoritesOnlyChange(!showFavoritesOnly) },
+                            label = { Text("My favorites") },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                labelColor = Color.White,
+                                containerColor = Color(0xFF334155)
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = showFavoritesOnly,
+                                borderColor = Color.White.copy(alpha = 0.3f),
+                                selectedBorderColor = MaterialTheme.colorScheme.primary
+                            )
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+
                 if (settings.useVehicleFilter) {
                     Box(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
                         val energyLabel = when (settings.vehicleEnergy) {

@@ -268,7 +268,12 @@ fun MapScreen(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                FilterFab(settingsManager = settingsManager)
+                FilterFab(
+                    settingsManager = settingsManager,
+                    favoritesFilterEnabled = settings.isLoggedIn && favoritesRepo != null,
+                    showFavoritesOnly = showFavoritesOnly,
+                    onShowFavoritesOnlyChange = { showFavoritesOnly = it }
+                )
 
                 FloatingActionButton(
                     onClick = { showMapSettings = true },
