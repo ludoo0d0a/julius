@@ -72,12 +72,19 @@ fun RoutePlanningScreen(
     poiProvider: PoiProvider,
     geocodingClient: GeocodingClient,
     settingsManager: SettingsManager,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    initialDestination: fr.geoking.julius.NavDestination? = null
 ) {
     BackHandler(onBack = onBack)
     val context = LocalContext.current
     var originQuery by remember { mutableStateOf("") }
-    var destQuery by remember { mutableStateOf("") }
+    var destQuery by remember(initialDestination) {
+        mutableStateOf(
+            if (initialDestination != null) {
+                initialDestination.address ?: initialDestination.latitude?.let { "${initialDestination.latitude}, ${initialDestination.longitude}" } ?: ""
+            } else ""
+        )
+    }
     var useCurrentLocationAsOrigin by remember { mutableStateOf(true) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -237,8 +244,13 @@ fun RoutePlanningScreen(
         }
     }
 
-    LaunchedEffect(calculateTrigger) {
-        if (calculateTrigger == 0) return@LaunchedEffect
+    LaunchedEffect(calculateTrigger, initialDestination) {
+        if (calculateTrigger == 0 && initialDestination == null) return@LaunchedEffect
+        loading = true
+        error = null
+        stations = emptyList()
+        tollEstimate = null
+        routeTraffic = null
         try {
             val origin = if (useCurrentLocationAsOrigin) {
                 if (!hasLocation) {
@@ -264,14 +276,18 @@ fun RoutePlanningScreen(
                 Pair(first.label, first.latitude to first.longitude)
             }
 
-            val destResults = geocodingClient.geocode(destQuery, limit = 1)
-            val destFirst = destResults.firstOrNull()
-            if (destFirst == null) {
-                loading = false
-                error = "Destination not found"
-                return@LaunchedEffect
+            val destination = if (initialDestination?.latitude != null && initialDestination.longitude != null) {
+                Pair(initialDestination.address ?: destQuery, initialDestination.latitude to initialDestination.longitude)
+            } else {
+                val destResults = geocodingClient.geocode(destQuery, limit = 1)
+                val destFirst = destResults.firstOrNull()
+                if (destFirst == null) {
+                    loading = false
+                    error = "Destination not found"
+                    return@LaunchedEffect
+                }
+                Pair(destFirst.label, destFirst.latitude to destFirst.longitude)
             }
-            val destination = Pair(destFirst.label, destFirst.latitude to destFirst.longitude)
 
             val (oLat, oLon) = origin.second
             val (dLat, dLon) = destination.second
