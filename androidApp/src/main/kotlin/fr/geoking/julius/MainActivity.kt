@@ -218,18 +218,18 @@ fun MainUI(
             val path = intent.data?.path
             val currentSettings = settingsManager.settings.value
             if (path == "/gas_stations") {
-                if (currentSettings.useVehicleFilter && currentSettings.vehicleEnergy == "gas") {
+                if (currentSettings.useVehicleFilter && (currentSettings.vehicleEnergy == "gas" || currentSettings.vehicleEnergy == "hybrid")) {
                     // Already configured for car, just show map
-                } else if (currentSettings.vehicleBrand.isNotEmpty() && currentSettings.vehicleEnergy == "gas") {
+                } else if (currentSettings.vehicleBrand.isNotEmpty() && (currentSettings.vehicleEnergy == "gas" || currentSettings.vehicleEnergy == "hybrid")) {
                     settingsManager.setUseVehicleFilter(true)
                 } else {
                     settingsManager.setPoiProviderType(fr.geoking.julius.poi.PoiProviderType.Routex)
                     settingsManager.setUseVehicleFilter(false)
                 }
             } else if (path == "/electric_stations") {
-                if (currentSettings.useVehicleFilter && currentSettings.vehicleEnergy == "electric") {
+                if (currentSettings.useVehicleFilter && (currentSettings.vehicleEnergy == "electric" || currentSettings.vehicleEnergy == "hybrid")) {
                     // Already configured
-                } else if (currentSettings.vehicleBrand.isNotEmpty() && currentSettings.vehicleEnergy == "electric") {
+                } else if (currentSettings.vehicleBrand.isNotEmpty() && (currentSettings.vehicleEnergy == "electric" || currentSettings.vehicleEnergy == "hybrid")) {
                     settingsManager.setUseVehicleFilter(true)
                 } else {
                     settingsManager.setPoiProviderType(fr.geoking.julius.poi.PoiProviderType.DataGouvElec)

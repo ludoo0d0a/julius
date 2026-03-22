@@ -1392,10 +1392,21 @@ private fun VehicleConfig(
                     containerColor = Color.White.copy(alpha = 0.1f)
                 )
             )
+            FilterChip(
+                selected = settings.vehicleEnergy == "hybrid",
+                onClick = { onUpdate(settings.copy(vehicleEnergy = "hybrid")) },
+                label = { Text("Hybrid") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Lavender,
+                    selectedLabelColor = DeepPurple,
+                    labelColor = Color.White,
+                    containerColor = Color.White.copy(alpha = 0.1f)
+                )
+            )
         }
 
         Spacer(modifier = Modifier.height(24.dp))
-        if (settings.vehicleEnergy == "gas") {
+        if (settings.vehicleEnergy == "gas" || settings.vehicleEnergy == "hybrid") {
             Text("Preferred Gas Types", color = Lavender, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
@@ -1428,7 +1439,10 @@ private fun VehicleConfig(
                     onSelect = { onUpdate(settings.copy(fuelCard = card)) }
                 )
             }
-        } else {
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+
+        if (settings.vehicleEnergy == "electric" || settings.vehicleEnergy == "hybrid") {
             Text("Preferred Power Range", color = Lavender, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
