@@ -116,13 +116,14 @@ fun SettingsScreen(
     onDismiss: () -> Unit
 ) {
     val current by settingsManager.settings.collectAsState()
-    var currentScreen by remember { mutableStateOf(Screen.Main) }
+    var screenStack by remember { mutableStateOf(listOf(Screen.Main)) }
+    val currentScreen = screenStack.last()
 
     BackHandler {
-        if (currentScreen == Screen.Main) {
-            onDismiss()
+        if (screenStack.size > 1) {
+            screenStack = screenStack.dropLast(1)
         } else {
-            currentScreen = Screen.Main
+            onDismiss()
         }
     }
 
@@ -153,8 +154,11 @@ fun SettingsScreen(
                     Screen.VehicleConfig -> "Vehicle"
                 },
                 onBack = {
-                    if (currentScreen == Screen.Main) onDismiss()
-                    else currentScreen = Screen.Main
+                    if (screenStack.size > 1) {
+                        screenStack = screenStack.dropLast(1)
+                    } else {
+                        onDismiss()
+                    }
                 }
             )
 
@@ -163,7 +167,7 @@ fun SettingsScreen(
                     Screen.Main -> MainMenu(
                         settings = current,
                         authManager = authManager,
-                        onNavigate = { currentScreen = it },
+                        onNavigate = { screenStack = screenStack + it },
                         onToggleExtendedActions = {
                             save(settingsManager, current.copy(extendedActionsEnabled = it))
                         },
@@ -186,14 +190,14 @@ fun SettingsScreen(
                         onSelect = {
                             save(settingsManager, current.copy(selectedTheme = it))
                         },
-                        onConfigureFractal = { currentScreen = Screen.FractalConfig }
+                        onConfigureFractal = { screenStack = screenStack + Screen.FractalConfig }
                     )
                     Screen.Agent -> AgentSelection(
                         selected = current.selectedAgent,
                         onSelect = {
                             save(settingsManager, current.copy(selectedAgent = it))
                         },
-                        onConfigure = { currentScreen = Screen.AgentConfig }
+                        onConfigure = { screenStack = screenStack + Screen.AgentConfig }
                     )
                     Screen.TextAnimation -> TextAnimationSelection(
                         selected = current.textAnimation,
