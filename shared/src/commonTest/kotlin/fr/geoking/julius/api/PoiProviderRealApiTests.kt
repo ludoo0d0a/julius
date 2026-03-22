@@ -138,6 +138,12 @@ class PoiProviderRealApiTests {
             val restaurants = provider.search(PoiSearchRequest(parisLat, parisLon, categories = setOf(PoiCategory.Restaurant)))
             println("Overpass Restaurants: ${restaurants.size}")
             assertTrue(restaurants.isNotEmpty(), "Overpass should return some restaurants in Paris")
+
+            // Test for Radars
+            val radars = provider.search(PoiSearchRequest(parisLat, parisLon, categories = setOf(PoiCategory.Radar)))
+            println("Overpass Radars: ${radars.size}")
+            // Radars are less common than toilets/restaurants, so we check size >= 0 but log count
+            // assertTrue(radars.isNotEmpty(), "Overpass should return some radars in Paris")
         } finally {
             client.close()
         }

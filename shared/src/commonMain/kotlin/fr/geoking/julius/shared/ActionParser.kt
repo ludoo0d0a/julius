@@ -126,6 +126,12 @@ object ActionParser {
                 return DeviceAction(type = ActionType.FIND_SERVICE_AREA)
             }
 
+            // Find radars
+            lowerText.contains("radar") || lowerText.contains("speed camera") ||
+            lowerText.contains("contrôle de vitesse") -> {
+                return DeviceAction(type = ActionType.FIND_RADARS)
+            }
+
             // Get traffic
             lowerText.contains("traffic") || lowerText.contains("trafic") ||
             lowerText.contains("bouchon") -> {
