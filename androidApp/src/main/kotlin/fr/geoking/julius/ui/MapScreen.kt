@@ -378,6 +378,7 @@ fun MapScreen(
                                 PoiProviderType.OpenChargeMap -> "Source: Open Charge Map"
                                 PoiProviderType.Chargy -> "Source: Chargy (real-time)"
                                 PoiProviderType.Overpass -> "Source: OSM + data.gouv (camping, picnic…)"
+                                PoiProviderType.Hybrid -> "Source: Hybrid (Gas + EV)"
                             }
                         )
                     }

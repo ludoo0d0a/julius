@@ -73,7 +73,8 @@ enum class PoiProviderType {
     DataGouvElec, // data.gouv.fr IRVE (EV charging)
     OpenChargeMap, // openchargemap.org (EV, Europe/world)
     Chargy, // Chargy.lu (Luxembourg real-time)
-    Overpass  // OpenStreetMap Overpass API (toilets, drinking water, etc.)
+    Overpass, // OpenStreetMap Overpass API (toilets, drinking water, etc.)
+    Hybrid // Combined Fuel + Electric (Routex + DataGouvElec)
 }
 
 /**

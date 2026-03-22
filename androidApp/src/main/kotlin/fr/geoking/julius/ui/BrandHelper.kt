@@ -46,6 +46,14 @@ object BrandHelper {
         "chargy" to "Chargy",
         "atlante" to "Atlante",
         "zunder" to "Zunder",
+        "freshmile" to "Freshmile",
+        "superu" to "Super U",
+        "système u" to "Système U",
+        "coopérative u" to "Coopérative U",
+        "match" to "Match",
+        "supermarché match" to "Supermarché Match",
+        "powerdot" to "Powerdot",
+        "driveco" to "Driveco",
     )
 
     /** brand_id (lowercase) -> brand icon drawable. Unlisted brands use ic_poi_gas. */
@@ -76,6 +84,14 @@ object BrandHelper {
         "chargy" to R.drawable.ic_poi_electric,
         "atlante" to R.drawable.ic_poi_electric,
         "zunder" to R.drawable.ic_poi_electric,
+        "freshmile" to R.drawable.ic_brand_freshmile,
+        "superu" to R.drawable.ic_brand_superu,
+        "système u" to R.drawable.ic_brand_superu,
+        "coopérative u" to R.drawable.ic_brand_superu,
+        "match" to R.drawable.ic_brand_match,
+        "supermarché match" to R.drawable.ic_brand_match,
+        "powerdot" to R.drawable.ic_brand_powerdot,
+        "driveco" to R.drawable.ic_brand_driveco,
     )
 
     /** brand_id (lowercase) -> rounded brand icon drawable. Unlisted brands use ic_poi_gas_rounded. */
@@ -106,18 +122,29 @@ object BrandHelper {
         "chargy" to R.drawable.ic_poi_electric_rounded,
         "atlante" to R.drawable.ic_poi_electric_rounded,
         "zunder" to R.drawable.ic_poi_electric_rounded,
+        "freshmile" to R.drawable.ic_brand_freshmile_rounded,
+        "superu" to R.drawable.ic_brand_superu_rounded,
+        "système u" to R.drawable.ic_brand_superu_rounded,
+        "coopérative u" to R.drawable.ic_brand_superu_rounded,
+        "match" to R.drawable.ic_brand_match_rounded,
+        "supermarché match" to R.drawable.ic_brand_match_rounded,
+        "powerdot" to R.drawable.ic_brand_powerdot_rounded,
+        "driveco" to R.drawable.ic_brand_driveco_rounded,
     )
 
     /** brand_id (lowercase) -> is gas station brand. */
     private val gasBrands = setOf(
         "total", "totalenergies", "bp", "shell", "esso", "esso express", "eni", "repsol", "omv", "avia",
         "q8", "agip", "carrefour", "leclerc", "auchan", "intermarche", "casino", "rel", "rel.metz",
-        "circle k", "eurogarages", "aral", "jet", "elf", "migrol", "coop", "migros"
+        "circle k", "eurogarages", "aral", "jet", "elf", "migrol", "coop", "migros",
+        "superu", "système u", "match", "supermarché match"
     )
 
     /** brand_id (lowercase) -> is electric charging brand. */
     private val electricBrands = setOf(
-        "tesla", "ionity", "fastned", "allego", "lidl", "chargy", "atlante", "zunder", "totalenergies", "total"
+        "tesla", "ionity", "fastned", "allego", "lidl", "chargy", "atlante", "zunder", "totalenergies",
+        "freshmile", "superu", "système u", "coopérative u", "match", "supermarché match",
+        "powerdot", "driveco", "carrefour", "leclerc", "auchan"
     )
 
     data class BrandInfo(
