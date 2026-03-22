@@ -17,6 +17,16 @@ val DEFAULT_AGENT = AgentType.Gemini
 
 enum class AppTheme { Particles, Sphere, Waves, Fractal, Micro }
 enum class TextAnimation { None, Genie, Blur, Fade, Zoom, Falling }
+
+/** Whether the mic stays active while Julius speaks (barge-in / full-duplex interrupt). */
+enum class SpeakingInterruptMode {
+    /** No recognition while assistant audio plays. */
+    OFF,
+    /** Only "hey julius" or "stop" stops playback and captures input. */
+    WAKE_WORD,
+    /** Any detected speech stops playback and is treated as the next user turn. */
+    ANY_SPEECH
+}
 enum class FractalQuality { Low, Medium, High }
 enum class FractalColorIntensity { Low, Medium, High }
 enum class PerplexityModel(val modelName: String, val displayName: String) {
@@ -118,8 +128,8 @@ data class AppSettings(
     val fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium,
     val extendedActionsEnabled: Boolean = true,
     val wakeWordEnabled: Boolean = false,
-    /** If enabled, saying "hey julius" while Julius is speaking will stop TTS and start listening. */
-    val heyJuliusDuringSpeakingEnabled: Boolean = false,
+    /** Mic during assistant speech: off, wake phrase only, or any speech (see migration from legacy boolean). */
+    val speakingInterruptMode: SpeakingInterruptMode = SpeakingInterruptMode.ANY_SPEECH,
     val useCarMic: Boolean = false,
     val muteMediaOnCar: Boolean = false,
     /** STT engine for car mic path: LocalOnly (Vosk only), LocalFirst (Vosk then agent), NativeOnly (agent only). */
@@ -171,6 +181,8 @@ open class SettingsManager(context: Context) {
             firebaseAiKey, firebaseAiModel, opencodeZenKey, opencodeZenModel,
             completionsMeKey, completionsMeModel, apifreellmKey, julesKey
         )
+
+        val speakingInterruptMode = loadSpeakingInterruptMode()
 
         val energyTypesStr = prefs.getString("map_energy_types", null)
         val selectedMapEnergyTypes = if (!energyTypesStr.isNullOrBlank()) {
@@ -322,7 +334,7 @@ open class SettingsManager(context: Context) {
             },
             extendedActionsEnabled = prefs.getBoolean("extended_actions_enabled", true),
             wakeWordEnabled = prefs.getBoolean("wake_word_enabled", false),
-            heyJuliusDuringSpeakingEnabled = prefs.getBoolean("hey_julius_during_speaking_enabled", false),
+            speakingInterruptMode = speakingInterruptMode,
             useCarMic = prefs.getBoolean("use_car_mic", false),
             muteMediaOnCar = prefs.getBoolean("mute_media_on_car", false),
             sttEnginePreference = try {
@@ -344,6 +356,19 @@ open class SettingsManager(context: Context) {
             googleUserName = googleUserName,
             isLoggedIn = isLoggedIn
         )
+    }
+
+    private fun loadSpeakingInterruptMode(): SpeakingInterruptMode {
+        val stored = prefs.getString("speaking_interrupt_mode", null)
+        if (stored != null) {
+            return try {
+                SpeakingInterruptMode.valueOf(stored)
+            } catch (_: IllegalArgumentException) {
+                SpeakingInterruptMode.ANY_SPEECH
+            }
+        }
+        val legacyHeyJulius = prefs.getBoolean("hey_julius_during_speaking_enabled", false)
+        return if (legacyHeyJulius) SpeakingInterruptMode.WAKE_WORD else SpeakingInterruptMode.ANY_SPEECH
     }
 
     /**
@@ -570,7 +595,8 @@ open class SettingsManager(context: Context) {
             .putString("fractal_color_intensity", settings.fractalColorIntensity.name)
             .putBoolean("extended_actions_enabled", settings.extendedActionsEnabled)
             .putBoolean("wake_word_enabled", settings.wakeWordEnabled)
-            .putBoolean("hey_julius_during_speaking_enabled", settings.heyJuliusDuringSpeakingEnabled)
+            .putString("speaking_interrupt_mode", settings.speakingInterruptMode.name)
+            .remove("hey_julius_during_speaking_enabled")
             .putBoolean("use_car_mic", settings.useCarMic)
             .putBoolean("mute_media_on_car", settings.muteMediaOnCar)
             .putString("stt_engine_preference", settings.sttEnginePreference.name)
@@ -611,7 +637,7 @@ open class SettingsManager(context: Context) {
         fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium,
         extendedActionsEnabled: Boolean = true,
         wakeWordEnabled: Boolean = false,
-        heyJuliusDuringSpeakingEnabled: Boolean = false,
+        speakingInterruptMode: SpeakingInterruptMode = _settings.value.speakingInterruptMode,
         useCarMic: Boolean = false,
         muteMediaOnCar: Boolean = false,
         sttEnginePreference: SttEnginePreference = _settings.value.sttEnginePreference,
@@ -662,7 +688,7 @@ open class SettingsManager(context: Context) {
             fractalColorIntensity = fractalColorIntensity,
             extendedActionsEnabled = extendedActionsEnabled,
             wakeWordEnabled = wakeWordEnabled,
-            heyJuliusDuringSpeakingEnabled = heyJuliusDuringSpeakingEnabled,
+            speakingInterruptMode = speakingInterruptMode,
             useCarMic = useCarMic,
             muteMediaOnCar = muteMediaOnCar,
             sttEnginePreference = sttEnginePreference,

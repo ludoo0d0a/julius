@@ -39,6 +39,7 @@ import fr.geoking.julius.PerplexityModel
 import fr.geoking.julius.OpenAiModel
 import fr.geoking.julius.GeminiModel
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.SpeakingInterruptMode
 import fr.geoking.julius.GoogleAuthManager
 import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.TextAnimation
@@ -174,8 +175,8 @@ fun SettingsScreen(
                         onToggleMuteMediaOnCar = {
                             save(settingsManager, current.copy(muteMediaOnCar = it))
                         },
-                        onToggleHeyJuliusDuringSpeaking = {
-                            save(settingsManager, current.copy(heyJuliusDuringSpeakingEnabled = it))
+                        onSpeakingInterruptModeChange = { mode ->
+                            save(settingsManager, current.copy(speakingInterruptMode = mode))
                         },
                         onSttEnginePreferenceChange = {
                             save(settingsManager, current.copy(sttEnginePreference = it))
@@ -283,7 +284,7 @@ private fun MainMenu(
     onNavigate: (Screen) -> Unit,
     onToggleExtendedActions: (Boolean) -> Unit,
     onToggleMuteMediaOnCar: (Boolean) -> Unit,
-    onToggleHeyJuliusDuringSpeaking: (Boolean) -> Unit,
+    onSpeakingInterruptModeChange: (SpeakingInterruptMode) -> Unit,
     onSttEnginePreferenceChange: (SttEnginePreference) -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -426,43 +427,58 @@ private fun MainMenu(
             )
         }
 
-        // "Hey Julius" during speaking toggle
+        // Interrupt while Julius speaks (barge-in mode)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
-            Row(
-                modifier = Modifier
-                    .padding(horizontal = 24.dp, vertical = 24.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Hey Julius (during speaking)",
-                        color = Color.White,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Medium
+            Text(
+                text = "Interrupt while speaking",
+                color = Color.White,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = "Keep the mic active during replies so you can cut off long answers.",
+                color = Lavender.copy(alpha = 0.7f),
+                fontSize = 16.sp,
+                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+            )
+            val radioColors = RadioButtonDefaults.colors(
+                selectedColor = Lavender,
+                unselectedColor = Color.Gray
+            )
+            SpeakingInterruptMode.entries.forEach { mode ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSpeakingInterruptModeChange(mode) }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = settings.speakingInterruptMode == mode,
+                        onClick = { onSpeakingInterruptModeChange(mode) },
+                        colors = radioColors
                     )
-                    Text(
-                        text = "Say \"hey julius\" to interrupt and start listening",
-                        color = Lavender.copy(alpha = 0.7f),
-                        fontSize = 16.sp
-                    )
+                    Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
+                        Text(
+                            text = phoneSpeakingInterruptTitle(mode),
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = phoneSpeakingInterruptSubtitle(mode),
+                            color = Lavender.copy(alpha = 0.7f),
+                            fontSize = 14.sp
+                        )
+                    }
                 }
-                Switch(
-                    checked = settings.heyJuliusDuringSpeakingEnabled,
-                    onCheckedChange = onToggleHeyJuliusDuringSpeaking,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Lavender,
-                        checkedTrackColor = DeepPurple,
-                        uncheckedThumbColor = Color.Gray,
-                        uncheckedTrackColor = Color.DarkGray
-                    )
-                )
             }
             HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 24.dp),
+                modifier = Modifier.padding(top = 16.dp),
                 thickness = 0.5.dp,
                 color = SeparatorColor
             )
@@ -543,6 +559,18 @@ private fun sttEnginePreferenceLabel(pref: SttEnginePreference): String = when (
     SttEnginePreference.LocalOnly -> "Local only (Vosk)"
     SttEnginePreference.LocalFirst -> "Local first (Vosk, then cloud)"
     SttEnginePreference.NativeOnly -> "Native only (cloud)"
+}
+
+private fun phoneSpeakingInterruptTitle(mode: SpeakingInterruptMode): String = when (mode) {
+    SpeakingInterruptMode.OFF -> "Off"
+    SpeakingInterruptMode.WAKE_WORD -> "Hey Julius only"
+    SpeakingInterruptMode.ANY_SPEECH -> "Any speech"
+}
+
+private fun phoneSpeakingInterruptSubtitle(mode: SpeakingInterruptMode): String = when (mode) {
+    SpeakingInterruptMode.OFF -> "No microphone while Julius is speaking"
+    SpeakingInterruptMode.WAKE_WORD -> "Say \"hey julius\" or \"stop\" to interrupt (fewer false triggers)"
+    SpeakingInterruptMode.ANY_SPEECH -> "Talking stops playback and sends your next message (may pick up echo)"
 }
 
 @Composable

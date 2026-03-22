@@ -4,6 +4,7 @@ import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.*
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.SpeakingInterruptMode
 import fr.geoking.julius.shared.SttEnginePreference
 
 class AutoAdvancedSettingsScreen(
@@ -83,15 +84,11 @@ class AutoAdvancedSettingsScreen(
 
         listBuilder.addItem(
             Row.Builder()
-                .setTitle("Hey Julius (during speaking)")
-                .addText("Say \"hey julius\" to interrupt and start listening")
-                .setToggle(
-                    Toggle.Builder { checked ->
-                        val current = settingsManager.settings.value
-                        settingsManager.saveSettings(current.copy(heyJuliusDuringSpeakingEnabled = checked))
-                        invalidate()
-                    }.setChecked(settings.heyJuliusDuringSpeakingEnabled).build()
-                )
+                .setTitle("Interrupt while speaking")
+                .addText(autoSpeakingInterruptSummary(settings.speakingInterruptMode))
+                .setOnClickListener {
+                    screenManager.push(AutoSpeakingInterruptSelectionScreen(carContext, settingsManager))
+                }
                 .build()
         )
 
@@ -106,4 +103,10 @@ class AutoAdvancedSettingsScreen(
         SttEnginePreference.LocalFirst -> "Local first (Vosk, then cloud)"
         SttEnginePreference.NativeOnly -> "Native only (cloud)"
     }
+}
+
+private fun autoSpeakingInterruptSummary(mode: SpeakingInterruptMode): String = when (mode) {
+    SpeakingInterruptMode.OFF -> "Off — no mic while speaking"
+    SpeakingInterruptMode.WAKE_WORD -> "Hey Julius only"
+    SpeakingInterruptMode.ANY_SPEECH -> "Any speech"
 }

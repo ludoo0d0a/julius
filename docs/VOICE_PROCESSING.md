@@ -39,8 +39,18 @@ Julius uses a turn-based, sequential pipeline where each step must complete befo
 
 ## 2. Special Features
 
-### Barge-in Support
-Julius implements a "Barge-in" feature. While the assistant is speaking, it continues to run a `SpeechRecognizer` in a special "barge-in" mode. If it detects the user has started speaking again, it immediately stops the current audio playback/TTS and starts a new listening session.
+### Barge-in / interrupt while speaking
+On the **phone `SpeechRecognizer` path**, Julius can keep the microphone active while TTS or agent audio plays so the user can interrupt long replies. This is controlled by **Interrupt while speaking** in Settings (mobile) and **Voice & Advanced Settings** (Android Auto): `SpeakingInterruptMode` in [`SettingsManager.kt`](../androidApp/src/main/kotlin/fr/geoking/julius/SettingsManager.kt).
+
+| Mode | Behavior |
+|------|----------|
+| **Off** | Recognition is cancelled before playback; no listening during assistant audio. |
+| **Hey Julius only** | A hidden barge-in recognizer runs; only **"hey julius"** or **"stop"** stops playback and captures input (fewer false triggers from echo). |
+| **Any speech** | Any detected speech stops playback; the recognized text is sent as the next user turn (may false-trigger if the assistant’s voice is picked up by the mic). |
+
+**Migration:** The legacy boolean `hey_julius_during_speaking_enabled` is migrated once: if it was **true**, the mode becomes **Hey Julius only**; if **false**, **Any speech** (new default for users who had not enabled the old toggle). After save, preferences use `speaking_interrupt_mode` and the legacy key is removed.
+
+**Car microphone:** While a **car mic** recording pass is in progress, barge-in is not started. After playback, barge-in still uses the system `SpeechRecognizer` (device-dependent on Android Auto). Full-duplex capture from the car-piped stream would need a separate pipeline.
 
 ### Multi-Agent Flexibility
 The architecture is designed to be highly modular. By implementing the `ConversationalAgent` interface, new AI models or voice providers can be added without changing the core UI or orchestration logic.

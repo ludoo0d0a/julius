@@ -244,7 +244,7 @@ class AndroidVoiceManager(
                             _events.value = VoiceEvent.Speaking
                             player.notifyStateChanged()
                         }
-                        startHeyJuliusBargeInIfNeeded()
+                        startBargeInWhileSpeakingIfNeeded()
                     }
 
                     override fun onDone(utteranceId: String?) {
@@ -397,9 +397,8 @@ class AndroidVoiceManager(
     }
     
     override fun speak(text: String, languageTag: String?) {
-        // Avoid self-interruption by default. If "hey julius during speaking" is enabled, we keep a
-        // keyword-only barge-in recognizer running and only trigger on that phrase.
-        if (!settingsManager.settings.value.heyJuliusDuringSpeakingEnabled) {
+        // With interrupt mode OFF, cancel recognition so TTS is not cut by leftover STT.
+        if (settingsManager.settings.value.speakingInterruptMode == SpeakingInterruptMode.OFF) {
             cancelActiveRecognitionForSpeechOutput()
         }
         requestAudioFocus()
@@ -407,12 +406,12 @@ class AndroidVoiceManager(
         player.notifyStateChanged()
         updateTtsLanguage(languageTag)
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "voice_ai_utterance")
-        startHeyJuliusBargeInIfNeeded()
+        startBargeInWhileSpeakingIfNeeded()
     }
 
     override fun playAudio(bytes: ByteArray) {
         // Same rationale as speak().
-        if (!settingsManager.settings.value.heyJuliusDuringSpeakingEnabled) {
+        if (settingsManager.settings.value.speakingInterruptMode == SpeakingInterruptMode.OFF) {
             cancelActiveRecognitionForSpeechOutput()
         }
         _events.value = VoiceEvent.Speaking
@@ -432,7 +431,7 @@ class AndroidVoiceManager(
             e.printStackTrace()
             _events.value = VoiceEvent.Silence // Reset on error
         }
-        startHeyJuliusBargeInIfNeeded()
+        startBargeInWhileSpeakingIfNeeded()
     }
 
     override fun stopSpeaking() {
@@ -549,14 +548,18 @@ class AndroidVoiceManager(
         }
     }
 
-    private fun startHeyJuliusBargeInIfNeeded() {
-        if (!settingsManager.settings.value.heyJuliusDuringSpeakingEnabled) return
+    private fun startBargeInWhileSpeakingIfNeeded() {
+        when (settingsManager.settings.value.speakingInterruptMode) {
+            SpeakingInterruptMode.OFF -> return
+            SpeakingInterruptMode.WAKE_WORD, SpeakingInterruptMode.ANY_SPEECH -> Unit
+        }
         if (_events.value != VoiceEvent.Speaking) return
         if (isRecording) return
         if (heyJuliusActivationInProgress) return
         if (isRecognizerActive && isBargeInActive) return
 
-        isHeyJuliusKeywordBargeIn = true
+        isHeyJuliusKeywordBargeIn =
+            settingsManager.settings.value.speakingInterruptMode == SpeakingInterruptMode.WAKE_WORD
         startBargeInListening()
     }
 
