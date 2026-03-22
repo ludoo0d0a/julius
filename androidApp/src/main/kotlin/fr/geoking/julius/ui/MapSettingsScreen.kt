@@ -55,7 +55,6 @@ val MAP_ENERGY_OPTIONS = listOf(
     "electric" to "Elec",
     "gazole" to "Gazole",
     "sp98" to "SP98",
-    "sp95_e10" to "E10",
     "sp95" to "SP95",
     "gplc" to "GPLc",
     "e85" to "E85"

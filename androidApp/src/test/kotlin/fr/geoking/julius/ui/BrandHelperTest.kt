@@ -59,7 +59,7 @@ class BrandHelperTest {
         val ids = electricBrands.map { it.first }
         assert(ids.contains("tesla"))
         assert(ids.contains("ionity"))
-        assert(ids.contains("totalenergies"))
+        assert(ids.contains("total"))
         assert(!ids.contains("shell"))
         assert(!ids.contains("bp"))
     }

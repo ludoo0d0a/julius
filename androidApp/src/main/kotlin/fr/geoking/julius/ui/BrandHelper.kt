@@ -11,11 +11,11 @@ object BrandHelper {
     /** Known brand_id (lowercase) -> company display name. */
     val brandNames = mapOf(
         "total" to "Total",
-        "totalenergies" to "TotalEnergies",
+        "totalenergies" to "Total",
         "bp" to "BP",
         "shell" to "Shell",
         "esso" to "Esso",
-        "esso express" to "Esso Express",
+        "esso express" to "Esso",
         "eni" to "Eni",
         "repsol" to "Repsol",
         "omv" to "OMV",
@@ -23,7 +23,8 @@ object BrandHelper {
         "q8" to "Q8",
         "agip" to "Agip",
         "carrefour" to "Carrefour",
-        "leclerc" to "E.Leclerc",
+        "leclerc" to "Leclerc",
+        "e.leclerc" to "Leclerc",
         "auchan" to "Auchan",
         "intermarche" to "Intermarché",
         "casino" to "Casino",
