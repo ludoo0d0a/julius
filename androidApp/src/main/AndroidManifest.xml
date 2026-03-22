@@ -40,6 +40,16 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="julius" android:host="map" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="geo" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="google.navigation" />
+            </intent-filter>
         </activity>
 
         <!-- Android Auto Service -->
@@ -51,6 +61,16 @@
             <intent-filter>
                 <action android:name="androidx.car.app.CarAppService" />
                 <category android:name="androidx.car.app.category.NAVIGATION"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="geo" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="google.navigation" />
             </intent-filter>
         </service>
 

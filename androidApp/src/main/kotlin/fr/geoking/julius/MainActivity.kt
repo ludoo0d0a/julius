@@ -2,6 +2,7 @@ package fr.geoking.julius
 
 import android.Manifest
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -71,6 +72,20 @@ class MainActivity : ComponentActivity() {
 
     private val inAppUpdateHelper by lazy { InAppUpdateHelper(applicationContext) }
     private val mapDepsState = MutableStateFlow<MapDeps?>(null)
+    private val pendingNavDestination = MutableStateFlow<NavDestination?>(null)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent) {
+        val nav = IntentNavigationHelper.parseNavIntent(intent)
+        if (nav != null) {
+            pendingNavDestination.value = nav
+        }
+    }
 
     private fun ensureMapDeps() {
         if (mapDepsState.value != null) return
@@ -107,6 +122,7 @@ class MainActivity : ComponentActivity() {
             return
         }
 
+        handleIntent(intent)
         try {
             android.util.Log.d("MainActivity", "Resolving Koin dependencies...")
             val store: ConversationStore = get()
@@ -146,7 +162,8 @@ class MainActivity : ComponentActivity() {
                     julesClient = julesClient,
                     voiceManager = voiceManager,
                     inAppUpdateHelper = inAppUpdateHelper,
-                    onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) }
+                    onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) },
+                    pendingNavDestinationFlow = pendingNavDestination
                 )
             }
         } catch (e: Throwable) {
@@ -172,15 +189,29 @@ fun MainUI(
     julesClient: JulesClient,
     voiceManager: fr.geoking.julius.shared.VoiceManager,
     inAppUpdateHelper: InAppUpdateHelper? = null,
-    onStartUpdate: (AppUpdateInfo) -> Unit = {}
+    onStartUpdate: (AppUpdateInfo) -> Unit = {},
+    pendingNavDestinationFlow: kotlinx.coroutines.flow.MutableStateFlow<NavDestination?> = remember { MutableStateFlow(null) }
 ) {
     val mapDeps by mapDepsState.collectAsState()
     var showSettings by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
     var showMap by remember { mutableStateOf(false) }
     var showRoutePlanning by remember { mutableStateOf(false) }
+    var initialNavDestination by remember { mutableStateOf<NavDestination?>(null) }
 
     val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        pendingNavDestinationFlow.collect { nav ->
+            if (nav != null) {
+                initialNavDestination = nav
+                showRoutePlanning = true
+                showMap = true
+                pendingNavDestinationFlow.value = null
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         val intent = (context as? Activity)?.intent
         if (intent?.data?.scheme == "julius" && intent.data?.host == "map") {
@@ -250,7 +281,8 @@ fun MainUI(
                         poiProvider = mapDeps!!.poiProvider,
                         geocodingClient = mapDeps!!.geocodingClient,
                         settingsManager = settingsManager,
-                        onBack = { showRoutePlanning = false }
+                        onBack = { showRoutePlanning = false; initialNavDestination = null },
+                        initialDestination = initialNavDestination
                     )
                 }
                 showMap -> {

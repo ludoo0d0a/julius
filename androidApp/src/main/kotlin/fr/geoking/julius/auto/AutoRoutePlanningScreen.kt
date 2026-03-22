@@ -41,7 +41,8 @@ class AutoRoutePlanningScreen(
     private val geocodingClient: GeocodingClient,
     private val settingsManager: SettingsManager,
     private val initialOriginQuery: String? = null,
-    private val initialDestinationQuery: String? = null
+    private val initialDestinationQuery: String? = null,
+    private val initialDestination: fr.geoking.julius.NavDestination? = null
 ) : Screen(carContext) {
 
     private enum class Step { ORIGIN, DESTINATION, RESULTS }
@@ -57,12 +58,12 @@ class AutoRoutePlanningScreen(
     private var computeJob: Job? = null
 
     init {
-        if (initialOriginQuery.isNullOrBlank()) {
-            // Default to current location (origin step can be skipped)
-            step = Step.DESTINATION
-        } else if (!initialDestinationQuery.isNullOrBlank()) {
+        if (!initialDestinationQuery.isNullOrBlank()) {
             step = Step.RESULTS
             compute()
+        } else if (initialOriginQuery.isNullOrBlank()) {
+            // Default to current location (origin step can be skipped)
+            step = Step.DESTINATION
         }
     }
 
@@ -257,18 +258,28 @@ class AutoRoutePlanningScreen(
                         ?: throw Exception("Origin not found")
                     origin.latitude to origin.longitude
                 }
-                val dest = geocodingClient.geocode(destinationQuery, limit = 1).firstOrNull()
-                    ?: throw Exception("Destination not found")
+
+                val destLat: Double
+                val destLon: Double
+                if (initialDestination?.latitude != null && initialDestination.longitude != null) {
+                    destLat = initialDestination.latitude
+                    destLon = initialDestination.longitude
+                } else {
+                    val dest = geocodingClient.geocode(destinationQuery, limit = 1).firstOrNull()
+                        ?: throw Exception("Destination not found")
+                    destLat = dest.latitude
+                    destLon = dest.longitude
+                }
 
                 // Warm up: ensure route endpoint is reachable (and fail early with nicer message)
-                val route = routingClient.getRoute(originLatLon.first, originLatLon.second, dest.latitude, dest.longitude)
+                val route = routingClient.getRoute(originLatLon.first, originLatLon.second, destLat, destLon)
                 if (route == null) throw Exception("No route found")
 
                 val result = routePlanner.getStationsAlongRoute(
                     originLat = originLatLon.first,
                     originLon = originLatLon.second,
-                    destLat = dest.latitude,
-                    destLon = dest.longitude,
+                    destLat = destLat,
+                    destLon = destLon,
                     poiProvider = poiProvider
                 )
                 result.fold(

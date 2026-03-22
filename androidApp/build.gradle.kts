@@ -215,6 +215,7 @@ dependencies {
 
     testImplementation(libs.kotlin.test)
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:${libs.versions.kotlin.get()}")
+    testImplementation("org.robolectric:robolectric:4.14.1")
 }
 
 kotlin {
