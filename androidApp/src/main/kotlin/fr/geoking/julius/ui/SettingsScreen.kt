@@ -68,6 +68,7 @@ private enum class Screen {
     JulesConfig,
     TollData,
     ErrorLog,
+    VehicleConfig,
     About
 }
 
@@ -149,6 +150,7 @@ fun SettingsScreen(
                     Screen.ErrorLog -> "Error Log"
                     Screen.About -> "About"
                     Screen.GoogleAccount -> "Google Account"
+                    Screen.VehicleConfig -> "Vehicle"
                 },
                 onBack = {
                     if (currentScreen == Screen.Main) onDismiss()
@@ -174,6 +176,10 @@ fun SettingsScreen(
                         onSttEnginePreferenceChange = {
                             save(settingsManager, current.copy(sttEnginePreference = it))
                         }
+                    )
+                    Screen.VehicleConfig -> VehicleConfig(
+                        settings = current,
+                        onUpdate = { save(settingsManager, it) }
                     )
                     Screen.Theme -> ThemeSelection(
                         selected = current.selectedTheme,
@@ -356,6 +362,11 @@ private fun MainMenu(
             label = "Text animation",
             value = settings.textAnimation.name,
             onClick = { onNavigate(Screen.TextAnimation) }
+        )
+        SettingsItem(
+            label = "Vehicle",
+            value = if (settings.vehicleBrand.isNotEmpty()) "${settings.vehicleBrand} ${settings.vehicleModel}" else "Not configured",
+            onClick = { onNavigate(Screen.VehicleConfig) }
         )
         SettingsItem(
             label = "STT engine (car)",
@@ -1337,6 +1348,108 @@ private fun GoogleAccount(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Sign in with Google")
+            }
+        }
+    }
+}
+
+@Composable
+private fun VehicleConfig(
+    settings: AppSettings,
+    onUpdate: (AppSettings) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp)
+    ) {
+        ConfigTextField("Brand", settings.vehicleBrand) { onUpdate(settings.copy(vehicleBrand = it)) }
+        ConfigTextField("Model", settings.vehicleModel) { onUpdate(settings.copy(vehicleModel = it)) }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Energy Type", color = Lavender, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            FilterChip(
+                selected = settings.vehicleEnergy == "gas",
+                onClick = { onUpdate(settings.copy(vehicleEnergy = "gas")) },
+                label = { Text("Gas") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Lavender,
+                    selectedLabelColor = DeepPurple,
+                    labelColor = Color.White,
+                    containerColor = Color.White.copy(alpha = 0.1f)
+                )
+            )
+            FilterChip(
+                selected = settings.vehicleEnergy == "electric",
+                onClick = { onUpdate(settings.copy(vehicleEnergy = "electric")) },
+                label = { Text("Electric") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Lavender,
+                    selectedLabelColor = DeepPurple,
+                    labelColor = Color.White,
+                    containerColor = Color.White.copy(alpha = 0.1f)
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        if (settings.vehicleEnergy == "gas") {
+            Text("Preferred Gas Types", color = Lavender, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                fr.geoking.julius.ui.MAP_ENERGY_OPTIONS.filter { it.first != "electric" }.forEach { (id, label) ->
+                    FilterChip(
+                        selected = settings.vehicleGasTypes.contains(id),
+                        onClick = {
+                            val newTypes = if (settings.vehicleGasTypes.contains(id)) settings.vehicleGasTypes - id else settings.vehicleGasTypes + id
+                            onUpdate(settings.copy(vehicleGasTypes = newTypes))
+                        },
+                        label = { Text(label) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Lavender,
+                            selectedLabelColor = DeepPurple,
+                            labelColor = Color.White,
+                            containerColor = Color.White.copy(alpha = 0.1f)
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            Text("Fuel Card", color = Lavender, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
+            fr.geoking.julius.FuelCard.entries.forEach { card ->
+                SelectionItem(
+                    label = card.name,
+                    isSelected = settings.fuelCard == card,
+                    onSelect = { onUpdate(settings.copy(fuelCard = card)) }
+                )
+            }
+        } else {
+            Text("Preferred Power Range", color = Lavender, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                fr.geoking.julius.ui.MAP_IRVE_POWER_OPTIONS.forEach { (id, label) ->
+                    FilterChip(
+                        selected = settings.vehiclePowerLevels.contains(id),
+                        onClick = {
+                            val newLevels = if (settings.vehiclePowerLevels.contains(id)) settings.vehiclePowerLevels - id else settings.vehiclePowerLevels + id
+                            onUpdate(settings.copy(vehiclePowerLevels = newLevels))
+                        },
+                        label = { Text(label) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Lavender,
+                            selectedLabelColor = DeepPurple,
+                            labelColor = Color.White,
+                            containerColor = Color.White.copy(alpha = 0.1f)
+                        )
+                    )
+                }
             }
         }
     }
