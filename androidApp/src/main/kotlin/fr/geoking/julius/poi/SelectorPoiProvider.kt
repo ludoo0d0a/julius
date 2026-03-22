@@ -53,6 +53,7 @@ class SelectorPoiProvider(
                         "rest_area" -> PoiCategory.RestArea
                         "restaurant" -> PoiCategory.Restaurant
                         "fast_food" -> PoiCategory.FastFood
+                        "speed_camera" -> PoiCategory.Radar
                         else -> null
                     }
                 }.toSet()

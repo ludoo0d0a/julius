@@ -27,7 +27,8 @@ class OverpassProvider(
         PoiCategory.TruckStop,
         PoiCategory.RestArea,
         PoiCategory.Restaurant,
-        PoiCategory.FastFood
+        PoiCategory.FastFood,
+        PoiCategory.Radar
     )
 
     override suspend fun search(request: PoiSearchRequest): List<Poi> {
@@ -74,9 +75,14 @@ class OverpassProvider(
                 )
                 else -> null
             }
+            val name = if (category == PoiCategory.Radar) {
+                el.tags["maxspeed"]?.let { "Radar $it km/h" } ?: el.name()
+            } else {
+                el.name()
+            }
             Poi(
                 id = "osm:${el.id}",
-                name = el.name()?.takeIf { it.isNotBlank() } ?: categoryDisplayName(category),
+                name = name?.takeIf { it.isNotBlank() } ?: categoryDisplayName(category),
                 address = el.address() ?: "",
                 latitude = el.lat,
                 longitude = el.lon,
@@ -111,6 +117,7 @@ class OverpassProvider(
 
     private fun categoryToOsmHighway(c: PoiCategory): String? = when (c) {
         PoiCategory.RestArea -> "rest_area"
+        PoiCategory.Radar -> "speed_camera"
         else -> null
     }
 
@@ -124,6 +131,7 @@ class OverpassProvider(
         PoiCategory.RestArea -> "Rest area"
         PoiCategory.Restaurant -> "Restaurant"
         PoiCategory.FastFood -> "Fast food"
+        PoiCategory.Radar -> "Radar"
         else -> c.name
     }
 }

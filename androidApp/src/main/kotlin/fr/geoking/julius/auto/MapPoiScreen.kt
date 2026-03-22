@@ -242,14 +242,24 @@ class MapPoiScreen(
 
             val limitedPois = pois.take(10)
             limitedPois.forEach { poi ->
+                val iconResId = when (poi.poiCategory) {
+                    PoiCategory.Toilet -> R.drawable.ic_poi_toilet
+                    PoiCategory.DrinkingWater -> R.drawable.ic_poi_water
+                    PoiCategory.Camping -> R.drawable.ic_poi_camping
+                    PoiCategory.CaravanSite -> R.drawable.ic_poi_caravan
+                    PoiCategory.PicnicSite -> R.drawable.ic_poi_picnic
+                    PoiCategory.Radar -> R.drawable.ic_poi_radar
+                    else -> if (poi.isElectric) R.drawable.ic_poi_electric else R.drawable.ic_poi_gas
+                }
+
                 val place = Place.Builder(CarLocation.create(poi.latitude, poi.longitude))
                     .setMarker(
                         PlaceMarker.Builder()
                             .setIcon(
-                                CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_poi_gas)).build(),
+                                CarIcon.Builder(IconCompat.createWithResource(carContext, iconResId)).build(),
                                 PlaceMarker.TYPE_ICON
                             )
-                            .setLabel("POI")
+                            .setLabel(if (poi.poiCategory == PoiCategory.Radar) "VMA" else "POI")
                             .build()
                     )
                     .build()

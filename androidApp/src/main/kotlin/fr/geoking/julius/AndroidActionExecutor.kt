@@ -47,6 +47,7 @@ class AndroidActionExecutor(
                 ActionType.PLAY_AUDIOBOOK -> playAudiobook()
                 ActionType.CALL_CONTACT -> callContact(action.target)
                 ActionType.FIND_HOSPITAL -> findNearby("hospital")
+                ActionType.FIND_RADARS -> findNearby("radar")
                 ActionType.ROADSIDE_ASSISTANCE -> roadsideAssistance()
                 ActionType.EMERGENCY_CALL -> emergencyCall()
                 ActionType.OTHER -> executeOtherAction(action)

@@ -447,6 +447,9 @@ fun MapScreen(
                     val defaultPicnicIcon = remember(mapContext, sizePx) {
                         vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_picnic_rounded, sizePx) ?: defaultGasIcon
                     }
+                    val defaultRadarIcon = remember(mapContext, sizePx) {
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_radar_rounded, sizePx) ?: defaultGasIcon
+                    }
                     val iconCache = remember(mapContext, sizePx) {
                         mutableMapOf<Int, BitmapDescriptor>().apply {
                             put(R.drawable.ic_poi_gas_rounded, defaultGasIcon)
@@ -456,6 +459,7 @@ fun MapScreen(
                             put(R.drawable.ic_poi_camping_rounded, defaultCampingIcon)
                             put(R.drawable.ic_poi_caravan_rounded, defaultCaravanIcon)
                             put(R.drawable.ic_poi_picnic_rounded, defaultPicnicIcon)
+                            put(R.drawable.ic_poi_radar_rounded, defaultRadarIcon)
                         }
                     }
                     fun iconFor(poi: Poi): BitmapDescriptor {
@@ -465,6 +469,7 @@ fun MapScreen(
                             PoiCategory.Camping -> R.drawable.ic_poi_camping_rounded
                             PoiCategory.CaravanSite -> R.drawable.ic_poi_caravan_rounded
                             PoiCategory.PicnicSite -> R.drawable.ic_poi_picnic_rounded
+                            PoiCategory.Radar -> R.drawable.ic_poi_radar_rounded
                             else -> when {
                                 poi.isElectric -> BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_electric_rounded
                                 else -> BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_gas_rounded
@@ -477,7 +482,14 @@ fun MapScreen(
                     val poisToShow = if (showFavoritesOnly && favoriteIds.isNotEmpty()) pois.filter { it.id in favoriteIds } else pois
                     poisToShow.forEach { poi ->
                         val priceLabel = remember(poi, settings.selectedMapEnergyTypes, settings.useVehicleFilter, settings.vehicleEnergy, settings.vehicleGasTypes) {
-                            if (poi.isElectric) {
+                            if (poi.poiCategory == PoiCategory.Radar) {
+                                // For radars, we try to extract speed limit (maxspeed) from tags if available via Overpass
+                                // Since Poi doesn't have a tags map, we might need to store it or assume it's part of details.
+                                // But currently OverpassProvider just sets name/address.
+                                // Let's check if the name contains a number (VMA).
+                                val regex = Regex("""(\d+)""")
+                                regex.find(poi.name)?.value?.let { "$it km/h" }
+                            } else if (poi.isElectric) {
                                 poi.irveDetails?.tarification?.let { t ->
                                     // Try to find a price like "0.45" or "0,45"
                                     val regex = Regex("""(\d+[.,]\d{2})""")
