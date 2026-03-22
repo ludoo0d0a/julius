@@ -95,7 +95,6 @@ class DataGouvClient(
         val ville = record["ville"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
         val cp = record["cp"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
         val address = listOf(adresse, cp, ville).filter { it.isNotBlank() }.joinToString(", ")
-        val brand = record["marque"]?.jsonPrimitive?.contentOrNull?.trim()
         val name = record["nom"]?.jsonPrimitive?.contentOrNull?.trim()
             ?: record["name"]?.jsonPrimitive?.contentOrNull?.trim()
             ?: "Station $id"
