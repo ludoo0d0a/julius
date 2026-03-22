@@ -64,7 +64,7 @@ enum class FuelCard { None, Routex }
 data class AppSettings(
     val vehicleBrand: String = "",
     val vehicleModel: String = "",
-    val vehicleEnergy: String = "gas", // gas, electric
+    val vehicleEnergy: String = "gas", // gas, electric, hybrid
     val vehicleGasTypes: Set<String> = DEFAULT_MAP_ENERGY_TYPES,
     val vehiclePowerLevels: Set<Int> = DEFAULT_MAP_POWER_LEVELS,
     val fuelCard: FuelCard = FuelCard.None,

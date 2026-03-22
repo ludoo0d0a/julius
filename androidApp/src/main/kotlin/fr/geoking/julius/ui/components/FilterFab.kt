@@ -148,8 +148,13 @@ fun FilterFab(
 
                 if (settings.useVehicleFilter) {
                     Box(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
+                        val energyLabel = when (settings.vehicleEnergy) {
+                            "electric" -> "Electric"
+                            "hybrid" -> "Gas & Electric"
+                            else -> "Fuel"
+                        }
                         Text(
-                            "Vehicle filters active: ${if (settings.vehicleEnergy == "electric") "Electric" else "Fuel"}\n" +
+                            "Vehicle filters active: $energyLabel\n" +
                             "Using your car's predefined preferences.",
                             color = Color.White.copy(alpha = 0.7f),
                             style = MaterialTheme.typography.bodyMedium

@@ -496,7 +496,10 @@ fun MapScreen(
                                     regex.find(t)?.value?.replace(",", ".")?.let { "$it €" }
                                 }
                             } else {
-                                val preferredEnergies = if (settings.useVehicleFilter) settings.vehicleGasTypes else settings.selectedMapEnergyTypes
+                                val preferredEnergies = if (settings.useVehicleFilter) {
+                                    if (settings.vehicleEnergy == "hybrid") settings.vehicleGasTypes + "electric"
+                                    else settings.vehicleGasTypes
+                                } else settings.selectedMapEnergyTypes
                                 val price = poi.fuelPrices?.filter { p ->
                                     val id = MapPoiFilter.fuelNameToId(p.fuelName)
                                     id != null && (preferredEnergies.isEmpty() || id in preferredEnergies)
