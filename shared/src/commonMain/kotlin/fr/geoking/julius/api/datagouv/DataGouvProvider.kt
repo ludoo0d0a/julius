@@ -4,6 +4,7 @@ import fr.geoking.julius.poi.FuelPrice
 import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiCategory
+import fr.geoking.julius.api.gas.GasApiClient
 import fr.geoking.julius.poi.PoiProvider
 import io.ktor.client.HttpClient
 
@@ -13,6 +14,8 @@ import io.ktor.client.HttpClient
  * dataset [prix-carburants-quotidien].
  *
  * Uses [DataGouvClient] for locations and prices. Data is updated daily (J-1).
+ * The quotidien export often omits enseigne fields; when [gasApiClient] is set, brands are
+ * filled from [GasApiClient] by nearest-neighbour match (same source data as gas-api.ovh).
  * No API key required. Returns [Poi] with [Poi.fuelPrices] populated.
  *
  * API: https://data.economie.gouv.fr/explore/dataset/prix-carburants-quotidien/api/
@@ -20,7 +23,8 @@ import io.ktor.client.HttpClient
 class DataGouvProvider(
     private val client: HttpClient,
     private val radiusKm: Int = 10,
-    private val limit: Int = 100
+    private val limit: Int = 100,
+    private val gasApiClient: GasApiClient? = null
 ) : PoiProvider {
 
     private val dataGouvClient = DataGouvClient(client)
@@ -32,12 +36,24 @@ class DataGouvProvider(
         longitude: Double,
         viewport: MapViewport?
     ): List<Poi> {
-        val stations = dataGouvClient.getStations(
+        var stations = dataGouvClient.getStations(
             latitude = latitude,
             longitude = longitude,
             radiusKm = radiusKm,
             limit = limit
         )
+        if (gasApiClient != null && stations.isNotEmpty()) {
+            try {
+                val gas = gasApiClient.searchStations(
+                    latitude = latitude,
+                    longitude = longitude,
+                    radiusKm = radiusKm.coerceIn(1, 100),
+                    limit = 100
+                )
+                stations = DataGouvGasBrandMerge.mergeGasApiBrands(stations, gas)
+            } catch (_: Exception) {
+            }
+        }
         return stations.map { station ->
             Poi(
                 id = station.id,

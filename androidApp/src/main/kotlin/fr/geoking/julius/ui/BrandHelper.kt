@@ -1,14 +1,16 @@
 package fr.geoking.julius.ui
 
 import fr.geoking.julius.R
+import java.text.Normalizer
+import java.util.Locale
 
 /**
- * Maps Routex brand_id to company display name and icon for gas station detail.
+ * Maps fuel station brand strings to display name and icon for map markers and detail.
  * Uses brand-specific drawable when available, otherwise default gas icon.
  */
 object BrandHelper {
 
-    /** Known brand_id (lowercase) -> company display name. */
+    /** Lookup key (lowercase, normalized) -> company display name. */
     private val brandNames = mapOf(
         "total" to "Total",
         "totalenergies" to "TotalEnergies",
@@ -27,6 +29,8 @@ object BrandHelper {
         "auchan" to "Auchan",
         "intermarche" to "Intermarché",
         "casino" to "Casino",
+        "superu" to "Super U",
+        "indigo" to "Indigo",
         "rel" to "REL",
         "rel.metz" to "REL",
         "circle k" to "Circle K",
@@ -39,7 +43,7 @@ object BrandHelper {
         "migros" to "Migros",
     )
 
-    /** brand_id (lowercase) -> brand icon drawable. Unlisted brands use ic_poi_gas. */
+    /** Lookup key -> brand icon drawable. Unlisted brands use ic_poi_gas. */
     private val brandIcons = mapOf(
         "total" to R.drawable.ic_brand_total,
         "totalenergies" to R.drawable.ic_brand_total,
@@ -59,9 +63,13 @@ object BrandHelper {
         "leclerc" to R.drawable.ic_brand_leclerc,
         "e.leclerc" to R.drawable.ic_brand_leclerc,
         "auchan" to R.drawable.ic_brand_auchan,
+        "intermarche" to R.drawable.ic_brand_intermarche,
+        "casino" to R.drawable.ic_brand_casino,
+        "superu" to R.drawable.ic_brand_superu,
+        "indigo" to R.drawable.ic_brand_indigo,
     )
 
-    /** brand_id (lowercase) -> rounded brand icon drawable. Unlisted brands use ic_poi_gas_rounded. */
+    /** Lookup key -> rounded brand icon drawable. Unlisted brands use ic_poi_gas_rounded. */
     private val roundedBrandIcons = mapOf(
         "total" to R.drawable.ic_brand_total_rounded,
         "totalenergies" to R.drawable.ic_brand_total_rounded,
@@ -81,6 +89,10 @@ object BrandHelper {
         "leclerc" to R.drawable.ic_brand_leclerc_rounded,
         "e.leclerc" to R.drawable.ic_brand_leclerc_rounded,
         "auchan" to R.drawable.ic_brand_auchan_rounded,
+        "intermarche" to R.drawable.ic_brand_intermarche_rounded,
+        "casino" to R.drawable.ic_brand_casino_rounded,
+        "superu" to R.drawable.ic_brand_superu_rounded,
+        "indigo" to R.drawable.ic_brand_indigo_rounded,
     )
 
     data class BrandInfo(
@@ -91,15 +103,36 @@ object BrandHelper {
 
     fun getBrandInfo(brandId: String?): BrandInfo? {
         if (brandId.isNullOrBlank()) return null
-        val normalized = brandId.trim().lowercase()
-        val name = brandNames[normalized] ?: brandId.trim().takeIf { it.isNotBlank() }
-            ?: return null
-        val iconResId = brandIcons[normalized] ?: R.drawable.ic_poi_gas
-        val roundedIconResId = roundedBrandIcons[normalized] ?: R.drawable.ic_poi_gas_rounded
+        val key = normalizeLookupKey(brandId)
+        if (key.isBlank()) return null
+        val displayName = brandNames[key] ?: brandId.trim()
+        val iconResId = brandIcons[key] ?: R.drawable.ic_poi_gas
+        val roundedIconResId = roundedBrandIcons[key] ?: R.drawable.ic_poi_gas_rounded
         return BrandInfo(
-            displayName = name,
+            displayName = displayName,
             iconResId = iconResId,
             roundedIconResId = roundedIconResId
         )
+    }
+
+    /**
+     * Strip accents, lowercase, and map common API / commercial variants to a single lookup key
+     * (e.g. "SUPER U EXPRESS", "Hyper U" -> superu).
+     */
+    private fun normalizeLookupKey(raw: String): String {
+        val base = Normalizer.normalize(raw.trim(), Normalizer.Form.NFD)
+            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+            .lowercase(Locale.FRANCE)
+            .replace(Regex("\\s+"), " ")
+        return when {
+            base.contains("systeme u") || base.contains("super u") || base.contains("hyper u") ||
+                base.contains("u express") || base.contains("station u") -> "superu"
+            base.contains("intermarche") -> "intermarche"
+            base.contains("casino") -> "casino"
+            base.contains("indigo") -> "indigo"
+            base.contains("total") && base.contains("access") -> "totalenergies"
+            base.contains("esso") && base.contains("express") -> "esso express"
+            else -> base.replace(". ", ".").trim()
+        }
     }
 }

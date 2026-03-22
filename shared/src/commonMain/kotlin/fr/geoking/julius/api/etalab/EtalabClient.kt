@@ -112,9 +112,13 @@ class EtalabClient(
     }
 
     internal fun parseGeo(record: JsonObject): Pair<Double, Double>? {
-        val lat = record["latitude"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
-        val lng = record["longitude"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
-        if (lat != null && lng != null) return Pair(lat, lng)
+        val latRaw = record["latitude"]?.jsonPrimitive?.contentOrNull
+        val lngRaw = record["longitude"]?.jsonPrimitive?.contentOrNull
+        if (latRaw != null && lngRaw != null) {
+            val lat = parseEconomyDegree(latRaw)
+            val lng = parseEconomyDegree(lngRaw)
+            if (lat != null && lng != null) return Pair(lat, lng)
+        }
         val geo = record["geom"]?.jsonObject
             ?: record["geolocation"]?.jsonObject
             ?: record["coordonnees_geo"]?.jsonObject
@@ -135,6 +139,15 @@ class EtalabClient(
         return null
     }
 
+    /**
+     * data.economie.gouv.fr sometimes returns latitude/longitude as fixed-point integers
+     * scaled by 1e5 (e.g. 4886205 → 48.86205) instead of decimal degrees.
+     */
+    private fun parseEconomyDegree(raw: String): Double? {
+        val d = raw.toDoubleOrNull() ?: return null
+        return if (kotlin.math.abs(d) > 1000.0) d / 100_000.0 else d
+    }
+
     private fun parseFuels(record: JsonObject): List<EtalabFuelPrice> {
         val list = mutableListOf<EtalabFuelPrice>()
         val prixElement = record["prix"] ?: return list
@@ -152,8 +165,12 @@ class EtalabClient(
         if (prixArray != null) {
             for (p in prixArray) {
                 val obj = p as? JsonObject ?: continue
-                val nom = obj["nom"]?.jsonPrimitive?.contentOrNull ?: obj["name"]?.jsonPrimitive?.contentOrNull ?: continue
+                val nom = obj["nom"]?.jsonPrimitive?.contentOrNull
+                    ?: obj["@nom"]?.jsonPrimitive?.contentOrNull
+                    ?: obj["name"]?.jsonPrimitive?.contentOrNull
+                    ?: continue
                 val raw = obj["valeur"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
+                    ?: obj["@valeur"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
                     ?: obj["value"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
                 if (raw != null) list.add(EtalabFuelPrice(name = nom, priceEur = raw))
             }

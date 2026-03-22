@@ -12,6 +12,7 @@ import fr.geoking.julius.api.datagouv.DataGouvCampingProvider
 import fr.geoking.julius.api.datagouv.DataGouvElecProvider
 import fr.geoking.julius.api.datagouv.DataGouvProvider
 import fr.geoking.julius.api.etalab.EtalabProvider
+import fr.geoking.julius.api.gas.GasApiClient
 import fr.geoking.julius.api.gas.GasApiProvider
 import fr.geoking.julius.api.openchargemap.OpenChargeMapClient
 import fr.geoking.julius.api.openchargemap.OpenChargeMapProvider
@@ -27,9 +28,11 @@ import fr.geoking.julius.api.geocoding.GeocodingClient
 import fr.geoking.julius.api.transit.BelgiumTransitProvider
 import fr.geoking.julius.api.transit.FranceTransitProvider
 import fr.geoking.julius.api.transit.LuxembourgTransitProvider
-import fr.geoking.julius.api.traffic.CitaTrafficClient
+import fr.geoking.julius.api.traffic.CitaGeoJsonTrafficClient
 import fr.geoking.julius.api.traffic.CitaTrafficProvider
 import fr.geoking.julius.api.traffic.GeographicRegion
+import fr.geoking.julius.api.traffic.TomTomTrafficClient
+import fr.geoking.julius.api.traffic.TomTomTrafficProvider
 import fr.geoking.julius.api.traffic.TrafficProviderFactory
 import fr.geoking.julius.api.toll.OpenTollDataParser
 import fr.geoking.julius.community.CommunityPoiRepository
@@ -68,7 +71,12 @@ val mapModule = module {
         GasApiProvider(get(), radiusKm = 10, limit = 20)
     }
     single<PoiProvider>(named("datagouv")) {
-        DataGouvProvider(get(), radiusKm = 10, limit = 100)
+        DataGouvProvider(
+            client = get(),
+            radiusKm = 10,
+            limit = 100,
+            gasApiClient = GasApiClient(get())
+        )
     }
     single<PoiProvider>(named("datagouvelec")) {
         DataGouvElecProvider(get(), radiusKm = 10, limit = 100)
@@ -121,13 +129,16 @@ val mapModule = module {
         BorneAvailabilityProviderFactory(get(named("belib")))
     }
 
-    // Traffic (e.g. Luxembourg CITA): factory returns provider for current location.
-    single { CitaTrafficClient(get()) }
+    // Traffic: Luxembourg CITA GeoJSON first; TomTom incidents as global fallback (needs TOMTOM_KEY).
+    single { CitaGeoJsonTrafficClient(get()) }
     single { CitaTrafficProvider(get()) }
+    single { TomTomTrafficClient(get()) }
+    single { TomTomTrafficProvider(get(), fr.geoking.julius.BuildConfig.TOMTOM_KEY) }
     single<TrafficProviderFactory> {
         TrafficProviderFactory(
             listOf(
-                GeographicRegion.Bbox(49.4, 5.7, 50.2, 6.6) to get<CitaTrafficProvider>()
+                GeographicRegion.Bbox(49.4, 5.7, 50.2, 6.6) to get<CitaTrafficProvider>(),
+                GeographicRegion.Everywhere to get<TomTomTrafficProvider>()
             )
         )
     }

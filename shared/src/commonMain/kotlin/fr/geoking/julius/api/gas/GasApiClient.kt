@@ -13,6 +13,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -119,7 +121,11 @@ class GasApiClient(
         val postCode = obj["postCode"]?.jsonPrimitive?.content
         val fullAddress = listOfNotNull(address, postCode, city).filter { it.isNotBlank() }.joinToString(", ")
 
-        val brandName = obj["brand"]?.jsonObject?.get("name")?.jsonPrimitive?.content
+        val brandName = when (val b = obj["brand"]) {
+            is JsonObject -> b["name"]?.jsonPrimitive?.contentOrNull
+            is JsonPrimitive -> b.content.takeIf { it.isNotBlank() && it != "null" }
+            else -> null
+        }
 
         val prices = mutableListOf<DataGouvPrice>()
         obj["prices"]?.jsonArray?.forEach { priceEl ->

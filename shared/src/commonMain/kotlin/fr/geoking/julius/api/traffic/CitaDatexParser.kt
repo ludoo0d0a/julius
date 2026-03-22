@@ -3,7 +3,7 @@ package fr.geoking.julius.api.traffic
 /**
  * Minimal parser for CITA DATEX II MeasuredDataPublication XML.
  * Extracts measurement site records: road, direction, location, speed.
- * Used by [CitaTrafficProvider]; can be replaced later by a shared DATEX II parser.
+ * Legacy DATEX II helper; [CitaTrafficProvider] uses GeoJSON. Kept for optional DATEX tooling.
  */
 object CitaDatexParser {
 

@@ -5,6 +5,9 @@ package fr.geoking.julius.api.traffic
  * Used by [TrafficProviderFactory] to select the right provider for (lat, lon).
  */
 sealed class GeographicRegion {
+
+    abstract fun contains(latitude: Double, longitude: Double): Boolean
+
     /** Bounding box: lat in [latMin, latMax], lon in [lonMin, lonMax]. */
     data class Bbox(
         val latMin: Double,
@@ -16,7 +19,11 @@ sealed class GeographicRegion {
             latitude in latMin..latMax && longitude in lonMin..lonMax
     }
 
-    open fun contains(latitude: Double, longitude: Double): Boolean = when (this) {
-        is Bbox -> this.contains(latitude, longitude)
+    /**
+     * Matches any coordinates. Register last in [TrafficProviderFactory] so regional providers
+     * (e.g. CITA) win inside their bbox.
+     */
+    data object Everywhere : GeographicRegion() {
+        override fun contains(latitude: Double, longitude: Double): Boolean = true
     }
 }
