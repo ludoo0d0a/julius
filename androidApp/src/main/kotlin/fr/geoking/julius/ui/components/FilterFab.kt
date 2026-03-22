@@ -18,7 +18,10 @@ import fr.geoking.julius.ui.*
 @Composable
 fun FilterFab(
     settingsManager: SettingsManager,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    favoritesFilterEnabled: Boolean = false,
+    showFavoritesOnly: Boolean = false,
+    onShowFavoritesOnlyChange: ((Boolean) -> Unit)? = null
 ) {
     val settings by settingsManager.settings.collectAsState()
     var showSheet by remember { mutableStateOf(false) }
@@ -43,8 +46,10 @@ fun FilterFab(
         )
     }
 
-    val activeFilterCount = remember(settings, filterMode) {
-        if (settings.useVehicleFilter) return@remember 1
+    val favoritesFilterActive = favoritesFilterEnabled && showFavoritesOnly
+    val activeFilterCount = remember(settings, filterMode, favoritesFilterActive) {
+        val favCount = if (favoritesFilterActive) 1 else 0
+        if (settings.useVehicleFilter) return@remember 1 + favCount
         val fuelFilters = if (filterMode == 0 || filterMode == 2) {
             val brandFilter = if (settings.mapBrands.isNotEmpty()) 1 else 0
             val energyFilter = if (settings.selectedMapEnergyTypes.size < DEFAULT_MAP_ENERGY_TYPES.size) 1 else 0
@@ -58,7 +63,7 @@ fun FilterFab(
             operatorFilter + powerFilter + connectorFilter
         } else 0
 
-        fuelFilters + elecFilters
+        favCount + fuelFilters + elecFilters
     }
 
     ExtendedFloatingActionButton(

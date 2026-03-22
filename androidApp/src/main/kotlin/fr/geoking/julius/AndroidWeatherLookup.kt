@@ -12,20 +12,22 @@ import fr.geoking.julius.shared.WeatherLookup
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class AndroidWeatherLookup(
     private val context: Context,
     private val permissionManager: PermissionManager
 ) : WeatherLookup, KoinComponent {
 
-    override suspend fun getCurrentWeather(locationQuery: String?): ActionResult {
+    override suspend fun getCurrentWeather(locationQuery: String?): ActionResult = withContext(Dispatchers.IO) {
         MapModuleLoader.ensureLoaded()
         val factory = get<WeatherProviderFactory>()
         val geocode = get<OpenMeteoGeocodingClient>()
 
         val (lat, lon, label) = if (locationQuery.isNullOrBlank()) {
             if (!permissionManager.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-                return ActionResult(
+                return@withContext ActionResult(
                     false,
                     "Location permission is needed for weather at your position. Ask the user to grant location, or ask for a city name."
                 )
@@ -34,7 +36,7 @@ class AndroidWeatherLookup(
             val location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
                 ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
             if (location == null) {
-                return ActionResult(
+                return@withContext ActionResult(
                     false,
                     "Could not read GPS position yet. Suggest the user try again or ask for weather in a named city."
                 )
@@ -42,7 +44,7 @@ class AndroidWeatherLookup(
             Triple(location.latitude, location.longitude, "your location")
         } else {
             val place = geocode.searchFirst(locationQuery.trim())
-                ?: return ActionResult(
+                ?: return@withContext ActionResult(
                     false,
                     "Could not find a place named \"${locationQuery.trim()}\"."
                 )
@@ -50,12 +52,12 @@ class AndroidWeatherLookup(
         }
 
         val provider = factory.getProvider(lat, lon)
-            ?: return ActionResult(false, "No weather data source available.")
+            ?: return@withContext ActionResult(false, "No weather data source available.")
         val info = try {
             provider.getWeather(lat, lon)
         } catch (e: Exception) {
-            return ActionResult(false, "Weather request failed: ${e.message ?: "unknown error"}")
-        } ?: return ActionResult(false, "Weather data unavailable for this location.")
+            return@withContext ActionResult(false, "Weather request failed: ${e.message ?: "unknown error"}")
+        } ?: return@withContext ActionResult(false, "Weather data unavailable for this location.")
 
         val msg = buildString {
             append("Weather near ").append(label).append(": ")
@@ -75,6 +77,6 @@ class AndroidWeatherLookup(
             }
             append(". Source: ").append(info.providerId)
         }
-        return ActionResult(true, msg)
+        return@withContext ActionResult(true, msg)
     }
 }

@@ -116,7 +116,7 @@ data class AppSettings(
     val selectedModel: PerplexityModel = PerplexityModel.LLAMA_3_1_SONAR_SMALL,
     val fractalQuality: FractalQuality = FractalQuality.Medium,
     val fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium,
-    val extendedActionsEnabled: Boolean = false,
+    val extendedActionsEnabled: Boolean = true,
     val wakeWordEnabled: Boolean = false,
     /** If enabled, saying "hey julius" while Julius is speaking will stop TTS and start listening. */
     val heyJuliusDuringSpeakingEnabled: Boolean = false,
@@ -320,7 +320,7 @@ open class SettingsManager(context: Context) {
             } catch (e: IllegalArgumentException) {
                 FractalColorIntensity.Medium
             },
-            extendedActionsEnabled = prefs.getBoolean("extended_actions_enabled", false),
+            extendedActionsEnabled = prefs.getBoolean("extended_actions_enabled", true),
             wakeWordEnabled = prefs.getBoolean("wake_word_enabled", false),
             heyJuliusDuringSpeakingEnabled = prefs.getBoolean("hey_julius_during_speaking_enabled", false),
             useCarMic = prefs.getBoolean("use_car_mic", false),
@@ -609,7 +609,7 @@ open class SettingsManager(context: Context) {
         model: PerplexityModel,
         fractalQuality: FractalQuality = FractalQuality.Medium,
         fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium,
-        extendedActionsEnabled: Boolean = false,
+        extendedActionsEnabled: Boolean = true,
         wakeWordEnabled: Boolean = false,
         heyJuliusDuringSpeakingEnabled: Boolean = false,
         useCarMic: Boolean = false,

@@ -1614,7 +1614,7 @@ fun SettingsScreenPreview() {
                     selectedModel = PerplexityModel.LLAMA_3_1_SONAR_SMALL,
                     fractalQuality = FractalQuality.Medium,
                     fractalColorIntensity = FractalColorIntensity.Medium,
-                    extendedActionsEnabled = false,
+                    extendedActionsEnabled = true,
                     textAnimation = TextAnimation.Fade
                 )
             )

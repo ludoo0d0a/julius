@@ -194,7 +194,7 @@ open class ConversationStore(
                 
                 // 2. Call AI (offload to Default dispatcher to avoid blocking main thread)
                 _state.value = _state.value.copy(status = VoiceEvent.Processing, lastError = null)
-                
+
                 val response = withContext(Dispatchers.Default) {
                     var contextPrompt = buildContextPrompt(_state.value.messages)
                     var resp = agent.process(contextPrompt)
@@ -289,6 +289,12 @@ open class ConversationStore(
 
     private fun buildContextPrompt(messages: List<ChatMessage>): String {
         val trimmedMessages = messages.takeLast(maxContextMessages)
+        val lastUserText = trimmedMessages.lastOrNull { it.sender == Role.User }?.text?.trim().orEmpty()
+        val capabilitiesInjection = if (AssistantCapabilities.isCapabilitiesHelpQuery(lastUserText)) {
+            AssistantCapabilities.llmInstructionForCapabilitiesOverview(_preferredSpeechLanguageTag.value)
+        } else {
+            null
+        }
         val history = trimmedMessages.joinToString("\n") { msg ->
             val speaker = if (msg.sender == Role.User) "User" else "Assistant"
             "$speaker: ${msg.text.trim()}"
@@ -298,7 +304,13 @@ open class ConversationStore(
             val langInstruction = if (langName != null) " Respond in $langName." else ""
             val nameInfo = if (_userName.value != null) " The user's name is $userName." else ""
 
-            val prompt = "$systemPrompt$nameInfo$langInstruction".trim()
+            val prompt = buildString {
+                append("$systemPrompt$nameInfo$langInstruction".trim())
+                if (capabilitiesInjection != null) {
+                    if (isNotEmpty()) append("\n\n")
+                    append(capabilitiesInjection)
+                }
+            }
             if (prompt.isNotBlank()) {
                 append("System: ")
                 append(prompt)
