@@ -21,6 +21,8 @@ class SelectorPoiProvider(
     private val settingsManager: SettingsManager
 ) : PoiProvider {
 
+    private val hybridProvider by lazy { HybridPoiProvider(routex, dataGouvElec) }
+
     private fun currentProvider(): PoiProvider = when (settingsManager.settings.value.selectedPoiProvider) {
         PoiProviderType.Routex -> routex
         PoiProviderType.Etalab -> etalab
@@ -30,6 +32,24 @@ class SelectorPoiProvider(
         PoiProviderType.OpenChargeMap -> openChargeMap
         PoiProviderType.Chargy -> chargy
         PoiProviderType.Overpass -> overpass
+        PoiProviderType.Hybrid -> HybridPoiProvider(routex, dataGouvElec)
+    }
+
+    private class HybridPoiProvider(
+        private val gasProvider: PoiProvider,
+        private val elecProvider: PoiProvider
+    ) : PoiProvider {
+        override fun supportedCategories(): Set<PoiCategory> = setOf(PoiCategory.Gas, PoiCategory.Irve)
+        override suspend fun search(request: PoiSearchRequest): List<Poi> {
+            val gasResult = gasProvider.search(request.copy(categories = setOf(PoiCategory.Gas)))
+            val elecResult = elecProvider.search(request.copy(categories = setOf(PoiCategory.Irve)))
+            return gasResult + elecResult
+        }
+        override suspend fun getGasStations(latitude: Double, longitude: Double, viewport: MapViewport?): List<Poi> {
+            val gasResult = gasProvider.getGasStations(latitude, longitude, viewport)
+            val elecResult = elecProvider.getGasStations(latitude, longitude, viewport)
+            return gasResult + elecResult
+        }
     }
 
     override suspend fun search(request: PoiSearchRequest): List<Poi> {
@@ -83,6 +103,7 @@ class SelectorPoiProvider(
             PoiProviderType.OpenChargeMap -> openChargeMap
             PoiProviderType.Chargy -> chargy
             PoiProviderType.Overpass -> overpass
+            PoiProviderType.Hybrid -> hybridProvider
         }
         var result = activeProvider.search(effectiveRequest)
         if (provider == PoiProviderType.Overpass && PoiCategory.CaravanSite in categories && dataGouvCamping != null) {
@@ -187,6 +208,7 @@ class SelectorPoiProvider(
             PoiProviderType.OpenChargeMap -> openChargeMap
             PoiProviderType.Chargy -> chargy
             PoiProviderType.Overpass -> overpass
+            PoiProviderType.Hybrid -> hybridProvider
         }
         var result = activeProvider.getGasStations(latitude, longitude, viewport)
 

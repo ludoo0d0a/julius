@@ -24,32 +24,41 @@ fun FilterFab(
     var showSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
 
-    // Mode: 0 for Fuel, 1 for Electric
+    // Mode: 0 for Fuel, 1 for Electric, 2 for Hybrid
     var filterMode by remember(settings.selectedPoiProvider, settings.useVehicleFilter, settings.vehicleEnergy) {
         mutableStateOf(
             if (settings.useVehicleFilter) {
-                if (settings.vehicleEnergy == "electric") 1 else 0
+                when (settings.vehicleEnergy) {
+                    "electric" -> 1
+                    "hybrid" -> 2
+                    else -> 0
+                }
             } else {
-                if (settings.selectedPoiProvider == PoiProviderType.DataGouvElec ||
-                    settings.selectedPoiProvider == PoiProviderType.OpenChargeMap ||
-                    settings.selectedPoiProvider == PoiProviderType.Chargy
-                ) 1 else 0
+                when (settings.selectedPoiProvider) {
+                    PoiProviderType.DataGouvElec, PoiProviderType.OpenChargeMap, PoiProviderType.Chargy -> 1
+                    PoiProviderType.Hybrid -> 2
+                    else -> 0
+                }
             }
         )
     }
 
     val activeFilterCount = remember(settings, filterMode) {
         if (settings.useVehicleFilter) return@remember 1
-        if (filterMode == 0) {
+        val fuelFilters = if (filterMode == 0 || filterMode == 2) {
             val brandFilter = if (settings.mapBrands.isNotEmpty()) 1 else 0
             val energyFilter = if (settings.selectedMapEnergyTypes.size < DEFAULT_MAP_ENERGY_TYPES.size) 1 else 0
             brandFilter + energyFilter
-        } else {
+        } else 0
+
+        val elecFilters = if (filterMode == 1 || filterMode == 2) {
             val operatorFilter = if (settings.mapIrveOperators.isNotEmpty()) 1 else 0
             val powerFilter = if (settings.mapPowerLevels.isNotEmpty()) 1 else 0
             val connectorFilter = if (settings.selectedMapConnectorTypes.isNotEmpty()) 1 else 0
             operatorFilter + powerFilter + connectorFilter
-        }
+        } else 0
+
+        fuelFilters + elecFilters
     }
 
     ExtendedFloatingActionButton(
@@ -110,12 +119,13 @@ fun FilterFab(
                             filterMode = 0
                             if (settings.selectedPoiProvider == PoiProviderType.DataGouvElec ||
                                 settings.selectedPoiProvider == PoiProviderType.OpenChargeMap ||
-                                settings.selectedPoiProvider == PoiProviderType.Chargy
+                                settings.selectedPoiProvider == PoiProviderType.Chargy ||
+                                settings.selectedPoiProvider == PoiProviderType.Hybrid
                             ) {
                                 settingsManager.setPoiProviderType(PoiProviderType.Routex)
                             }
                         },
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
                         label = { Text("Fuel") },
                         colors = SegmentedButtonDefaults.colors(
                             activeContainerColor = MaterialTheme.colorScheme.primary,
@@ -130,13 +140,31 @@ fun FilterFab(
                             filterMode = 1
                             if (settings.selectedPoiProvider != PoiProviderType.DataGouvElec &&
                                 settings.selectedPoiProvider != PoiProviderType.OpenChargeMap &&
-                                settings.selectedPoiProvider != PoiProviderType.Chargy
+                                settings.selectedPoiProvider != PoiProviderType.Chargy ||
+                                settings.selectedPoiProvider == PoiProviderType.Hybrid
                             ) {
                                 settingsManager.setPoiProviderType(PoiProviderType.DataGouvElec)
                             }
                         },
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
                         label = { Text("Electric") },
+                        colors = SegmentedButtonDefaults.colors(
+                            activeContainerColor = MaterialTheme.colorScheme.primary,
+                            activeContentColor = MaterialTheme.colorScheme.onPrimary,
+                            inactiveContainerColor = Color(0xFF334155),
+                            inactiveContentColor = Color.White
+                        )
+                    )
+                    SegmentedButton(
+                        selected = filterMode == 2,
+                        onClick = {
+                            filterMode = 2
+                            if (settings.selectedPoiProvider != PoiProviderType.Hybrid) {
+                                settingsManager.setPoiProviderType(PoiProviderType.Hybrid)
+                            }
+                        },
+                        shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
+                        label = { Text("Hybrid") },
                         colors = SegmentedButtonDefaults.colors(
                             activeContainerColor = MaterialTheme.colorScheme.primary,
                             activeContentColor = MaterialTheme.colorScheme.onPrimary,
@@ -161,9 +189,11 @@ fun FilterFab(
                         )
                     }
                 } else {
-                    if (filterMode == 0) {
+                    if (filterMode == 0 || filterMode == 2) {
                         FuelFilters(settingsManager)
-                    } else {
+                        if (filterMode == 2) Spacer(modifier = Modifier.height(24.dp))
+                    }
+                    if (filterMode == 1 || filterMode == 2) {
                         ElectricFilters(settingsManager)
                     }
                 }
@@ -306,6 +336,37 @@ private fun ElectricFilters(settingsManager: SettingsManager) {
                 border = FilterChipDefaults.filterChipBorder(
                     enabled = true,
                     selected = settings.mapPowerLevels.contains(id),
+                    borderColor = Color.White.copy(alpha = 0.3f),
+                    selectedBorderColor = MaterialTheme.colorScheme.primary
+                )
+            )
+        }
+    }
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    FilterSectionTitle("Connectors")
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        MAP_CONNECTOR_OPTIONS.forEach { (id, label) ->
+            FilterChip(
+                selected = settings.selectedMapConnectorTypes.contains(id),
+                onClick = {
+                    val newTypes = if (settings.selectedMapConnectorTypes.contains(id)) settings.selectedMapConnectorTypes - id else settings.selectedMapConnectorTypes + id
+                    settingsManager.setMapConnectorTypes(newTypes)
+                },
+                label = { Text(label) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    labelColor = Color.White,
+                    containerColor = Color(0xFF334155)
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = settings.selectedMapConnectorTypes.contains(id),
                     borderColor = Color.White.copy(alpha = 0.3f),
                     selectedBorderColor = MaterialTheme.colorScheme.primary
                 )
