@@ -159,7 +159,7 @@ class DataGouvElecClient(
         return stations
     }
 
-    private fun parseStation(record: JsonObject): DataGouvElecStationRaw? {
+    internal fun parseStation(record: JsonObject): DataGouvElecStationRaw? {
         val stationId = record["id_station_itinerance"]?.jsonPrimitive?.content ?: return null
         val pdcId = record["id_pdc_itinerance"]?.jsonPrimitive?.content ?: stationId
         val id = stationId
@@ -172,11 +172,11 @@ class DataGouvElecClient(
                 coord["lat"]?.jsonPrimitive?.content?.toDoubleOrNull()
             }
         if (lat == null || lng == null) return null
+        val brand = record["nom_enseigne"]?.jsonPrimitive?.content?.trim()
         val name = record["nom_station"]?.jsonPrimitive?.content?.trim().orEmpty().ifBlank {
-            record["nom_enseigne"]?.jsonPrimitive?.content?.trim() ?: "IRVE $id"
+            brand ?: "Station"
         }
         val address = record["adresse_station"]?.jsonPrimitive?.content?.trim().orEmpty()
-        val brand = record["nom_enseigne"]?.jsonPrimitive?.content?.trim()
         val power = record["puissance_nominale"]?.jsonPrimitive?.content?.toDoubleOrNull()
         val operator = record["nom_operateur"]?.jsonPrimitive?.content?.trim()?.takeIf { it.isNotBlank() }
         val implantation = record["implantation_station"]?.jsonPrimitive?.content?.trim().orEmpty()
@@ -218,7 +218,7 @@ class DataGouvElecClient(
 }
 
 /** Raw PDC record before aggregation by station. */
-private data class DataGouvElecStationRaw(
+internal data class DataGouvElecStationRaw(
     val stationId: String,
     val id: String,
     val name: String,

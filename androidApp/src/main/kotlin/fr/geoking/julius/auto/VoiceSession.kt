@@ -50,8 +50,43 @@ class VoiceSession : Session(), KoinComponent {
         return cachedMapDeps!!
     }
 
+    override fun onNewIntent(intent: Intent) {
+        val nav = fr.geoking.julius.IntentNavigationHelper.parseNavIntent(intent)
+        if (nav != null) {
+            val mapDeps = getMapDeps()
+            val destQuery = nav.address ?: nav.latitude?.let { "${nav.latitude}, ${nav.longitude}" } ?: ""
+            carContext.getCarService(androidx.car.app.ScreenManager::class.java).push(
+                AutoRoutePlanningScreen(
+                    carContext = carContext,
+                    routePlanner = mapDeps.routePlanner,
+                    routingClient = mapDeps.routingClient,
+                    poiProvider = mapDeps.poiProvider,
+                    geocodingClient = mapDeps.geocodingClient,
+                    settingsManager = settingsManager,
+                    initialDestinationQuery = destQuery,
+                    initialDestination = nav
+                )
+            )
+        }
+    }
+
     override fun onCreateScreen(intent: Intent): Screen {
         (voiceManager as? fr.geoking.julius.AndroidVoiceManager)?.setCarContext(carContext)
+        val nav = fr.geoking.julius.IntentNavigationHelper.parseNavIntent(intent)
+        if (nav != null) {
+            val mapDeps = getMapDeps()
+            val destQuery = nav.address ?: nav.latitude?.let { "${nav.latitude}, ${nav.longitude}" } ?: ""
+            return AutoRoutePlanningScreen(
+                carContext = carContext,
+                routePlanner = mapDeps.routePlanner,
+                routingClient = mapDeps.routingClient,
+                poiProvider = mapDeps.poiProvider,
+                geocodingClient = mapDeps.geocodingClient,
+                settingsManager = settingsManager,
+                initialDestinationQuery = destQuery,
+                initialDestination = nav
+            )
+        }
         return try {
             MainScreen(carContext, store, settingsManager, julesClient, this::getMapDeps)
         } catch (e: Exception) {

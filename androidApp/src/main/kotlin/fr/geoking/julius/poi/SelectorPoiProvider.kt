@@ -34,7 +34,11 @@ class SelectorPoiProvider(
 
     override suspend fun search(request: PoiSearchRequest): List<Poi> {
         val settings = settingsManager.settings.value
-        val provider = settings.selectedPoiProvider
+        val provider = if (settings.useVehicleFilter && settings.fuelCard == fr.geoking.julius.FuelCard.Routex && (settings.vehicleEnergy == "gas" || settings.vehicleEnergy == "hybrid")) {
+            PoiProviderType.Routex
+        } else {
+            settings.selectedPoiProvider
+        }
         val vehicleType = settings.vehicleType
         val categories = when (provider) {
             PoiProviderType.Overpass -> {
@@ -49,6 +53,7 @@ class SelectorPoiProvider(
                         "rest_area" -> PoiCategory.RestArea
                         "restaurant" -> PoiCategory.Restaurant
                         "fast_food" -> PoiCategory.FastFood
+                        "speed_camera" -> PoiCategory.Radar
                         else -> null
                     }
                 }.toSet()
@@ -69,7 +74,17 @@ class SelectorPoiProvider(
             }
         }
         val effectiveRequest = request.copy(categories = categories)
-        var result = currentProvider().search(effectiveRequest)
+        val activeProvider = when (provider) {
+            PoiProviderType.Routex -> routex
+            PoiProviderType.Etalab -> etalab
+            PoiProviderType.GasApi -> gasApi
+            PoiProviderType.DataGouv -> dataGouv
+            PoiProviderType.DataGouvElec -> dataGouvElec
+            PoiProviderType.OpenChargeMap -> openChargeMap
+            PoiProviderType.Chargy -> chargy
+            PoiProviderType.Overpass -> overpass
+        }
+        var result = activeProvider.search(effectiveRequest)
         if (provider == PoiProviderType.Overpass && PoiCategory.CaravanSite in categories && dataGouvCamping != null) {
             val extra = dataGouvCamping.search(effectiveRequest)
             val seenIds = result.mapTo(mutableSetOf()) { it.id }
@@ -84,20 +99,40 @@ class SelectorPoiProvider(
         }
 
         if (provider != PoiProviderType.Overpass) {
-            val selectedEnergies = settings.selectedMapEnergyTypes
+            val selectedEnergies = if (settings.useVehicleFilter) {
+                when (settings.vehicleEnergy) {
+                    "electric" -> setOf("electric")
+                    "hybrid" -> settings.vehicleGasTypes + "electric"
+                    else -> settings.vehicleGasTypes
+                }
+            } else settings.selectedMapEnergyTypes
+
             if (selectedEnergies.isNotEmpty()) {
                 result = result.filter { MapPoiFilter.matchesEnergyFilter(it, selectedEnergies) }
             }
-            if (settings.mapBrands.isNotEmpty()) {
-                val brandIds = settings.mapBrands.map { it.lowercase() }.toSet()
+
+            val filterBrands = if (settings.useVehicleFilter) {
+                if (settings.fuelCard == fr.geoking.julius.FuelCard.Routex && (settings.vehicleEnergy == "gas" || settings.vehicleEnergy == "hybrid")) {
+                    setOf("esso", "eni", "total", "shell", "aral", "totalenergies")
+                } else emptySet()
+            } else settings.mapBrands
+
+            if (filterBrands.isNotEmpty()) {
+                val brandIds = filterBrands.map { it.lowercase() }.toSet()
                 result = result.filter { poi ->
-                    poi.isElectric || (poi.brand?.lowercase()?.let { it in brandIds } ?: false)
+                    poi.isElectric || (poi.brand?.lowercase()?.let { brand ->
+                        brandIds.any { id -> brand.contains(id) }
+                    } ?: false)
                 }
             }
 
             // Apply IRVE filters (power, operator, connectors) to all electric stations regardless of provider
-            if (settings.mapPowerLevels.isNotEmpty()) {
-                val levels = settings.mapPowerLevels
+            val filterPowerLevels = if (settings.useVehicleFilter && (settings.vehicleEnergy == "electric" || settings.vehicleEnergy == "hybrid")) {
+                settings.vehiclePowerLevels
+            } else settings.mapPowerLevels
+
+            if (filterPowerLevels.isNotEmpty()) {
+                val levels = filterPowerLevels
                 result = result.filter { poi ->
                     !poi.isElectric || poi.powerKw == null || levels.any { level ->
                         val p = poi.powerKw!!
@@ -113,8 +148,12 @@ class SelectorPoiProvider(
                     }
                 }
             }
-            if (settings.mapIrveOperators.isNotEmpty()) {
-                val operators = settings.mapIrveOperators.map { it.trim().lowercase() }
+            val filterIrveOperators = if (settings.useVehicleFilter && (settings.vehicleEnergy == "electric" || settings.vehicleEnergy == "hybrid")) {
+                emptySet() // No specific operator filter for vehicle yet
+            } else settings.mapIrveOperators
+
+            if (filterIrveOperators.isNotEmpty()) {
+                val operators = filterIrveOperators.map { it.trim().lowercase() }
                 result = result.filter { poi ->
                     !poi.isElectric || operators.any { op -> poi.operator?.trim()?.lowercase()?.contains(op) == true }
                 }
@@ -134,8 +173,22 @@ class SelectorPoiProvider(
         viewport: MapViewport?
     ): List<Poi> {
         val settings = settingsManager.settings.value
-        val provider = settings.selectedPoiProvider
-        var result = currentProvider().getGasStations(latitude, longitude, viewport)
+        val provider = if (settings.useVehicleFilter && settings.fuelCard == fr.geoking.julius.FuelCard.Routex && (settings.vehicleEnergy == "gas" || settings.vehicleEnergy == "hybrid")) {
+            PoiProviderType.Routex
+        } else {
+            settings.selectedPoiProvider
+        }
+        val activeProvider = when (provider) {
+            PoiProviderType.Routex -> routex
+            PoiProviderType.Etalab -> etalab
+            PoiProviderType.GasApi -> gasApi
+            PoiProviderType.DataGouv -> dataGouv
+            PoiProviderType.DataGouvElec -> dataGouvElec
+            PoiProviderType.OpenChargeMap -> openChargeMap
+            PoiProviderType.Chargy -> chargy
+            PoiProviderType.Overpass -> overpass
+        }
+        var result = activeProvider.getGasStations(latitude, longitude, viewport)
 
         if (latitude in 49.4..50.2 && longitude in 5.7..6.6 && provider != PoiProviderType.Chargy) {
             val extra = chargy.getGasStations(latitude, longitude, viewport)
@@ -143,20 +196,40 @@ class SelectorPoiProvider(
             result = result + extra.filter { it.id !in seenIds }
         }
 
-        val selectedEnergies = settings.selectedMapEnergyTypes
+        val selectedEnergies = if (settings.useVehicleFilter) {
+            when (settings.vehicleEnergy) {
+                "electric" -> setOf("electric")
+                "hybrid" -> settings.vehicleGasTypes + "electric"
+                else -> settings.vehicleGasTypes
+            }
+        } else settings.selectedMapEnergyTypes
+
         if (selectedEnergies.isNotEmpty()) {
             result = result.filter { MapPoiFilter.matchesEnergyFilter(it, selectedEnergies) }
         }
-        if (settings.mapBrands.isNotEmpty()) {
-            val brandIds = settings.mapBrands.map { it.lowercase() }.toSet()
+
+        val filterBrands = if (settings.useVehicleFilter) {
+            if (settings.fuelCard == fr.geoking.julius.FuelCard.Routex && (settings.vehicleEnergy == "gas" || settings.vehicleEnergy == "hybrid")) {
+                setOf("esso", "eni", "total", "shell", "aral", "totalenergies")
+            } else emptySet()
+        } else settings.mapBrands
+
+        if (filterBrands.isNotEmpty()) {
+            val brandIds = filterBrands.map { it.lowercase() }.toSet()
             result = result.filter { poi ->
-                poi.isElectric || (poi.brand?.lowercase()?.let { it in brandIds } ?: false)
+                poi.isElectric || (poi.brand?.lowercase()?.let { brand ->
+                    brandIds.any { id -> brand.contains(id) }
+                } ?: false)
             }
         }
 
         // Apply IRVE filters
-        if (settings.mapPowerLevels.isNotEmpty()) {
-            val levels = settings.mapPowerLevels
+        val filterPowerLevels = if (settings.useVehicleFilter && (settings.vehicleEnergy == "electric" || settings.vehicleEnergy == "hybrid")) {
+            settings.vehiclePowerLevels
+        } else settings.mapPowerLevels
+
+        if (filterPowerLevels.isNotEmpty()) {
+            val levels = filterPowerLevels
             result = result.filter { poi ->
                 !poi.isElectric || poi.powerKw == null || levels.any { level ->
                     val p = poi.powerKw!!
@@ -172,8 +245,12 @@ class SelectorPoiProvider(
                 }
             }
         }
-        if (settings.mapIrveOperators.isNotEmpty()) {
-            val operators = settings.mapIrveOperators.map { it.trim().lowercase() }
+        val filterIrveOperators = if (settings.useVehicleFilter && (settings.vehicleEnergy == "electric" || settings.vehicleEnergy == "hybrid")) {
+            emptySet()
+        } else settings.mapIrveOperators
+
+        if (filterIrveOperators.isNotEmpty()) {
+            val operators = filterIrveOperators.map { it.trim().lowercase() }
             result = result.filter { poi ->
                 !poi.isElectric || operators.any { op -> poi.operator?.trim()?.lowercase()?.contains(op) == true }
             }

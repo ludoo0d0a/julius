@@ -96,6 +96,13 @@ object ActionParser {
                 return DeviceAction(type = ActionType.FIND_GAS_STATIONS)
             }
 
+            // Find electric stations
+            lowerText.contains("electric station") || lowerText.contains("charging station") ||
+            lowerText.contains("recharger") || lowerText.contains("borne électrique") ||
+            lowerText.contains("electric reloading") -> {
+                return DeviceAction(type = ActionType.FIND_ELECTRIC_STATIONS)
+            }
+
             // Find parking
             lowerText.contains("parking") || lowerText.contains("garer") -> {
                 return DeviceAction(type = ActionType.FIND_PARKING)
@@ -117,6 +124,12 @@ object ActionParser {
             lowerText.contains("service area") || lowerText.contains("aire de repos") ||
             lowerText.contains("aire d'autoroute") -> {
                 return DeviceAction(type = ActionType.FIND_SERVICE_AREA)
+            }
+
+            // Find radars
+            lowerText.contains("radar") || lowerText.contains("speed camera") ||
+            lowerText.contains("contrôle de vitesse") -> {
+                return DeviceAction(type = ActionType.FIND_RADARS)
             }
 
             // Get traffic

@@ -38,6 +38,7 @@ class AndroidActionExecutor(
                 ActionType.GET_VOLUME_LEVEL -> getVolumeLevels()
                 ActionType.REQUEST_PERMISSION -> requestPermission(action.target)
                 ActionType.FIND_GAS_STATIONS -> findGasStations()
+                ActionType.FIND_ELECTRIC_STATIONS -> findElectricStations()
                 ActionType.FIND_PARKING -> findNearby("parking")
                 ActionType.FIND_RESTAURANTS -> findNearby("restaurant")
                 ActionType.FIND_FASTFOOD -> findNearby("fast food")
@@ -46,6 +47,7 @@ class AndroidActionExecutor(
                 ActionType.PLAY_AUDIOBOOK -> playAudiobook()
                 ActionType.CALL_CONTACT -> callContact(action.target)
                 ActionType.FIND_HOSPITAL -> findNearby("hospital")
+                ActionType.FIND_RADARS -> findNearby("radar")
                 ActionType.ROADSIDE_ASSISTANCE -> roadsideAssistance()
                 ActionType.EMERGENCY_CALL -> emergencyCall()
                 ActionType.OTHER -> executeOtherAction(action)
@@ -242,6 +244,21 @@ class AndroidActionExecutor(
         } catch (e: Exception) {
             // Fallback to external if internal fails
             findNearby("gas station")
+        }
+    }
+
+    private fun findElectricStations(): ActionResult {
+        return try {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("julius://map/electric_stations")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                `package` = context.packageName
+            }
+            context.startActivity(intent)
+            ActionResult(true, "Opening internal electric station search")
+        } catch (e: Exception) {
+            // Fallback to external if internal fails
+            findNearby("electric charging station")
         }
     }
 
