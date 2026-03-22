@@ -21,6 +21,7 @@ enum class ActionType {
     FIND_FASTFOOD,
     FIND_SERVICE_AREA,
     GET_TRAFFIC,
+    GET_WEATHER,
     PLAY_AUDIOBOOK,
     CALL_CONTACT,
     FIND_HOSPITAL,

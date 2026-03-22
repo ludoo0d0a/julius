@@ -132,6 +132,13 @@ object ActionParser {
                 return DeviceAction(type = ActionType.FIND_RADARS)
             }
 
+            // Weather — target null uses device location when executor supports it
+            lowerText.contains("weather") || lowerText.contains("météo") || lowerText.contains("meteo") ||
+            lowerText.contains("quel temps") || lowerText.contains("quelle météo") ||
+            lowerText.contains("what's the weather") || lowerText.contains("what is the weather") -> {
+                return DeviceAction(type = ActionType.GET_WEATHER, target = extractWeatherLocation(text))
+            }
+
             // Get traffic
             lowerText.contains("traffic") || lowerText.contains("trafic") ||
             lowerText.contains("bouchon") -> {
@@ -355,6 +362,27 @@ object ActionParser {
         } else {
             "Alarm"
         }
+    }
+
+    private fun extractWeatherLocation(text: String): String? {
+        val patterns = listOf(
+            Regex("""weather\s+(?:in|at|for)\s+(.+)""", RegexOption.IGNORE_CASE),
+            Regex("""what(?:'s| is)\s+the\s+weather\s+(?:in|at|for)\s+(.+)""", RegexOption.IGNORE_CASE),
+            Regex("""météo\s+(?:à|a|en|pour)\s+(.+)""", RegexOption.IGNORE_CASE),
+            Regex("""meteo\s+(?:a|à|en|pour)\s+(.+)""", RegexOption.IGNORE_CASE),
+            Regex("""temps\s+(?:à|a|en|pour)\s+(.+)""", RegexOption.IGNORE_CASE),
+            Regex("""quel temps\s+(?:à|a|en|pour)\s+(.+)""", RegexOption.IGNORE_CASE),
+            Regex("""quelle météo\s+(?:à|a|en|pour)\s+(.+)""", RegexOption.IGNORE_CASE)
+        )
+        for (pattern in patterns) {
+            val match = pattern.find(text) ?: continue
+            return match.groupValues[1].trim()
+                .removeSuffix(".")
+                .removeSuffix("?")
+                .trim()
+                .takeIf { it.isNotBlank() }
+        }
+        return null
     }
 
     private fun extractCallTarget(text: String): String? {

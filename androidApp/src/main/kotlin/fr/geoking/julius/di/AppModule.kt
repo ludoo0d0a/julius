@@ -2,6 +2,7 @@ package fr.geoking.julius.di
 
 import fr.geoking.julius.AndroidVoiceManager
 import fr.geoking.julius.AndroidActionExecutor
+import fr.geoking.julius.AndroidWeatherLookup
 import fr.geoking.julius.AppSettings
 import fr.geoking.julius.AndroidPermissionManager
 import fr.geoking.julius.GoogleAuthManager
@@ -14,6 +15,7 @@ import fr.geoking.julius.shared.VoiceManager
 import fr.geoking.julius.voice.VoskTranscriber
 import fr.geoking.julius.shared.ActionExecutor
 import fr.geoking.julius.shared.PermissionManager
+import fr.geoking.julius.shared.WeatherLookup
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.shared.MessagePersistence
 import fr.geoking.julius.persistence.AppDatabase
@@ -193,8 +195,12 @@ val appModule = module {
 
     // Map/route/POI/transit/traffic/toll are in mapModule; load via MapModuleLoader when opening map.
 
+    single<WeatherLookup> {
+        AndroidWeatherLookup(androidContext(), get())
+    }
+
     single<ActionExecutor> {
-        AndroidActionExecutor(androidContext(), get())
+        AndroidActionExecutor(androidContext(), get(), get())
     }
 
     single { VoskTranscriber(androidContext(), modelDirPath = null) }

@@ -16,10 +16,12 @@ import fr.geoking.julius.shared.ActionResult
 import fr.geoking.julius.shared.ActionType
 import fr.geoking.julius.shared.DeviceAction
 import fr.geoking.julius.shared.PermissionManager
+import fr.geoking.julius.shared.WeatherLookup
 
 class AndroidActionExecutor(
     private val context: Context,
-    private val permissionManager: PermissionManager
+    private val permissionManager: PermissionManager,
+    private val weatherLookup: WeatherLookup
 ) : ActionExecutor {
 
     override suspend fun executeAction(action: DeviceAction): ActionResult {
@@ -44,6 +46,7 @@ class AndroidActionExecutor(
                 ActionType.FIND_FASTFOOD -> findNearby("fast food")
                 ActionType.FIND_SERVICE_AREA -> findNearby("rest area")
                 ActionType.GET_TRAFFIC -> getTraffic()
+                ActionType.GET_WEATHER -> weatherLookup.getCurrentWeather(action.target)
                 ActionType.PLAY_AUDIOBOOK -> playAudiobook()
                 ActionType.CALL_CONTACT -> callContact(action.target)
                 ActionType.FIND_HOSPITAL -> findNearby("hospital")

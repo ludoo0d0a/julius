@@ -1,0 +1,80 @@
+package fr.geoking.julius
+
+import android.Manifest
+import android.content.Context
+import android.location.LocationManager
+import fr.geoking.julius.api.weather.OpenMeteoGeocodingClient
+import fr.geoking.julius.api.weather.WeatherProviderFactory
+import fr.geoking.julius.di.MapModuleLoader
+import fr.geoking.julius.shared.ActionResult
+import fr.geoking.julius.shared.PermissionManager
+import fr.geoking.julius.shared.WeatherLookup
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.get
+import java.util.Locale
+
+class AndroidWeatherLookup(
+    private val context: Context,
+    private val permissionManager: PermissionManager
+) : WeatherLookup, KoinComponent {
+
+    override suspend fun getCurrentWeather(locationQuery: String?): ActionResult {
+        MapModuleLoader.ensureLoaded()
+        val factory = get<WeatherProviderFactory>()
+        val geocode = get<OpenMeteoGeocodingClient>()
+
+        val (lat, lon, label) = if (locationQuery.isNullOrBlank()) {
+            if (!permissionManager.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                return ActionResult(
+                    false,
+                    "Location permission is needed for weather at your position. Ask the user to grant location, or ask for a city name."
+                )
+            }
+            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            val location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+            if (location == null) {
+                return ActionResult(
+                    false,
+                    "Could not read GPS position yet. Suggest the user try again or ask for weather in a named city."
+                )
+            }
+            Triple(location.latitude, location.longitude, "your location")
+        } else {
+            val place = geocode.searchFirst(locationQuery.trim())
+                ?: return ActionResult(
+                    false,
+                    "Could not find a place named \"${locationQuery.trim()}\"."
+                )
+            Triple(place.latitude, place.longitude, place.label)
+        }
+
+        val provider = factory.getProvider(lat, lon)
+            ?: return ActionResult(false, "No weather data source available.")
+        val info = try {
+            provider.getWeather(lat, lon)
+        } catch (e: Exception) {
+            return ActionResult(false, "Weather request failed: ${e.message ?: "unknown error"}")
+        } ?: return ActionResult(false, "Weather data unavailable for this location.")
+
+        val msg = buildString {
+            append("Weather near ").append(label).append(": ")
+            val parts = mutableListOf<String>()
+            info.temperatureC?.let {
+                parts += "${String.format(Locale.US, "%.0f", it)}°C"
+            }
+            info.conditionLabel?.let { parts += it }
+            info.windSpeedMs?.let {
+                parts += "wind ${String.format(Locale.US, "%.0f", it)} m/s"
+            }
+            info.relativeHumidityPercent?.let { parts += "humidity ${it}%" }
+            if (parts.isEmpty()) {
+                append("(no current details)")
+            } else {
+                append(parts.joinToString(", "))
+            }
+            append(". Source: ").append(info.providerId)
+        }
+        return ActionResult(true, msg)
+    }
+}

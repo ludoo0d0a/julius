@@ -34,6 +34,11 @@ import fr.geoking.julius.api.traffic.GeographicRegion
 import fr.geoking.julius.api.traffic.TomTomTrafficClient
 import fr.geoking.julius.api.traffic.TomTomTrafficProvider
 import fr.geoking.julius.api.traffic.TrafficProviderFactory
+import fr.geoking.julius.api.weather.MetNorwayWeatherProvider
+import fr.geoking.julius.api.weather.OpenMeteoGeocodingClient
+import fr.geoking.julius.api.weather.OpenMeteoWeatherProvider
+import fr.geoking.julius.api.weather.WeatherProvider
+import fr.geoking.julius.api.weather.WeatherProviderFactory
 import fr.geoking.julius.api.toll.OpenTollDataParser
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
@@ -143,6 +148,33 @@ val mapModule = module {
         )
     }
 
+    // Geocoding for weather place names (global; no API key).
+    single { OpenMeteoGeocodingClient(get()) }
+
+    // Weather: MET Norway (Nordic), Open-Meteo Meteo-France blend (France + Corsica), Open-Meteo default elsewhere.
+    single<WeatherProvider>(named("weather_met_norway")) {
+        MetNorwayWeatherProvider(get())
+    }
+    single<WeatherProvider>(named("weather_open_meteo_fr")) {
+        OpenMeteoWeatherProvider(
+            get(),
+            providerId = "open_meteo_meteofrance",
+            models = "meteofrance_seamless"
+        )
+    }
+    single<WeatherProvider>(named("weather_open_meteo")) {
+        OpenMeteoWeatherProvider(get(), providerId = "open_meteo", models = null)
+    }
+    single<WeatherProviderFactory> {
+        WeatherProviderFactory(
+            listOf(
+                GeographicRegion.Bbox(latMin = 55.0, lonMin = -10.0, latMax = 72.0, lonMax = 35.0) to get(named("weather_met_norway")),
+                GeographicRegion.Bbox(latMin = 41.0, lonMin = -5.5, latMax = 51.6, lonMax = 10.0) to get(named("weather_open_meteo_fr")),
+                GeographicRegion.Everywhere to get(named("weather_open_meteo"))
+            )
+        )
+    }
+
     single<RoutingClient> { OsrmRoutingClient(get()) }
     single<RoutePlanner> { RoutePlanner(get()) }
     single<GeocodingClient> { AdresseDataGouvGeocodingClient(get()) }
@@ -184,6 +216,7 @@ data class MapDeps(
     val communityRepo: CommunityPoiRepository,
     val favoritesRepo: FavoritesRepository,
     val trafficProviderFactory: TrafficProviderFactory,
+    val weatherProviderFactory: WeatherProviderFactory,
     val routePlanner: RoutePlanner,
     val routingClient: RoutingClient,
     val tollCalculator: TollCalculator,

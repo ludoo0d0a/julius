@@ -96,6 +96,7 @@ class MainActivity : ComponentActivity() {
             communityRepo = get(),
             favoritesRepo = get(),
             trafficProviderFactory = get(),
+            weatherProviderFactory = get(),
             routePlanner = get(),
             routingClient = get(),
             tollCalculator = get(),

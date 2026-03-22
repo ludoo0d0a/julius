@@ -17,7 +17,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
@@ -159,6 +161,15 @@ class OpenAIAgent(
                 Tool("function", FunctionDef("find_fastfood_nearby", "Find nearby fast food outlets", buildJsonObject { put("type", "object") })),
                 Tool("function", FunctionDef("find_service_area_nearby", "Find nearby highway service areas or rest stops", buildJsonObject { put("type", "object") })),
                 Tool("function", FunctionDef("get_traffic_info", "Get current traffic information and show traffic layer", buildJsonObject { put("type", "object") })),
+                Tool("function", FunctionDef("get_weather", "Get current weather (temperature, conditions). Use when the user asks about weather, temperature, or if it will rain. For a named city or place pass location; for 'here' or current position omit location.", buildJsonObject {
+                    put("type", "object")
+                    put("properties", buildJsonObject {
+                        put("location", buildJsonObject {
+                            put("type", "string")
+                            put("description", "City or place name (e.g. Paris, Tokyo). Leave empty for the user's current GPS location.")
+                        })
+                    })
+                })),
                 Tool("function", FunctionDef("play_music", "Play music or start a music app", buildJsonObject { put("type", "object") })),
                 Tool("function", FunctionDef("play_audiobook", "Play an audiobook or start an audiobook app", buildJsonObject { put("type", "object") })),
                 Tool("function", FunctionDef("call_contact", "Call a specific contact or phone number", buildJsonObject {
@@ -223,6 +234,7 @@ class OpenAIAgent(
                 "find_fastfood_nearby" -> ActionType.FIND_FASTFOOD
                 "find_service_area_nearby" -> ActionType.FIND_SERVICE_AREA
                 "get_traffic_info" -> ActionType.GET_TRAFFIC
+                "get_weather" -> ActionType.GET_WEATHER
                 "play_music" -> ActionType.PLAY_MUSIC
                 "play_audiobook" -> ActionType.PLAY_AUDIOBOOK
                 "call_contact" -> ActionType.CALL_CONTACT
@@ -238,6 +250,13 @@ class OpenAIAgent(
                 when (tc.function.name) {
                     "call_contact" -> args["number"]?.toString()?.removeSurrounding("\"")
                     "navigate_to" -> args["destination"]?.toString()?.removeSurrounding("\"")
+                    "get_weather" -> {
+                        when (val loc = args["location"]) {
+                            null, is JsonNull -> null
+                            is JsonPrimitive -> loc.content.trim().takeIf { it.isNotBlank() }
+                            else -> null
+                        }
+                    }
                     else -> null
                 }
             } catch (e: Exception) {

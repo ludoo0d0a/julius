@@ -13,6 +13,7 @@ import fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory
 import fr.geoking.julius.api.routing.RoutePlanner
 import fr.geoking.julius.api.routing.RoutingClient
 import fr.geoking.julius.api.traffic.TrafficProviderFactory
+import fr.geoking.julius.api.weather.WeatherProviderFactory
 import fr.geoking.julius.api.geocoding.GeocodingClient
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
@@ -41,6 +42,7 @@ class VoiceSession : Session(), KoinComponent {
                 communityRepo = get<CommunityPoiRepository>(),
                 favoritesRepo = get<FavoritesRepository>(),
                 trafficProviderFactory = get<TrafficProviderFactory>(),
+                weatherProviderFactory = get<WeatherProviderFactory>(),
                 routePlanner = get<RoutePlanner>(),
                 routingClient = get<RoutingClient>(),
                 tollCalculator = get<TollCalculator>(),
