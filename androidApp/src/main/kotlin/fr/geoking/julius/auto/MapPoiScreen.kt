@@ -16,7 +16,7 @@ import androidx.car.app.model.ItemList
 import androidx.car.app.model.Header
 import androidx.car.app.model.Metadata
 import androidx.car.app.model.MessageTemplate
-import androidx.car.app.model.PlaceListMapTemplate
+import androidx.car.app.navigation.model.MapTemplate
 import androidx.car.app.model.Place
 import androidx.car.app.model.PlaceMarker
 import androidx.car.app.model.Row
@@ -78,8 +78,9 @@ class MapPoiScreen(
                         s.selectedMapEnergyTypes,
                         s.mapEnseigneType,
                         s.selectedMapServices,
-                        s.mapMinPowerKw,
-                        s.mapIrveOperator,
+                        s.mapPowerLevels,
+                        s.mapIrveOperators,
+                        s.mapBrands,
                         s.selectedMapConnectorTypes,
                         s.selectedOverpassAmenityTypes,
                         s.vehicleType
@@ -97,8 +98,9 @@ class MapPoiScreen(
         val energies: Set<String>,
         val enseigne: String,
         val services: Set<String>,
-        val minPower: Int,
-        val operator: String,
+        val powerLevels: Set<Int>,
+        val operators: Set<String>,
+        val brands: Set<String>,
         val connectors: Set<String>,
         val amenities: Set<String>,
         val vehicleType: fr.geoking.julius.VehicleType
@@ -226,30 +228,38 @@ class MapPoiScreen(
             val anchorPlace = Place.Builder(CarLocation.create(searchLat, searchLon)).build()
 
             if (isLoading) {
-                return PlaceListMapTemplate.Builder()
-                    .setHeaderAction(Action.BACK)
-                    .setTitle(title)
-                    .setLoading(true)
-                    .setAnchor(anchorPlace)
+                return MapTemplate.Builder()
+                    .setHeader(Header.Builder().setTitle(title).setStartHeaderAction(Action.BACK).build())
                     .setActionStrip(actionStrip)
-                    .setCurrentLocationEnabled(true)
                     .build()
             }
 
-            // Build POI rows with Place metadata so the host can render markers.
+            // Build POI rows.
+            // Marker metadata is still useful if the template supports host-rendered markers on top of our surface,
+            // but MapTemplate usually expects the app to render markers on the surface.
             val itemListBuilder = ItemList.Builder()
                 .setNoItemsMessage("No POIs found")
 
             val limitedPois = pois.take(10)
             limitedPois.forEach { poi ->
+                val iconResId = when (poi.poiCategory) {
+                    PoiCategory.Toilet -> R.drawable.ic_poi_toilet
+                    PoiCategory.DrinkingWater -> R.drawable.ic_poi_water
+                    PoiCategory.Camping -> R.drawable.ic_poi_camping
+                    PoiCategory.CaravanSite -> R.drawable.ic_poi_caravan
+                    PoiCategory.PicnicSite -> R.drawable.ic_poi_picnic
+                    PoiCategory.Radar -> R.drawable.ic_poi_radar
+                    else -> if (poi.isElectric) R.drawable.ic_poi_electric else R.drawable.ic_poi_gas
+                }
+
                 val place = Place.Builder(CarLocation.create(poi.latitude, poi.longitude))
                     .setMarker(
                         PlaceMarker.Builder()
                             .setIcon(
-                                CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_poi_gas)).build(),
+                                CarIcon.Builder(IconCompat.createWithResource(carContext, iconResId)).build(),
                                 PlaceMarker.TYPE_ICON
                             )
-                            .setLabel("POI")
+                            .setLabel(if (poi.poiCategory == PoiCategory.Radar) "VMA" else "POI")
                             .build()
                     )
                     .build()
@@ -276,11 +286,8 @@ class MapPoiScreen(
                 itemListBuilder.addItem(row)
             }
 
-            return PlaceListMapTemplate.Builder()
-                .setHeaderAction(Action.BACK)
-                .setTitle(title)
-                .setAnchor(anchorPlace)
-                .setCurrentLocationEnabled(true)
+            return MapTemplate.Builder()
+                .setHeader(Header.Builder().setTitle(title).setStartHeaderAction(Action.BACK).build())
                 .setActionStrip(actionStrip)
                 .setItemList(itemListBuilder.build())
                 .build()

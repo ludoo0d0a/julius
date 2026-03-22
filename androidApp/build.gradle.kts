@@ -215,6 +215,9 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-compose:${libs.versions.coil.get()}")
     implementation("io.coil-kt.coil3:coil-network-okhttp:${libs.versions.coil.get()}")
 
+    testImplementation(libs.kotlin.test)
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:${libs.versions.kotlin.get()}")
+    testImplementation("org.robolectric:robolectric:4.14.1")
 }
 
 kotlin {

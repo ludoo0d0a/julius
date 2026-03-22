@@ -4,7 +4,7 @@ import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.*
 import fr.geoking.julius.SettingsManager
-import fr.geoking.julius.ui.MAP_IRVE_OPERATOR_OPTIONS
+import fr.geoking.julius.ui.BrandHelper
 
 class AutoMapIrveOperatorSelectionScreen(
     carContext: CarContext,
@@ -14,16 +14,18 @@ class AutoMapIrveOperatorSelectionScreen(
     override fun onGetTemplate(): Template {
         val settings = settingsManager.settings.value
         val listBuilder = ItemList.Builder()
+        val operators = BrandHelper.getElectricBrands()
 
-        MAP_IRVE_OPERATOR_OPTIONS.forEach { (id, label) ->
-            val isSelected = settings.mapIrveOperator == id
-            val displayLabel = if (isSelected) "$label (Selected)" else label
+        operators.forEach { (id, label) ->
+            val isSelected = settings.mapIrveOperators.contains(id)
             listBuilder.addItem(
                 Row.Builder()
-                    .setTitle(displayLabel)
+                    .setTitle(label)
+                    .addText(if (isSelected) "Active" else "Inactive")
                     .setOnClickListener {
-                        settingsManager.setMapIrveOperator(id)
-                        screenManager.pop()
+                        val newOps = if (settings.mapIrveOperators.contains(id)) settings.mapIrveOperators - id else settings.mapIrveOperators + id
+                        settingsManager.setMapIrveOperators(newOps)
+                        invalidate()
                     }
                     .build()
             )

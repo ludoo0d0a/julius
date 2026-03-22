@@ -28,7 +28,9 @@ enum class PoiCategory {
     /** Restaurants (OSM amenity=restaurant). */
     Restaurant,
     /** Fast food (OSM amenity=fast_food). */
-    FastFood;
+    FastFood,
+    /** Radars / speed cameras (OSM highway=speed_camera). */
+    Radar;
     companion object {
         /** OSM amenity tag value for this category, when applicable. */
         fun fromOsmAmenity(amenity: String): PoiCategory? = when (amenity) {
@@ -49,6 +51,7 @@ enum class PoiCategory {
         /** OSM highway tag value for this category (e.g. rest_area). */
         fun fromOsmHighway(highway: String): PoiCategory? = when (highway) {
             "rest_area" -> RestArea
+            "speed_camera" -> Radar
             else -> null
         }
         /** Resolve category from OSM tags (amenity, tourism, highway). */
@@ -70,7 +73,8 @@ enum class PoiProviderType {
     DataGouvElec, // data.gouv.fr IRVE (EV charging)
     OpenChargeMap, // openchargemap.org (EV, Europe/world)
     Chargy, // Chargy.lu (Luxembourg real-time)
-    Overpass  // OpenStreetMap Overpass API (toilets, drinking water, etc.)
+    Overpass, // OpenStreetMap Overpass API (toilets, drinking water, etc.)
+    Hybrid // Combined Fuel + Electric (Routex + DataGouvElec)
 }
 
 /**
@@ -185,8 +189,7 @@ object MapPoiFilter {
         return when {
             n.contains("gazole") || n == "gasoil" || n == "diesel" -> "gazole"
             n.contains("sp98") || n == "sp 98" -> "sp98"
-            n.contains("e10") || n.contains("sp95-e10") || n == "sp95 e10" -> "sp95_e10"
-            n.contains("sp95") || n == "sp 95" -> "sp95"
+            n.contains("e10") || n.contains("sp95-e10") || n == "sp95 e10" || n.contains("sp95") || n == "sp 95" -> "sp95"
             n.contains("gpl") || n == "gplc" || n == "lpg" -> "gplc"
             n.contains("e85") || n == "superéthanol" -> "e85"
             else -> null

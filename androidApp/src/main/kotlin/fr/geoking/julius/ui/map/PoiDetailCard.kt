@@ -104,14 +104,13 @@ fun PoiDetailCard(
                             .size(56.dp)
                             .padding(12.dp)
                     ) {
-                        (brandInfo?.iconResId ?: R.drawable.ic_poi_gas).let { resId ->
-                            Icon(
-                                painter = painterResource(id = resId),
-                                contentDescription = brandInfo?.displayName ?: "Gas station",
-                                modifier = Modifier.size(32.dp),
-                                tint = Color.White
-                            )
-                        }
+                        val resId = brandInfo?.iconResId ?: if (poi.isElectric) R.drawable.ic_poi_electric else R.drawable.ic_poi_gas
+                        Icon(
+                            painter = painterResource(id = resId),
+                            contentDescription = brandInfo?.displayName ?: if (poi.isElectric) "Charging station" else "Gas station",
+                            modifier = Modifier.size(32.dp),
+                            tint = Color.White
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.width(16.dp))

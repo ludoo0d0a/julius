@@ -26,6 +26,16 @@ class AutoGeneralFiltersScreen(
 
         listBuilder.addItem(
             Row.Builder()
+                .setTitle("Brands")
+                .addText(if (settings.mapBrands.isEmpty()) "All" else settings.mapBrands.joinToString(", ").take(100))
+                .setOnClickListener {
+                    screenManager.push(AutoMapBrandSelectionScreen(carContext, settingsManager))
+                }
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
                 .setTitle("Enseigne")
                 .addText(settings.mapEnseigneType)
                 .setOnClickListener {

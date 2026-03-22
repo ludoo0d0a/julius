@@ -124,4 +124,55 @@ class EtalabClientTest {
         assertEquals(48.8566, coords.first)
         assertEquals(2.3522, coords.second)
     }
+
+    @Test
+    fun parseStationFromRecord_usesBrandWhenNameMissing() {
+        val json = Json { ignoreUnknownKeys = true }
+        val record = json.parseToJsonElement("""
+            {
+                "id": "123",
+                "marque": "TotalEnergies",
+                "ville": "Paris",
+                "latitude": 48.0,
+                "longitude": 2.0
+            }
+        """).jsonObject
+
+        val station = client.parseStationFromRecord(record)
+        assertNotNull(station)
+        assertEquals("TotalEnergies", station.name)
+    }
+
+    @Test
+    fun parseStationFromRecord_usesCityFallbackWhenNameAndBrandMissing() {
+        val json = Json { ignoreUnknownKeys = true }
+        val record = json.parseToJsonElement("""
+            {
+                "id": "456",
+                "ville": "Lyon",
+                "latitude": 45.0,
+                "longitude": 4.0
+            }
+        """).jsonObject
+
+        val station = client.parseStationFromRecord(record)
+        assertNotNull(station)
+        assertEquals("Station Lyon", station.name)
+    }
+
+    @Test
+    fun parseStationFromRecord_usesGenericFallbackWhenAllMissing() {
+        val json = Json { ignoreUnknownKeys = true }
+        val record = json.parseToJsonElement("""
+            {
+                "id": "789",
+                "latitude": 44.0,
+                "longitude": 3.0
+            }
+        """).jsonObject
+
+        val station = client.parseStationFromRecord(record)
+        assertNotNull(station)
+        assertEquals("Station", station.name)
+    }
 }

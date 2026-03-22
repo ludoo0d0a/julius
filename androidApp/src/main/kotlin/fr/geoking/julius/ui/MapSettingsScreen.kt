@@ -27,7 +27,8 @@ private val PROVIDER_OPTIONS = listOf(
     PoiProviderType.DataGouvElec to "data.gouv.fr (IRVE)",
     PoiProviderType.OpenChargeMap to "Open Charge Map (EV)",
     PoiProviderType.Chargy to "Chargy (Luxembourg)",
-    PoiProviderType.Overpass to "Overpass (OSM + data.gouv)"
+    PoiProviderType.Overpass to "Overpass (OSM + data.gouv)",
+    PoiProviderType.Hybrid to "Hybrid (Gas + EV)"
 )
 
 val OVERPASS_AMENITY_OPTIONS = listOf(
@@ -39,7 +40,8 @@ val OVERPASS_AMENITY_OPTIONS = listOf(
     "truck_stop" to "Truck",
     "rest_area" to "Rest",
     "restaurant" to "Resto",
-    "fast_food" to "Fast food"
+    "fast_food" to "Fast food",
+    "speed_camera" to "Radar"
 )
 
 val VEHICLE_TYPE_OPTIONS = listOf(
@@ -53,7 +55,6 @@ val MAP_ENERGY_OPTIONS = listOf(
     "electric" to "Elec",
     "gazole" to "Gazole",
     "sp98" to "SP98",
-    "sp95_e10" to "E10",
     "sp95" to "SP95",
     "gplc" to "GPLc",
     "e85" to "E85"
@@ -118,10 +119,11 @@ fun MapSettingsScreen(
 
     var selectedProvider by remember(settings.selectedPoiProvider) { mutableStateOf(settings.selectedPoiProvider) }
     var selectedEnergies by remember(settings.selectedMapEnergyTypes) { mutableStateOf(settings.selectedMapEnergyTypes) }
+    var selectedBrands by remember(settings.mapBrands) { mutableStateOf(settings.mapBrands) }
     var selectedEnseigne by remember(settings.mapEnseigneType) { mutableStateOf(settings.mapEnseigneType) }
     var selectedServices by remember(settings.selectedMapServices) { mutableStateOf(settings.selectedMapServices) }
-    var selectedMinPowerKw by remember(settings.mapMinPowerKw) { mutableStateOf(settings.mapMinPowerKw) }
-    var selectedIrveOperator by remember(settings.mapIrveOperator) { mutableStateOf(settings.mapIrveOperator) }
+    var selectedPowerLevels by remember(settings.mapPowerLevels) { mutableStateOf(settings.mapPowerLevels) }
+    var selectedIrveOperators by remember(settings.mapIrveOperators) { mutableStateOf(settings.mapIrveOperators) }
     var selectedConnectorTypes by remember(settings.selectedMapConnectorTypes) { mutableStateOf(settings.selectedMapConnectorTypes) }
     var selectedMapTrafficEnabled by remember(settings.mapTrafficEnabled) { mutableStateOf(settings.mapTrafficEnabled) }
     var selectedOverpassAmenities by remember(settings.selectedOverpassAmenityTypes) { mutableStateOf(settings.selectedOverpassAmenityTypes) }
@@ -134,10 +136,11 @@ fun MapSettingsScreen(
     fun persist() {
         if (selectedProvider != settings.selectedPoiProvider) settingsManager.setPoiProviderType(selectedProvider)
         if (selectedEnergies != settings.selectedMapEnergyTypes) settingsManager.setMapEnergyTypes(selectedEnergies)
+        if (selectedBrands != settings.mapBrands) settingsManager.setMapBrands(selectedBrands)
         if (selectedEnseigne != settings.mapEnseigneType) settingsManager.setMapEnseigneType(selectedEnseigne)
         if (selectedServices != settings.selectedMapServices) settingsManager.setMapServices(selectedServices)
-        if (selectedMinPowerKw != settings.mapMinPowerKw) settingsManager.setMapMinPowerKw(selectedMinPowerKw)
-        if (selectedIrveOperator != settings.mapIrveOperator) settingsManager.setMapIrveOperator(selectedIrveOperator)
+        if (selectedPowerLevels != settings.mapPowerLevels) settingsManager.setMapPowerLevels(selectedPowerLevels)
+        if (selectedIrveOperators != settings.mapIrveOperators) settingsManager.setMapIrveOperators(selectedIrveOperators)
         if (selectedConnectorTypes != settings.selectedMapConnectorTypes) settingsManager.setMapConnectorTypes(selectedConnectorTypes)
         if (selectedMapTrafficEnabled != settings.mapTrafficEnabled) settingsManager.setMapTrafficEnabled(selectedMapTrafficEnabled)
         if (selectedOverpassAmenities != settings.selectedOverpassAmenityTypes) settingsManager.setOverpassAmenityTypes(selectedOverpassAmenities)
@@ -240,11 +243,27 @@ fun MapSettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    MAP_ENERGY_OPTIONS.forEach { (id, label) ->
+                    MAP_ENERGY_OPTIONS.filter { it.first != "electric" }.forEach { (id, label) ->
                         FilterChip(
                             selected = selectedEnergies.contains(id),
                             onClick = {
                                 selectedEnergies = if (selectedEnergies.contains(id)) selectedEnergies - id else selectedEnergies + id
+                            },
+                            label = { Text(label) }
+                        )
+                    }
+                }
+
+                Text("Brands", style = MaterialTheme.typography.labelMedium)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    BrandHelper.getGasBrands().forEach { (id, label) ->
+                        FilterChip(
+                            selected = selectedBrands.contains(id),
+                            onClick = {
+                                selectedBrands = if (selectedBrands.contains(id)) selectedBrands - id else selectedBrands + id
                             },
                             label = { Text(label) }
                         )
@@ -276,21 +295,43 @@ fun MapSettingsScreen(
             }
 
             // Group 4: EV Specific (Conditional)
-            if (selectedProvider == PoiProviderType.DataGouvElec || selectedProvider == PoiProviderType.OpenChargeMap || selectedProvider == PoiProviderType.Chargy) {
+            if (selectedProvider == PoiProviderType.DataGouvElec ||
+                selectedProvider == PoiProviderType.OpenChargeMap ||
+                selectedProvider == PoiProviderType.Chargy ||
+                selectedProvider == PoiProviderType.Hybrid
+            ) {
                 SettingsGroup(title = "EV Filters") {
-                    CompactDropdown(
-                        label = "Opérateur",
-                        options = MAP_IRVE_OPERATOR_OPTIONS,
-                        selectedOption = selectedIrveOperator,
-                        onOptionSelected = { selectedIrveOperator = it as String }
-                    )
+                    Text("Operators", style = MaterialTheme.typography.labelMedium)
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        BrandHelper.getElectricBrands().forEach { (id, label) ->
+                            FilterChip(
+                                selected = selectedIrveOperators.contains(id),
+                                onClick = {
+                                    selectedIrveOperators = if (selectedIrveOperators.contains(id)) selectedIrveOperators - id else selectedIrveOperators + id
+                                },
+                                label = { Text(label) }
+                            )
+                        }
+                    }
 
-                    Text("Min. Power", style = MaterialTheme.typography.labelMedium)
-                    CompactSegmentedButton(
-                        options = MAP_IRVE_POWER_OPTIONS,
-                        selectedOption = selectedMinPowerKw,
-                        onOptionSelected = { selectedMinPowerKw = it }
-                    )
+                    Text("Power Range", style = MaterialTheme.typography.labelMedium)
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        MAP_IRVE_POWER_OPTIONS.forEach { (id, label) ->
+                            FilterChip(
+                                selected = selectedPowerLevels.contains(id),
+                                onClick = {
+                                    selectedPowerLevels = if (selectedPowerLevels.contains(id)) selectedPowerLevels - id else selectedPowerLevels + id
+                                },
+                                label = { Text(label) }
+                            )
+                        }
+                    }
 
                     Text("Connectors", style = MaterialTheme.typography.labelMedium)
                     FlowRow(

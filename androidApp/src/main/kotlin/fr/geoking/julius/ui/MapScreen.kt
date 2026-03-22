@@ -41,6 +41,7 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 import fr.geoking.julius.R
+import fr.geoking.julius.poi.MapPoiFilter
 import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiProvider
@@ -58,6 +59,7 @@ import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.community.isCommunityPoiId
+import fr.geoking.julius.ui.components.FilterFab
 import fr.geoking.julius.ui.map.AddPoiSheet
 import fr.geoking.julius.ui.map.PoiDetailCard
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
@@ -168,7 +170,7 @@ fun MapScreen(
         }
     }
 
-    LaunchedEffect(selectedProvider, settings.selectedMapEnergyTypes, settings.mapMinPowerKw, settings.mapIrveOperator, settings.selectedMapConnectorTypes, cameraPositionState.position, mapSizePx, retryCount) {
+    LaunchedEffect(selectedProvider, settings.selectedMapEnergyTypes, settings.mapPowerLevels, settings.mapIrveOperators, settings.mapBrands, settings.selectedMapConnectorTypes, cameraPositionState.position, mapSizePx, retryCount) {
         if (!hasLocationPermission) {
             launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
@@ -262,16 +264,23 @@ fun MapScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showMapSettings = true },
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                shape = MaterialTheme.shapes.medium
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Map settings"
-                )
+                FilterFab(settingsManager = settingsManager)
+
+                FloatingActionButton(
+                    onClick = { showMapSettings = true },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Map settings"
+                    )
+                }
             }
         }
     ) { padding ->
@@ -369,6 +378,7 @@ fun MapScreen(
                                 PoiProviderType.OpenChargeMap -> "Source: Open Charge Map"
                                 PoiProviderType.Chargy -> "Source: Chargy (real-time)"
                                 PoiProviderType.Overpass -> "Source: OSM + data.gouv (camping, picnic…)"
+                                PoiProviderType.Hybrid -> "Source: Hybrid (Gas + EV)"
                             }
                         )
                     }
@@ -438,6 +448,9 @@ fun MapScreen(
                     val defaultPicnicIcon = remember(mapContext, sizePx) {
                         vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_picnic_rounded, sizePx) ?: defaultGasIcon
                     }
+                    val defaultRadarIcon = remember(mapContext, sizePx) {
+                        vectorDrawableToBitmapDescriptor(mapContext, R.drawable.ic_poi_radar_rounded, sizePx) ?: defaultGasIcon
+                    }
                     val iconCache = remember(mapContext, sizePx) {
                         mutableMapOf<Int, BitmapDescriptor>().apply {
                             put(R.drawable.ic_poi_gas_rounded, defaultGasIcon)
@@ -447,6 +460,7 @@ fun MapScreen(
                             put(R.drawable.ic_poi_camping_rounded, defaultCampingIcon)
                             put(R.drawable.ic_poi_caravan_rounded, defaultCaravanIcon)
                             put(R.drawable.ic_poi_picnic_rounded, defaultPicnicIcon)
+                            put(R.drawable.ic_poi_radar_rounded, defaultRadarIcon)
                         }
                     }
                     fun iconFor(poi: Poi): BitmapDescriptor {
@@ -456,8 +470,9 @@ fun MapScreen(
                             PoiCategory.Camping -> R.drawable.ic_poi_camping_rounded
                             PoiCategory.CaravanSite -> R.drawable.ic_poi_caravan_rounded
                             PoiCategory.PicnicSite -> R.drawable.ic_poi_picnic_rounded
+                            PoiCategory.Radar -> R.drawable.ic_poi_radar_rounded
                             else -> when {
-                                poi.isElectric -> R.drawable.ic_poi_electric_rounded
+                                poi.isElectric -> BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_electric_rounded
                                 else -> BrandHelper.getBrandInfo(poi.brand)?.roundedIconResId ?: R.drawable.ic_poi_gas_rounded
                             }
                         }
@@ -467,10 +482,37 @@ fun MapScreen(
                     }
                     val poisToShow = if (showFavoritesOnly && favoriteIds.isNotEmpty()) pois.filter { it.id in favoriteIds } else pois
                     poisToShow.forEach { poi ->
+                        val priceLabel = remember(poi, settings.selectedMapEnergyTypes, settings.useVehicleFilter, settings.vehicleEnergy, settings.vehicleGasTypes) {
+                            if (poi.poiCategory == PoiCategory.Radar) {
+                                // For radars, we try to extract speed limit (maxspeed) from tags if available via Overpass
+                                // Since Poi doesn't have a tags map, we might need to store it or assume it's part of details.
+                                // But currently OverpassProvider just sets name/address.
+                                // Let's check if the name contains a number (VMA).
+                                val regex = Regex("""(\d+)""")
+                                regex.find(poi.name)?.value?.let { "$it km/h" }
+                            } else if (poi.isElectric) {
+                                poi.irveDetails?.tarification?.let { t ->
+                                    // Try to find a price like "0.45" or "0,45"
+                                    val regex = Regex("""(\d+[.,]\d{2})""")
+                                    regex.find(t)?.value?.replace(",", ".")?.let { "$it €" }
+                                }
+                            } else {
+                                val preferredEnergies = if (settings.useVehicleFilter) {
+                                    if (settings.vehicleEnergy == "hybrid") settings.vehicleGasTypes + "electric"
+                                    else settings.vehicleGasTypes
+                                } else settings.selectedMapEnergyTypes
+                                val price = poi.fuelPrices?.filter { p ->
+                                    val id = MapPoiFilter.fuelNameToId(p.fuelName)
+                                    id != null && (preferredEnergies.isEmpty() || id in preferredEnergies)
+                                }?.minByOrNull { it.price }?.price
+                                price?.let { "%.2f €".format(it) }
+                            }
+                        }
+
                         Marker(
                             state = MarkerState(position = LatLng(poi.latitude, poi.longitude)),
-                            title = poi.name,
-                            snippet = poi.address,
+                            title = priceLabel ?: poi.name,
+                            snippet = if (priceLabel != null) poi.name else poi.address,
                             icon = iconFor(poi),
                             onClick = {
                                 selectedPoi = poi

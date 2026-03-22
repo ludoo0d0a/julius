@@ -51,7 +51,7 @@ class AutoMapSettingsScreen(
         listBuilder.addItem(
             Row.Builder()
                 .setTitle("General Filters")
-                .addText("Energy, Enseigne, Services")
+                .addText("Energy, Brands, Enseigne, Services")
                 .setOnClickListener {
                     screenManager.push(AutoGeneralFiltersScreen(carContext, settingsManager))
                 }
@@ -61,7 +61,8 @@ class AutoMapSettingsScreen(
         if (settings.selectedPoiProvider == PoiProviderType.DataGouvElec ||
             settings.selectedPoiProvider == PoiProviderType.OpenChargeMap ||
             settings.selectedPoiProvider == PoiProviderType.Chargy ||
-            settings.selectedPoiProvider == PoiProviderType.Overpass) {
+            settings.selectedPoiProvider == PoiProviderType.Overpass ||
+            settings.selectedPoiProvider == PoiProviderType.Hybrid) {
             listBuilder.addItem(
                 Row.Builder()
                     .setTitle("Advanced Filters")

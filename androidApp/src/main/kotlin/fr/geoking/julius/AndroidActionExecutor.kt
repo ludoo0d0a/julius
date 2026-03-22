@@ -37,6 +37,19 @@ class AndroidActionExecutor(
                 ActionType.GET_BATTERY_LEVEL -> getBatteryLevel()
                 ActionType.GET_VOLUME_LEVEL -> getVolumeLevels()
                 ActionType.REQUEST_PERMISSION -> requestPermission(action.target)
+                ActionType.FIND_GAS_STATIONS -> findGasStations()
+                ActionType.FIND_ELECTRIC_STATIONS -> findElectricStations()
+                ActionType.FIND_PARKING -> findNearby("parking")
+                ActionType.FIND_RESTAURANTS -> findNearby("restaurant")
+                ActionType.FIND_FASTFOOD -> findNearby("fast food")
+                ActionType.FIND_SERVICE_AREA -> findNearby("rest area")
+                ActionType.GET_TRAFFIC -> getTraffic()
+                ActionType.PLAY_AUDIOBOOK -> playAudiobook()
+                ActionType.CALL_CONTACT -> callContact(action.target)
+                ActionType.FIND_HOSPITAL -> findNearby("hospital")
+                ActionType.FIND_RADARS -> findNearby("radar")
+                ActionType.ROADSIDE_ASSISTANCE -> roadsideAssistance()
+                ActionType.EMERGENCY_CALL -> emergencyCall()
                 ActionType.OTHER -> executeOtherAction(action)
             }
         } catch (e: Exception) {
@@ -216,6 +229,127 @@ class AndroidActionExecutor(
             ActionResult(true, "Volume levels: Media $mediaVolume/$maxMedia, Alarm $alarmVolume/$maxAlarm, Ring $ringVolume/$maxRing")
         } catch (e: Exception) {
             ActionResult(false, "Error getting volume levels: ${e.message}")
+        }
+    }
+
+    private fun findGasStations(): ActionResult {
+        return try {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("julius://map/gas_stations")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                `package` = context.packageName
+            }
+            context.startActivity(intent)
+            ActionResult(true, "Opening internal gas station search")
+        } catch (e: Exception) {
+            // Fallback to external if internal fails
+            findNearby("gas station")
+        }
+    }
+
+    private fun findElectricStations(): ActionResult {
+        return try {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("julius://map/electric_stations")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                `package` = context.packageName
+            }
+            context.startActivity(intent)
+            ActionResult(true, "Opening internal electric station search")
+        } catch (e: Exception) {
+            // Fallback to external if internal fails
+            findNearby("electric charging station")
+        }
+    }
+
+    private fun findNearby(query: String): ActionResult {
+        return try {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("geo:0,0?q=$query")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                setPackage("com.google.android.apps.maps")
+            }
+            if (intent.resolveActivity(context.packageManager) != null) {
+                context.startActivity(intent)
+                ActionResult(true, "Searching for $query nearby")
+            } else {
+                val intent2 = Intent(Intent.ACTION_VIEW).apply {
+                    data = Uri.parse("geo:0,0?q=$query")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent2)
+                ActionResult(true, "Searching for $query nearby")
+            }
+        } catch (e: Exception) {
+            ActionResult(false, "Failed to find $query: ${e.message}")
+        }
+    }
+
+    private fun getTraffic(): ActionResult {
+        return try {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("google.navigation:q=0,0&layer=t")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                setPackage("com.google.android.apps.maps")
+            }
+            if (intent.resolveActivity(context.packageManager) != null) {
+                context.startActivity(intent)
+                ActionResult(true, "Showing traffic layer")
+            } else {
+                ActionResult(false, "Maps app not available for traffic layer")
+            }
+        } catch (e: Exception) {
+            ActionResult(false, "Failed to get traffic: ${e.message}")
+        }
+    }
+
+    private fun playAudiobook(): ActionResult {
+        return try {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("audio/*")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            if (intent.resolveActivity(context.packageManager) != null) {
+                context.startActivity(intent)
+                ActionResult(true, "Opening audiobook player")
+            } else {
+                ActionResult(false, "No audiobook player available")
+            }
+        } catch (e: Exception) {
+            ActionResult(false, "Failed to play audiobook: ${e.message}")
+        }
+    }
+
+    private fun callContact(number: String?): ActionResult {
+        if (number == null) return ActionResult(false, "No number or contact specified")
+        return try {
+            val intent = Intent(Intent.ACTION_DIAL).apply {
+                data = Uri.parse("tel:$number")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            ActionResult(true, "Opening dialer for $number")
+        } catch (e: Exception) {
+            ActionResult(false, "Failed to call contact: ${e.message}")
+        }
+    }
+
+    private fun roadsideAssistance(): ActionResult {
+        // Broad search or common roadside numbers depending on locale could go here.
+        // For now, search for roadside assistance nearby.
+        return findNearby("roadside assistance")
+    }
+
+    private fun emergencyCall(): ActionResult {
+        return try {
+            val intent = Intent(Intent.ACTION_DIAL).apply {
+                data = Uri.parse("tel:112")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            ActionResult(true, "Opening dialer for emergency call (112)")
+        } catch (e: Exception) {
+            ActionResult(false, "Failed to initiate emergency call: ${e.message}")
         }
     }
 

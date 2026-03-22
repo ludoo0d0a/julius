@@ -8,7 +8,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-enum class AgentType { OpenAI, ElevenLabs, Deepgram, Native, Gemini, FirebaseAI, OpenCodeZen, CompletionsMe, ApiFreeLLM, Local, Offline }
+enum class AgentType {
+    OpenAI, ElevenLabs, Deepgram, Native, Gemini, FirebaseAI, OpenCodeZen, CompletionsMe, ApiFreeLLM,
+    Llamatik, GeminiNano, RunAnywhere, MlcLlm, LlamaCpp, MediaPipe, AiEdge, PocketPal, Offline
+}
 
 val DEFAULT_AGENT = AgentType.Gemini
 
@@ -39,32 +42,46 @@ enum class GeminiModel(val modelName: String, val displayName: String) {
 }
 
 /** Energy/fuel types for map POI filter (multi-select). Aligned with prix-carburants.gouv.fr. */
-val DEFAULT_MAP_ENERGY_TYPES = setOf("gazole", "sp98", "sp95_e10", "sp95", "gplc", "e85", "electric")
+val DEFAULT_MAP_ENERGY_TYPES = setOf("gazole", "sp98", "sp95", "gplc", "e85")
 
 /** Enseigne type for map filter, aligned with prix-carburants.gouv.fr. "all" = Toutes les enseignes. */
 const val DEFAULT_MAP_ENSEIGNE_TYPE = "all"
 
-/** Min power filter for IRVE (kW). 0 = no filter. Aligned with LibreChargeMap. */
-const val DEFAULT_MAP_MIN_POWER_KW = 0
+/** Power buckets for IRVE filter (kW). Empty = all. */
+val DEFAULT_MAP_POWER_LEVELS = emptySet<Int>()
 
-/** IRVE operator filter. "all" = Tous les opérateurs. */
-const val DEFAULT_MAP_IRVE_OPERATOR = "all"
+/** IRVE operator filter. Empty = all. */
+val DEFAULT_MAP_IRVE_OPERATORS = emptySet<String>()
+
+/** Brand filter. Empty = all. */
+val DEFAULT_MAP_BRANDS = emptySet<String>()
 
 /** Default EV range in km for route planning. */
 const val DEFAULT_EV_RANGE_KM = 300
 
+enum class FuelCard { None, Routex }
+
 data class AppSettings(
+    val vehicleBrand: String = "",
+    val vehicleModel: String = "",
+    val vehicleEnergy: String = "gas", // gas, electric, hybrid
+    val vehicleGasTypes: Set<String> = DEFAULT_MAP_ENERGY_TYPES,
+    val vehiclePowerLevels: Set<Int> = DEFAULT_MAP_POWER_LEVELS,
+    val fuelCard: FuelCard = FuelCard.None,
+    val useVehicleFilter: Boolean = false,
     val selectedPoiProvider: fr.geoking.julius.poi.PoiProviderType = fr.geoking.julius.poi.PoiProviderType.Routex,
     /** Selected energy types to show on map (e.g. sp95, sp98, gazole, e85, electric). Empty = show all. */
     val selectedMapEnergyTypes: Set<String> = DEFAULT_MAP_ENERGY_TYPES,
     /** Type d'enseigne: "all", "major", "gms", "independant". Filter applied when provider supplies data. */
     val mapEnseigneType: String = DEFAULT_MAP_ENSEIGNE_TYPE,
+    /** Filter by brand ids (lowercase), empty = show all brands. */
+    val mapBrands: Set<String> = DEFAULT_MAP_BRANDS,
     /** Selected service ids for map filter (e.g. bornes_electriques, automate_cb). Applied when provider supplies data. */
     val selectedMapServices: Set<String> = emptySet(),
-    /** Min power in kW for IRVE stations (0 = no filter). Applied when provider is DataGouvElec. */
-    val mapMinPowerKw: Int = DEFAULT_MAP_MIN_POWER_KW,
-    /** IRVE operator filter: "all", "atlante", "avia", "zunder", "ionity", "fastned", "tesla". Applied when provider is DataGouvElec. */
-    val mapIrveOperator: String = DEFAULT_MAP_IRVE_OPERATOR,
+    /** Power buckets in kW for IRVE stations (empty = all). Applied when provider is DataGouvElec. */
+    val mapPowerLevels: Set<Int> = DEFAULT_MAP_POWER_LEVELS,
+    /** IRVE operator filter: empty = all. Applied when provider is DataGouvElec. */
+    val mapIrveOperators: Set<String> = DEFAULT_MAP_IRVE_OPERATORS,
     /** Selected connector types for IRVE (type_2, combo_ccs, chademo, ef, autre). Empty = show all. Applied when provider is DataGouvElec. */
     val selectedMapConnectorTypes: Set<String> = emptySet(),
     /** Show Google traffic layer on the map (green / yellow / red). */
@@ -108,10 +125,10 @@ data class AppSettings(
     /** STT engine for car mic path: LocalOnly (Vosk only), LocalFirst (Vosk then agent), NativeOnly (agent only). */
     val sttEnginePreference: SttEnginePreference = SttEnginePreference.LocalFirst,
     val textAnimation: TextAnimation = TextAnimation.Fade,
-    /** Path to local GGUF model: asset-relative (e.g. "models/phi-2.Q4_0.gguf") or absolute path after download. */
-    val localModelPath: String = "models/phi-2.Q4_0.gguf",
-    /** Selected local model variant for download UI; must match [fr.geoking.julius.ui.LocalModelVariant].name (e.g. Phi2Q4_0). */
-    val selectedLocalModelVariant: String = "Phi2Q4_0",
+    /** Path to Llamatik GGUF model: asset-relative (e.g. "models/phi-2.Q4_0.gguf") or absolute path after download. */
+    val llamatikModelPath: String = "models/phi-2.Q4_0.gguf",
+    /** Selected Llamatik model variant for download UI; must match [fr.geoking.julius.ui.LocalModelVariant].name (e.g. Phi2Q4_0). */
+    val selectedLlamatikModelVariant: String = "Phi2Q4_0",
     val lastJulesRepoId: String = "",
     val lastJulesRepoName: String = "",
     val googleUserName: String? = null,
@@ -157,16 +174,38 @@ open class SettingsManager(context: Context) {
 
         val energyTypesStr = prefs.getString("map_energy_types", null)
         val selectedMapEnergyTypes = if (!energyTypesStr.isNullOrBlank()) {
-            energyTypesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+            energyTypesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                .map { if (it == "sp95_e10") "sp95" else it }
+                .toSet()
         } else DEFAULT_MAP_ENERGY_TYPES
         val mapEnseigneType = prefs.getString("map_enseigne_type", DEFAULT_MAP_ENSEIGNE_TYPE) ?: DEFAULT_MAP_ENSEIGNE_TYPE
         val mapServicesStr = prefs.getString("map_services", null)
         val selectedMapServices = if (!mapServicesStr.isNullOrBlank()) {
             mapServicesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
         } else emptySet()
-        val mapMinPowerKw = prefs.getInt("map_min_power_kw", DEFAULT_MAP_MIN_POWER_KW)
-            .coerceIn(0, 300)
-        val mapIrveOperator = prefs.getString("map_irve_operator", DEFAULT_MAP_IRVE_OPERATOR) ?: DEFAULT_MAP_IRVE_OPERATOR
+        val mapPowerLevelsStr = prefs.getString("map_power_levels", null)
+        val mapPowerLevels = if (!mapPowerLevelsStr.isNullOrBlank()) {
+            mapPowerLevelsStr.split(",").mapNotNull { it.trim().toIntOrNull() }.toSet()
+        } else DEFAULT_MAP_POWER_LEVELS
+        val mapIrveOperatorsStr = prefs.getString("map_irve_operators", null)
+        val mapIrveOperators = if (!mapIrveOperatorsStr.isNullOrBlank()) {
+            mapIrveOperatorsStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                .map { if (it == "totalenergies") "total" else it }
+                .toSet()
+        } else DEFAULT_MAP_IRVE_OPERATORS
+        val mapBrandsStr = prefs.getString("map_brands", null)
+        val mapBrands = if (!mapBrandsStr.isNullOrBlank()) {
+            mapBrandsStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                .map {
+                    when (it) {
+                        "totalenergies" -> "total"
+                        "esso express" -> "esso"
+                        "e.leclerc" -> "leclerc"
+                        else -> it
+                    }
+                }
+                .toSet()
+        } else DEFAULT_MAP_BRANDS
         val mapConnectorTypesStr = prefs.getString("map_connector_types", null)
         val selectedMapConnectorTypes = if (!mapConnectorTypesStr.isNullOrBlank()) {
             mapConnectorTypesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
@@ -188,7 +227,34 @@ open class SettingsManager(context: Context) {
             VehicleType.Car
         }
 
+        val vehicleBrand = prefs.getString("vehicle_brand", "") ?: ""
+        val vehicleModel = prefs.getString("vehicle_model", "") ?: ""
+        val vehicleEnergy = prefs.getString("vehicle_energy", "gas") ?: "gas"
+        val vehicleGasTypesStr = prefs.getString("vehicle_gas_types", null)
+        val vehicleGasTypes = if (!vehicleGasTypesStr.isNullOrBlank()) {
+            vehicleGasTypesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                .map { if (it == "sp95_e10") "sp95" else it }
+                .toSet()
+        } else DEFAULT_MAP_ENERGY_TYPES
+        val vehiclePowerLevelsStr = prefs.getString("vehicle_power_levels", null)
+        val vehiclePowerLevels = if (!vehiclePowerLevelsStr.isNullOrBlank()) {
+            vehiclePowerLevelsStr.split(",").mapNotNull { it.trim().toIntOrNull() }.toSet()
+        } else DEFAULT_MAP_POWER_LEVELS
+        val fuelCard = try {
+            FuelCard.valueOf(prefs.getString("fuel_card", FuelCard.None.name) ?: FuelCard.None.name)
+        } catch (e: IllegalArgumentException) {
+            FuelCard.None
+        }
+        val useVehicleFilter = prefs.getBoolean("use_vehicle_filter", false)
+
         return AppSettings(
+            vehicleBrand = vehicleBrand,
+            vehicleModel = vehicleModel,
+            vehicleEnergy = vehicleEnergy,
+            vehicleGasTypes = vehicleGasTypes,
+            vehiclePowerLevels = vehiclePowerLevels,
+            fuelCard = fuelCard,
+            useVehicleFilter = useVehicleFilter,
             selectedPoiProvider = try {
                 fr.geoking.julius.poi.PoiProviderType.valueOf(
                     prefs.getString("poi_provider", fr.geoking.julius.poi.PoiProviderType.Routex.name) ?: fr.geoking.julius.poi.PoiProviderType.Routex.name
@@ -199,8 +265,9 @@ open class SettingsManager(context: Context) {
             selectedMapEnergyTypes = selectedMapEnergyTypes,
             mapEnseigneType = mapEnseigneType,
             selectedMapServices = selectedMapServices,
-            mapMinPowerKw = mapMinPowerKw,
-            mapIrveOperator = mapIrveOperator,
+            mapPowerLevels = mapPowerLevels,
+            mapIrveOperators = mapIrveOperators,
+            mapBrands = mapBrands,
             selectedMapConnectorTypes = selectedMapConnectorTypes,
             mapTrafficEnabled = mapTrafficEnabled,
             evRangeKm = evRangeKm,
@@ -268,8 +335,8 @@ open class SettingsManager(context: Context) {
             } catch (e: IllegalArgumentException) {
                 TextAnimation.Fade
             },
-            localModelPath = prefs.getString("local_model_path", "models/phi-2.Q4_0.gguf") ?: "models/phi-2.Q4_0.gguf",
-            selectedLocalModelVariant = prefs.getString("selected_local_model_variant", "Phi2Q4_0") ?: "Phi2Q4_0",
+            llamatikModelPath = prefs.getString("llamatik_model_path", "models/phi-2.Q4_0.gguf") ?: "models/phi-2.Q4_0.gguf",
+            selectedLlamatikModelVariant = prefs.getString("selected_llamatik_model_variant", "Phi2Q4_0") ?: "Phi2Q4_0",
             tollDataPath = prefs.getString("toll_data_path", null),
             mobiliteitLuxembourgKey = mobiliteitLuxembourgKey,
             lastJulesRepoId = lastJulesRepoId,
@@ -335,15 +402,19 @@ open class SettingsManager(context: Context) {
         _settings.value = _settings.value.copy(selectedMapServices = services)
     }
 
-    open fun setMapMinPowerKw(kw: Int) {
-        val value = kw.coerceIn(0, 300)
-        prefs.edit().putInt("map_min_power_kw", value).apply()
-        _settings.value = _settings.value.copy(mapMinPowerKw = value)
+    open fun setMapPowerLevels(levels: Set<Int>) {
+        prefs.edit().putString("map_power_levels", levels.joinToString(",")).apply()
+        _settings.value = _settings.value.copy(mapPowerLevels = levels)
     }
 
-    open fun setMapIrveOperator(operator: String) {
-        prefs.edit().putString("map_irve_operator", operator).apply()
-        _settings.value = _settings.value.copy(mapIrveOperator = operator)
+    open fun setMapIrveOperators(operators: Set<String>) {
+        prefs.edit().putString("map_irve_operators", operators.joinToString(",")).apply()
+        _settings.value = _settings.value.copy(mapIrveOperators = operators)
+    }
+
+    open fun setMapBrands(brands: Set<String>) {
+        prefs.edit().putString("map_brands", brands.joinToString(",")).apply()
+        _settings.value = _settings.value.copy(mapBrands = brands)
     }
 
     open fun setMapConnectorTypes(types: Set<String>) {
@@ -370,6 +441,41 @@ open class SettingsManager(context: Context) {
     open fun setVehicleType(type: VehicleType) {
         prefs.edit().putString("vehicle_type", type.name).apply()
         _settings.value = _settings.value.copy(vehicleType = type)
+    }
+
+    open fun setVehicleBrand(brand: String) {
+        prefs.edit().putString("vehicle_brand", brand).apply()
+        _settings.value = _settings.value.copy(vehicleBrand = brand)
+    }
+
+    open fun setVehicleModel(model: String) {
+        prefs.edit().putString("vehicle_model", model).apply()
+        _settings.value = _settings.value.copy(vehicleModel = model)
+    }
+
+    open fun setVehicleEnergy(energy: String) {
+        prefs.edit().putString("vehicle_energy", energy).apply()
+        _settings.value = _settings.value.copy(vehicleEnergy = energy)
+    }
+
+    open fun setVehicleGasTypes(types: Set<String>) {
+        prefs.edit().putString("vehicle_gas_types", types.joinToString(",")).apply()
+        _settings.value = _settings.value.copy(vehicleGasTypes = types)
+    }
+
+    open fun setVehiclePowerLevels(levels: Set<Int>) {
+        prefs.edit().putString("vehicle_power_levels", levels.joinToString(",")).apply()
+        _settings.value = _settings.value.copy(vehiclePowerLevels = levels)
+    }
+
+    open fun setFuelCard(card: FuelCard) {
+        prefs.edit().putString("fuel_card", card.name).apply()
+        _settings.value = _settings.value.copy(fuelCard = card)
+    }
+
+    open fun setUseVehicleFilter(use: Boolean) {
+        prefs.edit().putBoolean("use_vehicle_filter", use).apply()
+        _settings.value = _settings.value.copy(useVehicleFilter = use)
     }
 
     open fun setEvRangeKm(km: Int) {
@@ -420,12 +526,20 @@ open class SettingsManager(context: Context) {
 
     private fun saveSettingsInternal(settings: AppSettings) {
         prefs.edit()
+            .putString("vehicle_brand", settings.vehicleBrand)
+            .putString("vehicle_model", settings.vehicleModel)
+            .putString("vehicle_energy", settings.vehicleEnergy)
+            .putString("vehicle_gas_types", settings.vehicleGasTypes.joinToString(","))
+            .putString("vehicle_power_levels", settings.vehiclePowerLevels.joinToString(","))
+            .putString("fuel_card", settings.fuelCard.name)
+            .putBoolean("use_vehicle_filter", settings.useVehicleFilter)
             .putString("poi_provider", settings.selectedPoiProvider.name)
             .putString("map_energy_types", settings.selectedMapEnergyTypes.joinToString(","))
             .putString("map_enseigne_type", settings.mapEnseigneType)
             .putString("map_services", settings.selectedMapServices.joinToString(","))
-            .putInt("map_min_power_kw", settings.mapMinPowerKw)
-            .putString("map_irve_operator", settings.mapIrveOperator)
+            .putString("map_power_levels", settings.mapPowerLevels.joinToString(","))
+            .putString("map_irve_operators", settings.mapIrveOperators.joinToString(","))
+            .putString("map_brands", settings.mapBrands.joinToString(","))
             .putString("map_connector_types", settings.selectedMapConnectorTypes.joinToString(","))
             .putBoolean("map_traffic_enabled", settings.mapTrafficEnabled)
             .putInt("ev_range_km", settings.evRangeKm.coerceIn(50, 1000))
@@ -461,8 +575,8 @@ open class SettingsManager(context: Context) {
             .putBoolean("mute_media_on_car", settings.muteMediaOnCar)
             .putString("stt_engine_preference", settings.sttEnginePreference.name)
             .putString("text_animation", settings.textAnimation.name)
-            .putString("local_model_path", settings.localModelPath)
-            .putString("selected_local_model_variant", settings.selectedLocalModelVariant)
+            .putString("llamatik_model_path", settings.llamatikModelPath)
+            .putString("selected_llamatik_model_variant", settings.selectedLlamatikModelVariant)
             .apply { settings.tollDataPath?.let { putString("toll_data_path", it) } ?: remove("toll_data_path") }
             .putString("last_jules_repo_id", settings.lastJulesRepoId)
             .putString("last_jules_repo_name", settings.lastJulesRepoName)
@@ -501,16 +615,24 @@ open class SettingsManager(context: Context) {
         useCarMic: Boolean = false,
         muteMediaOnCar: Boolean = false,
         sttEnginePreference: SttEnginePreference = _settings.value.sttEnginePreference,
-        localModelPath: String = _settings.value.localModelPath,
-        selectedLocalModelVariant: String = _settings.value.selectedLocalModelVariant
+        llamatikModelPath: String = _settings.value.llamatikModelPath,
+        selectedLlamatikModelVariant: String = _settings.value.selectedLlamatikModelVariant
     ) {
         val newSettings = AppSettings(
+            vehicleBrand = _settings.value.vehicleBrand,
+            vehicleModel = _settings.value.vehicleModel,
+            vehicleEnergy = _settings.value.vehicleEnergy,
+            vehicleGasTypes = _settings.value.vehicleGasTypes,
+            vehiclePowerLevels = _settings.value.vehiclePowerLevels,
+            fuelCard = _settings.value.fuelCard,
+            useVehicleFilter = _settings.value.useVehicleFilter,
             selectedPoiProvider = _settings.value.selectedPoiProvider,
             selectedMapEnergyTypes = _settings.value.selectedMapEnergyTypes,
             mapEnseigneType = _settings.value.mapEnseigneType,
             selectedMapServices = _settings.value.selectedMapServices,
-            mapMinPowerKw = _settings.value.mapMinPowerKw,
-            mapIrveOperator = _settings.value.mapIrveOperator,
+            mapPowerLevels = _settings.value.mapPowerLevels,
+            mapIrveOperators = _settings.value.mapIrveOperators,
+            mapBrands = _settings.value.mapBrands,
             selectedMapConnectorTypes = _settings.value.selectedMapConnectorTypes,
             mapTrafficEnabled = _settings.value.mapTrafficEnabled,
             evRangeKm = _settings.value.evRangeKm,
@@ -545,8 +667,8 @@ open class SettingsManager(context: Context) {
             muteMediaOnCar = muteMediaOnCar,
             sttEnginePreference = sttEnginePreference,
             textAnimation = _settings.value.textAnimation,
-            localModelPath = localModelPath,
-            selectedLocalModelVariant = selectedLocalModelVariant,
+            llamatikModelPath = llamatikModelPath,
+            selectedLlamatikModelVariant = selectedLlamatikModelVariant,
             tollDataPath = _settings.value.tollDataPath,
             lastJulesRepoId = _settings.value.lastJulesRepoId,
             lastJulesRepoName = _settings.value.lastJulesRepoName,
