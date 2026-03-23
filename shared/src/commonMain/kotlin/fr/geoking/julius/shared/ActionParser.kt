@@ -16,6 +16,22 @@ object ActionParser {
         
         // Check for different action types (English and French)
         when {
+            // Play music commands - English: play music, play song | French: jouer musique, lancer musique
+            // Put this first to avoid generic "play/joue" being caught by other actions
+            lowerText.contains("play music") || lowerText.contains("play song") ||
+            lowerText.contains("jouer musique") || lowerText.contains("lancer musique") ||
+            lowerText.contains("jouer de la musique") || lowerText.contains("mets de la musique") ||
+            lowerText.contains("mettre musique") ||
+            lowerText.contains("joue ") || lowerText.contains("play ") ||
+            lowerText.contains("jouer ") -> {
+                val query = extractMusicQuery(text)
+                return DeviceAction(
+                    type = ActionType.PLAY_MUSIC,
+                    target = query,
+                    data = emptyMap()
+                )
+            }
+
             // Open app commands - English: open, launch, start | French: ouvrir, lancer, démarrer
             lowerText.contains("open ") || lowerText.contains("launch ") || 
             lowerText.contains("start ") || lowerText.contains("ouvrir ") || 
@@ -74,17 +90,6 @@ object ActionParser {
                 )
             }
             
-            // Play music commands - English: play music, play song | French: jouer musique, lancer musique
-            lowerText.contains("play music") || lowerText.contains("play song") ||
-            lowerText.contains("jouer musique") || lowerText.contains("lancer musique") ||
-            lowerText.contains("jouer de la musique") || lowerText.contains("mets de la musique") ||
-            lowerText.contains("mettre musique") -> {
-                return DeviceAction(
-                    type = ActionType.PLAY_MUSIC,
-                    target = null,
-                    data = emptyMap()
-                )
-            }
             
             // Set alarm commands - English: set alarm, alarm for | French: mettre réveil, réveil pour
             lowerText.contains("set alarm") || lowerText.contains("alarm for") ||
@@ -277,6 +282,43 @@ object ActionParser {
         return null
     }
     
+    private fun extractMusicQuery(text: String): String? {
+        val patterns = listOf(
+            // English patterns
+            Regex("""(?:play music|play song|play)\s+(.+)""", RegexOption.IGNORE_CASE),
+            // French patterns
+            Regex("""(?:jouer de la musique|mets de la musique|mettre musique|jouer musique|lancer musique|jouer|joue)\s+(.+)""", RegexOption.IGNORE_CASE)
+        )
+
+        for (pattern in patterns) {
+            val match = pattern.find(text)
+            if (match != null) {
+                var query = match.groupValues[1].trim()
+                // Remove common fillers from the query itself if they were captured
+                val possibleFillers = listOf("please", "s'il vous plaît", "s'il vous plait", "stp", "merci")
+                for (filler in possibleFillers) {
+                    if (query.lowercase().endsWith(" $filler")) {
+                        query = query.substring(0, query.length - filler.length - 1).trim()
+                    } else if (query.lowercase() == filler) {
+                        query = ""
+                    }
+                }
+
+                // Remove trailing punctuation
+                query = query.removeSuffix(".").removeSuffix("?").trim()
+
+                // If the remaining query is a generic "music" term or empty, return null to just open the player
+                val fillers = setOf("music", "musique", "song", "de la musique", "de musique", "un morceau", "un titre", "une chanson")
+                if (query.isEmpty() || query.lowercase() in fillers) {
+                    return null
+                }
+
+                return query
+            }
+        }
+        return null
+    }
+
     private fun extractDestination(text: String): String? {
         val patterns = listOf(
             // English patterns

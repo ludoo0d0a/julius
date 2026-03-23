@@ -172,7 +172,15 @@ class OpenAIAgent(
                         })
                     })
                 })),
-                Tool("function", FunctionDef("play_music", "Play music or start a music app", buildJsonObject { put("type", "object") })),
+                Tool("function", FunctionDef("play_music", "Play music or start a music app. Specify the song name, artist, or album if provided.", buildJsonObject {
+                    put("type", "object")
+                    put("properties", buildJsonObject {
+                        put("query", buildJsonObject {
+                            put("type", "string")
+                            put("description", "The song name, artist, or album to play. Leave empty to just open the player.")
+                        })
+                    })
+                })),
                 Tool("function", FunctionDef("play_audiobook", "Play an audiobook or start an audiobook app", buildJsonObject { put("type", "object") })),
                 Tool("function", FunctionDef("call_contact", "Call a specific contact or phone number", buildJsonObject {
                     put("type", "object")
@@ -261,6 +269,7 @@ class OpenAIAgent(
                             else -> null
                         }
                     }
+                    "play_music" -> args["query"]?.toString()?.removeSurrounding("\"")
                     else -> null
                 }
             } catch (e: Exception) {
