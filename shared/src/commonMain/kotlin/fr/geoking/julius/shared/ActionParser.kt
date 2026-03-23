@@ -109,6 +109,16 @@ object ActionParser {
                 )
             }
 
+            // Find hybrid stations (electric + fuel)
+            lowerText.contains("hybrid station") ||
+            lowerText.contains("hybrid car station") ||
+            lowerText.contains("electric and fuel station") ||
+            lowerText.contains("electric and gas station") ||
+            lowerText.contains("borne et station essence") ||
+            lowerText.contains("borne et station carburant") -> {
+                return DeviceAction(type = ActionType.FIND_HYBRID_STATIONS)
+            }
+
             // Find gas stations
             lowerText.contains("gas station") || lowerText.contains("station essence") ||
             lowerText.contains("trouver de l'essence") || lowerText.contains("carburant") -> {
@@ -118,7 +128,7 @@ object ActionParser {
             // Find electric stations
             lowerText.contains("electric station") || lowerText.contains("charging station") ||
             lowerText.contains("recharger") || lowerText.contains("borne électrique") ||
-            lowerText.contains("electric reloading") -> {
+            lowerText.contains("borne electrique") || lowerText.contains("electric reloading") -> {
                 return DeviceAction(type = ActionType.FIND_ELECTRIC_STATIONS)
             }
 

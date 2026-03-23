@@ -61,4 +61,36 @@ class ActionParserTest {
         val action = ActionParser.parseActionFromResponse("hello world")
         assertNull(action)
     }
+
+    @Test
+    fun testParseElectricStations() {
+        val actions = listOf(
+            "find a charging station nearby",
+            "find electric station",
+            "trouve une borne electrique",
+            "je veux recharger"
+        )
+
+        for (input in actions) {
+            val action = ActionParser.parseActionFromResponse(input)
+            assertNotNull(action, "Failed to parse action for: $input")
+            assertEquals(ActionType.FIND_ELECTRIC_STATIONS, action.type)
+        }
+    }
+
+    @Test
+    fun testParseHybridStations() {
+        val actions = listOf(
+            "find hybrid station nearby",
+            "find electric and fuel station nearby",
+            "find electric and gas station",
+            "trouve borne et station essence"
+        )
+
+        for (input in actions) {
+            val action = ActionParser.parseActionFromResponse(input)
+            assertNotNull(action, "Failed to parse action for: $input")
+            assertEquals(ActionType.FIND_HYBRID_STATIONS, action.type)
+        }
+    }
 }

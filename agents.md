@@ -24,6 +24,38 @@ Julius is a Kotlin Multiplatform (KMP) voice assistant for Android and Android A
 - **Mapping & POIs**: Integrated location-based services with support for multiple swappable data providers.
 - **State Management**: Reactive UI driven by a central `ConversationStore` using Kotlin Flows.
 
+## Extended Tool Actions (OpenAI/Gemini)
+
+When **Extended actions** is enabled (`settings.extendedActionsEnabled`), Julius exposes these tool actions in `OpenAIAgent` and `GeminiAgent`:
+
+- `get_location` -> `GET_LOCATION`
+- `show_map` -> `SHOW_MAP`
+- `get_battery_level` -> `GET_BATTERY_LEVEL`
+- `get_volume_levels` -> `GET_VOLUME_LEVEL`
+- `find_gas_stations_nearby` -> `FIND_GAS_STATIONS`
+- `find_electric_stations_nearby` -> `FIND_ELECTRIC_STATIONS`
+- `find_hybrid_stations_nearby` -> `FIND_HYBRID_STATIONS`
+- `find_parking_nearby` -> `FIND_PARKING`
+- `find_restaurants_nearby` -> `FIND_RESTAURANTS`
+- `find_fastfood_nearby` -> `FIND_FASTFOOD`
+- `find_service_area_nearby` -> `FIND_SERVICE_AREA`
+- `get_traffic_info` -> `GET_TRAFFIC`
+- `get_weather` -> `GET_WEATHER`
+- `play_music` -> `PLAY_MUSIC`
+- `play_audiobook` -> `PLAY_AUDIOBOOK`
+- `call_contact` -> `CALL_CONTACT`
+- `find_nearest_hospital` -> `FIND_HOSPITAL`
+- `request_roadside_assistance` -> `ROADSIDE_ASSISTANCE`
+- `emergency_call` -> `EMERGENCY_CALL`
+- `navigate_to` -> `NAVIGATE`
+
+### New station-search actions
+
+- **Electric charging nearby:** `find_electric_stations_nearby`
+  Finds EV charging stations nearby.
+- **Hybrid nearby (electric + fuel):** `find_hybrid_stations_nearby`
+  Finds both electric charging stations and fuel stations nearby (for hybrid vehicles).
+
 **Core Services:**
 - `ConversationStore`: Manages conversation state, message history, and coordinates between voice manager and agents
 - `VoiceManager`: Interface for voice input/output (listening, transcription, speaking)

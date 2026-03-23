@@ -158,6 +158,8 @@ class OpenAIAgent(
                 Tool("function", FunctionDef("get_battery_level", "Get the current battery level percentage of the device", buildJsonObject { put("type", "object") })),
                 Tool("function", FunctionDef("get_volume_levels", "Get the current system volume levels (media, alarm, ring)", buildJsonObject { put("type", "object") })),
                 Tool("function", FunctionDef("find_gas_stations_nearby", "Find nearby gas stations or fuel prices", buildJsonObject { put("type", "object") })),
+                Tool("function", FunctionDef("find_electric_stations_nearby", "Find nearby electric charging stations", buildJsonObject { put("type", "object") })),
+                Tool("function", FunctionDef("find_hybrid_stations_nearby", "Find nearby electric charging stations and fuel stations for hybrid cars", buildJsonObject { put("type", "object") })),
                 Tool("function", FunctionDef("find_parking_nearby", "Find nearby parking spaces", buildJsonObject { put("type", "object") })),
                 Tool("function", FunctionDef("find_restaurants_nearby", "Find nearby restaurants", buildJsonObject { put("type", "object") })),
                 Tool("function", FunctionDef("find_fastfood_nearby", "Find nearby fast food outlets", buildJsonObject { put("type", "object") })),
@@ -241,6 +243,8 @@ class OpenAIAgent(
                 "get_battery_level" -> ActionType.GET_BATTERY_LEVEL
                 "get_volume_levels" -> ActionType.GET_VOLUME_LEVEL
                 "find_gas_stations_nearby" -> ActionType.FIND_GAS_STATIONS
+                "find_electric_stations_nearby" -> ActionType.FIND_ELECTRIC_STATIONS
+                "find_hybrid_stations_nearby" -> ActionType.FIND_HYBRID_STATIONS
                 "find_parking_nearby" -> ActionType.FIND_PARKING
                 "find_restaurants_nearby" -> ActionType.FIND_RESTAURANTS
                 "find_fastfood_nearby" -> ActionType.FIND_FASTFOOD
