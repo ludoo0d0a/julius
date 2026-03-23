@@ -14,10 +14,9 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 enum class AgentType(val enabled: Boolean = true) {
     OpenAI,
+    /** Perplexity chat + ElevenLabs TTS; uses [AppSettings.perplexityKey]. */
     ElevenLabs,
     Deepgram,
-    /** Perplexity (text-only cloud); hidden when [enabled] is false. */
-    Native(enabled = false),
     Gemini,
     FirebaseAI,
     OpenCodeZen,
@@ -340,6 +339,14 @@ open class SettingsManager(context: Context) {
             apifreellmKey = apifreellmKey,
             julesKey = julesKey,
             selectedAgent = run {
+                val rawAgent = prefs.getString("agent", null)
+                if (rawAgent == "Native") {
+                    android.util.Log.i(
+                        "SettingsManager",
+                        "Migrated deprecated agent Native to ${DEFAULT_AGENT.name}; use ElevenLabs for Perplexity + TTS."
+                    )
+                    prefs.edit().putString("agent", DEFAULT_AGENT.name).apply()
+                }
                 val loaded = try {
                     val agentName = prefs.getString("agent", null)
                     if (agentName != null) AgentType.valueOf(agentName)

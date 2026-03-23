@@ -1070,6 +1070,10 @@ private fun AgentConfig(
     ) {
         when (settings.selectedAgent) {
             AgentType.OpenAI -> {
+                ApiKeyHelpLink(
+                    helpText = "Create a secret key in your OpenAI account. Usage may require billing.",
+                    url = "https://platform.openai.com/api-keys"
+                )
                 ConfigTextField("OpenAI Key", settings.openAiKey) { onUpdate(settings.copy(openAiKey = it)) }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Model", color = Lavender, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
@@ -1082,7 +1086,15 @@ private fun AgentConfig(
                 }
             }
             AgentType.ElevenLabs -> {
+                ApiKeyHelpLink(
+                    helpText = "ElevenLabs provides voice synthesis. Create an API key in your account settings.",
+                    url = "https://elevenlabs.io/app/settings/api-keys"
+                )
                 ConfigTextField("ElevenLabs Key", settings.elevenLabsKey) { onUpdate(settings.copy(elevenLabsKey = it)) }
+                ApiKeyHelpLink(
+                    helpText = "Perplexity powers the chat model. Add an API key from your Perplexity account.",
+                    url = "https://www.perplexity.ai/settings/api"
+                )
                 ConfigTextField("Perplexity Key", settings.perplexityKey) { onUpdate(settings.copy(perplexityKey = it)) }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Perplexity Model", color = Lavender, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
@@ -1094,19 +1106,11 @@ private fun AgentConfig(
                     )
                 }
             }
-            AgentType.Native -> {
-                ConfigTextField("Perplexity Key", settings.perplexityKey) { onUpdate(settings.copy(perplexityKey = it)) }
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Model", color = Lavender, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
-                PerplexityModel.entries.forEach { model ->
-                    SelectionItem(
-                        label = model.displayName,
-                        isSelected = model == settings.selectedModel,
-                        onSelect = { onUpdate(settings.copy(selectedModel = model)) }
-                    )
-                }
-            }
             AgentType.Gemini -> {
+                ApiKeyHelpLink(
+                    helpText = "Google AI Studio offers a free tier. Create a Gemini API key there.",
+                    url = "https://aistudio.google.com/app/apikey"
+                )
                 ConfigTextField("Gemini Key", settings.geminiKey) { onUpdate(settings.copy(geminiKey = it)) }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Model", color = Lavender, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
@@ -1119,22 +1123,43 @@ private fun AgentConfig(
                 }
             }
             AgentType.Deepgram -> {
+                ApiKeyHelpLink(
+                    helpText = "Sign up at Deepgram and create a project API key in the console.",
+                    url = "https://console.deepgram.com/"
+                )
                 ConfigTextField("Deepgram Key", settings.deepgramKey) { onUpdate(settings.copy(deepgramKey = it)) }
             }
             AgentType.FirebaseAI -> {
+                ApiKeyHelpLink(
+                    helpText = "This agent calls the Google Gemini API. Create a key in Google AI Studio.",
+                    url = "https://aistudio.google.com/app/apikey"
+                )
                 ConfigTextField("Firebase AI Key", settings.firebaseAiKey) { onUpdate(settings.copy(firebaseAiKey = it)) }
                 ConfigTextField("Firebase AI Model", settings.firebaseAiModel) { onUpdate(settings.copy(firebaseAiModel = it)) }
             }
             AgentType.OpenCodeZen -> {
+                ApiKeyHelpLink(
+                    helpText = "OpenCode Zen is an OpenAI-compatible gateway. Get your API key via the Zen docs.",
+                    url = "https://opencode.ai/docs/zen/",
+                    linkLabel = "Open Zen documentation"
+                )
                 ConfigTextField("OpenCode Zen Key", settings.opencodeZenKey) { onUpdate(settings.copy(opencodeZenKey = it)) }
                 ConfigTextField("Model (e.g. minimax-m2.5-free, big-pickle, gpt-5-nano)", settings.opencodeZenModel) { onUpdate(settings.copy(opencodeZenModel = it)) }
             }
             AgentType.CompletionsMe -> {
+                ApiKeyHelpLink(
+                    helpText = "Sign up at Completions.me and copy your API key from your account.",
+                    url = "https://www.completions.me/"
+                )
                 ConfigTextField("Completions.me Key", settings.completionsMeKey) { onUpdate(settings.copy(completionsMeKey = it)) }
                 ConfigTextField("Model (e.g. claude-sonnet-4.5, gpt-5.2)", settings.completionsMeModel) { onUpdate(settings.copy(completionsMeModel = it)) }
             }
             AgentType.ApiFreeLLM -> {
-                ConfigTextField("ApiFreeLLM Key (sign in with Google at apifreellm.com)", settings.apifreellmKey) { onUpdate(settings.copy(apifreellmKey = it)) }
+                ApiKeyHelpLink(
+                    helpText = "Sign in with Google on ApiFreeLLM, then get your key from the API access page.",
+                    url = "https://apifreellm.com/en/api-access"
+                )
+                ConfigTextField("ApiFreeLLM Key", settings.apifreellmKey) { onUpdate(settings.copy(apifreellmKey = it)) }
             }
             AgentType.Llamatik, AgentType.GeminiNano, AgentType.RunAnywhere,
             AgentType.MlcLlm, AgentType.LlamaCpp, AgentType.MediaPipe,
@@ -1299,11 +1324,10 @@ private fun JulesConfig(
             .verticalScroll(rememberScrollState())
             .padding(24.dp)
     ) {
-        Text(
-            "Jules (jules.google.com) suggests code changes via the Jules screen. Get an API key in Jules Settings.",
-            color = Lavender,
-            fontSize = 14.sp,
-            modifier = Modifier.padding(bottom = 16.dp)
+        ApiKeyHelpLink(
+            helpText = "Jules suggests code changes from the Jules screen. In the web app, open Settings to create an API key.",
+            url = "https://jules.google.com/",
+            linkLabel = "Open Jules"
         )
         ConfigTextField("Jules API Key", settings.julesKey) { onUpdate(settings.copy(julesKey = it)) }
     }
@@ -1514,6 +1538,47 @@ private fun VehicleConfig(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ApiKeyHelpLink(
+    helpText: String,
+    url: String,
+    linkLabel: String = "Create API key",
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    Column(modifier = modifier.padding(bottom = 4.dp)) {
+        Text(
+            text = helpText,
+            color = Lavender.copy(alpha = 0.85f),
+            fontSize = 13.sp,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                }
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = linkLabel,
+                color = Lavender,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                contentDescription = null,
+                tint = Lavender.copy(alpha = 0.9f),
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }

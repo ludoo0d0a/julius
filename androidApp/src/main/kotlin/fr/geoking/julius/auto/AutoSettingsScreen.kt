@@ -31,7 +31,7 @@ class AutoSettingsScreen(
                 .build()
         )
 
-        if (settings.selectedAgent == AgentType.Native || settings.selectedAgent == AgentType.ElevenLabs) {
+        if (settings.selectedAgent == AgentType.ElevenLabs) {
             listBuilder.addItem(
                 Row.Builder()
                     .setTitle("IA Model")

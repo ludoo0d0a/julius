@@ -34,7 +34,6 @@ object DynamicImageGenerator {
         AgentType.OpenAI to 0,     // Aurora
         AgentType.ElevenLabs to 1, // Sunset
         AgentType.Deepgram to 2,   // Ocean
-        AgentType.Native to 3,     // Forest
         AgentType.Gemini to 5,     // Cosmic
         AgentType.FirebaseAI to 4, // Ember
         AgentType.OpenCodeZen to 1, // Sunset
