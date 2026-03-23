@@ -95,12 +95,13 @@ class DataGouvClient(
         val ville = record["ville"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
         val cp = record["cp"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
         val address = listOf(adresse, cp, ville).filter { it.isNotBlank() }.joinToString(", ")
-        val name = record["nom"]?.jsonPrimitive?.contentOrNull?.trim()
-            ?: record["name"]?.jsonPrimitive?.contentOrNull?.trim()
-            ?: "Station $id"
         val brand = record["marque"]?.jsonPrimitive?.contentOrNull?.trim()
             ?: record["enseigne"]?.jsonPrimitive?.contentOrNull?.trim()
             ?: record["libelle_enseigne"]?.jsonPrimitive?.contentOrNull?.trim()
+        val name = record["nom"]?.jsonPrimitive?.contentOrNull?.trim()
+            ?: record["name"]?.jsonPrimitive?.contentOrNull?.trim()
+            ?: brand
+            ?: if (ville.isNotBlank()) "Station $ville" else "Station"
         val prices = parsePrices(record)
         return DataGouvStation(
             id = id,

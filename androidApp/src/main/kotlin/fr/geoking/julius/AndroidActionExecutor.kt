@@ -51,6 +51,7 @@ class AndroidActionExecutor(
                 ActionType.CALL_CONTACT -> callContact(action.target)
                 ActionType.FIND_HOSPITAL -> findNearby("hospital")
                 ActionType.FIND_RADARS -> findNearby("radar")
+                ActionType.SHOW_MAP -> showMap()
                 ActionType.ROADSIDE_ASSISTANCE -> roadsideAssistance()
                 ActionType.EMERGENCY_CALL -> emergencyCall()
                 ActionType.OTHER -> executeOtherAction(action)
@@ -191,7 +192,23 @@ class AndroidActionExecutor(
                 ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
 
             if (location != null) {
-                ActionResult(true, "Current location: lat=${location.latitude}, lon=${location.longitude}")
+                var addressInfo = ""
+                try {
+                    val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
+                    val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                    if (!addresses.isNullOrEmpty()) {
+                        val address = addresses[0]
+                        val parts = mutableListOf<String>()
+                        for (i in 0..address.maxAddressLineIndex) {
+                            parts.add(address.getAddressLine(i))
+                        }
+                        addressInfo = " Address: ${parts.joinToString(", ")}."
+                    }
+                } catch (e: Exception) {
+                    // Ignore geocoding errors, fallback to coordinates only
+                }
+
+                ActionResult(true, "Current location: lat=${location.latitude}, lon=${location.longitude}.$addressInfo")
             } else {
                 ActionResult(false, "Could not determine current location. GPS might be disabled or no fix yet.")
             }
@@ -262,6 +279,21 @@ class AndroidActionExecutor(
         } catch (e: Exception) {
             // Fallback to external if internal fails
             findNearby("electric charging station")
+        }
+    }
+
+    private fun showMap(): ActionResult {
+        return try {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("julius://map/current_location")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                `package` = context.packageName
+            }
+            context.startActivity(intent)
+            ActionResult(true, "Opening map at current location")
+        } catch (e: Exception) {
+            // Fallback to external if internal fails
+            findNearby("")
         }
     }
 
