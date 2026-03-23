@@ -91,7 +91,7 @@ object AssistantCapabilities {
         )
         append("Road and conditions: traffic and current weather, here or for a city you name. ")
         append(
-            "Device: battery level, volume levels, approximate location when allowed, open apps by name, play music or audiobooks, set an alarm. "
+            "Device: battery level, volume levels, approximate location when allowed, open apps by name, play specific music or audiobooks, set an alarm. "
         )
         append("Safety: roadside assistance, emergency call, call a number you specify. ")
         append("Sending SMS from the assistant is not available in this build. ")
@@ -110,7 +110,7 @@ object AssistantCapabilities {
         )
         append("Route et conditions : trafic et météo actuelle, ici ou pour une ville que vous citez. ")
         append(
-            "Téléphone : niveau de batterie, volumes, position approximative si autorisé, ouvrir des apps par nom, lancer musique ou livre audio, régler une alarme. "
+            "Téléphone : niveau de batterie, volumes, position approximative si autorisé, ouvrir des apps par nom, lancer de la musique spécifique ou un livre audio, régler une alarme. "
         )
         append("Sécurité : dépannage, appel d’urgence, appeler un numéro que vous donnez. ")
         append("L’envoi de SMS depuis l’assistant n’est pas disponible dans cette version. ")

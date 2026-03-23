@@ -32,7 +32,7 @@ class AndroidActionExecutor(
                     success = false,
                     message = "SMS sending is temporarily disabled in this build."
                 )
-                ActionType.PLAY_MUSIC -> playMusic()
+                ActionType.PLAY_MUSIC -> playMusic(action.target)
                 ActionType.NAVIGATE -> navigate(action.target, action.data)
                 ActionType.SET_ALARM -> setAlarm(action.data)
                 ActionType.GET_LOCATION -> getLocation()
@@ -98,16 +98,35 @@ class AndroidActionExecutor(
 
     // SMS / direct calling are disabled for Play policy compliance.
 
-    private fun playMusic(): ActionResult {
+    private fun playMusic(query: String? = null): ActionResult {
         try {
             val intent = Intent(MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                if (!query.isNullOrBlank()) {
+                    putExtra(android.app.SearchManager.QUERY, query)
+                }
+            }
+
+            // Try Spotify first
+            val spotifyPackage = "com.spotify.music"
+            try {
+                context.packageManager.getPackageInfo(spotifyPackage, 0)
+                intent.setPackage(spotifyPackage)
+            } catch (e: PackageManager.NameNotFoundException) {
+                // Spotify not installed
             }
             
             if (intent.resolveActivity(context.packageManager) != null) {
                 context.startActivity(intent)
-                return ActionResult(true, "Opening music player")
+                return ActionResult(true, if (query != null) "Playing $query" else "Opening music player")
             } else {
+                // If Spotify failed or not found, try without package
+                intent.setPackage(null)
+                if (intent.resolveActivity(context.packageManager) != null) {
+                    context.startActivity(intent)
+                    return ActionResult(true, if (query != null) "Playing $query" else "Opening music player")
+                }
+
                 // Try generic media intent
                 val intent2 = Intent(Intent.ACTION_VIEW).apply {
                     setType("audio/*")
