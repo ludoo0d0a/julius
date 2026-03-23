@@ -345,6 +345,18 @@ class MainScreen(
         )
         return PaneTemplate.Builder(paneBuilder.build())
             .setHeader(Header.Builder().setTitle("Assistant").build())
+            .setActionStrip(
+                ActionStrip.Builder()
+                    .addAction(
+                        Action.Builder()
+                            .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_jules)).build())
+                            .setOnClickListener {
+                                screenManager.push(AutoJulesScreen(carContext, store, settingsManager, julesClient))
+                            }
+                            .build()
+                    )
+                    .build()
+            )
             .build()
     }
 
