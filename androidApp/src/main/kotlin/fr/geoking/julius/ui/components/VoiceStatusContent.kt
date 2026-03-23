@@ -32,14 +32,15 @@ import fr.geoking.julius.shared.VoiceEvent
 private val AgentLabelFontSize = 11.sp
 private val StatusBadgeFontSize = 12.sp
 
-/** Reusable status pill (Silence, Listening, Processing, Speaking). */
+/** Reusable status pill (Silence, Listening, PassiveListening, Processing, Speaking). */
 @Composable
 fun StatusChip(
     status: VoiceEvent,
     modifier: Modifier = Modifier
 ) {
+    val text = if (status == VoiceEvent.PassiveListening) "Wake Word" else status.name
     Text(
-        text = status.name,
+        text = text,
         color = Color.White.copy(alpha = 0.6f),
         fontSize = StatusBadgeFontSize,
         fontWeight = FontWeight.Medium,
@@ -107,10 +108,16 @@ fun VoiceStatusContent(
             )
         } else {
             // Main display text — larger, better line height, centered
+            val text = when {
+                status == VoiceEvent.PassiveListening -> "Dis 'Hey Julius'"
+                status == VoiceEvent.Silence && displayText.isBlank() -> "Dis 'Hey Julius'"
+                else -> displayText.ifEmpty { " " }
+            }
+
             AnimatedLetterText(
-                text = displayText.ifEmpty { " " },
+                text = text,
                 animation = textAnimation,
-                color = Color.White,
+                color = if (status == VoiceEvent.PassiveListening || (status == VoiceEvent.Silence && displayText.isBlank())) Color.White.copy(alpha = 0.5f) else Color.White,
                 style = TextStyle(
                     fontSize = DisplayTextFontSize,
                     lineHeight = DisplayTextLineHeight,
