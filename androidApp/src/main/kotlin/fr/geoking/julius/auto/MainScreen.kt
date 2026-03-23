@@ -236,7 +236,7 @@ class MainScreen(
                     .setTitle(senderLabel)
                     .addText(item.text)
                     .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, senderIcon)).build())
-                    .setOnClickListener { store.speakAgain(item.text) }
+                    .setOnClickListener { store.speakAgain(item.text, isInterruptible = false) }
                     .build()
             )
         }

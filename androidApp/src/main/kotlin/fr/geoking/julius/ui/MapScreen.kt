@@ -695,7 +695,7 @@ private fun MapScreenPreview() {
                 override val partialText = MutableStateFlow("")
                 override fun startListening() {}
                 override fun stopListening() {}
-                override fun speak(text: String, languageTag: String?) {}
+                override fun speak(text: String, languageTag: String?, isInterruptible: Boolean) {}
                 override fun playAudio(bytes: ByteArray) {}
                 override fun stopSpeaking() {}
                 override fun setTranscriber(transcriber: suspend (ByteArray) -> String?) {}
