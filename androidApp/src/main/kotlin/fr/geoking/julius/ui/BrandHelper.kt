@@ -146,7 +146,7 @@ object BrandHelper {
 
     /** brand_id (lowercase) -> is electric charging brand. */
     private val electricBrands = setOf(
-        "tesla", "ionity", "fastned", "allego", "lidl", "chargy", "atlante", "zunder", "totalenergies",
+        "tesla", "ionity", "fastned", "allego", "lidl", "chargy", "atlante", "zunder", "total", "totalenergies",
         "freshmile", "superu", "système u", "coopérative u", "match", "supermarché match",
         "powerdot", "driveco", "carrefour", "leclerc", "auchan"
     )
