@@ -32,8 +32,8 @@ class AutoAdvancedSettingsScreen(
 
         listBuilder.addItem(
             Row.Builder()
-                .setTitle("Mute Radio")
-                .addText("Mute media when Julius is active")
+                .setTitle("Mute Media")
+                .addText("Pause other audio when Julius is active")
                 .setToggle(
                     Toggle.Builder { checked ->
                         val current = settingsManager.settings.value
