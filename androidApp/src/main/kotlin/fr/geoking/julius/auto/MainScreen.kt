@@ -22,6 +22,11 @@ import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.nextSelectableAgent
+import fr.geoking.julius.agents.ConversationalAgent
+import fr.geoking.julius.ui.AgentSetupIssue
+import fr.geoking.julius.ui.LlamatikModelHelper
+import fr.geoking.julius.ui.evaluateAgentSetup
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.DetailedError
 import fr.geoking.julius.di.MapDeps
@@ -41,7 +46,8 @@ class MainScreen(
     private val store: ConversationStore,
     private val settingsManager: SettingsManager,
     private val julesClient: fr.geoking.julius.api.jules.JulesClient,
-    private val getMapDeps: () -> MapDeps
+    private val getMapDeps: () -> MapDeps,
+    private val conversationalAgent: ConversationalAgent
 ) : Screen(carContext) {
 
     private var currentStatus: String = "Idle"
@@ -55,6 +61,8 @@ class MainScreen(
     private var cachedAgent: AgentType? = null
     private var dynamicIdleIcon: CarIcon? = null
     private var dynamicActiveIcon: CarIcon? = null
+
+    private val llamatikModelHelper = LlamatikModelHelper(carContext.applicationContext)
 
     /** Android Auto only: swap between two cached loader bitmaps while [VoiceEvent.Processing]. */
     private var processingLoaderVariant: Int = 0
@@ -168,11 +176,8 @@ class MainScreen(
     }
 
     private fun cycleToNextAgent() {
-        val agents = AgentType.entries
         val current = settingsManager.settings.value.selectedAgent
-        val currentIndex = agents.indexOf(current).coerceAtLeast(0)
-        val nextIndex = (currentIndex + 1) % agents.size
-        val nextAgent = agents[nextIndex]
+        val nextAgent = nextSelectableAgent(current)
         settingsManager.saveSettings(settingsManager.settings.value.copy(selectedAgent = nextAgent))
     }
 
@@ -313,6 +318,31 @@ class MainScreen(
         val paneBuilder = Pane.Builder()
             .setImage(if (isProcessing) loaderIcon else themeCarIcon)
 
+        val appSettings = settingsManager.settings.value
+        val setupIssue = evaluateAgentSetup(appSettings, llamatikModelHelper, conversationalAgent)
+        if (setupIssue != null) {
+            val issue = setupIssue
+            val setupText = when (issue) {
+                is AgentSetupIssue.MissingApiKey ->
+                    issue.message + " Enter API keys in the Julius app on your phone."
+                else -> issue.message
+            }.take(400)
+            paneBuilder.addRow(
+                Row.Builder()
+                    .setTitle("Setup required")
+                    .addText(setupText)
+                    .setOnClickListener {
+                        when (issue) {
+                            is AgentSetupIssue.MissingLlamatikModel ->
+                                screenManager.push(AutoLlamatikModelScreen(carContext, settingsManager))
+                            is AgentSetupIssue.MissingApiKey ->
+                                screenManager.push(AutoSettingsScreen(carContext, settingsManager, store, julesClient))
+                        }
+                    }
+                    .build()
+            )
+        }
+
         if (lastError != null) {
             val errorTitle = when (lastError!!.httpCode) {
                 401 -> "Auth Error"
@@ -325,7 +355,11 @@ class MainScreen(
             val errorMessage = lastError!!.message + httpSuffix
             paneBuilder.addRow(
                 Row.Builder()
-                    .setTitle(errorMessage)
+                    .setTitle(errorTitle)
+                    .addText(errorMessage.take(400))
+                    .setOnClickListener {
+                        screenManager.push(AutoSettingsScreen(carContext, settingsManager, store, julesClient))
+                    }
                     .build()
             )
         } else {
@@ -349,6 +383,17 @@ class MainScreen(
             }
         }
 
+        paneBuilder.addRow(
+            Row.Builder()
+                .setTitle("Jules")
+                .addText("Create a coding session from voice")
+                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_jules)).build())
+                .setOnClickListener {
+                    screenManager.push(AutoJulesScreen(carContext, store, settingsManager, julesClient))
+                }
+                .build()
+        )
+
         paneBuilder.addAction(
             Action.Builder()
                 .setIcon(actionIcon)
@@ -362,11 +407,8 @@ class MainScreen(
                 }
                 .build()
         )
-        val agents = AgentType.entries
         val currentAgent = settingsManager.settings.value.selectedAgent
-        val currentIndex = agents.indexOf(currentAgent).coerceAtLeast(0)
-        val nextIndex = (currentIndex + 1) % agents.size
-        val nextAgent = agents[nextIndex]
+        val nextAgent = nextSelectableAgent(currentAgent)
 
         paneBuilder.addAction(
             Action.Builder()
@@ -382,6 +424,7 @@ class MainScreen(
                     .addAction(
                         Action.Builder()
                             .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_jules)).build())
+                            .setTitle("Jules")
                             .setOnClickListener {
                                 screenManager.push(AutoJulesScreen(carContext, store, settingsManager, julesClient))
                             }
@@ -400,7 +443,6 @@ class MainScreen(
         private const val TAB_ASSISTANT = "assistant"
         private const val TAB_MAP = "map"
         private const val TAB_HISTORY = "history"
-        private const val TAB_JULES = "jules"
         private const val TAB_SETTINGS = "settings"
     }
 }

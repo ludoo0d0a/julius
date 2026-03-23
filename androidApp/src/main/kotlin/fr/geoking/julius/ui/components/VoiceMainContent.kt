@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import fr.geoking.julius.AppSettings
+import fr.geoking.julius.ui.AgentSetupIssue
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.ConversationState
 import fr.geoking.julius.shared.VoiceEvent
@@ -39,6 +40,8 @@ fun VoiceMainContent(
     onMapClick: () -> Unit,
     onJulesClick: () -> Unit = {},
     onAgentClick: (() -> Unit)? = null,
+    setupIssue: AgentSetupIssue? = null,
+    onOpenAgentSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val displayText by store.displayText.collectAsState(initial = "")
@@ -55,6 +58,8 @@ fun VoiceMainContent(
             lastError = state.lastError,
             textAnimation = settings.textAnimation,
             onAgentClick = onAgentClick,
+            setupIssue = setupIssue,
+            onOpenAgentSettings = onOpenAgentSettings,
             modifier = Modifier.align(Alignment.Center)
         )
         TrayLightEffectCanvas(

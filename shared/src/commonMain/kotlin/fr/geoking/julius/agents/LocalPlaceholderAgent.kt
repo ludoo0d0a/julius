@@ -11,6 +11,9 @@ class LocalPlaceholderAgent(
     private val modelPath: String
 ) : ConversationalAgent {
 
+    override fun evaluateSetupIssue(input: AgentSetupInput): AgentSetupDescriptor? =
+        llamatikModelSetupFromInput(input)
+
     override suspend fun process(input: String): AgentResponse {
         throw NetworkException(null, "$agentName is not yet fully implemented for inference. Model at: $modelPath")
     }

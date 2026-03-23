@@ -51,6 +51,50 @@ class DynamicAgentWrapper(
     private var cachedAgent: ConversationalAgent? = null
     private var cachedKey: String? = null
 
+    private fun createAgent(settings: AppSettings): ConversationalAgent {
+        android.util.Log.d("DynamicAgentWrapper", "Creating agent: ${settings.selectedAgent.name}")
+        return when (settings.selectedAgent) {
+        AgentType.OpenAI -> OpenAIAgent(client, apiKey = settings.openAiKey, model = settings.openAiModel.modelName, toolsEnabled = settings.extendedActionsEnabled)
+        AgentType.ElevenLabs -> {
+            if (settings.perplexityKey.isBlank() || settings.elevenLabsKey.isBlank()) {
+                android.util.Log.w("DynamicAgentWrapper", "ElevenLabs selected but missing keys (perplexity: ${settings.perplexityKey.isNotBlank()}, elevenlabs: ${settings.elevenLabsKey.isNotBlank()})")
+            }
+            ElevenLabsAgent(client, perplexityKey = settings.perplexityKey, elevenLabsKey = settings.elevenLabsKey, model = settings.selectedModel.modelName)
+        }
+        AgentType.Deepgram -> {
+            android.util.Log.d("DynamicAgentWrapper", "Creating Deepgram agent (this should not happen if ElevenLabs is selected)")
+            DeepgramAgent(client, deepgramKey = settings.deepgramKey)
+        }
+        AgentType.Native -> PerplexityAgent(client, apiKey = settings.perplexityKey, model = settings.selectedModel.modelName)
+        AgentType.Gemini -> GeminiAgent(client, apiKey = settings.geminiKey, model = settings.geminiModel.modelName, toolsEnabled = settings.extendedActionsEnabled)
+        AgentType.FirebaseAI -> FirebaseAIAgent(client, apiKey = settings.firebaseAiKey, model = settings.firebaseAiModel)
+        AgentType.OpenCodeZen -> OpenCodeZenAgent(client, apiKey = settings.opencodeZenKey, model = settings.opencodeZenModel)
+        AgentType.CompletionsMe -> CompletionsMeAgent(client, apiKey = settings.completionsMeKey, model = settings.completionsMeModel)
+        AgentType.ApiFreeLLM -> ApiFreeLLMAgent(client, apiKey = settings.apifreellmKey)
+        AgentType.Llamatik -> LlamatikAgent(modelPath = settings.llamatikModelPath)
+        AgentType.GeminiNano -> LocalPlaceholderAgent("Gemini Nano", settings.llamatikModelPath)
+        AgentType.RunAnywhere -> LocalPlaceholderAgent("RunAnywhere", settings.llamatikModelPath)
+        AgentType.MlcLlm -> LocalPlaceholderAgent("MLC-LLM", settings.llamatikModelPath)
+        AgentType.LlamaCpp -> LocalPlaceholderAgent("llama.cpp", settings.llamatikModelPath)
+        AgentType.MediaPipe -> LocalPlaceholderAgent("MediaPipe GenAI", settings.llamatikModelPath)
+        AgentType.AiEdge -> LocalPlaceholderAgent("AI Edge Gallery", settings.llamatikModelPath)
+        AgentType.PocketPal -> LocalPlaceholderAgent("PocketPal AI", settings.llamatikModelPath)
+        AgentType.Offline -> OfflineAgent()
+        }
+    }
+
+    private fun getOrCreateAgent(settings: AppSettings): ConversationalAgent {
+        val key = cacheKey(settings)
+        if (cachedKey == key && cachedAgent != null) return cachedAgent!!
+        val newAgent = createAgent(settings)
+        cachedAgent = newAgent
+        cachedKey = key
+        return newAgent
+    }
+
+    override fun evaluateSetupIssue(input: AgentSetupInput): AgentSetupDescriptor? =
+        getOrCreateAgent(settingsManager.settings.value).evaluateSetupIssue(input)
+
     private fun cacheKey(settings: AppSettings): String = buildString {
         append(settings.selectedAgent.name)
         append("|").append(settings.selectedModel.modelName)
@@ -74,45 +118,7 @@ class DynamicAgentWrapper(
     
     override suspend fun process(input: String): AgentResponse {
         val settings = settingsManager.settings.value
-        val key = cacheKey(settings)
-        val agent = if (cachedKey == key && cachedAgent != null) {
-            cachedAgent!!
-        } else {
-            android.util.Log.d("DynamicAgentWrapper", "Creating agent: ${settings.selectedAgent.name}")
-            val newAgent = when (settings.selectedAgent) {
-            AgentType.OpenAI -> OpenAIAgent(client, apiKey = settings.openAiKey, model = settings.openAiModel.modelName, toolsEnabled = settings.extendedActionsEnabled)
-            AgentType.ElevenLabs -> {
-                // Ensure required keys are present for ElevenLabs
-                if (settings.perplexityKey.isBlank() || settings.elevenLabsKey.isBlank()) {
-                    android.util.Log.w("DynamicAgentWrapper", "ElevenLabs selected but missing keys (perplexity: ${settings.perplexityKey.isNotBlank()}, elevenlabs: ${settings.elevenLabsKey.isNotBlank()})")
-                }
-                ElevenLabsAgent(client, perplexityKey = settings.perplexityKey, elevenLabsKey = settings.elevenLabsKey, model = settings.selectedModel.modelName)
-            }
-            AgentType.Deepgram -> {
-                android.util.Log.d("DynamicAgentWrapper", "Creating Deepgram agent (this should not happen if ElevenLabs is selected)")
-                DeepgramAgent(client, deepgramKey = settings.deepgramKey)
-            }
-            AgentType.Native -> PerplexityAgent(client, apiKey = settings.perplexityKey, model = settings.selectedModel.modelName)
-            AgentType.Gemini -> GeminiAgent(client, apiKey = settings.geminiKey, model = settings.geminiModel.modelName, toolsEnabled = settings.extendedActionsEnabled)
-            AgentType.FirebaseAI -> FirebaseAIAgent(client, apiKey = settings.firebaseAiKey, model = settings.firebaseAiModel)
-            AgentType.OpenCodeZen -> OpenCodeZenAgent(client, apiKey = settings.opencodeZenKey, model = settings.opencodeZenModel)
-            AgentType.CompletionsMe -> CompletionsMeAgent(client, apiKey = settings.completionsMeKey, model = settings.completionsMeModel)
-            AgentType.ApiFreeLLM -> ApiFreeLLMAgent(client, apiKey = settings.apifreellmKey)
-            AgentType.Llamatik -> LocalAgent(modelPath = settings.llamatikModelPath) // No API key needed - runs offline
-            AgentType.GeminiNano -> LocalPlaceholderAgent("Gemini Nano", settings.llamatikModelPath)
-            AgentType.RunAnywhere -> LocalPlaceholderAgent("RunAnywhere", settings.llamatikModelPath)
-            AgentType.MlcLlm -> LocalPlaceholderAgent("MLC-LLM", settings.llamatikModelPath)
-            AgentType.LlamaCpp -> LocalPlaceholderAgent("llama.cpp", settings.llamatikModelPath)
-            AgentType.MediaPipe -> LocalPlaceholderAgent("MediaPipe GenAI", settings.llamatikModelPath)
-            AgentType.AiEdge -> LocalPlaceholderAgent("AI Edge Gallery", settings.llamatikModelPath)
-            AgentType.PocketPal -> LocalPlaceholderAgent("PocketPal AI", settings.llamatikModelPath)
-            AgentType.Offline -> OfflineAgent() // Fully offline agent - math, counting, hangman, quotes
-            }
-            cachedAgent = newAgent
-            cachedKey = key
-            newAgent
-        }
-        return agent.process(input)
+        return getOrCreateAgent(settings).process(input)
     }
 }
 

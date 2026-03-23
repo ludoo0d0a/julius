@@ -1,8 +1,8 @@
 package fr.geoking.julius.agents
 
 /**
- * Abstraction over Llamatik LlamaBridge for local LLM inference.
- * Allows testing LocalAgent without the native Llamatik dependency.
+ * Abstraction over Llamatik LlamaBridge for on-device LLM inference.
+ * Allows testing [LlamatikAgent] without the native Llamatik dependency.
  */
 interface LlamaBackend {
     /** Resolves model path (e.g. copies asset to readable path on Android). */

@@ -34,6 +34,13 @@ class CompletionsMeAgent(
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    override fun evaluateSetupIssue(input: AgentSetupInput): AgentSetupDescriptor? {
+        if (input.completionsMeKey.isBlank()) {
+            return AgentSetupDescriptor.MissingApiKey(missingApiKeyMessage(input.selectedAgentDisplayName))
+        }
+        return null
+    }
+
     override suspend fun process(input: String): AgentResponse = mutex.withLock {
         if (apiKey.isBlank()) {
             throw NetworkException(null, "Completions.me API key is required. Get one at completions.me/register")

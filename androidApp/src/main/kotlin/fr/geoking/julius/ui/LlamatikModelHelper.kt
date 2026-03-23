@@ -12,9 +12,9 @@ import java.net.URL
 import fr.geoking.julius.AgentType
 
 /**
- * Available local model variants grouped by agent.
+ * Downloadable on-device model variants grouped by agent (GGUF and related formats).
  */
-enum class LocalModelVariant(
+enum class LlamatikModelVariant(
     val agentType: AgentType,
     val displayName: String,
     val sizeDescription: String,
@@ -71,17 +71,17 @@ enum class LocalModelVariant(
 }
 
 /**
- * Helper for the Local (embedded) agent: check if model exists, resolve display path, download GGUF.
+ * Llamatik / on-device model path: check if model exists, resolve display path, download GGUF.
  * Downloaded models are stored in app files dir: [context.filesDir]/models/[variant.fileName].
  */
-class LocalModelHelper(private val context: Context) {
+class LlamatikModelHelper(private val context: Context) {
 
     companion object {
         /** Default asset-relative path used when no download has been done. */
         const val DEFAULT_ASSET_PATH = "models/phi-2.Q4_0.gguf"
     }
 
-    private fun fileForVariant(variant: LocalModelVariant): File =
+    private fun fileForVariant(variant: LlamatikModelVariant): File =
         File(context.filesDir, "models/${variant.agentType.name}/${variant.fileName}")
 
     /**
@@ -105,7 +105,7 @@ class LocalModelHelper(private val context: Context) {
     private fun getModelPathForAgent(settings: AppSettings, agentType: AgentType): String {
         return when (agentType) {
             AgentType.Llamatik -> settings.llamatikModelPath
-            // For now, other local agents use the same path if not explicitly separated
+            // Other on-device agents share [AppSettings.llamatikModelPath] until split per agent.
             else -> settings.llamatikModelPath
         }
     }
@@ -113,7 +113,7 @@ class LocalModelHelper(private val context: Context) {
     /**
      * Returns true if the given variant has been downloaded (file exists in app storage).
      */
-    fun isVariantDownloaded(variant: LocalModelVariant): Boolean =
+    fun isVariantDownloaded(variant: LlamatikModelVariant): Boolean =
         fileForVariant(variant).exists()
 
     /**
@@ -128,7 +128,7 @@ class LocalModelHelper(private val context: Context) {
     /**
      * Absolute path where the selected variant will be saved when downloading.
      */
-    fun getDownloadDestinationPath(variant: LocalModelVariant): String =
+    fun getDownloadDestinationPath(variant: LlamatikModelVariant): String =
         fileForVariant(variant).absolutePath
 
     /**
@@ -136,7 +136,7 @@ class LocalModelHelper(private val context: Context) {
      * Returns the absolute path to use as [AppSettings.llamatikModelPath] on success.
      */
     suspend fun download(
-        variant: LocalModelVariant,
+        variant: LlamatikModelVariant,
         onProgress: (bytesDownloaded: Long, totalBytes: Long?) -> Unit
     ): Result<String> = withContext(Dispatchers.IO) {
         val destFile = fileForVariant(variant)

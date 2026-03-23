@@ -137,6 +137,13 @@ class GeminiAgent(
         isLenient = true
     }
 
+    override fun evaluateSetupIssue(input: AgentSetupInput): AgentSetupDescriptor? {
+        if (input.geminiKey.isBlank()) {
+            return AgentSetupDescriptor.MissingApiKey(missingApiKeyMessage(input.selectedAgentDisplayName))
+        }
+        return null
+    }
+
     override suspend fun process(input: String): AgentResponse = mutex.withLock {
         if (apiKey.isBlank()) {
             throw NetworkException(null, "Gemini API key is required. Please set it in settings.")

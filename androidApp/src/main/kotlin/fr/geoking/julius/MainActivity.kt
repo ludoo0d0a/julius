@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
+import fr.geoking.julius.agents.ConversationalAgent
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.ConversationState
 import fr.geoking.julius.shared.VoiceEvent
@@ -35,6 +36,10 @@ import fr.geoking.julius.ui.PhoneMainScreen
 import fr.geoking.julius.ui.RoutePlanningScreen
 import fr.geoking.julius.ui.HistoryScreen
 import fr.geoking.julius.ui.SettingsScreen
+import fr.geoking.julius.ui.SettingsScreenPage
+import fr.geoking.julius.ui.LlamatikModelHelper
+import fr.geoking.julius.ui.agentConfigSettingsPages
+import fr.geoking.julius.ui.evaluateAgentSetup
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.ui.UpdateAvailableDialog
 import fr.geoking.julius.ui.anim.AnimationPalettes
@@ -132,6 +137,7 @@ class MainActivity : ComponentActivity() {
             val permissionManager: PermissionManager = get()
             val julesClient: JulesClient = get()
             val voiceManager: fr.geoking.julius.shared.VoiceManager = get()
+            val conversationalAgent: ConversationalAgent = get()
             // Map/route deps are resolved lazily when user opens map (see mapDepsState / ensureMapDeps)
 
             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
@@ -162,6 +168,7 @@ class MainActivity : ComponentActivity() {
                     onRequestMapDeps = { ensureMapDeps() },
                     julesClient = julesClient,
                     voiceManager = voiceManager,
+                    conversationalAgent = conversationalAgent,
                     inAppUpdateHelper = inAppUpdateHelper,
                     onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) },
                     pendingNavDestinationFlow = pendingNavDestination
@@ -189,6 +196,7 @@ fun MainUI(
     onRequestMapDeps: () -> Unit,
     julesClient: JulesClient,
     voiceManager: fr.geoking.julius.shared.VoiceManager,
+    conversationalAgent: ConversationalAgent,
     inAppUpdateHelper: InAppUpdateHelper? = null,
     onStartUpdate: (AppUpdateInfo) -> Unit = {},
     pendingNavDestinationFlow: kotlinx.coroutines.flow.MutableStateFlow<NavDestination?> = remember { MutableStateFlow(null) }
@@ -199,6 +207,7 @@ fun MainUI(
     var showMap by remember { mutableStateOf(false) }
     var showRoutePlanning by remember { mutableStateOf(false) }
     var initialNavDestination by remember { mutableStateOf<NavDestination?>(null) }
+    var settingsInitialStack by remember { mutableStateOf<List<SettingsScreenPage>?>(null) }
 
     val context = LocalContext.current
 
@@ -242,6 +251,10 @@ fun MainUI(
     }
     var showJules by remember { mutableStateOf(false) }
     val settings by settingsManager.settings.collectAsState()
+    val llamatikModelHelper = remember(context) { LlamatikModelHelper(context.applicationContext) }
+    val setupIssue = remember(settings, llamatikModelHelper, conversationalAgent) {
+        evaluateAgentSetup(settings, llamatikModelHelper, conversationalAgent)
+    }
 
     LaunchedEffect(showMap, showRoutePlanning) {
         if (showMap || showRoutePlanning) onRequestMapDeps()
@@ -268,7 +281,14 @@ fun MainUI(
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when {
                 showSettings -> {
-                    SettingsScreen(settingsManager, authManager, state.errorLog) { showSettings = false }
+                    SettingsScreen(
+                        settingsManager = settingsManager,
+                        authManager = authManager,
+                        errorLog = state.errorLog,
+                        onDismiss = { showSettings = false },
+                        initialScreenStack = settingsInitialStack,
+                        onInitialRouteConsumed = { settingsInitialStack = null }
+                    )
                 }
                 showHistory -> {
                     HistoryScreen(state = state, store = store, onBack = { showHistory = false })
@@ -321,10 +341,18 @@ fun MainUI(
                         palette = palette,
                         settingsManager = settingsManager,
                         store = store,
-                        onSettingsClick = { showSettings = true },
+                        onSettingsClick = {
+                            settingsInitialStack = null
+                            showSettings = true
+                        },
                         onHistoryClick = { showHistory = true },
                         onMapClick = { showMap = true },
-                        onJulesClick = { showJules = true }
+                        onJulesClick = { showJules = true },
+                        setupIssue = setupIssue,
+                        onOpenAgentSettings = {
+                            settingsInitialStack = agentConfigSettingsPages()
+                            showSettings = true
+                        }
                     )
                 }
             }
@@ -415,7 +443,13 @@ fun MainUIPreview() {
         mapDepsState = mapDepsFlow,
         onRequestMapDeps = {},
         julesClient = remember { JulesClient(HttpClient(OkHttp) {}) },
-        voiceManager = mockStore.voiceManager
+        voiceManager = mockStore.voiceManager,
+        conversationalAgent = remember {
+            object : ConversationalAgent {
+                override suspend fun process(input: String) =
+                    fr.geoking.julius.agents.AgentResponse("Mock response", null, null)
+            }
+        }
     )
 }
 

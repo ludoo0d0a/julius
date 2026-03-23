@@ -58,4 +58,11 @@ class ElevenLabsAgent(
 
         return AgentResponse(text, audioBytes)
     }
+
+    override fun evaluateSetupIssue(input: AgentSetupInput): AgentSetupDescriptor? {
+        if (input.perplexityKey.isBlank() || input.elevenLabsKey.isBlank()) {
+            return AgentSetupDescriptor.MissingApiKey(missingApiKeyMessage(input.selectedAgentDisplayName))
+        }
+        return null
+    }
 }

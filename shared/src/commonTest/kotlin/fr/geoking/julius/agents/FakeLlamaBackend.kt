@@ -1,7 +1,7 @@
 package fr.geoking.julius.agents
 
 /**
- * Fake [LlamaBackend] for unit testing [LocalAgent] without the native Llamatik dependency.
+ * Fake [LlamaBackend] for unit testing [LlamatikAgent] without the native Llamatik dependency.
  */
 class FakeLlamaBackend(
     private val initResult: Boolean = true,

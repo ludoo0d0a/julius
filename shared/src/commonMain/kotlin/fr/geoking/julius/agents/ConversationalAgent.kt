@@ -29,6 +29,11 @@ interface ConversationalAgent {
     suspend fun transcribe(audioData: ByteArray): String? {
         return null
     }
+
+    /**
+     * Proactive setup check (API keys, Llamatik model file). Default: no issue.
+     */
+    fun evaluateSetupIssue(input: AgentSetupInput): AgentSetupDescriptor? = null
 }
 
 data class ToolCall(

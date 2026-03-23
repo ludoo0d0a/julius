@@ -8,12 +8,45 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-enum class AgentType {
-    OpenAI, ElevenLabs, Deepgram, Native, Gemini, FirebaseAI, OpenCodeZen, CompletionsMe, ApiFreeLLM,
-    Llamatik, GeminiNano, RunAnywhere, MlcLlm, LlamaCpp, MediaPipe, AiEdge, PocketPal, Offline
+/**
+ * @param enabled If false, hidden from agent pickers and next-agent cycling; [DynamicAgentWrapper] may still resolve
+ *   the type if stored settings reference it until migrated.
+ */
+enum class AgentType(val enabled: Boolean = true) {
+    OpenAI,
+    ElevenLabs,
+    Deepgram,
+    /** Perplexity (text-only cloud); hidden when [enabled] is false. */
+    Native(enabled = false),
+    Gemini,
+    FirebaseAI,
+    OpenCodeZen,
+    CompletionsMe,
+    ApiFreeLLM,
+    Llamatik,
+    GeminiNano,
+    RunAnywhere,
+    MlcLlm,
+    LlamaCpp,
+    MediaPipe,
+    AiEdge,
+    PocketPal,
+    Offline
 }
 
 val DEFAULT_AGENT = AgentType.Gemini
+
+/** Agents shown in settings / Auto pickers and phone–car next-agent controls. */
+fun enabledAgentTypes(): List<AgentType> = AgentType.entries.filter { it.enabled }
+
+/** Next agent when cycling UI; if [current] is disabled or unknown, returns the first enabled agent. */
+fun nextSelectableAgent(current: AgentType): AgentType {
+    val agents = enabledAgentTypes()
+    require(agents.isNotEmpty()) { "At least one AgentType must be enabled" }
+    val i = agents.indexOf(current)
+    if (i < 0) return agents.first()
+    return agents[(i + 1) % agents.size]
+}
 
 enum class AppTheme { Particles, Sphere, Waves, Fractal, Micro }
 enum class TextAnimation { None, Genie, Blur, Fade, Zoom, Falling }
@@ -137,7 +170,7 @@ data class AppSettings(
     val textAnimation: TextAnimation = TextAnimation.Fade,
     /** Path to Llamatik GGUF model: asset-relative (e.g. "models/phi-2.Q4_0.gguf") or absolute path after download. */
     val llamatikModelPath: String = "models/phi-2.Q4_0.gguf",
-    /** Selected Llamatik model variant for download UI; must match [fr.geoking.julius.ui.LocalModelVariant].name (e.g. Phi2Q4_0). */
+    /** Selected Llamatik model variant for download UI; must match [fr.geoking.julius.ui.LlamatikModelVariant].name (e.g. Phi2Q4_0). */
     val selectedLlamatikModelVariant: String = "Phi2Q4_0",
     val lastJulesRepoId: String = "",
     val lastJulesRepoName: String = "",
@@ -306,13 +339,25 @@ open class SettingsManager(context: Context) {
             completionsMeModel = completionsMeModel,
             apifreellmKey = apifreellmKey,
             julesKey = julesKey,
-            selectedAgent = try {
-                val agentName = prefs.getString("agent", null)
-                if (agentName != null) AgentType.valueOf(agentName)
-                else DEFAULT_AGENT
-            } catch (e: IllegalArgumentException) {
-                android.util.Log.w("SettingsManager", "Invalid agent name in preferences, using default: ${e.message}")
-                DEFAULT_AGENT
+            selectedAgent = run {
+                val loaded = try {
+                    val agentName = prefs.getString("agent", null)
+                    if (agentName != null) AgentType.valueOf(agentName)
+                    else DEFAULT_AGENT
+                } catch (e: IllegalArgumentException) {
+                    android.util.Log.w("SettingsManager", "Invalid agent name in preferences, using default: ${e.message}")
+                    DEFAULT_AGENT
+                }
+                if (!loaded.enabled) {
+                    android.util.Log.w(
+                        "SettingsManager",
+                        "Selected agent ${loaded.name} is disabled; using $DEFAULT_AGENT"
+                    )
+                    prefs.edit().putString("agent", DEFAULT_AGENT.name).apply()
+                    DEFAULT_AGENT
+                } else {
+                    loaded
+                }
             },
             selectedTheme = try {
                 AppTheme.valueOf(prefs.getString("theme", AppTheme.Micro.name) ?: AppTheme.Micro.name)
@@ -550,6 +595,15 @@ open class SettingsManager(context: Context) {
     }
 
     private fun saveSettingsInternal(settings: AppSettings) {
+        val settings = if (!settings.selectedAgent.enabled) {
+            android.util.Log.w(
+                "SettingsManager",
+                "Refusing to persist disabled agent ${settings.selectedAgent.name}; using $DEFAULT_AGENT"
+            )
+            settings.copy(selectedAgent = DEFAULT_AGENT)
+        } else {
+            settings
+        }
         prefs.edit()
             .putString("vehicle_brand", settings.vehicleBrand)
             .putString("vehicle_model", settings.vehicleModel)

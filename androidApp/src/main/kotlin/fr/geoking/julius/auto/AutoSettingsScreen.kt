@@ -67,18 +67,18 @@ class AutoSettingsScreen(
             )
         }
 
-        val isLocalAgent = settings.selectedAgent in listOf(
+        val usesLlamatikModelPath = settings.selectedAgent in listOf(
             AgentType.Llamatik, AgentType.GeminiNano, AgentType.RunAnywhere,
             AgentType.MlcLlm, AgentType.LlamaCpp, AgentType.MediaPipe,
             AgentType.AiEdge, AgentType.PocketPal
         )
-        if (isLocalAgent) {
+        if (usesLlamatikModelPath) {
             listBuilder.addItem(
                 Row.Builder()
                     .setTitle("Download model (${settings.selectedAgent.name})")
                     .addText("Download model for offline use")
                     .setOnClickListener {
-                        screenManager.push(AutoLocalModelScreen(carContext, settingsManager))
+                        screenManager.push(AutoLlamatikModelScreen(carContext, settingsManager))
                     }
                     .build()
             )

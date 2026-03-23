@@ -29,6 +29,13 @@ class PerplexityAgent(
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    override fun evaluateSetupIssue(input: AgentSetupInput): AgentSetupDescriptor? {
+        if (input.perplexityKey.isBlank()) {
+            return AgentSetupDescriptor.MissingApiKey(missingApiKeyMessage(input.selectedAgentDisplayName))
+        }
+        return null
+    }
+
     override suspend fun process(input: String): AgentResponse = mutex.withLock {
         if (apiKey.isBlank()) {
             throw NetworkException(null, "Perplexity API key is required. Please set it in settings.")

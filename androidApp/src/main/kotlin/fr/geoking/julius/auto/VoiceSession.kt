@@ -8,6 +8,7 @@ import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.di.MapDeps
 import fr.geoking.julius.di.MapModuleLoader
 import fr.geoking.julius.api.jules.JulesClient
+import fr.geoking.julius.agents.ConversationalAgent
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory
 import fr.geoking.julius.api.routing.RoutePlanner
@@ -29,6 +30,7 @@ class VoiceSession : Session(), KoinComponent {
     private val settingsManager: SettingsManager by inject()
     private val voiceManager: fr.geoking.julius.shared.VoiceManager by inject()
     private val julesClient: JulesClient by inject()
+    private val conversationalAgent: ConversationalAgent by inject()
 
     /** Map/POI deps are loaded only when user opens the Map tab. */
     private var cachedMapDeps: MapDeps? = null
@@ -90,7 +92,7 @@ class VoiceSession : Session(), KoinComponent {
             )
         }
         return try {
-            MainScreen(carContext, store, settingsManager, julesClient, this::getMapDeps)
+            MainScreen(carContext, store, settingsManager, julesClient, this::getMapDeps, conversationalAgent)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create MainScreen", e)
             ErrorScreen(

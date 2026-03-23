@@ -5,10 +5,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * LocalAgent - On-device/offline LLM inference using Llamatik
+ * On-device/offline LLM inference using Llamatik (GGUF).
  *
- * This agent runs models locally without requiring API keys or network connectivity.
- * Models must be in GGUF format and placed in the app's assets folder or accessible file path.
+ * Runs without API keys or network. Models must be in GGUF format in assets or an accessible file path.
  *
  * Recommended models for Android:
  * - Phi-2 (Q4_0): ~1.6GB, good quality for small devices
@@ -21,7 +20,7 @@ import kotlinx.coroutines.sync.withLock
  * @param modelPath Asset-relative or absolute path to the GGUF model (e.g. "models/phi-2.Q4_0.gguf").
  * @param backend Optional backend; if null, uses [DefaultLlamaBackend] (Llamatik). Inject a fake in tests.
  */
-class LocalAgent(
+class LlamatikAgent(
     private val modelPath: String = "models/phi-2.Q4_0.gguf",
     private val backend: LlamaBackend? = DefaultLlamaBackend
 ) : ConversationalAgent {
@@ -32,6 +31,9 @@ class LocalAgent(
 
     private fun getBackend(): LlamaBackend = backend ?: DefaultLlamaBackend
 
+    override fun evaluateSetupIssue(input: AgentSetupInput): AgentSetupDescriptor? =
+        llamatikModelSetupFromInput(input)
+
     private fun initializeModelIfNeeded() {
         if (isModelInitialized) return
         val bridge = getBackend()
@@ -39,7 +41,7 @@ class LocalAgent(
             val fullModelPath = bridge.getModelPath(modelPath)
             val ok = bridge.initGenerateModel(fullModelPath)
             if (!ok) {
-                throw IllegalStateException("Failed to initialize embedded model at: $fullModelPath")
+                throw IllegalStateException("Failed to initialize Llamatik model at: $fullModelPath")
             }
             isModelInitialized = true
         } catch (e: NetworkException) {
@@ -47,7 +49,7 @@ class LocalAgent(
         } catch (e: Exception) {
             throw NetworkException(
                 null,
-                "Failed to load embedded model: ${e.message}. Make sure the model file exists at '$modelPath' in assets."
+                "Failed to load Llamatik model: ${e.message}. Make sure the model file exists at '$modelPath' in assets."
             )
         }
     }
@@ -67,13 +69,12 @@ class LocalAgent(
         } catch (e: NetworkException) {
             throw e
         } catch (e: Exception) {
-            throw NetworkException(null, "Error with embedded model: ${e.message}")
+            throw NetworkException(null, "Error with Llamatik model: ${e.message}")
         }
     }
 
     /**
-     * Cleanup resources when done. Call this when switching away from LocalAgent
-     * or when the app is closing.
+     * Cleanup resources when done. Call when switching away from [LlamatikAgent] or when the app is closing.
      */
     fun shutdown() {
         if (isModelInitialized) {

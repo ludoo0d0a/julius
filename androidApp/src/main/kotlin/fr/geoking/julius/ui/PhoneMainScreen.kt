@@ -21,12 +21,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
-import fr.geoking.julius.AgentType
 import fr.geoking.julius.AppSettings
+import fr.geoking.julius.nextSelectableAgent
 import fr.geoking.julius.AppTheme
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.ConversationState
+import fr.geoking.julius.ui.AgentSetupIssue
 import fr.geoking.julius.ui.anim.AnimationPalette
 import fr.geoking.julius.ui.anim.AnimationPalettes
 import fr.geoking.julius.ui.components.ThemeBackground
@@ -48,6 +49,8 @@ fun PhoneMainScreen(
     onHistoryClick: () -> Unit = {},
     onMapClick: () -> Unit,
     onJulesClick: () -> Unit = {},
+    setupIssue: AgentSetupIssue? = null,
+    onOpenAgentSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val currentSettings = rememberUpdatedState(settings)
@@ -93,11 +96,10 @@ fun PhoneMainScreen(
             onHistoryClick = onHistoryClick,
             onMapClick = onMapClick,
             onJulesClick = onJulesClick,
+            setupIssue = setupIssue,
+            onOpenAgentSettings = onOpenAgentSettings,
             onAgentClick = {
-                val agents = AgentType.entries
-                val currentIndex = agents.indexOf(settings.selectedAgent).coerceAtLeast(0)
-                val nextIndex = (currentIndex + 1) % agents.size
-                val nextAgent = agents[nextIndex]
+                val nextAgent = nextSelectableAgent(settings.selectedAgent)
                 settingsManager.saveSettings(settings.copy(selectedAgent = nextAgent))
             }
         )

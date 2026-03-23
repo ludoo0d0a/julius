@@ -28,6 +28,7 @@ import fr.geoking.julius.AgentType
 import fr.geoking.julius.TextAnimation
 import fr.geoking.julius.shared.DetailedError
 import fr.geoking.julius.shared.VoiceEvent
+import fr.geoking.julius.ui.AgentSetupIssue
 
 private val AgentLabelFontSize = 11.sp
 private val StatusBadgeFontSize = 12.sp
@@ -55,10 +56,14 @@ private val DisplayTextFontSize = 26.sp
 private val DisplayTextLineHeight = 36.sp
 private val ErrorTitleFontSize = 15.sp
 private val ErrorDetailFontSize = 13.sp
+private val WarningTitleFontSize = 14.sp
+private val WarningDetailFontSize = 13.sp
 
 /**
  * Center content: agent name, voice status, main text (transcript or last message), and optional error.
  * @param onAgentClick Optional callback when the agent name is clicked (cycles to next agent on phone).
+ * @param setupIssue Proactive warning when API key or Llamatik model is missing; tap opens agent settings when [onOpenAgentSettings] is set.
+ * @param onOpenAgentSettings Opens Settings on the current agent config (keys / model download).
  */
 @Composable
 fun VoiceStatusContent(
@@ -68,6 +73,8 @@ fun VoiceStatusContent(
     lastError: DetailedError?,
     textAnimation: TextAnimation = TextAnimation.Fade,
     onAgentClick: (() -> Unit)? = null,
+    setupIssue: AgentSetupIssue? = null,
+    onOpenAgentSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -129,6 +136,38 @@ fun VoiceStatusContent(
             )
         }
 
+        if (setupIssue != null && onOpenAgentSettings != null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            val openSettings = onOpenAgentSettings
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFFFBBF24).copy(alpha = 0.14f))
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { openSettings() }
+                    .padding(horizontal = 20.dp, vertical = 14.dp)
+            ) {
+                Text(
+                    text = "Setup required",
+                    color = Color(0xFFFDE68A),
+                    fontSize = WarningTitleFontSize,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = setupIssue.message,
+                    color = Color(0xFFFBBF24).copy(alpha = 0.92f),
+                    fontSize = WarningDetailFontSize,
+                    fontWeight = FontWeight.Normal,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
         lastError?.let { error ->
             Spacer(modifier = Modifier.height(20.dp))
             val errorTitle = when (error.httpCode) {
@@ -138,11 +177,20 @@ fun VoiceStatusContent(
                 in 500..599 -> "Server Error"
                 else -> "Connection Error"
             }
+            val openSettings = onOpenAgentSettings
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color(0xFFF87171).copy(alpha = 0.12f))
+                    .then(
+                        if (openSettings != null) {
+                            Modifier.clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { openSettings() }
+                        } else Modifier
+                    )
                     .padding(horizontal = 20.dp, vertical = 14.dp)
             ) {
                 Text(
@@ -157,8 +205,19 @@ fun VoiceStatusContent(
                     text = "$httpStatus ${error.message}".trim(),
                     color = Color(0xFFF87171).copy(alpha = 0.85f),
                     fontSize = ErrorDetailFontSize,
-                    fontWeight = FontWeight.Normal
+                    fontWeight = FontWeight.Normal,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
+                if (openSettings != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Tap to open settings",
+                        color = Color(0xFFF87171).copy(alpha = 0.65f),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
     }

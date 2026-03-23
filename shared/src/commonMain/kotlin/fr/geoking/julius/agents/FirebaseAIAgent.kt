@@ -83,4 +83,11 @@ class FirebaseAIAgent(
             AgentResponse("Error connecting to Firebase AI: ${e.message}", null)
         }
     }
+
+    override fun evaluateSetupIssue(input: AgentSetupInput): AgentSetupDescriptor? {
+        if (input.firebaseAiKey.isBlank()) {
+            return AgentSetupDescriptor.MissingApiKey(missingApiKeyMessage(input.selectedAgentDisplayName))
+        }
+        return null
+    }
 }

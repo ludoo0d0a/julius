@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import fr.geoking.julius.AgentType
+import fr.geoking.julius.enabledAgentTypes
 import fr.geoking.julius.AppSettings
 import fr.geoking.julius.AppTheme
 import fr.geoking.julius.FractalColorIntensity
@@ -57,7 +58,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-private enum class Screen {
+enum class SettingsScreenPage {
     Main,
     Theme,
     Agent,
@@ -114,11 +115,21 @@ fun SettingsScreen(
     settingsManager: SettingsManager,
     authManager: GoogleAuthManager,
     errorLog: List<DetailedError>,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    initialScreenStack: List<SettingsScreenPage>? = null,
+    onInitialRouteConsumed: () -> Unit = {}
 ) {
     val current by settingsManager.settings.collectAsState()
-    var screenStack by remember { mutableStateOf(listOf(Screen.Main)) }
+    var screenStack by remember { mutableStateOf(listOf(SettingsScreenPage.Main)) }
     val currentScreen = screenStack.last()
+
+    LaunchedEffect(initialScreenStack) {
+        val stack = initialScreenStack
+        if (stack != null && stack.isNotEmpty()) {
+            screenStack = stack
+            onInitialRouteConsumed()
+        }
+    }
 
     BackHandler {
         if (screenStack.size > 1) {
@@ -140,19 +151,19 @@ fun SettingsScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             SettingsHeader(
                 title = when (currentScreen) {
-                    Screen.Main -> "Julius Settings"
-                    Screen.Theme -> "Theme"
-                    Screen.Agent -> "Agent"
-                    Screen.TextAnimation -> "Text animation"
-                    Screen.SttEngine -> "STT engine (car mic)"
-                    Screen.AgentConfig -> "${current.selectedAgent.name} Config"
-                    Screen.FractalConfig -> "Fractal Settings"
-                    Screen.JulesConfig -> "Jules API"
-                    Screen.TollData -> "Highway toll (OpenTollData)"
-                    Screen.ErrorLog -> "Error Log"
-                    Screen.About -> "About"
-                    Screen.GoogleAccount -> "Google Account"
-                    Screen.VehicleConfig -> "Vehicle"
+                    SettingsScreenPage.Main -> "Julius Settings"
+                    SettingsScreenPage.Theme -> "Theme"
+                    SettingsScreenPage.Agent -> "Agent"
+                    SettingsScreenPage.TextAnimation -> "Text animation"
+                    SettingsScreenPage.SttEngine -> "STT engine (car mic)"
+                    SettingsScreenPage.AgentConfig -> "${current.selectedAgent.name} Config"
+                    SettingsScreenPage.FractalConfig -> "Fractal Settings"
+                    SettingsScreenPage.JulesConfig -> "Jules API"
+                    SettingsScreenPage.TollData -> "Highway toll (OpenTollData)"
+                    SettingsScreenPage.ErrorLog -> "Error Log"
+                    SettingsScreenPage.About -> "About"
+                    SettingsScreenPage.GoogleAccount -> "Google Account"
+                    SettingsScreenPage.VehicleConfig -> "Vehicle"
                 },
                 onBack = {
                     if (screenStack.size > 1) {
@@ -165,7 +176,7 @@ fun SettingsScreen(
 
             Box(modifier = Modifier.weight(1f)) {
                 when (currentScreen) {
-                    Screen.Main -> MainMenu(
+                    SettingsScreenPage.Main -> MainMenu(
                         settings = current,
                         authManager = authManager,
                         onNavigate = { screenStack = screenStack + it },
@@ -182,55 +193,55 @@ fun SettingsScreen(
                             save(settingsManager, current.copy(sttEnginePreference = it))
                         }
                     )
-                    Screen.VehicleConfig -> VehicleConfig(
+                    SettingsScreenPage.VehicleConfig -> VehicleConfig(
                         settings = current,
                         onUpdate = { save(settingsManager, it) }
                     )
-                    Screen.Theme -> ThemeSelection(
+                    SettingsScreenPage.Theme -> ThemeSelection(
                         selected = current.selectedTheme,
                         onSelect = {
                             save(settingsManager, current.copy(selectedTheme = it))
                         },
-                        onConfigureFractal = { screenStack = screenStack + Screen.FractalConfig }
+                        onConfigureFractal = { screenStack = screenStack + SettingsScreenPage.FractalConfig }
                     )
-                    Screen.Agent -> AgentSelection(
+                    SettingsScreenPage.Agent -> AgentSelection(
                         selected = current.selectedAgent,
                         onSelect = {
                             save(settingsManager, current.copy(selectedAgent = it))
                         },
-                        onConfigure = { screenStack = screenStack + Screen.AgentConfig }
+                        onConfigure = { screenStack = screenStack + SettingsScreenPage.AgentConfig }
                     )
-                    Screen.TextAnimation -> TextAnimationSelection(
+                    SettingsScreenPage.TextAnimation -> TextAnimationSelection(
                         selected = current.textAnimation,
                         onSelect = {
                             save(settingsManager, current.copy(textAnimation = it))
                         }
                     )
-                    Screen.SttEngine -> SttEngineSelection(
+                    SettingsScreenPage.SttEngine -> SttEngineSelection(
                         selected = current.sttEnginePreference,
                         onSelect = {
                             save(settingsManager, current.copy(sttEnginePreference = it))
                         }
                     )
-                    Screen.AgentConfig -> AgentConfig(
+                    SettingsScreenPage.AgentConfig -> AgentConfig(
                         settings = current,
                         onUpdate = { save(settingsManager, it) }
                     )
-                    Screen.JulesConfig -> JulesConfig(
+                    SettingsScreenPage.JulesConfig -> JulesConfig(
                         settings = current,
                         onUpdate = { save(settingsManager, it) }
                     )
-                    Screen.TollData -> TollDataSection(
+                    SettingsScreenPage.TollData -> TollDataSection(
                         settings = current,
                         onUpdate = { save(settingsManager, it) }
                     )
-                    Screen.FractalConfig -> FractalConfig(
+                    SettingsScreenPage.FractalConfig -> FractalConfig(
                         settings = current,
                         onUpdate = { save(settingsManager, it) }
                     )
-                    Screen.ErrorLog -> ErrorLog(errorLog)
-                    Screen.About -> AboutContent()
-                    Screen.GoogleAccount -> GoogleAccount(
+                    SettingsScreenPage.ErrorLog -> ErrorLog(errorLog)
+                    SettingsScreenPage.About -> AboutContent()
+                    SettingsScreenPage.GoogleAccount -> GoogleAccount(
                         settings = current,
                         settingsManager = settingsManager,
                         authManager = authManager
@@ -281,7 +292,7 @@ private fun SettingsHeader(title: String, onBack: () -> Unit) {
 private fun MainMenu(
     settings: AppSettings,
     authManager: GoogleAuthManager,
-    onNavigate: (Screen) -> Unit,
+    onNavigate: (SettingsScreenPage) -> Unit,
     onToggleExtendedActions: (Boolean) -> Unit,
     onToggleMuteMediaOnCar: (Boolean) -> Unit,
     onSpeakingInterruptModeChange: (SpeakingInterruptMode) -> Unit,
@@ -356,33 +367,33 @@ private fun MainMenu(
             SettingsItem(
                 label = "Theme",
             value = settings.selectedTheme.name,
-            onClick = { onNavigate(Screen.Theme) }
+            onClick = { onNavigate(SettingsScreenPage.Theme) }
         )
         SettingsItem(
             label = "Agent",
             value = settings.selectedAgent.name,
-            onClick = { onNavigate(Screen.Agent) }
+            onClick = { onNavigate(SettingsScreenPage.Agent) }
         )
         SettingsItem(
             label = "Text animation",
             value = settings.textAnimation.name,
-            onClick = { onNavigate(Screen.TextAnimation) }
+            onClick = { onNavigate(SettingsScreenPage.TextAnimation) }
         )
         SettingsItem(
             label = "Vehicle",
             value = if (settings.vehicleBrand.isNotEmpty()) "${settings.vehicleBrand} ${settings.vehicleModel}" else "Not configured",
-            onClick = { onNavigate(Screen.VehicleConfig) }
+            onClick = { onNavigate(SettingsScreenPage.VehicleConfig) }
         )
         SettingsItem(
             label = "STT engine (car)",
             value = sttEnginePreferenceLabel(settings.sttEnginePreference),
-            onClick = { onNavigate(Screen.SttEngine) }
+            onClick = { onNavigate(SettingsScreenPage.SttEngine) }
         )
 
         SettingsItem(
             label = "Google Account",
             value = settings.googleUserName ?: "Not connected",
-            onClick = { onNavigate(Screen.GoogleAccount) }
+            onClick = { onNavigate(SettingsScreenPage.GoogleAccount) }
         )
 
         // Mute Media Toggle
@@ -529,22 +540,22 @@ private fun MainMenu(
         SettingsItem(
             label = "Jules API Key",
             value = if (settings.julesKey.isNotEmpty()) "••••••••" else "Not set",
-            onClick = { onNavigate(Screen.JulesConfig) }
+            onClick = { onNavigate(SettingsScreenPage.JulesConfig) }
         )
         SettingsItem(
             label = "Highway toll (OpenTollData)",
             value = if (!settings.tollDataPath.isNullOrBlank()) "Downloaded" else "Not downloaded",
-            onClick = { onNavigate(Screen.TollData) }
+            onClick = { onNavigate(SettingsScreenPage.TollData) }
         )
         SettingsItem(
             label = "Error Log",
             value = "View recent errors",
-            onClick = { onNavigate(Screen.ErrorLog) }
+            onClick = { onNavigate(SettingsScreenPage.ErrorLog) }
         )
         SettingsItem(
             label = "About",
             value = "Version & build info",
-            onClick = { onNavigate(Screen.About) }
+            onClick = { onNavigate(SettingsScreenPage.About) }
         )
     }
 
@@ -916,12 +927,13 @@ private fun AgentSelection(
     onSelect: (AgentType) -> Unit,
     onConfigure: () -> Unit
 ) {
-    val localAgents = listOf(
+    val llamatikPathAgentTypes = listOf(
         AgentType.Llamatik, AgentType.GeminiNano, AgentType.RunAnywhere,
         AgentType.MlcLlm, AgentType.LlamaCpp, AgentType.MediaPipe,
         AgentType.AiEdge, AgentType.PocketPal, AgentType.Offline
     )
-    val remoteAgents = AgentType.entries.filter { it !in localAgents }
+    val llamatikPathAgents = llamatikPathAgentTypes.filter { it.enabled }
+    val remoteAgents = enabledAgentTypes().filter { it !in llamatikPathAgentTypes }
 
     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
         Text(
@@ -937,13 +949,13 @@ private fun AgentSelection(
 
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "On-Device AI (Local)",
+            text = "On-device AI",
             color = Lavender,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
         )
-        localAgents.forEach { agent ->
+        llamatikPathAgents.forEach { agent ->
             AgentSelectionItem(agent, selected, onSelect, onConfigure)
         }
     }
@@ -956,12 +968,17 @@ private fun AgentSelectionItem(
     onSelect: (AgentType) -> Unit,
     onConfigure: () -> Unit
 ) {
-    val isLocal = agent in listOf(
+    val usesLlamatikModelPath = agent in listOf(
         AgentType.Llamatik, AgentType.GeminiNano, AgentType.RunAnywhere,
         AgentType.MlcLlm, AgentType.LlamaCpp, AgentType.MediaPipe,
         AgentType.AiEdge, AgentType.PocketPal, AgentType.Offline
     )
-    val label = if (isLocal && agent != AgentType.Offline) "${agent.name} (local)" else agent.name
+    val label = when {
+        agent == AgentType.Offline -> agent.name
+        agent == AgentType.Llamatik -> agent.name
+        usesLlamatikModelPath -> "${agent.name} (on-device)"
+        else -> agent.name
+    }
 
     SelectionItem(
         label = label,
@@ -1124,29 +1141,29 @@ private fun AgentConfig(
             AgentType.AiEdge, AgentType.PocketPal -> {
                 val agent = settings.selectedAgent
                 val context = LocalContext.current
-                val helper = remember(context) { LocalModelHelper(context) }
+                val helper = remember(context) { LlamatikModelHelper(context) }
                 val scope = rememberCoroutineScope()
                 var downloadProgress by remember { mutableStateOf<Pair<Long, Long?>?>(null) }
                 var downloadError by remember { mutableStateOf<String?>(null) }
 
                 val selectedVariant = remember(settings.selectedLlamatikModelVariant, agent) {
-                    LocalModelVariant.entries
+                    LlamatikModelVariant.entries
                         .filter { it.agentType == agent }
                         .find { it.name == settings.selectedLlamatikModelVariant }
-                        ?: LocalModelVariant.entries.firstOrNull { it.agentType == agent }
+                        ?: LlamatikModelVariant.entries.firstOrNull { it.agentType == agent }
                 }
                 val downloaded = helper.isModelDownloaded(settings, agent)
                 val variantDownloaded = selectedVariant?.let { helper.isVariantDownloaded(it) } ?: false
                 val displayPath = helper.getDisplayPath(settings, agent)
 
                 Text(
-                    "This agent runs offline using a local model. Choose a variant below and download, or use a model in assets.",
+                    "This agent runs offline using a Llamatik-format model path. Choose a variant below and download, or use a model in assets.",
                     color = Lavender,
                     fontSize = 14.sp,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
-                val variants = LocalModelVariant.entries.filter { it.agentType == agent }
+                val variants = LlamatikModelVariant.entries.filter { it.agentType == agent }
                 if (variants.isEmpty()) {
                     Text(
                         text = "No pre-configured models available for ${agent.name} yet.",

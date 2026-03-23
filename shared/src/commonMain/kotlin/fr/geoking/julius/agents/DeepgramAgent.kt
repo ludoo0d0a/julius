@@ -41,6 +41,13 @@ class DeepgramAgent(
 
     override val isSttSupported: Boolean get() = true
 
+    override fun evaluateSetupIssue(input: AgentSetupInput): AgentSetupDescriptor? {
+        if (input.deepgramKey.isBlank()) {
+            return AgentSetupDescriptor.MissingApiKey(missingApiKeyMessage(input.selectedAgentDisplayName))
+        }
+        return null
+    }
+
     override suspend fun transcribe(audioData: ByteArray): String? = mutex.withLock {
         if (deepgramKey.isBlank()) return null
 

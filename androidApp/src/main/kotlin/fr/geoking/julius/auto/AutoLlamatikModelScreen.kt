@@ -11,24 +11,24 @@ import androidx.car.app.model.Row
 import androidx.car.app.model.Template
 import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.SettingsManager
-import fr.geoking.julius.ui.LocalModelHelper
-import fr.geoking.julius.ui.LocalModelVariant
+import fr.geoking.julius.ui.LlamatikModelHelper
+import fr.geoking.julius.ui.LlamatikModelVariant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Android Auto screen to download a Llamatik GGUF model. Shown from Settings when agent is Local.
+ * Android Auto screen to download a Llamatik / on-device model. Shown from Settings for on-device agents.
  */
-class AutoLocalModelScreen(
+class AutoLlamatikModelScreen(
     carContext: CarContext,
     private val settingsManager: SettingsManager
 ) : Screen(carContext) {
 
-    private val helper = LocalModelHelper(carContext.applicationContext)
+    private val helper = LlamatikModelHelper(carContext.applicationContext)
 
     /** When non-null, we are downloading this variant and show progress. */
-    private var downloadVariant: LocalModelVariant? = null
+    private var downloadVariant: LlamatikModelVariant? = null
     private var downloadBytes: Long = 0L
     private var downloadTotal: Long? = null
     private var downloadError: String? = null
@@ -64,7 +64,7 @@ class AutoLocalModelScreen(
         }
 
         val listBuilder = ItemList.Builder()
-        for (variant in LocalModelVariant.entries.filter { it.agentType == settings.selectedAgent }) {
+        for (variant in LlamatikModelVariant.entries.filter { it.agentType == settings.selectedAgent }) {
             val isDownloaded = helper.isVariantDownloaded(variant)
             val subtitle = if (isDownloaded) "Downloaded" else variant.sizeDescription
             listBuilder.addItem(

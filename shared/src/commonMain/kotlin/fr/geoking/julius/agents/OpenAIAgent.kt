@@ -296,4 +296,11 @@ class OpenAIAgent(
 
         return AgentResponse(text, audioBytes, toolCalls = toolCalls)
     }
+
+    override fun evaluateSetupIssue(input: AgentSetupInput): AgentSetupDescriptor? {
+        if (input.openAiKey.isBlank()) {
+            return AgentSetupDescriptor.MissingApiKey(missingApiKeyMessage(input.selectedAgentDisplayName))
+        }
+        return null
+    }
 }

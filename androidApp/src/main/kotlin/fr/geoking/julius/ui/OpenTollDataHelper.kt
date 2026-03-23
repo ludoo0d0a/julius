@@ -20,7 +20,7 @@ const val OPEN_TOLL_DATA_FILENAME = "toll_data.json"
 
 /**
  * Helper for OpenTollData: download French highway toll JSON to app files dir.
- * Same pattern as [LocalModelHelper] (Llamatik model download).
+ * Same pattern as [LlamatikModelHelper] (Llamatik model download).
  * Downloaded file is stored at [context.filesDir]/open_toll_data/[OPEN_TOLL_DATA_FILENAME].
  */
 class OpenTollDataHelper(private val context: Context) {

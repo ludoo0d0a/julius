@@ -36,6 +36,13 @@ class ApiFreeLLMAgent(
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    override fun evaluateSetupIssue(input: AgentSetupInput): AgentSetupDescriptor? {
+        if (input.apifreellmKey.isBlank()) {
+            return AgentSetupDescriptor.MissingApiKey(missingApiKeyMessage(input.selectedAgentDisplayName))
+        }
+        return null
+    }
+
     override suspend fun process(input: String): AgentResponse = mutex.withLock {
         if (apiKey.isBlank()) {
             throw NetworkException(null, "ApiFreeLLM API key is required. Sign in with Google at apifreellm.com")
