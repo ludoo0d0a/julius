@@ -342,11 +342,11 @@ open class ConversationStore(
     }
 
     /** Speaks an existing message again without sending it to the agent. */
-    fun speakAgain(text: String) {
+    fun speakAgain(text: String, isInterruptible: Boolean = true) {
         if (text.isBlank()) return
         val speechLanguageTag = _preferredSpeechLanguageTag.value
             ?: SpeechLanguageResolver.detectLanguageTag(text)
-        voiceManager.speak(text, speechLanguageTag)
+        voiceManager.speak(text, speechLanguageTag, isInterruptible)
     }
 
     fun clearConversation() {

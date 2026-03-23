@@ -18,7 +18,7 @@ interface VoiceManager {
     fun startListening()
     fun stopListening()
     fun setTranscriber(transcriber: suspend (ByteArray) -> String?)
-    fun speak(text: String, languageTag: String? = null)
+    fun speak(text: String, languageTag: String? = null, isInterruptible: Boolean = true)
     fun playAudio(bytes: ByteArray)
     fun stopSpeaking()
 }

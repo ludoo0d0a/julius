@@ -397,9 +397,9 @@ class AndroidVoiceManager(
         }
     }
     
-    override fun speak(text: String, languageTag: String?) {
+    override fun speak(text: String, languageTag: String?, isInterruptible: Boolean) {
         // With interrupt mode OFF, cancel recognition so TTS is not cut by leftover STT.
-        if (settingsManager.settings.value.speakingInterruptMode == SpeakingInterruptMode.OFF) {
+        if (settingsManager.settings.value.speakingInterruptMode == SpeakingInterruptMode.OFF || !isInterruptible) {
             cancelActiveRecognitionForSpeechOutput()
         }
         requestAudioFocus()
@@ -407,7 +407,9 @@ class AndroidVoiceManager(
         player.notifyStateChanged()
         updateTtsLanguage(languageTag)
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "voice_ai_utterance")
-        startBargeInWhileSpeakingIfNeeded()
+        if (isInterruptible) {
+            startBargeInWhileSpeakingIfNeeded()
+        }
     }
 
     override fun playAudio(bytes: ByteArray) {
@@ -781,15 +783,18 @@ class AndroidVoiceManager(
     }
     override fun onBeginningOfSpeech() {
         if (isBargeInActive && _events.value == VoiceEvent.Speaking) {
-            tts?.stop()
-            try {
-                if (mediaPlayer?.isPlaying == true) {
-                    mediaPlayer?.stop()
+            // In keyword-only mode, don't stop speech until keyword is confirmed in onResults/onPartialResults
+            if (!isHeyJuliusKeywordBargeIn) {
+                tts?.stop()
+                try {
+                    if (mediaPlayer?.isPlaying == true) {
+                        mediaPlayer?.stop()
+                    }
+                } catch (e: IllegalStateException) {
+                    e.printStackTrace()
                 }
-            } catch (e: IllegalStateException) {
-                e.printStackTrace()
+                isBargeInActive = false
             }
-            isBargeInActive = false
         }
         _events.value = VoiceEvent.Listening
         player.notifyStateChanged()
