@@ -29,6 +29,20 @@ object ActionParser {
                     data = emptyMap()
                 )
             }
+
+            // Get location - English: where am i, current location | French: où suis-je, ma position, ma localisation
+            lowerText.contains("where am i") || lowerText.contains("current location") ||
+            lowerText.contains("où suis-je") || lowerText.contains("ou suis-je") ||
+            lowerText.contains("ma position") || lowerText.contains("ma localisation") -> {
+                return DeviceAction(type = ActionType.GET_LOCATION)
+            }
+
+            // Show map - English: show map, open map | French: afficher la carte, ouvrir la carte
+            lowerText.contains("show map") || lowerText.contains("open map") ||
+            lowerText.contains("afficher la carte") || lowerText.contains("ouvre la carte") ||
+            lowerText.contains("ouvrir la carte") -> {
+                return DeviceAction(type = ActionType.SHOW_MAP)
+            }
             
             // Send message commands - English: send message, text | French: envoyer message, envoyer sms, envoyer texto
             lowerText.contains("send message") || lowerText.contains("text ") || 

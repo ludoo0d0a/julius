@@ -150,6 +150,8 @@ class GeminiAgent(
             val tools = if (toolsEnabled) {
                 listOf(
                     Tool(listOf(
+                        FunctionDeclaration("get_location", "Get the user's current GPS location and address", buildJsonObject { put("type", "object") }),
+                        FunctionDeclaration("show_map", "Open the map at the user's current location", buildJsonObject { put("type", "object") }),
                         FunctionDeclaration("get_battery_level", "Get the current battery level percentage of the device", buildJsonObject { put("type", "object") }),
                         FunctionDeclaration("get_volume_levels", "Get the current system volume levels (media, alarm, ring)", buildJsonObject { put("type", "object") }),
                         FunctionDeclaration("find_gas_stations_nearby", "Find nearby gas stations or fuel prices", buildJsonObject { put("type", "object") }),
@@ -248,6 +250,8 @@ class GeminiAgent(
             val toolCalls = candidate?.content?.parts?.filter { it.functionCall != null }?.mapNotNull { p ->
                 val fc = p.functionCall!!
                 val type = when (fc.name) {
+                    "get_location" -> ActionType.GET_LOCATION
+                    "show_map" -> ActionType.SHOW_MAP
                     "get_battery_level" -> ActionType.GET_BATTERY_LEVEL
                     "get_volume_levels" -> ActionType.GET_VOLUME_LEVEL
                     "find_gas_stations_nearby" -> ActionType.FIND_GAS_STATIONS

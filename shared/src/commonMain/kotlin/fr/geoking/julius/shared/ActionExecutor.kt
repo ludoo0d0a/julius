@@ -26,6 +26,7 @@ enum class ActionType {
     CALL_CONTACT,
     FIND_HOSPITAL,
     FIND_RADARS,
+    SHOW_MAP,
     ROADSIDE_ASSISTANCE,
     EMERGENCY_CALL,
     OTHER
