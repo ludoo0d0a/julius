@@ -414,6 +414,7 @@ class AndroidVoiceManager(
         if (settingsManager.settings.value.speakingInterruptMode == SpeakingInterruptMode.OFF) {
             cancelActiveRecognitionForSpeechOutput()
         }
+        requestAudioFocus()
         _events.value = VoiceEvent.Speaking
         player.notifyStateChanged()
         try {
@@ -679,7 +680,7 @@ class AndroidVoiceManager(
     }
 
     private fun requestAudioFocus() {
-        if (carContext == null || !settingsManager.settings.value.muteMediaOnCar) return
+        if (!settingsManager.settings.value.muteMediaOnCar) return
 
         Log.d(TAG, "Requesting Audio Focus")
         val playbackAttributes = AudioAttributes.Builder()
@@ -687,7 +688,7 @@ class AndroidVoiceManager(
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
             .build()
 
-        audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+        audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
             .setAudioAttributes(playbackAttributes)
             .setAcceptsDelayedFocusGain(true)
             .setOnAudioFocusChangeListener { focusChange ->

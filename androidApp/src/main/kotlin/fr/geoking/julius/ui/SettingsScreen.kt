@@ -385,7 +385,7 @@ private fun MainMenu(
             onClick = { onNavigate(Screen.GoogleAccount) }
         )
 
-        // Mute Radio (Car) Toggle
+        // Mute Media Toggle
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -398,13 +398,13 @@ private fun MainMenu(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Mute Radio (Car)",
+                        text = "Mute Media",
                         color = Color.White,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "Mute media in Android Auto when Julius is active",
+                        text = "Pause other audio sources when Julius is active",
                         color = Lavender.copy(alpha = 0.7f),
                         fontSize = 16.sp
                     )
