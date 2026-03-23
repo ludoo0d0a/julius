@@ -24,7 +24,11 @@ object DynamicImageGenerator {
     private const val ICON_WIDTH = 400
     private const val ICON_HEIGHT = 400
 
+    /** Two pre-generated variants per palette (bright arc at different angles) for low-frequency swap on Android Auto. */
     private val loaderIconCache = mutableMapOf<Int, CarIcon>()
+
+    private fun loaderCacheKey(paletteIndex: Int, variantIndex: Int): Int =
+        paletteIndex * 2 + variantIndex.coerceIn(0, 1)
 
     private val agentPaletteMap = mapOf(
         AgentType.OpenAI to 0,     // Aurora
@@ -52,12 +56,17 @@ object DynamicImageGenerator {
         return CarIcon.Builder(IconCompat.createWithBitmap(bitmap)).build()
     }
 
-    fun generateLoaderIcon(paletteIndex: Int): CarIcon {
-        return loaderIconCache.getOrPut(paletteIndex) {
+    /**
+     * @param variantIndex `0` or `1` — same ring, bright arc drawn at opposite positions (static assets, swapped slowly in Auto).
+     */
+    fun generateLoaderIcon(paletteIndex: Int, variantIndex: Int = 0): CarIcon {
+        val v = variantIndex.coerceIn(0, 1)
+        val key = loaderCacheKey(paletteIndex, v)
+        return loaderIconCache.getOrPut(key) {
             val palette = AnimationPalettes.paletteFor(paletteIndex)
             val bitmap = Bitmap.createBitmap(ICON_WIDTH, ICON_HEIGHT, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
-            drawLoader(canvas, palette)
+            drawLoader(canvas, palette, v)
             CarIcon.Builder(IconCompat.createWithBitmap(bitmap)).build()
         }
     }
@@ -149,7 +158,7 @@ object DynamicImageGenerator {
         paint.shader = null
     }
 
-    private fun drawLoader(canvas: Canvas, palette: AnimationPalette) {
+    private fun drawLoader(canvas: Canvas, palette: AnimationPalette, variantIndex: Int) {
         val width = canvas.width.toFloat()
         val height = canvas.height.toFloat()
         val cx = width / 2f
@@ -179,9 +188,10 @@ object DynamicImageGenerator {
         val oval = RectF(cx - radius, cy - radius, cx + radius, cy + radius)
         canvas.drawArc(oval, 0f, 360f, false, paint)
 
-        // Bright arc segment (static loader cue)
+        // Bright arc segment — variant 0: top-right sweep; variant 1: opposite sweep (180° offset)
         paint.alpha = 200
-        canvas.drawArc(oval, -90f, 270f, false, paint)
+        val arcStart = if (variantIndex == 0) -90f else 90f
+        canvas.drawArc(oval, arcStart, 270f, false, paint)
 
         // Subtle center glow
         paint.style = Paint.Style.FILL

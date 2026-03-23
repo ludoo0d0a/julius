@@ -20,7 +20,6 @@ import androidx.car.app.model.Template
 import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.AgentType
-import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.shared.ConversationStore
@@ -30,6 +29,8 @@ import fr.geoking.julius.shared.Role
 import fr.geoking.julius.shared.toHistoryScreenState
 import fr.geoking.julius.shared.VoiceEvent
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
@@ -54,6 +55,11 @@ class MainScreen(
     private var cachedAgent: AgentType? = null
     private var dynamicIdleIcon: CarIcon? = null
     private var dynamicActiveIcon: CarIcon? = null
+
+    /** Android Auto only: swap between two cached loader bitmaps while [VoiceEvent.Processing]. */
+    private var processingLoaderVariant: Int = 0
+    private var processingLoaderAlternateJob: Job? = null
+    private var lastWasProcessing: Boolean = false
 
     init {
         lifecycleScope.launch {
@@ -83,6 +89,15 @@ class MainScreen(
                         state.messages.lastOrNull()?.text ?: defaultGreeting
                     }
                 }
+
+                val isProcessing = state.status == VoiceEvent.Processing
+                if (isProcessing && !lastWasProcessing) {
+                    processingLoaderVariant = 0
+                    startProcessingLoaderAlternation()
+                } else if (!isProcessing && lastWasProcessing) {
+                    stopProcessingLoaderAlternation()
+                }
+                lastWasProcessing = isProcessing
 
                 // Voice keyword triggers
                 val lastMsg = state.messages.lastOrNull()
@@ -125,6 +140,24 @@ class MainScreen(
                 }
             }
         }
+    }
+
+    private fun startProcessingLoaderAlternation() {
+        processingLoaderAlternateJob?.cancel()
+        processingLoaderAlternateJob = lifecycleScope.launch {
+            while (true) {
+                delay(PROCESSING_LOADER_ALTERNATE_INTERVAL_MS)
+                if (store.state.value.status != VoiceEvent.Processing) break
+                processingLoaderVariant = processingLoaderVariant xor 1
+                invalidate()
+            }
+        }
+    }
+
+    private fun stopProcessingLoaderAlternation() {
+        processingLoaderAlternateJob?.cancel()
+        processingLoaderAlternateJob = null
+        processingLoaderVariant = 0
     }
 
     private fun refreshDynamicIcons() {
@@ -269,9 +302,8 @@ class MainScreen(
             dynamicIdleIcon ?: CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.auto_theme_idle)).build()
         }
 
-        val loaderIcon = DynamicImageGenerator.generateLoaderIcon(
-            DynamicImageGenerator.paletteIndexForAgent(settingsManager.settings.value.selectedAgent)
-        )
+        val paletteIndex = DynamicImageGenerator.paletteIndexForAgent(settingsManager.settings.value.selectedAgent)
+        val loaderIcon = DynamicImageGenerator.generateLoaderIcon(paletteIndex, processingLoaderVariant)
 
         val actionIconRes = if (isSpeaking) R.drawable.ic_stop else R.drawable.ic_speaker
         val actionIcon = CarIcon.Builder(
@@ -361,6 +393,9 @@ class MainScreen(
     }
 
     companion object {
+        /** Low-frequency swap between two static loader variants (driver-distraction safe). */
+        private const val PROCESSING_LOADER_ALTERNATE_INTERVAL_MS = 2_000L
+
         private const val TAG = "MainScreen"
         private const val TAB_ASSISTANT = "assistant"
         private const val TAB_MAP = "map"
