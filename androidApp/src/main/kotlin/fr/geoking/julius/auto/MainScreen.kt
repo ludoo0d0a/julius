@@ -330,9 +330,16 @@ class MainScreen(
                 }
                 .build()
         )
+        val agents = AgentType.entries
+        val currentAgent = settingsManager.settings.value.selectedAgent
+        val currentIndex = agents.indexOf(currentAgent).coerceAtLeast(0)
+        val nextIndex = (currentIndex + 1) % agents.size
+        val nextAgent = agents[nextIndex]
+
         paneBuilder.addAction(
             Action.Builder()
                 .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_swap_horiz)).build())
+                .setTitle("${currentAgent.name} -> ${nextAgent.name}")
                 .setOnClickListener { cycleToNextAgent() }
                 .build()
         )
