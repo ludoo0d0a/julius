@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 
 enum class VoiceEvent {
     Listening,
+    PassiveListening,
     Processing,
     Silence,
     Speaking

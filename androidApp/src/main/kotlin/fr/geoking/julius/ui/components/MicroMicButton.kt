@@ -35,12 +35,13 @@ fun MicroMicButton(
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "micro_mic_glow")
     val isActive = status == VoiceEvent.Listening || status == VoiceEvent.Speaking
+    val isPassive = status == VoiceEvent.PassiveListening
     val isProcessing = status == VoiceEvent.Processing
 
     // Continuous glow pulse for background rings
     val glowAlpha by infiniteTransition.animateFloat(
         initialValue = 0.3f,
-        targetValue = if (isActive) 0.8f else 0.4f,
+        targetValue = if (isActive) 0.8f else (if (isPassive) 0.5f else 0.4f),
         animationSpec = infiniteRepeatable(
             animation = tween(if (isActive) 1000 else 2000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -51,7 +52,7 @@ fun MicroMicButton(
     // Pulsing scale for the button itself
     val buttonScale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = if (isActive) 1.15f else (if (isProcessing) 1.08f else 1f),
+        targetValue = if (isActive) 1.15f else (if (isProcessing) 1.08f else (if (isPassive) 1.04f else 1f)),
         animationSpec = infiniteRepeatable(
             animation = tween(if (isActive) 800 else 1500, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -75,9 +76,9 @@ fun MicroMicButton(
         modifier = modifier
             .size(160.dp)
             .drawBehind {
-                if (isActive || isProcessing) {
+                if (isActive || isProcessing || isPassive) {
                     // Volumetric glow rings
-                    val ringCount = if (isActive) 4 else 2
+                    val ringCount = if (isActive) 4 else if (isPassive) 3 else 2
                     for (i in 1..ringCount) {
                         val baseRadius = 65.dp.toPx()
                         val ringPulse = (glowAlpha * 15.dp.toPx() * i)
@@ -86,7 +87,7 @@ fun MicroMicButton(
                         drawCircle(
                             brush = androidx.compose.ui.graphics.Brush.radialGradient(
                                 colors = listOf(
-                                    accentColor.copy(alpha = glowAlpha * (1f - i * 0.2f)),
+                                    accentColor.copy(alpha = glowAlpha * (if (isPassive) 0.5f else 1f) * (1f - i * 0.2f)),
                                     Color.Transparent
                                 ),
                                 center = center,
@@ -96,7 +97,7 @@ fun MicroMicButton(
                         )
 
                         drawCircle(
-                            color = accentColor.copy(alpha = (glowAlpha * 0.5f) * (1f - i * 0.2f)),
+                            color = accentColor.copy(alpha = (glowAlpha * (if (isPassive) 0.3f else 0.5f)) * (1f - i * 0.2f)),
                             radius = radius,
                             style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
                         )
