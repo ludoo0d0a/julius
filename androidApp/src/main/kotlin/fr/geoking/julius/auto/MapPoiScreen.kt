@@ -16,7 +16,7 @@ import androidx.car.app.model.ItemList
 import androidx.car.app.model.Header
 import androidx.car.app.model.Metadata
 import androidx.car.app.model.MessageTemplate
-import androidx.car.app.navigation.model.MapTemplate
+import androidx.car.app.model.PlaceListMapTemplate
 import androidx.car.app.model.Place
 import androidx.car.app.model.PlaceMarker
 import androidx.car.app.model.Row
@@ -228,9 +228,10 @@ class MapPoiScreen(
             val anchorPlace = Place.Builder(CarLocation.create(searchLat, searchLon)).build()
 
             if (isLoading) {
-                return MapTemplate.Builder()
+                return MessageTemplate.Builder("Loading POIs...")
                     .setHeader(Header.Builder().setTitle(title).setStartHeaderAction(Action.BACK).build())
                     .setActionStrip(actionStrip)
+                    .setLoading(true)
                     .build()
             }
 
@@ -286,10 +287,13 @@ class MapPoiScreen(
                 itemListBuilder.addItem(row)
             }
 
-            return MapTemplate.Builder()
-                .setHeader(Header.Builder().setTitle(title).setStartHeaderAction(Action.BACK).build())
+            return PlaceListMapTemplate.Builder()
+                .setTitle(title)
+                .setHeaderAction(Action.BACK)
                 .setActionStrip(actionStrip)
                 .setItemList(itemListBuilder.build())
+                .setAnchor(anchorPlace)
+                .setCurrentLocationEnabled(true)
                 .build()
         } catch (e: Exception) {
             Log.e("MapPoiScreen", "Error building template", e)
