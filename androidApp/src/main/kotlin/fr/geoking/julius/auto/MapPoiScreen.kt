@@ -16,11 +16,16 @@ import androidx.car.app.model.ItemList
 import androidx.car.app.model.Header
 import androidx.car.app.model.Metadata
 import androidx.car.app.model.MessageTemplate
-import androidx.car.app.navigation.model.MapTemplate
+import androidx.car.app.navigation.model.MapWithContentTemplate
+import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.Place
 import androidx.car.app.model.PlaceMarker
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
+import androidx.car.app.SurfaceCallback
+import androidx.car.app.SurfaceContainer
+import androidx.car.app.AppManager
+import androidx.lifecycle.DefaultLifecycleObserver
 import fr.geoking.julius.poi.PoiProviderType
 import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.lifecycleScope
@@ -59,7 +64,7 @@ class MapPoiScreen(
     private val geocodingClient: GeocodingClient? = null,
     private val communityRepo: CommunityPoiRepository? = null,
     private val favoritesRepo: FavoritesRepository? = null
-) : Screen(carContext) {
+) : Screen(carContext), SurfaceCallback, DefaultLifecycleObserver {
 
     private var pois: List<Poi> = emptyList()
     private var availabilityByPoiId: Map<String, StationAvailabilitySummary> = emptyMap()
@@ -69,7 +74,10 @@ class MapPoiScreen(
     private var searchLat: Double = 48.8566
     private var searchLon: Double = 2.3522
 
+    private var surfaceRenderer: AutoSurfaceRenderer? = null
+
     init {
+        lifecycle.addObserver(this)
         lifecycleScope.launch {
             settingsManager.settings
                 .map { s ->
@@ -154,6 +162,34 @@ class MapPoiScreen(
         }
     }
 
+
+    override fun onSurfaceAvailable(surfaceContainer: SurfaceContainer) {
+        Log.d("MapPoiScreen", "onSurfaceAvailable")
+        surfaceRenderer?.stop()
+        surfaceRenderer = AutoSurfaceRenderer(
+            surfaceContainer.surface!!,
+            surfaceContainer.width,
+            surfaceContainer.height
+        ).apply {
+            start()
+        }
+    }
+
+    override fun onSurfaceDestroyed(surfaceContainer: SurfaceContainer) {
+        Log.d("MapPoiScreen", "onSurfaceDestroyed")
+        surfaceRenderer?.stop()
+        surfaceRenderer = null
+    }
+
+    override fun onStart(owner: androidx.lifecycle.LifecycleOwner) {
+        carContext.getCarService(AppManager::class.java).setSurfaceCallback(this)
+    }
+
+    override fun onStop(owner: androidx.lifecycle.LifecycleOwner) {
+        surfaceRenderer?.stop()
+        surfaceRenderer = null
+    }
+
     override fun onGetTemplate(): Template {
         return try {
             val actions = mutableListOf<Action>()
@@ -228,9 +264,11 @@ class MapPoiScreen(
             val anchorPlace = Place.Builder(CarLocation.create(searchLat, searchLon)).build()
 
             if (isLoading) {
-                return MapTemplate.Builder()
-                    .setHeader(Header.Builder().setTitle(title).setStartHeaderAction(Action.BACK).build())
+                return MessageTemplate.Builder("Loading POIs...")
+                    .setTitle(title)
+                    .setHeaderAction(Action.BACK)
                     .setActionStrip(actionStrip)
+                    .setLoading(true)
                     .build()
             }
 
@@ -286,15 +324,21 @@ class MapPoiScreen(
                 itemListBuilder.addItem(row)
             }
 
-            return MapTemplate.Builder()
-                .setHeader(Header.Builder().setTitle(title).setStartHeaderAction(Action.BACK).build())
+            val listTemplate = ListTemplate.Builder()
+                .setTitle(title)
+                .setHeaderAction(Action.BACK)
                 .setActionStrip(actionStrip)
-                .setItemList(itemListBuilder.build())
+                .setSingleList(itemListBuilder.build())
+                .build()
+
+            return MapWithContentTemplate.Builder()
+                .setContentTemplate(listTemplate)
                 .build()
         } catch (e: Exception) {
             Log.e("MapPoiScreen", "Error building template", e)
             MessageTemplate.Builder("Failed to load map: ${e.message}")
-                .setHeader(Header.Builder().setTitle("Error").setStartHeaderAction(Action.BACK).build())
+                .setTitle("Error")
+                .setHeaderAction(Action.BACK)
                 .build()
         }
     }
