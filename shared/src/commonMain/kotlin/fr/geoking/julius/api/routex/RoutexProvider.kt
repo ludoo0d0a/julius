@@ -52,7 +52,8 @@ class RoutexProvider(
                 addressLocal = site.addressLocal,
                 countryLocal = site.countryLocal,
                 townLocal = site.townLocal,
-                routexDetails = site.details
+                routexDetails = site.details,
+                source = "Routex"
             )
         }
     }

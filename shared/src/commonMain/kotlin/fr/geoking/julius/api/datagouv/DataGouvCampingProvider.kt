@@ -36,7 +36,8 @@ class DataGouvCampingProvider(
                 latitude = r.latitude,
                 longitude = r.longitude,
                 poiCategory = PoiCategory.CaravanSite,
-                siteName = r.typeAire
+                siteName = r.typeAire,
+                source = "DataGouv"
             )
         }
     }

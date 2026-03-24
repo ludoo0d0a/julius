@@ -77,7 +77,8 @@ class ChargyProvider(
                         connectorTypes = s.connectorTypes,
                         availableConnectors = s.availableConnectors,
                         totalConnectors = s.totalConnectors
-                    )
+                    ),
+                    source = "Chargy"
                 )
             }
     }

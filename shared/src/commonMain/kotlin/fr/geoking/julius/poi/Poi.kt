@@ -153,7 +153,9 @@ data class Poi(
     /** IRVE-only: connector types, tarification, horaires, payment, etc. */
     val irveDetails: IrveDetails? = null,
     /** Restaurant/fast food only: opening hours, cuisine, brand (e.g. from Overpass). */
-    val restaurantDetails: RestaurantDetails? = null
+    val restaurantDetails: RestaurantDetails? = null,
+    /** The source of the POI data (e.g. "Routex", "DataGouv", "Chargy"). */
+    val source: String? = null
 )
 
 /**
@@ -176,6 +178,23 @@ data class PoiSearchRequest(
     val viewport: MapViewport? = null,
     /** Requested POI categories. Empty = provider default (e.g. Gas+Irve for fuel providers). */
     val categories: Set<PoiCategory> = emptySet()
+)
+
+/**
+ * Result of a POI search, containing the list of POIs and any errors encountered during the search.
+ */
+data class PoiSearchResult(
+    val pois: List<Poi> = emptyList(),
+    val errors: List<PoiProviderError> = emptyList()
+)
+
+/**
+ * Error information from a specific POI provider.
+ */
+data class PoiProviderError(
+    val providerName: String,
+    val message: String,
+    val isCritical: Boolean = false
 )
 
 /**
@@ -217,6 +236,20 @@ object MapPoiFilter {
 interface PoiProvider {
     /** Categories this provider can return. Used by the selector to build [PoiSearchRequest]. */
     fun supportedCategories(): Set<PoiCategory> = setOf(PoiCategory.Gas)
+
+    /**
+     * Unified search: returns a [PoiSearchResult] containing the list of POIs and any errors encountered.
+     * Default implementation delegates to [getGasStations] and filters by category intersection.
+     */
+    suspend fun searchResult(request: PoiSearchRequest): PoiSearchResult {
+        return try {
+            val pois = search(request)
+            PoiSearchResult(pois = pois)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            PoiSearchResult(errors = listOf(PoiProviderError(providerName = this::class.simpleName ?: "Unknown Provider", message = e.message ?: "Unknown error")))
+        }
+    }
 
     /**
      * Unified search: returns POIs for the requested [request.categories] (or provider default if empty).

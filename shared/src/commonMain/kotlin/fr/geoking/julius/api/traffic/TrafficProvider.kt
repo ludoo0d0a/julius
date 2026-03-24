@@ -5,6 +5,9 @@ package fr.geoking.julius.api.traffic
  * Implementations fetch from country-specific APIs and map to [TrafficEvent].
  */
 interface TrafficProvider {
+    /** Whether this provider is currently active. */
+    val enabled: Boolean get() = true
+
     /**
      * Fetch traffic information for the given request.
      * Returns null if the provider cannot serve this request or on error.

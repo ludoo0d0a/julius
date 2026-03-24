@@ -17,6 +17,8 @@ class TomTomTrafficProvider(
     private val apiKey: String
 ) : TrafficProvider {
 
+    override val enabled: Boolean = false
+
     override suspend fun getTraffic(request: TrafficRequest): TrafficInfo? {
         if (apiKey.isBlank()) return null
         val (la0, lo0, la1, lo1) = bboxFromRequest(request) ?: return null

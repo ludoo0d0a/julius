@@ -36,7 +36,8 @@ class EtalabProvider(
                 address = station.address,
                 latitude = station.latitude,
                 longitude = station.longitude,
-                brand = station.brand
+                brand = station.brand,
+                source = "Etalab"
             )
         }
     }

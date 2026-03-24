@@ -16,6 +16,8 @@ class CitaTrafficProvider(
         lonMax = 6.6
     )
 
+    override val enabled: Boolean = false
+
     override suspend fun getTraffic(request: TrafficRequest): TrafficInfo? {
         when (request) {
             is TrafficRequest.Bbox ->

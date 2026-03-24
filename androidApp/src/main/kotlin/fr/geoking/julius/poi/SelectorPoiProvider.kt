@@ -52,7 +52,7 @@ class SelectorPoiProvider(
         }
     }
 
-    override suspend fun search(request: PoiSearchRequest): List<Poi> {
+    override suspend fun searchResult(request: PoiSearchRequest): PoiSearchResult {
         val settings = settingsManager.settings.value
         val provider = if (settings.useVehicleFilter && settings.fuelCard == fr.geoking.julius.FuelCard.Routex && (settings.vehicleEnergy == "gas" || settings.vehicleEnergy == "hybrid")) {
             PoiProviderType.Routex
@@ -105,18 +105,31 @@ class SelectorPoiProvider(
             PoiProviderType.Overpass -> overpass
             PoiProviderType.Hybrid -> hybridProvider
         }
-        var result = activeProvider.search(effectiveRequest)
+        val searchResult = activeProvider.searchResult(effectiveRequest)
+        var result = searchResult.pois
+        val errors = searchResult.errors.toMutableList()
+
         if (provider == PoiProviderType.Overpass && PoiCategory.CaravanSite in categories && dataGouvCamping != null) {
-            val extra = dataGouvCamping.search(effectiveRequest)
-            val seenIds = result.mapTo(mutableSetOf()) { it.id }
-            result = result + extra.filter { it.id !in seenIds }
+            try {
+                val extra = dataGouvCamping.search(effectiveRequest)
+                val seenIds = result.mapTo(mutableSetOf()) { it.id }
+                result = result + extra.filter { it.id !in seenIds }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errors.add(PoiProviderError("DataGouv Camping", e.message ?: "Unknown error"))
+            }
         }
         if (PoiCategory.Irve in categories &&
             request.latitude in 49.4..50.2 && request.longitude in 5.7..6.6 &&
             provider != PoiProviderType.Chargy) {
-            val extra = chargy.search(effectiveRequest)
-            val seenIds = result.mapTo(mutableSetOf()) { it.id }
-            result = result + extra.filter { it.id !in seenIds }
+            try {
+                val extra = chargy.search(effectiveRequest)
+                val seenIds = result.mapTo(mutableSetOf()) { it.id }
+                result = result + extra.filter { it.id !in seenIds }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errors.add(PoiProviderError("Chargy", e.message ?: "Unknown error"))
+            }
         }
 
         if (provider != PoiProviderType.Overpass) {
@@ -185,7 +198,11 @@ class SelectorPoiProvider(
             }
         }
         Log.d("SelectorPoiProvider", "search provider=$provider categories=$categories -> ${result.size} pois")
-        return result
+        return PoiSearchResult(pois = result, errors = errors)
+    }
+
+    override suspend fun search(request: PoiSearchRequest): List<Poi> {
+        return searchResult(request).pois
     }
 
     override suspend fun getGasStations(

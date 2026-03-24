@@ -35,6 +35,7 @@ import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiCategory
 import fr.geoking.julius.poi.PoiSearchRequest
+import fr.geoking.julius.poi.PoiProviderError
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.poi.PoiProvider
@@ -67,6 +68,7 @@ class MapPoiScreen(
 ) : Screen(carContext), SurfaceCallback, DefaultLifecycleObserver {
 
     private var pois: List<Poi> = emptyList()
+    private var errors: List<PoiProviderError> = emptyList()
     private var availabilityByPoiId: Map<String, StationAvailabilitySummary> = emptyMap()
     private var favoriteIds: Set<String> = emptySet()
     private var isLoading = true
@@ -136,8 +138,10 @@ class MapPoiScreen(
             Log.d("MapPoiScreen", "loadPois search center lat=$lat lon=$lon")
 
             try {
-                pois = poiProvider.search(PoiSearchRequest(lat, lon, null, emptySet()))
-                Log.d("MapPoiScreen", "pois loaded: ${pois.size}")
+                val result = poiProvider.searchResult(PoiSearchRequest(lat, lon, null, emptySet()))
+                pois = result.pois
+                errors = result.errors
+                Log.d("MapPoiScreen", "pois loaded: ${pois.size}, errors: ${errors.size}")
                 favoriteIds = favoritesRepo?.getFavorites()?.map { it.id }?.toSet() ?: emptySet()
                 val provider = availabilityProviderFactory.getProvider(lat, lon)
                 if (provider != null) {
@@ -155,6 +159,7 @@ class MapPoiScreen(
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("MapPoiScreen", "getGasStations failed", e)
                 pois = emptyList()
+                errors = listOf(PoiProviderError("System", e.message ?: "Unknown error", true))
                 availabilityByPoiId = emptyMap()
             }
             isLoading = false
@@ -192,7 +197,7 @@ class MapPoiScreen(
 
     override fun onGetTemplate(): Template {
         return try {
-            val actionStrip = ActionStrip.Builder()
+            val actionStripBuilder = ActionStrip.Builder()
                 .addAction(
                     Action.Builder()
                         .setTitle("Home")
@@ -200,7 +205,37 @@ class MapPoiScreen(
                         .setOnClickListener { screenManager.popToRoot() }
                         .build()
                 )
-                .build()
+
+            if (errors.isNotEmpty()) {
+                actionStripBuilder.addAction(
+                    Action.Builder()
+                        .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_error_outline)).build())
+                        .setOnClickListener {
+                            val errorMsg = errors.joinToString("\n") { "${it.providerName}: ${it.message}" }
+                            screenManager.push(
+                                object : Screen(carContext) {
+                                    override fun onGetTemplate(): Template {
+                                        return MessageTemplate.Builder(errorMsg)
+                                            .setTitle("API Errors")
+                                            .setHeaderAction(Action.BACK)
+                                            .addAction(
+                                                Action.Builder()
+                                                    .setTitle("Retry")
+                                                    .setOnClickListener {
+                                                        screenManager.pop()
+                                                        loadPois()
+                                                    }
+                                                    .build()
+                                            )
+                                            .build()
+                                    }
+                                }
+                            )
+                        }
+                        .build()
+                )
+            }
+            val actionStrip = actionStripBuilder.build()
 
             val title = "Nearby POIs"
 
@@ -322,7 +357,7 @@ class MapPoiScreen(
 
                 val row = Row.Builder()
                     .setTitle(poi.siteName?.takeIf { it.isNotBlank() } ?: poi.name.ifBlank { "POI" })
-                    .addText(poi.addressLocal?.takeIf { it.isNotBlank() } ?: poi.address.ifBlank { "${poi.latitude}, ${poi.longitude}" })
+                    .addText("${poi.addressLocal?.takeIf { it.isNotBlank() } ?: poi.address.ifBlank { "${poi.latitude}, ${poi.longitude}" }} [Source: ${poi.source ?: "Unknown"}]")
                     .setMetadata(Metadata.Builder().setPlace(place).build())
                     .setBrowsable(true)
                     .setOnClickListener {
