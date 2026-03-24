@@ -222,10 +222,17 @@ class AutoRoutePlanningScreen(
             )
             .build()
 
+        val headerBuilder = Header.Builder()
+            .setTitle("Route POIs")
+            .setStartHeaderAction(Action.BACK)
+
+        actionStrip.actions.forEach {
+            headerBuilder.addEndHeaderAction(it)
+        }
+
         return ListTemplate.Builder()
-            .setHeader(Header.Builder().setTitle("Route POIs").setStartHeaderAction(Action.BACK).build())
+            .setHeader(headerBuilder.build())
             .setSingleList(list.build())
-            .setActionStrip(actionStrip)
             .build()
     }
 

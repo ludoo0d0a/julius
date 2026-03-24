@@ -209,8 +209,12 @@ class MapPoiScreen(
                     .setContentTemplate(
                         ListTemplate.Builder()
                             .setLoading(true)
-                            .setTitle(title)
-                            .setHeaderAction(Action.BACK)
+                            .setHeader(
+                                Header.Builder()
+                                    .setTitle(title)
+                                    .setStartHeaderAction(Action.BACK)
+                                    .build()
+                            )
                             .build()
                     )
                     .setActionStrip(actionStrip)
@@ -337,8 +341,12 @@ class MapPoiScreen(
             }
 
             val listTemplate = ListTemplate.Builder()
-                .setTitle(title)
-                .setHeaderAction(Action.BACK)
+                .setHeader(
+                    Header.Builder()
+                        .setTitle(title)
+                        .setStartHeaderAction(Action.BACK)
+                        .build()
+                )
                 .setSingleList(itemListBuilder.build())
                 .build()
 

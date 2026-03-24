@@ -418,10 +418,10 @@ class MainScreen(
                 .build()
         )
         return PaneTemplate.Builder(paneBuilder.build())
-            .setHeader(Header.Builder().setTitle("Assistant").build())
-            .setActionStrip(
-                ActionStrip.Builder()
-                    .addAction(
+            .setHeader(
+                Header.Builder()
+                    .setTitle("Assistant")
+                    .addEndHeaderAction(
                         Action.Builder()
                             .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_jules)).build())
                             .setTitle("Jules")
