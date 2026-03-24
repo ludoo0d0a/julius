@@ -310,13 +310,7 @@ class MainScreen(
         val paletteIndex = DynamicImageGenerator.paletteIndexForAgent(settingsManager.settings.value.selectedAgent)
         val loaderIcon = DynamicImageGenerator.generateLoaderIcon(paletteIndex, processingLoaderVariant)
 
-        val actionIconRes = if (isSpeaking) R.drawable.ic_stop else R.drawable.ic_speaker
-        val actionIcon = CarIcon.Builder(
-            IconCompat.createWithResource(carContext, actionIconRes)
-        ).build()
-
-        val paneBuilder = Pane.Builder()
-            .setImage(if (isProcessing) loaderIcon else themeCarIcon)
+        val listBuilder = ItemList.Builder()
 
         val appSettings = settingsManager.settings.value
         val setupIssue = evaluateAgentSetup(appSettings, llamatikModelHelper, conversationalAgent)
@@ -327,7 +321,7 @@ class MainScreen(
                     issue.message + " Enter API keys in the Julius app on your phone."
                 else -> issue.message
             }.take(400)
-            paneBuilder.addRow(
+            listBuilder.addItem(
                 Row.Builder()
                     .setTitle("Setup required")
                     .addText(setupText)
@@ -353,7 +347,7 @@ class MainScreen(
             }
             val httpSuffix = lastError!!.httpCode?.let { " (HTTP $it)" } ?: ""
             val errorMessage = lastError!!.message + httpSuffix
-            paneBuilder.addRow(
+            listBuilder.addItem(
                 Row.Builder()
                     .setTitle(errorTitle)
                     .addText(errorMessage.take(400))
@@ -364,17 +358,18 @@ class MainScreen(
             )
         } else {
             val messages = store.state.value.messages
-            val lastUserMsg = messages.lastOrNull { it.sender == Role.User }
             val lastAssistantMsg = messages.lastOrNull { it.sender == Role.Assistant }
 
-            val statusRow = Row.Builder()
-                .setTitle(if (isProcessing) "Processing" else currentStatus)
-                .addText(currentText) // Current transcript or last overall message
-
-            paneBuilder.addRow(statusRow.build())
+            listBuilder.addItem(
+                Row.Builder()
+                    .setTitle(if (isProcessing) "Processing" else currentStatus)
+                    .addText(currentText)
+                    .setImage(if (isProcessing) loaderIcon else themeCarIcon)
+                    .build()
+            )
 
             if (lastAssistantMsg != null) {
-                paneBuilder.addRow(
+                listBuilder.addItem(
                     Row.Builder()
                         .setTitle("Assistant")
                         .addText(lastAssistantMsg.text.take(100) + if (lastAssistantMsg.text.length > 100) "..." else "")
@@ -383,7 +378,7 @@ class MainScreen(
             }
         }
 
-        paneBuilder.addRow(
+        listBuilder.addItem(
             Row.Builder()
                 .setTitle("Jules")
                 .addText("Create a coding session from voice")
@@ -394,42 +389,39 @@ class MainScreen(
                 .build()
         )
 
-        paneBuilder.addAction(
-            Action.Builder()
-                .setIcon(actionIcon)
-                .setTitle(if (isListening || isSpeaking) "Stop" else "Speak")
-                .setOnClickListener {
-                    when {
-                        isSpeaking -> store.stopSpeaking()
-                        isListening -> store.stopListening()
-                        else -> store.startListening()
-                    }
+        val actionIconRes = if (isSpeaking) R.drawable.ic_stop else R.drawable.ic_speaker
+        val actionIcon = CarIcon.Builder(
+            IconCompat.createWithResource(carContext, actionIconRes)
+        ).build()
+
+        val speakAction = Action.Builder()
+            .setIcon(actionIcon)
+            .setTitle(if (isListening || isSpeaking) "Stop" else "Speak")
+            .setOnClickListener {
+                when {
+                    isSpeaking -> store.stopSpeaking()
+                    isListening -> store.stopListening()
+                    else -> store.startListening()
                 }
-                .build()
-        )
+            }
+            .build()
+
         val currentAgent = settingsManager.settings.value.selectedAgent
         val nextAgent = nextSelectableAgent(currentAgent)
+        val cycleAgentAction = Action.Builder()
+            .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_swap_horiz)).build())
+            .setTitle("${currentAgent.name} -> ${nextAgent.name}")
+            .setOnClickListener { cycleToNextAgent() }
+            .build()
 
-        paneBuilder.addAction(
-            Action.Builder()
-                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_swap_horiz)).build())
-                .setTitle("${currentAgent.name} -> ${nextAgent.name}")
-                .setOnClickListener { cycleToNextAgent() }
-                .build()
-        )
-        return PaneTemplate.Builder(paneBuilder.build())
+        return ListTemplate.Builder()
+            .setSingleList(listBuilder.build())
             .setHeader(
                 Header.Builder()
                     .setTitle("Assistant")
-                    .addEndHeaderAction(
-                        Action.Builder()
-                            .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_jules)).build())
-                            .setTitle("Jules")
-                            .setOnClickListener {
-                                screenManager.push(AutoJulesScreen(carContext, store, settingsManager, julesClient))
-                            }
-                            .build()
-                    )
+                    .setStartHeaderAction(Action.APP_ICON)
+                    .addEndHeaderAction(speakAction)
+                    .addEndHeaderAction(cycleAgentAction)
                     .build()
             )
             .build()

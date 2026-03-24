@@ -78,6 +78,11 @@ When **Extended actions** is enabled (`settings.extendedActionsEnabled`), Julius
 - `MainScreen`: Android Auto UI screen
 - Configured in `AndroidManifest.xml` with appropriate metadata
 
+**UI Restrictions & Templates:**
+- **`PaneTemplate` Constraint:** `setOnClickListener` is **NOT allowed** on `Row` objects when they are added to a `Pane`. Using it will cause a crash or "illegal click listener" error. For interactive rows, use `ListTemplate` instead, or move the action to the `Pane`'s `Action` list (max 2) or the `Header`'s `addEndHeaderAction`.
+- **`MapWithContentTemplate` Constraint:** When using surface rendering (custom map tiles), the top-level `ActionStrip` is restricted to **exactly one action**. Place priority actions (like 'Home') here, and move others to the nested `ContentTemplate` or `Header`.
+- **Header Actions:** In Car App Library 1.7.0+, use `Header.Builder` with `addEndHeaderAction(Action)` or `setStartHeaderAction(Action)` for UI controls, as `setActionStrip` and `setTitle` on template builders are deprecated.
+
 #### API Keys & Configuration
 - API keys in `local.properties` or env use the same key name (e.g. `OPENAI_KEY`, `GEMINI_KEY`, `ELEVENLABS_KEY`)
 - Keys are read at build time and exposed via `BuildConfig`
