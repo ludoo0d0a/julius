@@ -24,7 +24,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -297,7 +298,7 @@ fun MapScreen(
             mapErrorMessage?.let { msg ->
                 val configuration = LocalConfiguration.current
                 val maxHeight = configuration.screenHeightDp.dp * 0.15f
-                val clipboardManager = LocalClipboardManager.current
+                val clipboard = LocalClipboard.current
 
                 Surface(
                     modifier = Modifier
@@ -327,7 +328,9 @@ fun MapScreen(
                         ) {
                             TextButton(
                                 onClick = {
-                                    clipboardManager.setText(AnnotatedString(msg))
+                                    scope.launch {
+                                        clipboard.setClipEntry(ClipEntry(android.content.ClipData.newPlainText("error", msg)))
+                                    }
                                 },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                                 modifier = Modifier.height(32.dp)

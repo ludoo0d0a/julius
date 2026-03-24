@@ -127,11 +127,6 @@ class RoutePreviewScreen(
             listBuilder.addItem(row)
         }
 
-        val header = Header.Builder()
-            .setTitle(destination.name.ifBlank { "Destination" })
-            .setStartHeaderAction(Action.BACK)
-            .build()
-
         val actionStrip = ActionStrip.Builder()
             .addAction(
                 Action.Builder()
@@ -143,10 +138,17 @@ class RoutePreviewScreen(
             )
             .build()
 
+        val headerBuilder = Header.Builder()
+            .setTitle(destination.name.ifBlank { "Destination" })
+            .setStartHeaderAction(Action.BACK)
+
+        actionStrip.actions.forEach {
+            headerBuilder.addEndHeaderAction(it)
+        }
+
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
-            .setHeader(header)
-            .setActionStrip(actionStrip)
+            .setHeader(headerBuilder.build())
             .build()
     }
 

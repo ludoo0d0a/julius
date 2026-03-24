@@ -5,10 +5,13 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.location.Address
+import android.location.Geocoder
 import android.location.LocationManager
 import android.media.AudioManager
 import android.net.Uri
 import android.os.BatteryManager
+import android.os.Build
 import android.provider.AlarmClock
 import android.provider.MediaStore
 import fr.geoking.julius.shared.ActionExecutor
@@ -212,22 +215,7 @@ class AndroidActionExecutor(
                 ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
 
             if (location != null) {
-                var addressInfo = ""
-                try {
-                    val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
-                    val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
-                    if (!addresses.isNullOrEmpty()) {
-                        val address = addresses[0]
-                        val parts = mutableListOf<String>()
-                        for (i in 0..address.maxAddressLineIndex) {
-                            parts.add(address.getAddressLine(i))
-                        }
-                        addressInfo = " Address: ${parts.joinToString(", ")}."
-                    }
-                } catch (e: Exception) {
-                    // Ignore geocoding errors, fallback to coordinates only
-                }
-
+                val addressInfo = getAddressInfo(location.latitude, location.longitude)
                 ActionResult(true, "Current location: lat=${location.latitude}, lon=${location.longitude}.$addressInfo")
             } else {
                 ActionResult(false, "Could not determine current location. GPS might be disabled or no fix yet.")
@@ -438,6 +426,38 @@ class AndroidActionExecutor(
             ActionResult(true, "Permission $permission granted")
         } else {
             ActionResult(false, "Permission $permission denied by user")
+        }
+    }
+
+    private suspend fun getAddressInfo(latitude: Double, longitude: Double): String {
+        return try {
+            val geocoder = Geocoder(context, java.util.Locale.getDefault())
+            val addresses = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                kotlin.coroutines.suspendCoroutine { continuation ->
+                    geocoder.getFromLocation(latitude, longitude, 1, object : Geocoder.GeocodeListener {
+                        override fun onGeocode(addresses: MutableList<Address>) {
+                            continuation.resumeWith(Result.success(addresses))
+                        }
+                        override fun onError(errorMessage: String?) {
+                            continuation.resumeWith(Result.success(emptyList<Address>()))
+                        }
+                    })
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                geocoder.getFromLocation(latitude, longitude, 1)
+            }
+
+            if (!addresses.isNullOrEmpty()) {
+                val address = addresses[0]
+                val parts = mutableListOf<String>()
+                for (i in 0..address.maxAddressLineIndex) {
+                    parts.add(address.getAddressLine(i))
+                }
+                " Address: ${parts.joinToString(", ")}."
+            } else ""
+        } catch (e: Exception) {
+            ""
         }
     }
 
