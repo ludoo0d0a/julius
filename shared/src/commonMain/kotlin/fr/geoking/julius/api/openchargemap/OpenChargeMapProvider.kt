@@ -43,7 +43,8 @@ class OpenChargeMapProvider(
                 isOnHighway = false,
                 chargePointCount = null,
                 fuelPrices = null,
-                irveDetails = IrveDetails(connectorTypes = s.connectorTypes)
+                irveDetails = IrveDetails(connectorTypes = s.connectorTypes),
+                source = "OpenChargeMap"
             )
         }
     }

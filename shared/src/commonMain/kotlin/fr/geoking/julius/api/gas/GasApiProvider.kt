@@ -50,7 +50,8 @@ class GasApiProvider(
                         updatedAt = p.updatedAt,
                         outOfStock = p.outOfStock
                     )
-                }.ifEmpty { null }
+                }.ifEmpty { null },
+                source = "GasAPI"
             )
         }
     }

@@ -11,7 +11,7 @@ class TrafficProviderFactory(
      * Returns a provider that can supply traffic for the given coordinates, or null if none.
      */
     fun getProvider(latitude: Double, longitude: Double): TrafficProvider? =
-        regionsAndProviders.firstOrNull { (region, _) -> region.contains(latitude, longitude) }?.second
+        regionsAndProviders.firstOrNull { (region, provider) -> provider.enabled && region.contains(latitude, longitude) }?.second
 
     /**
      * Returns all providers that cover any part of the route (e.g. Luxembourg + France).
@@ -21,7 +21,11 @@ class TrafficProviderFactory(
         if (routePoints.isEmpty()) return emptyList()
         val seen = mutableSetOf<TrafficProvider>()
         for ((lat, lon) in routePoints) {
-            getProvider(lat, lon)?.let { if (it !in seen) { seen.add(it); } }
+            getProvider(lat, lon)?.let { provider ->
+                if (provider.enabled && provider !in seen) {
+                    seen.add(provider)
+                }
+            }
         }
         return seen.toList()
     }

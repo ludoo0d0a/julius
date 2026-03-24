@@ -69,7 +69,8 @@ class DataGouvProvider(
                         updatedAt = p.updatedAt,
                         outOfStock = p.outOfStock
                     )
-                }.ifEmpty { null }
+                }.ifEmpty { null },
+                source = "DataGouv"
             )
         }
     }

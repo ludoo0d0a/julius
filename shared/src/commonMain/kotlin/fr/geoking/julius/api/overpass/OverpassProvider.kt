@@ -88,7 +88,8 @@ class OverpassProvider(
                 longitude = el.lon,
                 poiCategory = category,
                 brand = el.brand()?.takeIf { it.isNotBlank() },
-                restaurantDetails = restaurantDetails
+                restaurantDetails = restaurantDetails,
+                source = "OpenStreetMap"
             )
         }
     }
