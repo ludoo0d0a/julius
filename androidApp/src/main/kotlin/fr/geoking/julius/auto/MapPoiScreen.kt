@@ -197,7 +197,7 @@ class MapPoiScreen(
 
     override fun onGetTemplate(): Template {
         return try {
-            val actionStripBuilder = ActionStrip.Builder()
+            val actionStrip = ActionStrip.Builder()
                 .addAction(
                     Action.Builder()
                         .setTitle("Home")
@@ -205,51 +205,54 @@ class MapPoiScreen(
                         .setOnClickListener { screenManager.popToRoot() }
                         .build()
                 )
+                .build()
 
+            var errorAction: Action? = null
             if (errors.isNotEmpty()) {
-                actionStripBuilder.addAction(
-                    Action.Builder()
-                        .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_error_outline)).build())
-                        .setOnClickListener {
-                            val errorMsg = errors.joinToString("\n") { "${it.providerName}: ${it.message}" }
-                            screenManager.push(
-                                object : Screen(carContext) {
-                                    override fun onGetTemplate(): Template {
-                                        return MessageTemplate.Builder(errorMsg)
-                                            .setTitle("API Errors")
-                                            .setHeaderAction(Action.BACK)
-                                            .addAction(
-                                                Action.Builder()
-                                                    .setTitle("Retry")
-                                                    .setOnClickListener {
-                                                        screenManager.pop()
-                                                        loadPois()
-                                                    }
-                                                    .build()
-                                            )
-                                            .build()
-                                    }
+                errorAction = Action.Builder()
+                    .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_error_outline)).build())
+                    .setOnClickListener {
+                        val errorMsg = errors.joinToString("\n") { "${it.providerName}: ${it.message}" }
+                        screenManager.push(
+                            object : Screen(carContext) {
+                                override fun onGetTemplate(): Template {
+                                    return MessageTemplate.Builder(errorMsg)
+                                        .setHeader(
+                                            Header.Builder()
+                                                .setTitle("API Errors")
+                                                .setStartHeaderAction(Action.BACK)
+                                                .build()
+                                        )
+                                        .addAction(
+                                            Action.Builder()
+                                                .setTitle("Retry")
+                                                .setOnClickListener {
+                                                    screenManager.pop()
+                                                    loadPois()
+                                                }
+                                                .build()
+                                        )
+                                        .build()
                                 }
-                            )
-                        }
-                        .build()
-                )
+                            }
+                        )
+                    }
+                    .build()
             }
-            val actionStrip = actionStripBuilder.build()
 
             val title = "Nearby POIs"
 
             if (isLoading) {
+                val loadingHeaderBuilder = Header.Builder()
+                    .setTitle(title)
+                    .setStartHeaderAction(Action.BACK)
+                errorAction?.let { loadingHeaderBuilder.addEndHeaderAction(it) }
+
                 return MapWithContentTemplate.Builder()
                     .setContentTemplate(
                         ListTemplate.Builder()
                             .setLoading(true)
-                            .setHeader(
-                                Header.Builder()
-                                    .setTitle(title)
-                                    .setStartHeaderAction(Action.BACK)
-                                    .build()
-                            )
+                            .setHeader(loadingHeaderBuilder.build())
                             .build()
                     )
                     .setActionStrip(actionStrip)
@@ -375,13 +378,13 @@ class MapPoiScreen(
                 itemListBuilder.addItem(row)
             }
 
+            val headerBuilder = Header.Builder()
+                .setTitle(title)
+                .setStartHeaderAction(Action.BACK)
+            errorAction?.let { headerBuilder.addEndHeaderAction(it) }
+
             val listTemplate = ListTemplate.Builder()
-                .setHeader(
-                    Header.Builder()
-                        .setTitle(title)
-                        .setStartHeaderAction(Action.BACK)
-                        .build()
-                )
+                .setHeader(headerBuilder.build())
                 .setSingleList(itemListBuilder.build())
                 .build()
 
