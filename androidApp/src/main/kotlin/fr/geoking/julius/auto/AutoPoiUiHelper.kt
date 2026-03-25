@@ -11,32 +11,30 @@ import androidx.core.graphics.drawable.IconCompat
 import fr.geoking.julius.R
 import fr.geoking.julius.api.availability.StationAvailabilitySummary
 import fr.geoking.julius.poi.Poi
-import fr.geoking.julius.poi.PoiCategory
+import fr.geoking.julius.ui.map.PoiMarkerHelper
 
 /**
  * Shared logic for mapping POIs to car UI components (rows, markers, icons).
  */
 object AutoPoiUiHelper {
 
-    fun getIconResId(poi: Poi): Int = when (poi.poiCategory) {
-        PoiCategory.Toilet -> R.drawable.ic_poi_toilet
-        PoiCategory.DrinkingWater -> R.drawable.ic_poi_water
-        PoiCategory.Camping -> R.drawable.ic_poi_camping
-        PoiCategory.CaravanSite -> R.drawable.ic_poi_caravan
-        PoiCategory.PicnicSite -> R.drawable.ic_poi_picnic
-        PoiCategory.Radar -> R.drawable.ic_poi_radar
-        else -> if (poi.isElectric) R.drawable.ic_poi_electric else R.drawable.ic_poi_gas
-    }
-
     fun buildPlace(carContext: CarContext, poi: Poi): Place {
+        val markerBitmap = PoiMarkerHelper.getMarkerBitmap(
+            context = carContext,
+            poi = poi,
+            selectedEnergyTypes = emptySet(), // No easy access to settings here, using default
+            useVehicleFilter = false,
+            vehicleEnergy = "",
+            vehicleGasTypes = emptySet(),
+            sizePx = 64
+        )
         return Place.Builder(CarLocation.create(poi.latitude, poi.longitude))
             .setMarker(
                 PlaceMarker.Builder()
                     .setIcon(
-                        CarIcon.Builder(IconCompat.createWithResource(carContext, getIconResId(poi))).build(),
+                        CarIcon.Builder(IconCompat.createWithBitmap(markerBitmap)).build(),
                         PlaceMarker.TYPE_ICON
                     )
-                    .setLabel(if (poi.poiCategory == PoiCategory.Radar) "VMA" else "POI")
                     .build()
             )
             .build()
@@ -46,12 +44,34 @@ object AutoPoiUiHelper {
         carContext: CarContext,
         poi: Poi,
         availability: StationAvailabilitySummary?,
+        selectedEnergyTypes: Set<String> = emptySet(),
+        useVehicleFilter: Boolean = false,
+        vehicleEnergy: String = "",
+        vehicleGasTypes: Set<String> = emptySet(),
         onClick: () -> Unit
     ): Row {
         val title = poi.siteName?.takeIf { it.isNotBlank() } ?: poi.name.ifBlank { "POI" }
         val address = poi.addressLocal?.takeIf { it.isNotBlank() } ?: poi.address.ifBlank { "${poi.latitude}, ${poi.longitude}" }
         val source = "[Source: ${poi.source ?: "Unknown"}]"
-        val place = buildPlace(carContext, poi)
+        val markerBitmap = PoiMarkerHelper.getMarkerBitmap(
+            context = carContext,
+            poi = poi,
+            selectedEnergyTypes = selectedEnergyTypes,
+            useVehicleFilter = useVehicleFilter,
+            vehicleEnergy = vehicleEnergy,
+            vehicleGasTypes = vehicleGasTypes,
+            sizePx = 64
+        )
+        val place = Place.Builder(CarLocation.create(poi.latitude, poi.longitude))
+            .setMarker(
+                PlaceMarker.Builder()
+                    .setIcon(
+                        CarIcon.Builder(IconCompat.createWithBitmap(markerBitmap)).build(),
+                        PlaceMarker.TYPE_ICON
+                    )
+                    .build()
+            )
+            .build()
 
         return Row.Builder()
             .setTitle(title)

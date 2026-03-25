@@ -128,8 +128,16 @@ class CustomMapPoiScreen(
             Log.d("CustomMapPoiScreen", "loadPois search center lat=$lat lon=$lon")
 
             try {
+                val settings = settingsManager.settings.value
                 val result = poiProvider.searchResult(PoiSearchRequest(lat, lon, null, emptySet()))
                 pois = result.pois
+                surfaceRenderer?.updatePois(
+                    newPois = pois,
+                    selectedEnergyTypes = settings.selectedMapEnergyTypes,
+                    useVehicleFilter = settings.useVehicleFilter,
+                    vehicleEnergy = settings.vehicleEnergy,
+                    vehicleGasTypes = settings.vehicleGasTypes
+                )
                 errors = result.errors
                 Log.d("CustomMapPoiScreen", "pois loaded: ${pois.size}, errors: ${errors.size}")
                 favoriteIds = favoritesRepo?.getFavorites()?.map { it.id }?.toSet() ?: emptySet()
@@ -162,11 +170,20 @@ class CustomMapPoiScreen(
         Log.d("CustomMapPoiScreen", "onSurfaceAvailable")
         surfaceRenderer?.stop()
         surfaceRenderer = AutoSurfaceRenderer(
+            carContext,
             surfaceContainer.surface!!,
             surfaceContainer.width,
             surfaceContainer.height
         ).apply {
             updateLocation(searchLat, searchLon)
+            val settings = settingsManager.settings.value
+            updatePois(
+                newPois = pois,
+                selectedEnergyTypes = settings.selectedMapEnergyTypes,
+                useVehicleFilter = settings.useVehicleFilter,
+                vehicleEnergy = settings.vehicleEnergy,
+                vehicleGasTypes = settings.vehicleGasTypes
+            )
             start()
         }
     }
@@ -321,10 +338,19 @@ class CustomMapPoiScreen(
             }
 
             val limitedPois = pois.take(10)
+            val currentSettings = settingsManager.settings.value
             limitedPois.forEach { poi ->
                 val availability = availabilityByPoiId[poi.id]
                 itemListBuilder.addItem(
-                    AutoPoiUiHelper.buildPoiRow(carContext, poi, availability) {
+                    AutoPoiUiHelper.buildPoiRow(
+                        carContext = carContext,
+                        poi = poi,
+                        availability = availability,
+                        selectedEnergyTypes = currentSettings.selectedMapEnergyTypes,
+                        useVehicleFilter = currentSettings.useVehicleFilter,
+                        vehicleEnergy = currentSettings.vehicleEnergy,
+                        vehicleGasTypes = currentSettings.vehicleGasTypes
+                    ) {
                         screenManager.push(
                             PoiDetailScreen(
                                 carContext = carContext,

@@ -4,10 +4,13 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import android.content.Context
 import android.graphics.Paint
 import android.util.Log
 import android.util.LruCache
 import android.view.Surface
+import fr.geoking.julius.poi.Poi
+import fr.geoking.julius.ui.map.PoiMarkerHelper
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Collections
@@ -21,6 +24,7 @@ import kotlin.math.*
  * It uses an LRU cache for bitmaps and a fixed thread pool to fetch tiles efficiently.
  */
 class AutoSurfaceRenderer(
+    private val context: Context,
     private val surface: Surface,
     private val width: Int,
     private val height: Int
@@ -30,6 +34,12 @@ class AutoSurfaceRenderer(
     private var lat: Double = 48.8566
     private var lon: Double = 2.3522
     private var zoom: Int = 13
+
+    private var pois: List<Poi> = emptyList()
+    private var selectedEnergyTypes: Set<String> = emptySet()
+    private var useVehicleFilter: Boolean = false
+    private var vehicleEnergy: String = ""
+    private var vehicleGasTypes: Set<String> = emptySet()
 
     // Cache up to 50 tile bitmaps (approx 50 * 256*256*4 bytes ~ 12MB)
     private val tileCache = LruCache<String, Bitmap>(50)
@@ -57,11 +67,26 @@ class AutoSurfaceRenderer(
         zoom = newZoom
     }
 
+    fun updatePois(
+        newPois: List<Poi>,
+        selectedEnergyTypes: Set<String>,
+        useVehicleFilter: Boolean,
+        vehicleEnergy: String,
+        vehicleGasTypes: Set<String>
+    ) {
+        this.pois = newPois
+        this.selectedEnergyTypes = selectedEnergyTypes
+        this.useVehicleFilter = useVehicleFilter
+        this.vehicleEnergy = vehicleEnergy
+        this.vehicleGasTypes = vehicleGasTypes
+    }
+
     private fun runDrawLoop() {
         while (running) {
             val canvas = try { surface.lockCanvas(null) } catch (_: Exception) { null } ?: break
             try {
                 drawMap(canvas)
+                drawPois(canvas)
             } finally {
                 try { surface.unlockCanvasAndPost(canvas) } catch (_: Exception) {}
             }
@@ -90,6 +115,39 @@ class AutoSurfaceRenderer(
                     canvas.drawBitmap(bitmap, drawX, drawY, null)
                 }
             }
+        }
+    }
+
+    private fun drawPois(canvas: Canvas) {
+        val tileSize = 256
+        val centerX = lonToTileX(lon, zoom)
+        val centerY = latToTileY(lat, zoom)
+
+        val markerSize = 60 // smaller for Android Auto
+
+        pois.forEach { poi ->
+            val tileX = lonToTileX(poi.longitude, zoom)
+            val tileY = latToTileY(poi.latitude, zoom)
+
+            val drawX = ((tileX - centerX) * tileSize + width / 2.0).toFloat()
+            val drawY = ((tileY - centerY) * tileSize + height / 2.0).toFloat()
+
+            // Skip if outside viewport
+            if (drawX < -markerSize || drawX > width + markerSize || drawY < -markerSize || drawY > height + markerSize) {
+                return@forEach
+            }
+
+            val bitmap = PoiMarkerHelper.getMarkerBitmap(
+                context = context,
+                poi = poi,
+                selectedEnergyTypes = selectedEnergyTypes,
+                useVehicleFilter = useVehicleFilter,
+                vehicleEnergy = vehicleEnergy,
+                vehicleGasTypes = vehicleGasTypes,
+                sizePx = markerSize
+            )
+
+            canvas.drawBitmap(bitmap, drawX - markerSize / 2f, drawY - markerSize / 2f, null)
         }
     }
 
