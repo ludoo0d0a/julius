@@ -35,6 +35,8 @@ class BrandHelperTest {
         val info = BrandHelper.getBrandInfo("Chargy Ok")
         assertNotNull(info)
         assertEquals("Chargy", info.displayName)
+        assertEquals(R.drawable.ic_brand_chargy, info.iconResId)
+        assertEquals(R.drawable.ic_brand_chargy_rounded, info.roundedIconResId)
     }
 
     @Test

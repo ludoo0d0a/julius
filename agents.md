@@ -500,5 +500,12 @@ Sideloaded/debug builds are hidden from the car launcher unless you allow non-Pl
 - **Agent switching not working**: Verify `DynamicAgentWrapper` is being used and settings are saved
 - **"GoogleCertificatesRslt: not allowed" / "Unable to update local snapshot for consentverifier"**: Google Play Services (e.g. Maps) verifies your app's signing certificate. For **debug** builds, add your debug keystore SHA-1 and SHA-256 in [Google Cloud Console](https://console.cloud.google.com/) → your project → **APIs & Services** → **Credentials** → your Android API key → **Application restrictions** → add the fingerprint(s). Get them with `./gradlew signingReport` or from `~/.android/debug.keystore`. This warning is harmless for development; Maps still works. Release builds must use the keystore registered for your Play app.
 
+### Brand Icon Implementation
+To add a new brand icon (e.g., for an EV operator like Chargy):
+1. **Source SVG:** Download a high-quality SVG from a trusted source (Wikipedia, official site).
+2. **Standard Icon:** Convert the SVG to an Android Vector Drawable in `androidApp/src/main/res/drawable/ic_brand_<name>.xml`. Use the official brand color.
+3. **Rounded Icon:** Create a `layer-list` in `ic_brand_<name>_rounded.xml`. Use `ic_poi_background_circle` as the base. Center the logo and scale it to **85%** of the circle (e.g., `width="20.4dp"` and `height="20.4dp"` for a 24dp viewport).
+4. **BrandHelper:** Update `BrandHelper.kt` to include the brand in `brandNames`, `brandIcons`, `roundedBrandIcons`, and the appropriate energy set (`gasBrands` or `electricBrands`).
+
 - **Build System**: Standard Gradle-based KMP setup with build-time and runtime API key management.
 - **Testing**: Includes mock-based integration tests for agents and platform-specific UI testing.
