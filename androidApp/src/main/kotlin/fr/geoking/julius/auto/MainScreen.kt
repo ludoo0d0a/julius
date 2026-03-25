@@ -36,6 +36,7 @@ import fr.geoking.julius.shared.VoiceEvent
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import fr.geoking.julius.CarMapMode
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
@@ -115,8 +116,17 @@ class MainScreen(
                     val keywords = listOf("display map", "map", "carte", "gas stations", "stations service")
                     if (keywords.any { lastUserMsg.contains(it) }) {
                         val mapDeps = getMapDeps()
-                        screenManager.push(
-                            MapPoiScreen(
+                        val screen = if (settingsManager.settings.value.carMapMode == CarMapMode.Native) {
+                            NativeMapPoiScreen(
+                                carContext = carContext,
+                                poiProvider = mapDeps.poiProvider,
+                                availabilityProviderFactory = mapDeps.availabilityProviderFactory,
+                                settingsManager = settingsManager,
+                                communityRepo = mapDeps.communityRepo,
+                                favoritesRepo = mapDeps.favoritesRepo
+                            )
+                        } else {
+                            CustomMapPoiScreen(
                                 carContext = carContext,
                                 poiProvider = mapDeps.poiProvider,
                                 availabilityProviderFactory = mapDeps.availabilityProviderFactory,
@@ -129,7 +139,8 @@ class MainScreen(
                                 communityRepo = mapDeps.communityRepo,
                                 favoritesRepo = mapDeps.favoritesRepo
                             )
-                        )
+                        }
+                        screenManager.push(screen)
                     }
                 }
 
@@ -222,8 +233,17 @@ class MainScreen(
                         TAB_SETTINGS -> screenManager.push(AutoSettingsScreen(carContext, settingsManager, store, julesClient))
                         TAB_MAP -> {
                             val mapDeps = getMapDeps()
-                            screenManager.push(
-                                MapPoiScreen(
+                            val screen = if (settingsManager.settings.value.carMapMode == CarMapMode.Native) {
+                                NativeMapPoiScreen(
+                                    carContext = carContext,
+                                    poiProvider = mapDeps.poiProvider,
+                                    availabilityProviderFactory = mapDeps.availabilityProviderFactory,
+                                    settingsManager = settingsManager,
+                                    communityRepo = mapDeps.communityRepo,
+                                    favoritesRepo = mapDeps.favoritesRepo
+                                )
+                            } else {
+                                CustomMapPoiScreen(
                                     carContext = carContext,
                                     poiProvider = mapDeps.poiProvider,
                                     availabilityProviderFactory = mapDeps.availabilityProviderFactory,
@@ -236,7 +256,8 @@ class MainScreen(
                                     communityRepo = mapDeps.communityRepo,
                                     favoritesRepo = mapDeps.favoritesRepo
                                 )
-                            )
+                            }
+                            screenManager.push(screen)
                         }
                         else -> {
                             activeTabId = tabContentId

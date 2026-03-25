@@ -3,7 +3,6 @@ package fr.geoking.julius.auto
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.LocationManager
 import android.net.Uri
 import android.util.Log
 import androidx.car.app.CarContext
@@ -11,16 +10,11 @@ import androidx.car.app.Screen
 import androidx.car.app.model.Action
 import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.CarIcon
-import androidx.car.app.model.CarLocation
-import androidx.car.app.model.ItemList
 import androidx.car.app.model.Header
-import androidx.car.app.model.Metadata
+import androidx.car.app.model.ItemList
 import androidx.car.app.model.MessageTemplate
 import androidx.car.app.navigation.model.MapWithContentTemplate
 import androidx.car.app.model.ListTemplate
-import androidx.car.app.model.Place
-import androidx.car.app.model.PlaceMarker
-import androidx.car.app.model.Row
 import androidx.car.app.model.Template
 import androidx.car.app.SurfaceCallback
 import androidx.car.app.SurfaceContainer
@@ -29,11 +23,9 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import fr.geoking.julius.poi.PoiProviderType
 import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.lifecycleScope
-import fr.geoking.julius.AppSettings
 import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.poi.Poi
-import fr.geoking.julius.poi.PoiCategory
 import fr.geoking.julius.poi.PoiSearchRequest
 import fr.geoking.julius.poi.PoiProviderError
 import fr.geoking.julius.community.CommunityPoiRepository
@@ -48,12 +40,11 @@ import fr.geoking.julius.api.traffic.TrafficProviderFactory
 import fr.geoking.julius.toll.TollCalculator
 import kotlinx.coroutines.flow.collectLatest
 import fr.geoking.julius.api.availability.matchAvailabilityToPois
-import fr.geoking.julius.ui.BrandHelper
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
-class MapPoiScreen(
+class CustomMapPoiScreen(
     carContext: CarContext,
     private val poiProvider: PoiProvider,
     private val availabilityProviderFactory: BorneAvailabilityProviderFactory,
@@ -72,7 +63,6 @@ class MapPoiScreen(
     private var availabilityByPoiId: Map<String, StationAvailabilitySummary> = emptyMap()
     private var favoriteIds: Set<String> = emptySet()
     private var isLoading = true
-    /** Search center (user location or default) for anchor and POI fetch. */
     private var searchLat: Double = 48.8566
     private var searchLon: Double = 2.3522
 
@@ -135,13 +125,13 @@ class MapPoiScreen(
 
             searchLat = lat
             searchLon = lon
-            Log.d("MapPoiScreen", "loadPois search center lat=$lat lon=$lon")
+            Log.d("CustomMapPoiScreen", "loadPois search center lat=$lat lon=$lon")
 
             try {
                 val result = poiProvider.searchResult(PoiSearchRequest(lat, lon, null, emptySet()))
                 pois = result.pois
                 errors = result.errors
-                Log.d("MapPoiScreen", "pois loaded: ${pois.size}, errors: ${errors.size}")
+                Log.d("CustomMapPoiScreen", "pois loaded: ${pois.size}, errors: ${errors.size}")
                 favoriteIds = favoritesRepo?.getFavorites()?.map { it.id }?.toSet() ?: emptySet()
                 val provider = availabilityProviderFactory.getProvider(lat, lon)
                 if (provider != null) {
@@ -157,7 +147,7 @@ class MapPoiScreen(
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                Log.e("MapPoiScreen", "getGasStations failed", e)
+                Log.e("CustomMapPoiScreen", "getGasStations failed", e)
                 pois = emptyList()
                 errors = listOf(PoiProviderError("System", e.message ?: "Unknown error", true))
                 availabilityByPoiId = emptyMap()
@@ -169,19 +159,20 @@ class MapPoiScreen(
 
 
     override fun onSurfaceAvailable(surfaceContainer: SurfaceContainer) {
-        Log.d("MapPoiScreen", "onSurfaceAvailable")
+        Log.d("CustomMapPoiScreen", "onSurfaceAvailable")
         surfaceRenderer?.stop()
         surfaceRenderer = AutoSurfaceRenderer(
             surfaceContainer.surface!!,
             surfaceContainer.width,
             surfaceContainer.height
         ).apply {
+            updateLocation(searchLat, searchLon)
             start()
         }
     }
 
     override fun onSurfaceDestroyed(surfaceContainer: SurfaceContainer) {
-        Log.d("MapPoiScreen", "onSurfaceDestroyed")
+        Log.d("CustomMapPoiScreen", "onSurfaceDestroyed")
         surfaceRenderer?.stop()
         surfaceRenderer = null
     }
@@ -237,7 +228,7 @@ class MapPoiScreen(
             }
             val actionStrip = actionStripBuilder.build()
 
-            val title = "Nearby POIs"
+            val title = "Nearby POIs (Custom)"
 
             if (isLoading) {
                 return MapWithContentTemplate.Builder()
@@ -262,7 +253,7 @@ class MapPoiScreen(
 
             // 1) Functional rows (Recenter, External Map, Settings)
             itemListBuilder.addItem(
-                Row.Builder()
+                androidx.car.app.model.Row.Builder()
                     .setTitle("Recenter")
                     .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
                     .setOnClickListener { loadPois() }
@@ -270,7 +261,7 @@ class MapPoiScreen(
             )
 
             itemListBuilder.addItem(
-                Row.Builder()
+                androidx.car.app.model.Row.Builder()
                     .setTitle("Open in External Map")
                     .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
                     .setOnClickListener {
@@ -283,7 +274,7 @@ class MapPoiScreen(
             )
 
             itemListBuilder.addItem(
-                Row.Builder()
+                androidx.car.app.model.Row.Builder()
                     .setTitle("Settings")
                     .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_settings)).build())
                     .setOnClickListener { screenManager.push(AutoMapSettingsScreen(carContext, settingsManager)) }
@@ -295,7 +286,7 @@ class MapPoiScreen(
             val hasCommunity = settingsManager.settings.value.isLoggedIn && communityRepo != null
             if (hasCommunity) {
                 itemListBuilder.addItem(
-                    Row.Builder()
+                    androidx.car.app.model.Row.Builder()
                         .setTitle("Add POI")
                         .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_jules)).build())
                         .setOnClickListener {
@@ -310,7 +301,7 @@ class MapPoiScreen(
                 )
             } else if (hasRoutePlanning) {
                 itemListBuilder.addItem(
-                    Row.Builder()
+                    androidx.car.app.model.Row.Builder()
                         .setTitle("Plan route")
                         .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_swap_horiz)).build())
                         .setOnClickListener {
@@ -331,36 +322,9 @@ class MapPoiScreen(
 
             val limitedPois = pois.take(10)
             limitedPois.forEach { poi ->
-                val iconResId = when (poi.poiCategory) {
-                    PoiCategory.Toilet -> R.drawable.ic_poi_toilet
-                    PoiCategory.DrinkingWater -> R.drawable.ic_poi_water
-                    PoiCategory.Camping -> R.drawable.ic_poi_camping
-                    PoiCategory.CaravanSite -> R.drawable.ic_poi_caravan
-                    PoiCategory.PicnicSite -> R.drawable.ic_poi_picnic
-                    PoiCategory.Radar -> R.drawable.ic_poi_radar
-                    else -> if (poi.isElectric) R.drawable.ic_poi_electric else R.drawable.ic_poi_gas
-                }
-
-                val place = Place.Builder(CarLocation.create(poi.latitude, poi.longitude))
-                    .setMarker(
-                        PlaceMarker.Builder()
-                            .setIcon(
-                                CarIcon.Builder(IconCompat.createWithResource(carContext, iconResId)).build(),
-                                PlaceMarker.TYPE_ICON
-                            )
-                            .setLabel(if (poi.poiCategory == PoiCategory.Radar) "VMA" else "POI")
-                            .build()
-                    )
-                    .build()
-
                 val availability = availabilityByPoiId[poi.id]
-
-                val row = Row.Builder()
-                    .setTitle(poi.siteName?.takeIf { it.isNotBlank() } ?: poi.name.ifBlank { "POI" })
-                    .addText("${poi.addressLocal?.takeIf { it.isNotBlank() } ?: poi.address.ifBlank { "${poi.latitude}, ${poi.longitude}" }} [Source: ${poi.source ?: "Unknown"}]")
-                    .setMetadata(Metadata.Builder().setPlace(place).build())
-                    .setBrowsable(true)
-                    .setOnClickListener {
+                itemListBuilder.addItem(
+                    AutoPoiUiHelper.buildPoiRow(carContext, poi, availability) {
                         screenManager.push(
                             PoiDetailScreen(
                                 carContext = carContext,
@@ -370,9 +334,7 @@ class MapPoiScreen(
                             )
                         )
                     }
-                    .build()
-
-                itemListBuilder.addItem(row)
+                )
             }
 
             val listTemplate = ListTemplate.Builder()
@@ -390,7 +352,7 @@ class MapPoiScreen(
                 .setActionStrip(actionStrip)
                 .build()
         } catch (e: Exception) {
-            Log.e("MapPoiScreen", "Error building template", e)
+            Log.e("CustomMapPoiScreen", "Error building template", e)
             MessageTemplate.Builder("Failed to load map: ${e.message}")
                 .setHeader(
                     Header.Builder()
@@ -400,14 +362,5 @@ class MapPoiScreen(
                 )
                 .build()
         }
-    }
-
-    private fun connectorLabel(id: String): String = when (id) {
-        "type_2" -> "Type 2"
-        "combo_ccs" -> "CCS"
-        "chademo" -> "CHAdeMO"
-        "ef" -> "E/F"
-        "autre" -> "Autre"
-        else -> id
     }
 }
