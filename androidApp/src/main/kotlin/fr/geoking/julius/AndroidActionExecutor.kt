@@ -18,13 +18,15 @@ import fr.geoking.julius.shared.ActionExecutor
 import fr.geoking.julius.shared.ActionResult
 import fr.geoking.julius.shared.ActionType
 import fr.geoking.julius.shared.DeviceAction
+import fr.geoking.julius.shared.NetworkService
 import fr.geoking.julius.shared.PermissionManager
 import fr.geoking.julius.shared.WeatherLookup
 
 class AndroidActionExecutor(
     private val context: Context,
     private val permissionManager: PermissionManager,
-    private val weatherLookup: WeatherLookup
+    private val weatherLookup: WeatherLookup,
+    private val networkService: NetworkService
 ) : ActionExecutor {
 
     override suspend fun executeAction(action: DeviceAction): ActionResult {
@@ -58,6 +60,7 @@ class AndroidActionExecutor(
                 ActionType.SHOW_MAP -> showMap()
                 ActionType.ROADSIDE_ASSISTANCE -> roadsideAssistance()
                 ActionType.EMERGENCY_CALL -> emergencyCall()
+                ActionType.GET_NETWORK_STATUS -> getNetworkStatus()
                 ActionType.OTHER -> executeOtherAction(action)
             }
         } catch (e: Exception) {
@@ -408,6 +411,20 @@ class AndroidActionExecutor(
             ActionResult(true, "Opening dialer for emergency call (112)")
         } catch (e: Exception) {
             ActionResult(false, "Failed to initiate emergency call: ${e.message}")
+        }
+    }
+
+    private suspend fun getNetworkStatus(): ActionResult {
+        return try {
+            val status = networkService.getCurrentStatus()
+            val country = status.countryName ?: status.countryCode ?: "Unknown"
+            val type = status.networkType.name
+            val connected = if (status.isConnected) "Connected" else "Disconnected"
+            val roaming = if (status.isRoaming) "Roaming" else "Home Network"
+            val msg = "Network: $type ($connected, $roaming). Operator: ${status.operatorName}. Country: $country."
+            ActionResult(true, msg)
+        } catch (e: Exception) {
+            ActionResult(false, "Failed to get network status: ${e.message}")
         }
     }
 

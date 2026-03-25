@@ -30,6 +30,7 @@ enum class ActionType {
     SHOW_MAP,
     ROADSIDE_ASSISTANCE,
     EMERGENCY_CALL,
+    GET_NETWORK_STATUS,
     OTHER
 }
 
