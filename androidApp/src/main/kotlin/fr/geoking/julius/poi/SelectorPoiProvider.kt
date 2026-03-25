@@ -21,9 +21,9 @@ class SelectorPoiProvider(
     private val settingsManager: SettingsManager
 ) : PoiProvider {
 
-    private val hybridProvider by lazy { HybridPoiProvider(routex, dataGouvElec) }
+    private val hybridProvider by lazy { HybridPoiProvider(dataGouv, dataGouvElec) }
 
-    private fun currentProvider(): PoiProvider = when (settingsManager.settings.value.selectedPoiProvider) {
+    private fun getProvider(type: PoiProviderType): PoiProvider = when (type) {
         PoiProviderType.Routex -> routex
         PoiProviderType.Etalab -> etalab
         PoiProviderType.GasApi -> gasApi
@@ -32,7 +32,7 @@ class SelectorPoiProvider(
         PoiProviderType.OpenChargeMap -> openChargeMap
         PoiProviderType.Chargy -> chargy
         PoiProviderType.Overpass -> overpass
-        PoiProviderType.Hybrid -> HybridPoiProvider(routex, dataGouvElec)
+        PoiProviderType.Hybrid -> hybridProvider
     }
 
     private class HybridPoiProvider(
@@ -54,14 +54,18 @@ class SelectorPoiProvider(
 
     override suspend fun searchResult(request: PoiSearchRequest): PoiSearchResult {
         val settings = settingsManager.settings.value
-        val provider = if (settings.useVehicleFilter && settings.fuelCard == fr.geoking.julius.FuelCard.Routex && (settings.vehicleEnergy == "gas" || settings.vehicleEnergy == "hybrid")) {
-            PoiProviderType.Routex
+        val providers = if (settings.useVehicleFilter && settings.fuelCard == fr.geoking.julius.FuelCard.Routex && (settings.vehicleEnergy == "gas" || settings.vehicleEnergy == "hybrid")) {
+            setOf(PoiProviderType.Routex)
         } else {
-            settings.selectedPoiProvider
+            settings.selectedPoiProviders
         }
+
+        if (providers.isEmpty()) return PoiSearchResult()
+
         val vehicleType = settings.vehicleType
-        val categories = when (provider) {
-            PoiProviderType.Overpass -> {
+        val categories = providers.flatMap { provider ->
+            when (provider) {
+                PoiProviderType.Overpass -> {
                 val fromSettings = settings.selectedOverpassAmenityTypes.mapNotNull { id ->
                     when (id) {
                         "toilets" -> PoiCategory.Toilet
@@ -93,46 +97,45 @@ class SelectorPoiProvider(
                 }
             }
         }
-        val effectiveRequest = request.copy(categories = categories)
-        val activeProvider = when (provider) {
-            PoiProviderType.Routex -> routex
-            PoiProviderType.Etalab -> etalab
-            PoiProviderType.GasApi -> gasApi
-            PoiProviderType.DataGouv -> dataGouv
-            PoiProviderType.DataGouvElec -> dataGouvElec
-            PoiProviderType.OpenChargeMap -> openChargeMap
-            PoiProviderType.Chargy -> chargy
-            PoiProviderType.Overpass -> overpass
-            PoiProviderType.Hybrid -> hybridProvider
-        }
-        val searchResult = activeProvider.searchResult(effectiveRequest)
-        var result = searchResult.pois
-        val errors = searchResult.errors.toMutableList()
+        }.toSet()
 
-        if (provider == PoiProviderType.Overpass && PoiCategory.CaravanSite in categories && dataGouvCamping != null) {
-            try {
-                val extra = dataGouvCamping.search(effectiveRequest)
-                val seenIds = result.mapTo(mutableSetOf()) { it.id }
-                result = result + extra.filter { it.id !in seenIds }
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errors.add(PoiProviderError("DataGouv Camping", e.message ?: "Unknown error"))
+        val effectiveRequest = request.copy(categories = categories)
+
+        val allPois = mutableListOf<Poi>()
+        val errors = mutableListOf<PoiProviderError>()
+
+        providers.forEach { providerType ->
+            val activeProvider = getProvider(providerType)
+            val searchResult = activeProvider.searchResult(effectiveRequest)
+            allPois.addAll(searchResult.pois)
+            errors.addAll(searchResult.errors)
+
+            if (providerType == PoiProviderType.Overpass && PoiCategory.CaravanSite in categories && dataGouvCamping != null) {
+                try {
+                    val extra = dataGouvCamping.search(effectiveRequest)
+                    allPois.addAll(extra)
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    errors.add(PoiProviderError("DataGouv Camping", e.message ?: "Unknown error"))
+                }
             }
         }
+
         if (PoiCategory.Irve in categories &&
             request.latitude in 49.4..50.2 && request.longitude in 5.7..6.6 &&
-            provider != PoiProviderType.Chargy) {
+            PoiProviderType.Chargy !in providers) {
             try {
                 val extra = chargy.search(effectiveRequest)
-                val seenIds = result.mapTo(mutableSetOf()) { it.id }
-                result = result + extra.filter { it.id !in seenIds }
+                allPois.addAll(extra)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errors.add(PoiProviderError("Chargy", e.message ?: "Unknown error"))
             }
         }
 
-        if (provider != PoiProviderType.Overpass) {
+        var result = mergePois(allPois)
+
+        if (providers.any { it != PoiProviderType.Overpass }) {
             val selectedEnergies = if (settings.useVehicleFilter) {
                 when (settings.vehicleEnergy) {
                     "electric" -> setOf("electric")
@@ -197,12 +200,54 @@ class SelectorPoiProvider(
                 result = result.filter { poi -> !poi.isElectric || poi.irveDetails?.connectorTypes?.any { it in connectorSet } == true }
             }
         }
-        Log.d("SelectorPoiProvider", "search provider=$provider categories=$categories -> ${result.size} pois")
+        Log.d("SelectorPoiProvider", "search providers=$providers categories=$categories -> ${result.size} pois")
         return PoiSearchResult(pois = result, errors = errors)
     }
 
     override suspend fun search(request: PoiSearchRequest): List<Poi> {
         return searchResult(request).pois
+    }
+
+    private fun mergePois(pois: List<Poi>): List<Poi> {
+        val merged = mutableListOf<Poi>()
+        val sorted = pois.sortedBy { it.id }
+
+        for (poi in sorted) {
+            val existing = merged.find {
+                it.id == poi.id || (
+                    Math.abs(it.latitude - poi.latitude) < 0.0005 &&
+                        Math.abs(it.longitude - poi.longitude) < 0.0005 &&
+                        it.name.lowercase().take(5) == poi.name.lowercase().take(5)
+                    )
+            }
+
+            if (existing != null) {
+                val index = merged.indexOf(existing)
+                merged[index] = existing.copy(
+                    fuelPrices = (existing.fuelPrices.orEmpty() + poi.fuelPrices.orEmpty())
+                        .distinctBy { it.fuelName },
+                    irveDetails = run {
+                        val e = existing.irveDetails
+                        val p = poi.irveDetails
+                        if (e != null && p != null) {
+                            e.copy(
+                                connectorTypes = e.connectorTypes + p.connectorTypes
+                            )
+                        } else e ?: p
+                    },
+                    source = if (existing.source != null && poi.source != null && existing.source != poi.source) {
+                        "${existing.source} + ${poi.source}"
+                    } else existing.source ?: poi.source,
+                    brand = existing.brand ?: poi.brand,
+                    powerKw = existing.powerKw ?: poi.powerKw,
+                    operator = existing.operator ?: poi.operator,
+                    chargePointCount = (existing.chargePointCount ?: 0).coerceAtLeast(poi.chargePointCount ?: 0)
+                )
+            } else {
+                merged.add(poi)
+            }
+        }
+        return merged
     }
 
     override suspend fun getGasStations(
@@ -211,29 +256,26 @@ class SelectorPoiProvider(
         viewport: MapViewport?
     ): List<Poi> {
         val settings = settingsManager.settings.value
-        val provider = if (settings.useVehicleFilter && settings.fuelCard == fr.geoking.julius.FuelCard.Routex && (settings.vehicleEnergy == "gas" || settings.vehicleEnergy == "hybrid")) {
-            PoiProviderType.Routex
+        val providers = if (settings.useVehicleFilter && settings.fuelCard == fr.geoking.julius.FuelCard.Routex && (settings.vehicleEnergy == "gas" || settings.vehicleEnergy == "hybrid")) {
+            setOf(PoiProviderType.Routex)
         } else {
-            settings.selectedPoiProvider
+            settings.selectedPoiProviders
         }
-        val activeProvider = when (provider) {
-            PoiProviderType.Routex -> routex
-            PoiProviderType.Etalab -> etalab
-            PoiProviderType.GasApi -> gasApi
-            PoiProviderType.DataGouv -> dataGouv
-            PoiProviderType.DataGouvElec -> dataGouvElec
-            PoiProviderType.OpenChargeMap -> openChargeMap
-            PoiProviderType.Chargy -> chargy
-            PoiProviderType.Overpass -> overpass
-            PoiProviderType.Hybrid -> hybridProvider
-        }
-        var result = activeProvider.getGasStations(latitude, longitude, viewport)
 
-        if (latitude in 49.4..50.2 && longitude in 5.7..6.6 && provider != PoiProviderType.Chargy) {
-            val extra = chargy.getGasStations(latitude, longitude, viewport)
-            val seenIds = result.mapTo(mutableSetOf()) { it.id }
-            result = result + extra.filter { it.id !in seenIds }
+        if (providers.isEmpty()) return emptyList()
+
+        val allPois = mutableListOf<Poi>()
+        providers.forEach { providerType ->
+            val activeProvider = getProvider(providerType)
+            allPois.addAll(activeProvider.getGasStations(latitude, longitude, viewport))
         }
+
+        if (latitude in 49.4..50.2 && longitude in 5.7..6.6 && PoiProviderType.Chargy !in providers) {
+            val extra = chargy.getGasStations(latitude, longitude, viewport)
+            allPois.addAll(extra)
+        }
+
+        var result = mergePois(allPois)
 
         val selectedEnergies = if (settings.useVehicleFilter) {
             when (settings.vehicleEnergy) {
@@ -298,7 +340,7 @@ class SelectorPoiProvider(
             val connectorSet = settings.selectedMapConnectorTypes
             result = result.filter { poi -> !poi.isElectric || poi.irveDetails?.connectorTypes?.any { it in connectorSet } == true }
         }
-        Log.d("SelectorPoiProvider", "selected=$provider lat=$latitude lon=$longitude -> ${result.size} pois (energy+power+operator+connector filter)")
+        Log.d("SelectorPoiProvider", "selected=$providers lat=$latitude lon=$longitude -> ${result.size} pois (energy+power+operator+connector filter)")
         return result
     }
 }

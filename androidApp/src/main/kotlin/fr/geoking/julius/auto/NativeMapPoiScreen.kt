@@ -48,7 +48,7 @@ class NativeMapPoiScreen(
         lifecycleScope.launch {
             settingsManager.settings
                 .map { s ->
-                    s.selectedPoiProvider to s.selectedMapEnergyTypes
+                    s.selectedPoiProviders to s.selectedMapEnergyTypes
                 }
                 .distinctUntilChanged()
                 .collectLatest {

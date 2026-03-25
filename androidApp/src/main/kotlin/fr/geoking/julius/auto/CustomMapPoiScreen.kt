@@ -74,7 +74,7 @@ class CustomMapPoiScreen(
             settingsManager.settings
                 .map { s ->
                     PoiRelatedSettings(
-                        s.selectedPoiProvider,
+                        s.selectedPoiProviders,
                         s.selectedMapEnergyTypes,
                         s.mapEnseigneType,
                         s.selectedMapServices,
@@ -94,7 +94,7 @@ class CustomMapPoiScreen(
     }
 
     private data class PoiRelatedSettings(
-        val provider: PoiProviderType,
+        val providers: Set<PoiProviderType>,
         val energies: Set<String>,
         val enseigne: String,
         val services: Set<String>,

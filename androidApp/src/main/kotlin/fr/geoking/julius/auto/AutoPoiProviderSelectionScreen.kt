@@ -27,14 +27,14 @@ class AutoPoiProviderSelectionScreen(
         val listBuilder = ItemList.Builder()
 
         options.forEach { (type, label) ->
-            val isSelected = settings.selectedPoiProvider == type
+            val isSelected = settings.selectedPoiProviders.contains(type)
             val displayLabel = if (isSelected) "$label (Selected)" else label
             listBuilder.addItem(
                 Row.Builder()
                     .setTitle(displayLabel)
                     .setOnClickListener {
-                        settingsManager.setPoiProviderType(type)
-                        screenManager.pop()
+                        settingsManager.togglePoiProviderType(type)
+                        invalidate()
                     }
                     .build()
             )

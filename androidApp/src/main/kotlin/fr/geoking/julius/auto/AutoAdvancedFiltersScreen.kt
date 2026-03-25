@@ -14,8 +14,10 @@ class AutoAdvancedFiltersScreen(
     override fun onGetTemplate(): Template {
         val settings = settingsManager.settings.value
         val listBuilder = ItemList.Builder()
+        val providers = settings.selectedPoiProviders
 
-        if (settings.selectedPoiProvider == PoiProviderType.DataGouvElec || settings.selectedPoiProvider == PoiProviderType.OpenChargeMap || settings.selectedPoiProvider == PoiProviderType.Chargy) {
+        val hasElec = providers.any { it == PoiProviderType.DataGouvElec || it == PoiProviderType.OpenChargeMap || it == PoiProviderType.Chargy || it == PoiProviderType.Hybrid }
+        if (hasElec) {
             listBuilder.addItem(
                 Row.Builder()
                     .setTitle("Operators")
@@ -47,7 +49,7 @@ class AutoAdvancedFiltersScreen(
             )
         }
 
-        if (settings.selectedPoiProvider == PoiProviderType.Overpass) {
+        if (providers.contains(PoiProviderType.Overpass)) {
             listBuilder.addItem(
                 Row.Builder()
                     .setTitle("POI Types")
