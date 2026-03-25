@@ -201,6 +201,16 @@ object BrandHelper {
             .sortedBy { it.second }
     }
 
+    /** Returns a human-readable label for IRVE connector type IDs. */
+    fun connectorTypeLabel(id: String): String = when (id) {
+        "type_2" -> "Type 2"
+        "combo_ccs" -> "CCS"
+        "chademo" -> "CHAdeMO"
+        "ef" -> "E/F"
+        "autre" -> "Autre"
+        else -> id
+    }
+
     /**
      * Strip accents, lowercase, and map common API / commercial variants to a single lookup key
      * (e.g. "SUPER U EXPRESS", "Hyper U" -> superu).
