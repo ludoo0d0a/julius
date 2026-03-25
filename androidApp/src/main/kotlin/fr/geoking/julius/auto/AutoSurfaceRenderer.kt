@@ -1,49 +1,44 @@
 package fr.geoking.julius.auto
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.util.Log
+import android.util.LruCache
 import android.view.Surface
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+import kotlin.math.*
 
 /**
- * Placeholder map renderer for Android Auto surface.
+ * Map renderer for Android Auto surface using OpenStreetMap tiles.
  *
- * This version does NOT render real map tiles yet; it just draws a dark
- * background with a simple grid to visualize the surface. It is intentionally
- * minimal so it can be replaced later by a proper tile-based map renderer.
+ * It uses an LRU cache for bitmaps and a fixed thread pool to fetch tiles efficiently.
  */
 class AutoSurfaceRenderer(
     private val surface: Surface,
-    width: Int,
-    height: Int
+    private val width: Int,
+    private val height: Int
 ) {
     @Volatile
     private var running = true
+    private var lat: Double = 48.8566
+    private var lon: Double = 2.3522
+    private var zoom: Int = 13
 
-    @Volatile
-    var isActive: Boolean = false
-        set(value) { field = value }
+    // Cache up to 50 tile bitmaps (approx 50 * 256*256*4 bytes ~ 12MB)
+    private val tileCache = LruCache<String, Bitmap>(50)
+    // Tracks active network requests to avoid duplicates
+    private val pendingRequests = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
+    // Fixed thread pool for network I/O
+    private val executor = Executors.newFixedThreadPool(4)
 
-    private val width: Int = width.coerceAtLeast(1)
-    private val height: Int = height.coerceAtLeast(1)
-
-    private val backgroundPaint = Paint().apply {
-        color = Color.rgb(10, 15, 20)
-        style = Paint.Style.FILL
-    }
-
-    private val gridPaint = Paint().apply {
-        color = Color.rgb(40, 60, 80)
-        style = Paint.Style.STROKE
-        strokeWidth = 1f
-    }
-
-    private val activePaint = Paint().apply {
-        color = Color.rgb(80, 200, 255)
-        style = Paint.Style.STROKE
-        strokeWidth = 4f
-    }
-
+    private val backgroundPaint = Paint().apply { color = Color.LTGRAY }
     private val drawThread = Thread(::runDrawLoop, "AutoSurfaceRenderer")
 
     fun start() {
@@ -52,50 +47,91 @@ class AutoSurfaceRenderer(
 
     fun stop() {
         running = false
-        drawThread.join(500)
+        executor.shutdownNow()
+        try { drawThread.join(500) } catch (_: Exception) {}
+    }
+
+    fun updateLocation(newLat: Double, newLon: Double, newZoom: Int = 13) {
+        lat = newLat
+        lon = newLon
+        zoom = newZoom
     }
 
     private fun runDrawLoop() {
         while (running) {
-            val canvas = surface.lockCanvas(null) ?: break
+            val canvas = try { surface.lockCanvas(null) } catch (_: Exception) { null } ?: break
             try {
-                drawPlaceholderMap(canvas)
+                drawMap(canvas)
             } finally {
-                try {
-                    surface.unlockCanvasAndPost(canvas)
-                } catch (_: Exception) { }
+                try { surface.unlockCanvasAndPost(canvas) } catch (_: Exception) {}
             }
-            try { Thread.sleep(16) } catch (_: InterruptedException) { break }
+            try { Thread.sleep(100) } catch (_: InterruptedException) { break }
         }
     }
 
-    companion object {
-        private const val FRAME_DELAY_MS = 33L
-    }
-
-    private fun drawPlaceholderMap(canvas: Canvas) {
+    private fun drawMap(canvas: Canvas) {
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), backgroundPaint)
 
-        val step = 80
-        var x = 0
-        while (x <= width) {
-            canvas.drawLine(x.toFloat(), 0f, x.toFloat(), height.toFloat(), gridPaint)
-            x += step
+        val tileSize = 256
+        val centerX = lonToTileX(lon, zoom)
+        val centerY = latToTileY(lat, zoom)
+
+        val startTileX = floor(centerX - (width / 2.0) / tileSize).toInt()
+        val endTileX = ceil(centerX + (width / 2.0) / tileSize).toInt()
+        val startTileY = floor(centerY - (height / 2.0) / tileSize).toInt()
+        val endTileY = ceil(centerY + (height / 2.0) / tileSize).toInt()
+
+        for (x in startTileX..endTileX) {
+            for (y in startTileY..endTileY) {
+                val bitmap = getTile(x, y, zoom)
+                if (bitmap != null) {
+                    val drawX = ((x - centerX) * tileSize + width / 2.0).toFloat()
+                    val drawY = ((y - centerY) * tileSize + height / 2.0).toFloat()
+                    canvas.drawBitmap(bitmap, drawX, drawY, null)
+                }
+            }
         }
-        var y = 0
-        while (y <= height) {
-            canvas.drawLine(0f, y.toFloat(), width.toFloat(), y.toFloat(), gridPaint)
-            y += step
+    }
+
+    private fun getTile(x: Int, y: Int, z: Int): Bitmap? {
+        val key = "$z/$x/$y"
+        synchronized(tileCache) {
+            tileCache.get(key)?.let { return it }
         }
 
-        if (isActive) {
-            canvas.drawRect(
-                10f,
-                10f,
-                width.toFloat() - 10f,
-                height.toFloat() - 10f,
-                activePaint
-            )
+        if (pendingRequests.add(key)) {
+            executor.submit {
+                try {
+                    val url = URL("https://tile.openstreetmap.org/$z/$x/$y.png")
+                    val connection = url.openConnection() as HttpURLConnection
+                    connection.setRequestProperty("User-Agent", "Julius-Android-Auto/1.0")
+                    connection.connectTimeout = 5000
+                    connection.readTimeout = 5000
+                    connection.connect()
+                    if (connection.responseCode == 200) {
+                        val bitmap = BitmapFactory.decodeStream(connection.inputStream)
+                        if (bitmap != null) {
+                            synchronized(tileCache) {
+                                tileCache.put(key, bitmap)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("AutoSurfaceRenderer", "Failed to fetch tile $key", e)
+                } finally {
+                    pendingRequests.remove(key)
+                }
+            }
         }
+
+        return null
+    }
+
+    private fun lonToTileX(lon: Double, zoom: Int): Double =
+        (lon + 180.0) / 360.0 * (1 shl zoom)
+
+    private fun latToTileY(lat: Double, zoom: Int): Double {
+        val latRad = Math.toRadians(lat)
+        return (1.0 - ln(tan(latRad) + 1.0 / cos(latRad)) / PI) / 2.0 * (1 shl zoom)
     }
 }

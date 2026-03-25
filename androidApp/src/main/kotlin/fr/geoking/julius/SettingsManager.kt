@@ -70,6 +70,8 @@ enum class PerplexityModel(val modelName: String, val displayName: String) {
     GEMMA_2_27B_IT("gemma-2-27b-it", "Gemma 2 27B")
 }
 
+enum class CarMapMode { Native, Custom }
+
 enum class OpenAiModel(val modelName: String, val displayName: String) {
     GPT_4O("gpt-4o", "GPT-4o"),
     GPT_4O_MINI("gpt-4o-mini", "GPT-4o mini"),
@@ -138,6 +140,7 @@ data class AppSettings(
     val selectedOverpassAmenityTypes: Set<String> = setOf("toilets", "drinking_water"),
     /** Vehicle type for POI categories and optional routing profile (Car, Truck, Motorcycle, Motorhome). */
     val vehicleType: VehicleType = VehicleType.Car,
+    val carMapMode: CarMapMode = CarMapMode.Native,
     val openAiKey: String = "",
     val openAiModel: OpenAiModel = OpenAiModel.GPT_4O,
     val elevenLabsKey: String = "",
@@ -270,6 +273,11 @@ open class SettingsManager(context: Context) {
         } catch (e: IllegalArgumentException) {
             VehicleType.Car
         }
+        val carMapMode = try {
+            CarMapMode.valueOf(prefs.getString("car_map_mode", CarMapMode.Native.name) ?: CarMapMode.Native.name)
+        } catch (e: IllegalArgumentException) {
+            CarMapMode.Native
+        }
 
         val vehicleBrand = prefs.getString("vehicle_brand", "") ?: ""
         val vehicleModel = prefs.getString("vehicle_model", "") ?: ""
@@ -319,6 +327,7 @@ open class SettingsManager(context: Context) {
             openChargeMapKey = openChargeMapKey,
             selectedOverpassAmenityTypes = selectedOverpassAmenityTypes,
             vehicleType = vehicleType,
+            carMapMode = carMapMode,
             openAiKey = openAiKey,
             openAiModel = try {
                 OpenAiModel.valueOf(prefs.getString("openai_model", OpenAiModel.GPT_4O.name) ?: OpenAiModel.GPT_4O.name)
@@ -520,6 +529,11 @@ open class SettingsManager(context: Context) {
         _settings.value = _settings.value.copy(vehicleType = type)
     }
 
+    open fun setCarMapMode(mode: CarMapMode) {
+        prefs.edit().putString("car_map_mode", mode.name).apply()
+        _settings.value = _settings.value.copy(carMapMode = mode)
+    }
+
     open fun setVehicleBrand(brand: String) {
         prefs.edit().putString("vehicle_brand", brand).apply()
         _settings.value = _settings.value.copy(vehicleBrand = brand)
@@ -634,6 +648,7 @@ open class SettingsManager(context: Context) {
             .putString("mobiliteit_luxembourg_key", settings.mobiliteitLuxembourgKey)
             .putString("overpass_amenity_types", settings.selectedOverpassAmenityTypes.joinToString(","))
             .putString("vehicle_type", settings.vehicleType.name)
+            .putString("car_map_mode", settings.carMapMode.name)
             .putString("openai_key", settings.openAiKey)
             .putString("openai_model", settings.openAiModel.name)
             .putString("elevenlabs_key", settings.elevenLabsKey)
@@ -727,6 +742,7 @@ open class SettingsManager(context: Context) {
             openChargeMapKey = _settings.value.openChargeMapKey,
             selectedOverpassAmenityTypes = _settings.value.selectedOverpassAmenityTypes,
             vehicleType = _settings.value.vehicleType,
+            carMapMode = _settings.value.carMapMode,
             openAiKey = openAiKey,
             openAiModel = openAiModel,
             elevenLabsKey = elevenLabsKey,

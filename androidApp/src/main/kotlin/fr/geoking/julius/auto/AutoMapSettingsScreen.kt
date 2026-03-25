@@ -3,6 +3,7 @@ package fr.geoking.julius.auto
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.*
+import fr.geoking.julius.CarMapMode
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.poi.PoiProviderType
 
@@ -21,6 +22,18 @@ class AutoMapSettingsScreen(
                 .addText(settings.selectedPoiProvider.name)
                 .setOnClickListener {
                     screenManager.push(AutoPoiProviderSelectionScreen(carContext, settingsManager))
+                }
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("Map Mode")
+                .addText("Current: ${settings.carMapMode.name}")
+                .setOnClickListener {
+                    val nextMode = if (settings.carMapMode == CarMapMode.Native) CarMapMode.Custom else CarMapMode.Native
+                    settingsManager.setCarMapMode(nextMode)
+                    invalidate()
                 }
                 .build()
         )
