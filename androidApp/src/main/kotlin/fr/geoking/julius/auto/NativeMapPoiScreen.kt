@@ -111,10 +111,19 @@ class NativeMapPoiScreen(
         val itemListBuilder = ItemList.Builder()
             .setNoItemsMessage("No POIs found")
 
+        val currentSettings = settingsManager.settings.value
         pois.take(6).forEach { poi ->
             val availability = availabilityByPoiId[poi.id]
             itemListBuilder.addItem(
-                AutoPoiUiHelper.buildPoiRow(carContext, poi, availability) {
+                AutoPoiUiHelper.buildPoiRow(
+                    carContext = carContext,
+                    poi = poi,
+                    availability = availability,
+                    selectedEnergyTypes = currentSettings.selectedMapEnergyTypes,
+                    useVehicleFilter = currentSettings.useVehicleFilter,
+                    vehicleEnergy = currentSettings.vehicleEnergy,
+                    vehicleGasTypes = currentSettings.vehicleGasTypes
+                ) {
                     screenManager.push(
                         PoiDetailScreen(
                             carContext = carContext,
