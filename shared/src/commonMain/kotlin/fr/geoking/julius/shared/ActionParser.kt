@@ -53,6 +53,14 @@ object ActionParser {
                 return DeviceAction(type = ActionType.GET_LOCATION)
             }
 
+            // Get network status - English: network status, mobile data, roaming | French: état du réseau, données mobiles, itinérance
+            lowerText.contains("network status") || lowerText.contains("mobile data") ||
+            lowerText.contains("roaming status") || lowerText.contains("état du réseau") ||
+            lowerText.contains("etat du réseau") || lowerText.contains("données mobiles") ||
+            lowerText.contains("itinérance") || lowerText.contains("itinerance") -> {
+                return DeviceAction(type = ActionType.GET_NETWORK_STATUS)
+            }
+
             // Show map - English: show map, open map | French: afficher la carte, ouvrir la carte
             lowerText.contains("show map") || lowerText.contains("open map") ||
             lowerText.contains("afficher la carte") || lowerText.contains("ouvre la carte") ||

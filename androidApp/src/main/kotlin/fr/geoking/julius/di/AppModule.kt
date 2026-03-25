@@ -2,6 +2,7 @@ package fr.geoking.julius.di
 
 import fr.geoking.julius.AndroidVoiceManager
 import fr.geoking.julius.AndroidActionExecutor
+import fr.geoking.julius.AndroidNetworkService
 import fr.geoking.julius.AndroidWeatherLookup
 import fr.geoking.julius.AppSettings
 import fr.geoking.julius.AndroidPermissionManager
@@ -9,8 +10,10 @@ import fr.geoking.julius.GoogleAuthManager
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.agents.*
+import fr.geoking.julius.shared.BorderCrossingManager
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.LocalTranscriber
+import fr.geoking.julius.shared.NetworkService
 import fr.geoking.julius.shared.VoiceManager
 import fr.geoking.julius.voice.VoskTranscriber
 import fr.geoking.julius.shared.ActionExecutor
@@ -204,8 +207,16 @@ val appModule = module {
         AndroidWeatherLookup(androidContext(), get())
     }
 
+    single<NetworkService> {
+        AndroidNetworkService(
+            androidContext(),
+            CoroutineScope(SupervisorJob() + Dispatchers.IO),
+            get()
+        )
+    }
+
     single<ActionExecutor> {
-        AndroidActionExecutor(androidContext(), get(), get())
+        AndroidActionExecutor(androidContext(), get(), get(), get())
     }
 
     single { VoskTranscriber(androidContext(), modelDirPath = null) }
@@ -225,7 +236,7 @@ val appModule = module {
             null
         }
 
-        ConversationStore(
+        val store = ConversationStore(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             agent = get(),
             voiceManager = get(),
@@ -235,6 +246,15 @@ val appModule = module {
             sttPreference = { settingsManager.settings.value.sttEnginePreference },
             persistence = persistence
         )
+
+        // Initialize BorderCrossingManager here to ensure it starts with the store
+        BorderCrossingManager(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            networkService = get(),
+            conversationStore = store
+        )
+
+        store
     }
 }
 
