@@ -113,7 +113,7 @@ data class AppSettings(
     val vehiclePowerLevels: Set<Int> = DEFAULT_MAP_POWER_LEVELS,
     val fuelCard: FuelCard = FuelCard.None,
     val useVehicleFilter: Boolean = false,
-    val selectedPoiProvider: fr.geoking.julius.poi.PoiProviderType = fr.geoking.julius.poi.PoiProviderType.Routex,
+    val selectedPoiProviders: Set<fr.geoking.julius.poi.PoiProviderType> = setOf(fr.geoking.julius.poi.PoiProviderType.Routex),
     /** Selected energy types to show on map (e.g. sp95, sp98, gazole, e85, electric). Empty = show all. */
     val selectedMapEnergyTypes: Set<String> = DEFAULT_MAP_ENERGY_TYPES,
     /** Type d'enseigne: "all", "major", "gms", "independant". Filter applied when provider supplies data. */
@@ -299,6 +299,27 @@ open class SettingsManager(context: Context) {
         }
         val useVehicleFilter = prefs.getBoolean("use_vehicle_filter", false)
 
+        val selectedPoiProviders = run {
+            val providersStr = prefs.getString("selected_poi_providers", null)
+            if (!providersStr.isNullOrBlank()) {
+                providersStr.split(",").mapNotNull {
+                    try { fr.geoking.julius.poi.PoiProviderType.valueOf(it.trim()) } catch (e: Exception) { null }
+                }.toSet()
+            } else {
+                // Migration
+                val legacy = prefs.getString("poi_provider", null)
+                if (legacy != null) {
+                    try {
+                        setOf(fr.geoking.julius.poi.PoiProviderType.valueOf(legacy))
+                    } catch (e: Exception) {
+                        setOf(fr.geoking.julius.poi.PoiProviderType.Routex)
+                    }
+                } else {
+                    setOf(fr.geoking.julius.poi.PoiProviderType.Routex)
+                }
+            }
+        }
+
         return AppSettings(
             vehicleBrand = vehicleBrand,
             vehicleModel = vehicleModel,
@@ -307,13 +328,7 @@ open class SettingsManager(context: Context) {
             vehiclePowerLevels = vehiclePowerLevels,
             fuelCard = fuelCard,
             useVehicleFilter = useVehicleFilter,
-            selectedPoiProvider = try {
-                fr.geoking.julius.poi.PoiProviderType.valueOf(
-                    prefs.getString("poi_provider", fr.geoking.julius.poi.PoiProviderType.Routex.name) ?: fr.geoking.julius.poi.PoiProviderType.Routex.name
-                )
-            } catch (e: IllegalArgumentException) {
-                fr.geoking.julius.poi.PoiProviderType.Routex
-            },
+            selectedPoiProviders = selectedPoiProviders,
             selectedMapEnergyTypes = selectedMapEnergyTypes,
             mapEnseigneType = mapEnseigneType,
             selectedMapServices = selectedMapServices,
@@ -468,9 +483,15 @@ open class SettingsManager(context: Context) {
         edit.apply()
     }
 
-    open fun setPoiProviderType(type: fr.geoking.julius.poi.PoiProviderType) {
-        prefs.edit().putString("poi_provider", type.name).apply()
-        _settings.value = _settings.value.copy(selectedPoiProvider = type)
+    open fun setPoiProviderTypes(types: Set<fr.geoking.julius.poi.PoiProviderType>) {
+        prefs.edit().putString("selected_poi_providers", types.joinToString(",") { it.name }).apply()
+        _settings.value = _settings.value.copy(selectedPoiProviders = types)
+    }
+
+    open fun togglePoiProviderType(type: fr.geoking.julius.poi.PoiProviderType) {
+        val current = _settings.value.selectedPoiProviders
+        val next = if (current.contains(type)) current - type else current + type
+        setPoiProviderTypes(next)
     }
 
     open fun setMapEnergyTypes(types: Set<String>) {
@@ -633,7 +654,7 @@ open class SettingsManager(context: Context) {
             .putString("vehicle_power_levels", settings.vehiclePowerLevels.joinToString(","))
             .putString("fuel_card", settings.fuelCard.name)
             .putBoolean("use_vehicle_filter", settings.useVehicleFilter)
-            .putString("poi_provider", settings.selectedPoiProvider.name)
+            .putString("selected_poi_providers", settings.selectedPoiProviders.joinToString(",") { it.name })
             .putString("map_energy_types", settings.selectedMapEnergyTypes.joinToString(","))
             .putString("map_enseigne_type", settings.mapEnseigneType)
             .putString("map_services", settings.selectedMapServices.joinToString(","))
@@ -728,7 +749,7 @@ open class SettingsManager(context: Context) {
             vehiclePowerLevels = _settings.value.vehiclePowerLevels,
             fuelCard = _settings.value.fuelCard,
             useVehicleFilter = _settings.value.useVehicleFilter,
-            selectedPoiProvider = _settings.value.selectedPoiProvider,
+            selectedPoiProviders = _settings.value.selectedPoiProviders,
             selectedMapEnergyTypes = _settings.value.selectedMapEnergyTypes,
             mapEnseigneType = _settings.value.mapEnseigneType,
             selectedMapServices = _settings.value.selectedMapServices,

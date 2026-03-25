@@ -105,11 +105,11 @@ fun MapScreen(
 
     val context = LocalContext.current
     val settings by settingsManager.settings.collectAsState()
-    val selectedProvider = settings.selectedPoiProvider
+    val selectedProviders = settings.selectedPoiProviders
     var pois by remember { mutableStateOf<List<Poi>>(emptyList()) }
     var trafficInfo by remember { mutableStateOf<TrafficInfo?>(null) }
-    var mapErrorMessage by remember(selectedProvider) { mutableStateOf<String?>(null) }
-    var isErrorPaused by remember(selectedProvider) { mutableStateOf(false) }
+    var mapErrorMessage by remember(selectedProviders) { mutableStateOf<String?>(null) }
+    var isErrorPaused by remember(selectedProviders) { mutableStateOf(false) }
     var retryCount by remember { mutableStateOf(0) }
     var showMapSettings by remember { mutableStateOf(false) }
     var showAddPoiSheet by remember { mutableStateOf(false) }
@@ -174,7 +174,7 @@ fun MapScreen(
         }
     }
 
-    LaunchedEffect(selectedProvider, settings.selectedMapEnergyTypes, settings.mapPowerLevels, settings.mapIrveOperators, settings.mapBrands, settings.selectedMapConnectorTypes, cameraPositionState.position, mapSizePx, retryCount) {
+    LaunchedEffect(selectedProviders, settings.selectedMapEnergyTypes, settings.mapPowerLevels, settings.mapIrveOperators, settings.mapBrands, settings.selectedMapConnectorTypes, cameraPositionState.position, mapSizePx, retryCount) {
         if (!hasLocationPermission) {
             launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
@@ -227,7 +227,7 @@ fun MapScreen(
             val msg = e.message?.takeIf { it.isNotBlank() } ?: e.toString()
             mapErrorMessage = msg
             isErrorPaused = true
-            store.recordError((e as? fr.geoking.julius.shared.NetworkException)?.httpCode, "Map ($selectedProvider): $msg")
+            store.recordError((e as? fr.geoking.julius.shared.NetworkException)?.httpCode, "Map ($selectedProviders): $msg")
             pois = emptyList()
             availabilityByPoiId = emptyMap()
             trafficInfo = null
@@ -380,17 +380,20 @@ fun MapScreen(
                     onClick = { showMapSettings = true },
                     label = {
                         Text(
-                            when (selectedProvider) {
-                                PoiProviderType.Routex -> "Source: Routex"
-                                PoiProviderType.Etalab -> "Source: Etalab"
-                                PoiProviderType.GasApi -> "Source: Gas API"
-                                PoiProviderType.DataGouv -> "Source: data.gouv.fr"
-                                PoiProviderType.DataGouvElec -> "Source: IRVE"
-                                PoiProviderType.OpenChargeMap -> "Source: Open Charge Map"
-                                PoiProviderType.Chargy -> "Source: Chargy (real-time)"
-                                PoiProviderType.Overpass -> "Source: OSM + data.gouv (camping, picnic…)"
-                                PoiProviderType.Hybrid -> "Source: Hybrid (Gas + EV)"
-                            }
+                            if (selectedProviders.isEmpty()) "No Source"
+                            else if (selectedProviders.size == 1) {
+                                when (selectedProviders.first()) {
+                                    PoiProviderType.Routex -> "Source: Routex"
+                                    PoiProviderType.Etalab -> "Source: Etalab"
+                                    PoiProviderType.GasApi -> "Source: Gas API"
+                                    PoiProviderType.DataGouv -> "Source: data.gouv.fr"
+                                    PoiProviderType.DataGouvElec -> "Source: IRVE"
+                                    PoiProviderType.OpenChargeMap -> "Source: Open Charge Map"
+                                    PoiProviderType.Chargy -> "Source: Chargy (real-time)"
+                                    PoiProviderType.Overpass -> "Source: OSM + data.gouv (camping, picnic…)"
+                                    PoiProviderType.Hybrid -> "Source: Hybrid (Gas + EV)"
+                                }
+                            } else "Sources (${selectedProviders.size})"
                         )
                     }
                 )
@@ -722,7 +725,7 @@ private fun MapScreenPreview() {
     }
     val fakeSettingsManager = remember {
         fr.geoking.julius.SettingsManager(context).apply {
-            setPoiProviderType(PoiProviderType.Routex)
+            setPoiProviderTypes(setOf(PoiProviderType.Routex))
         }
     }
     val fakePoiProvider = object : PoiProvider {

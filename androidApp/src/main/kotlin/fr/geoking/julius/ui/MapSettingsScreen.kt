@@ -109,7 +109,7 @@ val MAP_SERVICES_OPTIONS = listOf(
     "wifi" to "Wifi"
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun MapSettingsScreen(
     settingsManager: SettingsManager,
@@ -117,7 +117,7 @@ fun MapSettingsScreen(
 ) {
     val settings by settingsManager.settings.collectAsState()
 
-    var selectedProvider by remember(settings.selectedPoiProvider) { mutableStateOf(settings.selectedPoiProvider) }
+    var selectedProviders by remember(settings.selectedPoiProviders) { mutableStateOf(settings.selectedPoiProviders) }
     var selectedEnergies by remember(settings.selectedMapEnergyTypes) { mutableStateOf(settings.selectedMapEnergyTypes) }
     var selectedBrands by remember(settings.mapBrands) { mutableStateOf(settings.mapBrands) }
     var selectedEnseigne by remember(settings.mapEnseigneType) { mutableStateOf(settings.mapEnseigneType) }
@@ -134,7 +134,7 @@ fun MapSettingsScreen(
     }
 
     fun persist() {
-        if (selectedProvider != settings.selectedPoiProvider) settingsManager.setPoiProviderType(selectedProvider)
+        if (selectedProviders != settings.selectedPoiProviders) settingsManager.setPoiProviderTypes(selectedProviders)
         if (selectedEnergies != settings.selectedMapEnergyTypes) settingsManager.setMapEnergyTypes(selectedEnergies)
         if (selectedBrands != settings.mapBrands) settingsManager.setMapBrands(selectedBrands)
         if (selectedEnseigne != settings.mapEnseigneType) settingsManager.setMapEnseigneType(selectedEnseigne)
@@ -180,14 +180,85 @@ fun MapSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Group 1: Map Display & Data Source
-            SettingsGroup(title = "Map Display") {
-                CompactDropdown(
-                    label = "Data Source",
-                    options = PROVIDER_OPTIONS,
-                    selectedOption = selectedProvider,
-                    onOptionSelected = { selectedProvider = it as PoiProviderType }
-                )
+            SettingsGroup(title = "Data Sources") {
+                Text("Electric", style = MaterialTheme.typography.labelMedium)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val elecProviders = listOf(
+                        PoiProviderType.DataGouvElec to "data.gouv (IRVE)",
+                        PoiProviderType.Chargy to "Chargy",
+                        PoiProviderType.OpenChargeMap to "OpenChargeMap"
+                    )
+                    elecProviders.forEach { (type, label) ->
+                        FilterChip(
+                            selected = selectedProviders.contains(type),
+                            onClick = {
+                                selectedProviders = if (selectedProviders.contains(type)) selectedProviders - type else selectedProviders + type
+                            },
+                            label = { Text(label) }
+                        )
+                    }
+                }
 
+                Text("Fuel", style = MaterialTheme.typography.labelMedium)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val fuelProviders = listOf(
+                        PoiProviderType.Routex to "Routex",
+                        PoiProviderType.Etalab to "Etalab",
+                        PoiProviderType.GasApi to "GasApi",
+                        PoiProviderType.DataGouv to "data.gouv (Fuel)"
+                    )
+                    fuelProviders.forEach { (type, label) ->
+                        FilterChip(
+                            selected = selectedProviders.contains(type),
+                            onClick = {
+                                selectedProviders = if (selectedProviders.contains(type)) selectedProviders - type else selectedProviders + type
+                            },
+                            label = { Text(label) }
+                        )
+                    }
+                }
+
+                Text("Others", style = MaterialTheme.typography.labelMedium)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val otherProviders = listOf(
+                        PoiProviderType.Overpass to "Overpass",
+                        PoiProviderType.Hybrid to "Hybrid (Alias)"
+                    )
+                    otherProviders.forEach { (type, label) ->
+                        FilterChip(
+                            selected = if (type == PoiProviderType.Hybrid) {
+                                selectedProviders.contains(PoiProviderType.DataGouv) && selectedProviders.contains(PoiProviderType.DataGouvElec)
+                            } else {
+                                selectedProviders.contains(type)
+                            },
+                            onClick = {
+                                if (type == PoiProviderType.Hybrid) {
+                                    val isHybridActive = selectedProviders.contains(PoiProviderType.DataGouv) && selectedProviders.contains(PoiProviderType.DataGouvElec)
+                                    selectedProviders = if (isHybridActive) {
+                                        selectedProviders - PoiProviderType.DataGouv - PoiProviderType.DataGouvElec
+                                    } else {
+                                        selectedProviders + PoiProviderType.DataGouv + PoiProviderType.DataGouvElec
+                                    }
+                                } else {
+                                    selectedProviders = if (selectedProviders.contains(type)) selectedProviders - type else selectedProviders + type
+                                }
+                            },
+                            label = { Text(label) }
+                        )
+                    }
+                }
+            }
+
+            SettingsGroup(title = "Map Display") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -295,11 +366,8 @@ fun MapSettingsScreen(
             }
 
             // Group 4: EV Specific (Conditional)
-            if (selectedProvider == PoiProviderType.DataGouvElec ||
-                selectedProvider == PoiProviderType.OpenChargeMap ||
-                selectedProvider == PoiProviderType.Chargy ||
-                selectedProvider == PoiProviderType.Hybrid
-            ) {
+            val isElecActive = selectedProviders.any { it == PoiProviderType.DataGouvElec || it == PoiProviderType.OpenChargeMap || it == PoiProviderType.Chargy || it == PoiProviderType.Hybrid }
+            if (isElecActive) {
                 SettingsGroup(title = "EV Filters") {
                     Text("Operators", style = MaterialTheme.typography.labelMedium)
                     FlowRow(
@@ -352,7 +420,7 @@ fun MapSettingsScreen(
             }
 
             // Group 5: Overpass (Conditional)
-            if (selectedProvider == PoiProviderType.Overpass) {
+            if (selectedProviders.contains(PoiProviderType.Overpass)) {
                 SettingsGroup(title = "POI Types (Overpass)") {
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),

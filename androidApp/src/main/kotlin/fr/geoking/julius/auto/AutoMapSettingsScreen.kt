@@ -19,7 +19,7 @@ class AutoMapSettingsScreen(
         listBuilder.addItem(
             Row.Builder()
                 .setTitle("Data Source")
-                .addText(settings.selectedPoiProvider.name)
+                .addText(if (settings.selectedPoiProviders.isEmpty()) "None" else settings.selectedPoiProviders.joinToString(", ") { it.name })
                 .setOnClickListener {
                     screenManager.push(AutoPoiProviderSelectionScreen(carContext, settingsManager))
                 }
@@ -71,11 +71,14 @@ class AutoMapSettingsScreen(
                 .build()
         )
 
-        if (settings.selectedPoiProvider == PoiProviderType.DataGouvElec ||
-            settings.selectedPoiProvider == PoiProviderType.OpenChargeMap ||
-            settings.selectedPoiProvider == PoiProviderType.Chargy ||
-            settings.selectedPoiProvider == PoiProviderType.Overpass ||
-            settings.selectedPoiProvider == PoiProviderType.Hybrid) {
+        val isAdvancedActive = settings.selectedPoiProviders.any {
+            it == PoiProviderType.DataGouvElec ||
+            it == PoiProviderType.OpenChargeMap ||
+            it == PoiProviderType.Chargy ||
+            it == PoiProviderType.Overpass ||
+            it == PoiProviderType.Hybrid
+        }
+        if (isAdvancedActive) {
             listBuilder.addItem(
                 Row.Builder()
                     .setTitle("Advanced Filters")

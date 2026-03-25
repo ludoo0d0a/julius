@@ -233,7 +233,7 @@ fun MainUI(
                 } else if (currentSettings.vehicleBrand.isNotEmpty() && (currentSettings.vehicleEnergy == "gas" || currentSettings.vehicleEnergy == "hybrid")) {
                     settingsManager.setUseVehicleFilter(true)
                 } else {
-                    settingsManager.setPoiProviderType(fr.geoking.julius.poi.PoiProviderType.Routex)
+                    settingsManager.setPoiProviderTypes(setOf(fr.geoking.julius.poi.PoiProviderType.Routex))
                     settingsManager.setUseVehicleFilter(false)
                 }
             } else if (path == "/electric_stations") {
@@ -242,7 +242,7 @@ fun MainUI(
                 } else if (currentSettings.vehicleBrand.isNotEmpty() && (currentSettings.vehicleEnergy == "electric" || currentSettings.vehicleEnergy == "hybrid")) {
                     settingsManager.setUseVehicleFilter(true)
                 } else {
-                    settingsManager.setPoiProviderType(fr.geoking.julius.poi.PoiProviderType.DataGouvElec)
+                    settingsManager.setPoiProviderTypes(setOf(fr.geoking.julius.poi.PoiProviderType.DataGouvElec))
                     settingsManager.setUseVehicleFilter(false)
                 }
             }
@@ -497,8 +497,8 @@ private fun rememberMockSettingsManager(): SettingsManager {
         object : SettingsManager(context) {
             private val mockSettings = kotlinx.coroutines.flow.MutableStateFlow(AppSettings())
             override val settings = mockSettings
-            override fun setPoiProviderType(type: fr.geoking.julius.poi.PoiProviderType) {
-                mockSettings.value = mockSettings.value.copy(selectedPoiProvider = type)
+            override fun setPoiProviderTypes(types: Set<fr.geoking.julius.poi.PoiProviderType>) {
+                mockSettings.value = mockSettings.value.copy(selectedPoiProviders = types)
             }
             override fun saveSettings(settings: AppSettings) {}
         }

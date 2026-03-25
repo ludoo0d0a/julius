@@ -28,7 +28,7 @@ fun FilterFab(
     val sheetState = rememberModalBottomSheetState()
 
     // Mode: 0 for Fuel, 1 for Electric, 2 for Hybrid
-    var filterMode by remember(settings.selectedPoiProvider, settings.useVehicleFilter, settings.vehicleEnergy) {
+    var filterMode by remember(settings.selectedPoiProviders, settings.useVehicleFilter, settings.vehicleEnergy) {
         mutableStateOf(
             if (settings.useVehicleFilter) {
                 when (settings.vehicleEnergy) {
@@ -37,9 +37,14 @@ fun FilterFab(
                     else -> 0
                 }
             } else {
-                when (settings.selectedPoiProvider) {
-                    PoiProviderType.DataGouvElec, PoiProviderType.OpenChargeMap, PoiProviderType.Chargy -> 1
-                    PoiProviderType.Hybrid -> 2
+                val p = settings.selectedPoiProviders
+                val hasElec = p.any { it == PoiProviderType.DataGouvElec || it == PoiProviderType.OpenChargeMap || it == PoiProviderType.Chargy }
+                val hasFuel = p.any { it == PoiProviderType.Routex || it == PoiProviderType.Etalab || it == PoiProviderType.GasApi || it == PoiProviderType.DataGouv }
+                val hasHybrid = p.contains(PoiProviderType.Hybrid)
+
+                when {
+                    hasHybrid || (hasElec && hasFuel) -> 2
+                    hasElec -> 1
                     else -> 0
                 }
             }
@@ -122,12 +127,11 @@ fun FilterFab(
                         selected = filterMode == 0,
                         onClick = {
                             filterMode = 0
-                            if (settings.selectedPoiProvider == PoiProviderType.DataGouvElec ||
-                                settings.selectedPoiProvider == PoiProviderType.OpenChargeMap ||
-                                settings.selectedPoiProvider == PoiProviderType.Chargy ||
-                                settings.selectedPoiProvider == PoiProviderType.Hybrid
-                            ) {
-                                settingsManager.setPoiProviderType(PoiProviderType.Routex)
+                            val p = settings.selectedPoiProviders
+                            val hasElec = p.any { it == PoiProviderType.DataGouvElec || it == PoiProviderType.OpenChargeMap || it == PoiProviderType.Chargy }
+                            val hasHybrid = p.contains(PoiProviderType.Hybrid)
+                            if (hasElec || hasHybrid) {
+                                settingsManager.setPoiProviderTypes(setOf(PoiProviderType.Routex))
                             }
                         },
                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
@@ -143,12 +147,11 @@ fun FilterFab(
                         selected = filterMode == 1,
                         onClick = {
                             filterMode = 1
-                            if (settings.selectedPoiProvider != PoiProviderType.DataGouvElec &&
-                                settings.selectedPoiProvider != PoiProviderType.OpenChargeMap &&
-                                settings.selectedPoiProvider != PoiProviderType.Chargy ||
-                                settings.selectedPoiProvider == PoiProviderType.Hybrid
-                            ) {
-                                settingsManager.setPoiProviderType(PoiProviderType.DataGouvElec)
+                            val p = settings.selectedPoiProviders
+                            val hasFuel = p.any { it == PoiProviderType.Routex || it == PoiProviderType.Etalab || it == PoiProviderType.GasApi || it == PoiProviderType.DataGouv }
+                            val hasHybrid = p.contains(PoiProviderType.Hybrid)
+                            if (hasFuel || hasHybrid || p.isEmpty()) {
+                                settingsManager.setPoiProviderTypes(setOf(PoiProviderType.DataGouvElec))
                             }
                         },
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
@@ -164,8 +167,8 @@ fun FilterFab(
                         selected = filterMode == 2,
                         onClick = {
                             filterMode = 2
-                            if (settings.selectedPoiProvider != PoiProviderType.Hybrid) {
-                                settingsManager.setPoiProviderType(PoiProviderType.Hybrid)
+                            if (!settings.selectedPoiProviders.contains(PoiProviderType.Hybrid)) {
+                                settingsManager.setPoiProviderTypes(setOf(PoiProviderType.Hybrid))
                             }
                         },
                         shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
