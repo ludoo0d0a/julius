@@ -50,9 +50,9 @@ import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.poi.PoiSearchRequest
 import fr.geoking.julius.poi.PoiCategory
-import fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory
-import fr.geoking.julius.api.availability.matchAvailabilityToPois
-import fr.geoking.julius.api.availability.StationAvailabilitySummary
+import fr.geoking.julius.api.belib.BorneAvailabilityProviderFactory
+import fr.geoking.julius.api.belib.matchAvailabilityToPois
+import fr.geoking.julius.api.belib.StationAvailabilitySummary
 import fr.geoking.julius.api.traffic.TrafficInfo
 import fr.geoking.julius.api.traffic.TrafficProviderFactory
 import fr.geoking.julius.api.traffic.TrafficRequest
@@ -384,12 +384,13 @@ fun MapScreen(
                             else if (selectedProviders.size == 1) {
                                 when (selectedProviders.first()) {
                                     PoiProviderType.Routex -> "Source: Routex"
-                                    PoiProviderType.Etalab -> "Source: Etalab"
+                                    PoiProviderType.Etalab -> "Source: data.gouv.fr (prix carburants, instantané)"
                                     PoiProviderType.GasApi -> "Source: Gas API"
                                     PoiProviderType.DataGouv -> "Source: data.gouv.fr"
                                     PoiProviderType.DataGouvElec -> "Source: IRVE"
                                     PoiProviderType.OpenChargeMap -> "Source: Open Charge Map"
                                     PoiProviderType.Chargy -> "Source: Chargy (real-time)"
+                                    PoiProviderType.OpenVanCamp -> "Source: OpenVan.camp (Luxembourg)"
                                     PoiProviderType.Overpass -> "Source: OSM + data.gouv (camping, picnic…)"
                                     PoiProviderType.Hybrid -> "Source: Hybrid (Gas + EV)"
                                 }

@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import fr.geoking.julius.api.availability.StationAvailabilitySummary
+import fr.geoking.julius.api.belib.StationAvailabilitySummary
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.ui.BrandHelper
 

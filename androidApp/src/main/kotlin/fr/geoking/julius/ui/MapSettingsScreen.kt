@@ -18,18 +18,7 @@ import androidx.compose.ui.unit.dp
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.VehicleType
 import fr.geoking.julius.poi.PoiProviderType
-
-private val PROVIDER_OPTIONS = listOf(
-    PoiProviderType.Routex to "Routex (SiteFinder)",
-    PoiProviderType.Etalab to "Etalab (open data)",
-    PoiProviderType.GasApi to "gas-api.ovh",
-    PoiProviderType.DataGouv to "data.gouv.fr (fuel)",
-    PoiProviderType.DataGouvElec to "data.gouv.fr (IRVE)",
-    PoiProviderType.OpenChargeMap to "Open Charge Map (EV)",
-    PoiProviderType.Chargy to "Chargy (Luxembourg)",
-    PoiProviderType.Overpass to "Overpass (OSM + data.gouv)",
-    PoiProviderType.Hybrid to "Hybrid (Gas + EV)"
-)
+import fr.geoking.julius.poi.anyProvidesElectric
 
 val OVERPASS_AMENITY_OPTIONS = listOf(
     "toilets" to "Toilets",
@@ -209,9 +198,10 @@ fun MapSettingsScreen(
                 ) {
                     val fuelProviders = listOf(
                         PoiProviderType.Routex to "Routex",
-                        PoiProviderType.Etalab to "Etalab",
+                        PoiProviderType.Etalab to "Prix carburant (instantané)",
                         PoiProviderType.GasApi to "GasApi",
-                        PoiProviderType.DataGouv to "data.gouv (Fuel)"
+                        PoiProviderType.DataGouv to "data.gouv (Fuel)",
+                        PoiProviderType.OpenVanCamp to "OpenVan.camp (LU)"
                     )
                     fuelProviders.forEach { (type, label) ->
                         FilterChip(
@@ -236,17 +226,23 @@ fun MapSettingsScreen(
                     otherProviders.forEach { (type, label) ->
                         FilterChip(
                             selected = if (type == PoiProviderType.Hybrid) {
-                                selectedProviders.contains(PoiProviderType.DataGouv) && selectedProviders.contains(PoiProviderType.DataGouvElec)
+                                selectedProviders.contains(PoiProviderType.Hybrid) ||
+                                    (selectedProviders.contains(PoiProviderType.DataGouv) &&
+                                        selectedProviders.contains(PoiProviderType.DataGouvElec))
                             } else {
                                 selectedProviders.contains(type)
                             },
                             onClick = {
                                 if (type == PoiProviderType.Hybrid) {
-                                    val isHybridActive = selectedProviders.contains(PoiProviderType.DataGouv) && selectedProviders.contains(PoiProviderType.DataGouvElec)
-                                    selectedProviders = if (isHybridActive) {
-                                        selectedProviders - PoiProviderType.DataGouv - PoiProviderType.DataGouvElec
-                                    } else {
-                                        selectedProviders + PoiProviderType.DataGouv + PoiProviderType.DataGouvElec
+                                    val hybridAlias = selectedProviders.contains(PoiProviderType.DataGouv) &&
+                                        selectedProviders.contains(PoiProviderType.DataGouvElec)
+                                    selectedProviders = when {
+                                        selectedProviders.contains(PoiProviderType.Hybrid) ->
+                                            selectedProviders - PoiProviderType.Hybrid
+                                        hybridAlias ->
+                                            selectedProviders - PoiProviderType.DataGouv - PoiProviderType.DataGouvElec
+                                        else ->
+                                            selectedProviders + PoiProviderType.DataGouv + PoiProviderType.DataGouvElec
                                     }
                                 } else {
                                     selectedProviders = if (selectedProviders.contains(type)) selectedProviders - type else selectedProviders + type
@@ -366,7 +362,7 @@ fun MapSettingsScreen(
             }
 
             // Group 4: EV Specific (Conditional)
-            val isElecActive = selectedProviders.any { it == PoiProviderType.DataGouvElec || it == PoiProviderType.OpenChargeMap || it == PoiProviderType.Chargy || it == PoiProviderType.Hybrid }
+            val isElecActive = selectedProviders.anyProvidesElectric()
             if (isElecActive) {
                 SettingsGroup(title = "EV Filters") {
                     Text("Operators", style = MaterialTheme.typography.labelMedium)

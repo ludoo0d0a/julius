@@ -79,8 +79,13 @@ private val DeepPurple = Color(0xFF21004C)
 private val DarkBackground = Color(0xFF0A0A0A)
 private val SeparatorColor = Color(0xFF2D2D44)
 
-/** Used in About screen: API/service name, website URL, optional logo URL. */
-private data class UsedApi(val name: String, val url: String, val logoUrl: String? = null)
+/** Used in About screen: API/service name, website URL, optional logo URL, optional license/credit line. */
+private data class UsedApi(
+    val name: String,
+    val url: String,
+    val logoUrl: String? = null,
+    val attribution: String? = null
+)
 
 private val UsedApisList = listOf(
     // AI / chat agents
@@ -101,6 +106,12 @@ private val UsedApisList = listOf(
     UsedApi("data.gouv.fr", "https://www.data.gouv.fr", "https://www.data.gouv.fr/favicon.ico"),
     UsedApi("ODRE (bornes IRVE)", "https://odre.opendatasoft.com", null),
     UsedApi("Gas API (prix carburants)", "https://gas-api.ovh", null),
+    UsedApi(
+        name = "OpenVan.camp",
+        url = "https://openvan.camp",
+        logoUrl = null,
+        attribution = "Weekly fuel price reference data (Luxembourg and others). Licensed under CC BY 4.0; attribution to OpenVan.camp required."
+    ),
     UsedApi("data.economie.gouv.fr", "https://data.economie.gouv.fr", null),
     UsedApi("Routex / Wigeogis", "https://www.wigeogis.com", null),
     UsedApi("Belib (Paris EV)", "https://opendata.paris.fr", null),
@@ -158,7 +169,7 @@ fun SettingsScreen(
                     SettingsScreenPage.SttEngine -> "STT engine (car mic)"
                     SettingsScreenPage.AgentConfig -> "${current.selectedAgent.name} Config"
                     SettingsScreenPage.FractalConfig -> "Fractal Settings"
-                    SettingsScreenPage.JulesConfig -> "Jules API"
+                    SettingsScreenPage.JulesConfig -> "Jules & GitHub"
                     SettingsScreenPage.TollData -> "Highway toll (OpenTollData)"
                     SettingsScreenPage.ErrorLog -> "Error Log"
                     SettingsScreenPage.About -> "About"
@@ -538,8 +549,13 @@ private fun MainMenu(
         }
 
         SettingsItem(
-            label = "Jules API Key",
-            value = if (settings.julesKey.isNotEmpty()) "••••••••" else "Not set",
+            label = "Jules & GitHub",
+            value = when {
+                settings.julesKey.isNotEmpty() && settings.githubApiKey.isNotEmpty() -> "••••••••"
+                settings.julesKey.isNotEmpty() -> "Jules only"
+                settings.githubApiKey.isNotEmpty() -> "GitHub only"
+                else -> "Not set"
+            },
             onClick = { onNavigate(SettingsScreenPage.JulesConfig) }
         )
         SettingsItem(
@@ -755,6 +771,7 @@ private fun AboutContent() {
                 name = api.name,
                 url = api.url,
                 logoUrl = api.logoUrl,
+                attribution = api.attribution,
                 onClick = {
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(api.url))
                     context.startActivity(intent)
@@ -769,6 +786,7 @@ private fun AboutApiRow(
     name: String,
     url: String,
     logoUrl: String?,
+    attribution: String? = null,
     onClick: () -> Unit
 ) {
     Row(
@@ -812,6 +830,15 @@ private fun AboutApiRow(
                 color = Lavender.copy(alpha = 0.7f),
                 fontSize = 12.sp
             )
+            if (attribution != null) {
+                Text(
+                    text = attribution,
+                    color = Lavender.copy(alpha = 0.6f),
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+            }
         }
         Icon(
             imageVector = Icons.AutoMirrored.Filled.OpenInNew,
@@ -1330,6 +1357,13 @@ private fun JulesConfig(
             linkLabel = "Open Jules"
         )
         ConfigTextField("Jules API Key", settings.julesKey) { onUpdate(settings.copy(julesKey = it)) }
+        Spacer(modifier = Modifier.height(24.dp))
+        ApiKeyHelpLink(
+            helpText = "GitHub personal access token: used on the Jules screen to list pull requests, merge, close, and post comments (with an @jules prefix). Create a classic token with repo scope (or a fine-grained token with Contents, Pull requests, and Issues for your repositories).",
+            url = "https://github.com/settings/tokens/new?description=Julius%20Jules&scopes=repo",
+            linkLabel = "Create GitHub token"
+        )
+        ConfigTextField("GitHub API token", settings.githubApiKey) { onUpdate(settings.copy(githubApiKey = it)) }
     }
 }
 

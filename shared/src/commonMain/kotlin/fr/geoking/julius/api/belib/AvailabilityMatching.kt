@@ -1,4 +1,4 @@
-package fr.geoking.julius.api.availability
+package fr.geoking.julius.api.belib
 
 import fr.geoking.julius.poi.Poi
 import kotlin.math.*

@@ -1,4 +1,4 @@
-package fr.geoking.julius.api.availability
+package fr.geoking.julius.api.belib
 
 import fr.geoking.julius.shared.NetworkException
 import io.ktor.client.HttpClient

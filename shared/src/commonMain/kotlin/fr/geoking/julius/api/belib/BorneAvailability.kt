@@ -1,4 +1,4 @@
-package fr.geoking.julius.api.availability
+package fr.geoking.julius.api.belib
 
 /**
  * Status of a single charging point (EVSE) from an availability provider (e.g. Belib).

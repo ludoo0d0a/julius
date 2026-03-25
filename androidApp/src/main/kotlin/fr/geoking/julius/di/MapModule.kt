@@ -2,18 +2,20 @@ package fr.geoking.julius.di
 
 import org.koin.core.context.GlobalContext
 
-import fr.geoking.julius.api.availability.BelibAvailabilityClient
-import fr.geoking.julius.api.availability.BelibAvailabilityProvider
-import fr.geoking.julius.api.availability.BorneAvailabilityProvider
-import fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory
+import fr.geoking.julius.api.belib.BelibAvailabilityClient
+import fr.geoking.julius.api.belib.BelibAvailabilityProvider
+import fr.geoking.julius.api.belib.BorneAvailabilityProvider
+import fr.geoking.julius.api.belib.BorneAvailabilityProviderFactory
 import fr.geoking.julius.api.chargy.ChargyProvider
 import fr.geoking.julius.api.datagouv.DataGouvCampingClient
 import fr.geoking.julius.api.datagouv.DataGouvCampingProvider
 import fr.geoking.julius.api.datagouv.DataGouvElecProvider
 import fr.geoking.julius.api.datagouv.DataGouvProvider
-import fr.geoking.julius.api.etalab.EtalabProvider
+import fr.geoking.julius.api.datagouv.DataGouvPrixCarburantProvider
 import fr.geoking.julius.api.gas.GasApiClient
 import fr.geoking.julius.api.gas.GasApiProvider
+import fr.geoking.julius.api.openvan.OpenVanCampClient
+import fr.geoking.julius.api.openvan.OpenVanCampProvider
 import fr.geoking.julius.api.openchargemap.OpenChargeMapClient
 import fr.geoking.julius.api.openchargemap.OpenChargeMapProvider
 import fr.geoking.julius.api.overpass.OverpassClient
@@ -65,12 +67,12 @@ import org.koin.dsl.module
  */
 val mapModule = module {
 
-    // Map data source: Routex (default), Etalab, or DataGouv; selected in map screen.
+    // Map data source: Routex (default), flux instantané prix carburants, gas-api, or quotidien DataGouv.
     single<PoiProvider>(named("routex")) {
         RoutexProvider(get(), radiusKm = 5)
     }
-    single<PoiProvider>(named("etalab")) {
-        EtalabProvider(get(), radiusKm = 10, limit = 100)
+    single<PoiProvider>(named("datagouvprixcarburant")) {
+        DataGouvPrixCarburantProvider(get(), radiusKm = 10, limit = 100)
     }
     single<PoiProvider>(named("gasapi")) {
         GasApiProvider(get(), radiusKm = 10, limit = 20)
@@ -99,6 +101,10 @@ val mapModule = module {
     single<PoiProvider>(named("overpass")) {
         OverpassProvider(get(), radiusKm = 5, limit = 100)
     }
+    single { OpenVanCampClient(get()) }
+    single<PoiProvider>(named("openvancamp")) {
+        OpenVanCampProvider(openVanClient = get(), overpassClient = get(), radiusKm = 10, limit = 100)
+    }
     single { DataGouvCampingClient(get()) }
     single<PoiProvider>(named("datagouvcamping")) {
         DataGouvCampingProvider(get(), radiusKm = 15, limit = 50)
@@ -106,12 +112,14 @@ val mapModule = module {
     single<PoiProvider>(named("selector")) {
         SelectorPoiProvider(
             routex = get(named("routex")),
-            etalab = get(named("etalab")),
+            dataGouvPrixCarburant = get(named("datagouvprixcarburant")),
             gasApi = get(named("gasapi")),
             dataGouv = get(named("datagouv")),
             dataGouvElec = get(named("datagouvelec")),
             openChargeMap = get(named("openchargemap")),
             chargy = get(named("chargy")),
+            openVanCamp = get(named("openvancamp")),
+            openVanCampClient = get(),
             overpass = get(named("overpass")),
             dataGouvCamping = get(named("datagouvcamping")),
             settingsManager = get()

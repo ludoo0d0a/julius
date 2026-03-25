@@ -20,7 +20,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.R
-import fr.geoking.julius.api.availability.StationAvailabilitySummary
+import fr.geoking.julius.api.belib.StationAvailabilitySummary
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.ui.BrandHelper
 

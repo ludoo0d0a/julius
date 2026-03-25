@@ -6,6 +6,7 @@ import androidx.car.app.model.*
 import fr.geoking.julius.CarMapMode
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.poi.PoiProviderType
+import fr.geoking.julius.poi.anyProvidesElectric
 
 class AutoMapSettingsScreen(
     carContext: CarContext,
@@ -71,13 +72,9 @@ class AutoMapSettingsScreen(
                 .build()
         )
 
-        val isAdvancedActive = settings.selectedPoiProviders.any {
-            it == PoiProviderType.DataGouvElec ||
-            it == PoiProviderType.OpenChargeMap ||
-            it == PoiProviderType.Chargy ||
-            it == PoiProviderType.Overpass ||
-            it == PoiProviderType.Hybrid
-        }
+        val isAdvancedActive =
+            settings.selectedPoiProviders.anyProvidesElectric() ||
+                settings.selectedPoiProviders.contains(PoiProviderType.Overpass)
         if (isAdvancedActive) {
             listBuilder.addItem(
                 Row.Builder()

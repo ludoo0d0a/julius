@@ -13,11 +13,13 @@ class AutoPoiProviderSelectionScreen(
 
     private val options = listOf(
         PoiProviderType.Routex to "Routex",
+        PoiProviderType.Etalab to "Prix carburants (instantané)",
         PoiProviderType.GasApi to "gas-api.ovh",
-        PoiProviderType.DataGouv to "data.gouv.fr",
+        PoiProviderType.DataGouv to "data.gouv.fr (fuel, quotidien)",
         PoiProviderType.DataGouvElec to "data.gouv.fr (EV)",
         PoiProviderType.OpenChargeMap to "Open Charge Map",
         PoiProviderType.Chargy to "Chargy (Luxembourg)",
+        PoiProviderType.OpenVanCamp to "OpenVan.camp (LU fuel + OSM)",
         PoiProviderType.Overpass to "Overpass",
         PoiProviderType.Hybrid to "Hybrid (Gas + EV)"
     )

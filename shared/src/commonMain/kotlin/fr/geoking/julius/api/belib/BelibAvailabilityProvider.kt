@@ -1,4 +1,4 @@
-package fr.geoking.julius.api.availability
+package fr.geoking.julius.api.belib
 
 /**
  * [BorneAvailabilityProvider] implementation for Belib' (Paris) real-time availability

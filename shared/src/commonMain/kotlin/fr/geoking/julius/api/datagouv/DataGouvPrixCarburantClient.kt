@@ -1,4 +1,4 @@
-package fr.geoking.julius.api.etalab
+package fr.geoking.julius.api.datagouv
 
 import fr.geoking.julius.shared.NetworkException
 import io.ktor.client.HttpClient
@@ -16,7 +16,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 /** Safely get results as a list; API may return results as array or single object. */
-private fun resultsAsList(obj: JsonObject): List<JsonElement> {
+private fun prixCarburantResultsAsList(obj: JsonObject): List<JsonElement> {
     val results = obj["results"] ?: return emptyList()
     return when (results) {
         is JsonArray -> results
@@ -26,15 +26,20 @@ private fun resultsAsList(obj: JsonObject): List<JsonElement> {
 }
 
 /**
- * Client for the French open data "Prix des carburants en France - Flux instantané - v2"
- * (Etalab / donnees.roulez-eco.fr), served via data.economie.gouv.fr Explore API.
+ * Client for French fuel price open data from the information system behind
+ * [prix-carburants.gouv.fr](https://www.prix-carburants.gouv.fr/) (DGCCRF).
  *
- * Data: fuel stations with address, coordinates, and fuel prices. Updated every ~10 minutes.
- * Licence: Open Licence 2.0 (Etalab).
+ * Programmatic access is via the Explore API on [data.economie.gouv.fr](https://data.economie.gouv.fr),
+ * dataset **Prix des carburants en France – Flux instantané v2**
+ * (`prix-des-carburants-en-france-flux-instantane-v2`). The feed is refreshed about every 10 minutes.
+ * Bulk ZIP mirrors (same system): [donnees.roulez-eco.fr](https://donnees.roulez-eco.fr/opendata/instantane).
+ *
+ * [data.gouv.fr](https://www.data.gouv.fr) lists and links this dataset but API requests are served from
+ * `data.economie.gouv.fr`, not from the prix-carburants website hostname. Licence: Open Licence 2.0 (Etalab).
  */
-class EtalabClient(
+class DataGouvPrixCarburantClient(
     private val client: HttpClient,
-    private val baseUrl: String = "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2"
+    private val baseUrl: String = DEFAULT_BASE_URL
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -47,9 +52,7 @@ class EtalabClient(
         longitude: Double,
         radiusKm: Int = 10,
         limit: Int = 100
-    ): List<EtalabStation> {
-        // ODSQL: within_distance(geo_field, GEOM'POINT(lng lat)', Xkm)
-        // POINT is (longitude, latitude) in WGS84.
+    ): List<DataGouvPrixCarburantStation> {
         val where = "within_distance(geom, geom'POINT($longitude $latitude)', ${radiusKm}km)"
         val encodedWhere = where.encodeURLParameter()
         val url = "$baseUrl/records?where=$encodedWhere&limit=$limit"
@@ -57,20 +60,19 @@ class EtalabClient(
         val response = client.get(url)
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Etalab API error: $body")
+            throw NetworkException(response.status.value, "Prix carburants API error: $body")
         }
         return parseRecords(body)
     }
 
-    internal fun parseRecords(body: String): List<EtalabStation> {
+    internal fun parseRecords(body: String): List<DataGouvPrixCarburantStation> {
         val element = json.parseToJsonElement(body)
         val obj = element.jsonObject
-        val results = resultsAsList(obj)
-        val stations = mutableMapOf<String, EtalabStation>()
+        val results = prixCarburantResultsAsList(obj)
+        val stations = mutableMapOf<String, DataGouvPrixCarburantStation>()
         for (item in results) {
             val record = item as? JsonObject ?: continue
             parseStationFromRecord(record)?.let { station ->
-                // API may return one row per fuel type; merge by id so we keep one POI per station
                 stations[station.id] = stations[station.id]?.let { existing ->
                     existing.copy(
                         fuels = (existing.fuels + station.fuels).distinctBy { it.name }
@@ -81,7 +83,7 @@ class EtalabClient(
         return stations.values.toList()
     }
 
-    internal fun parseStationFromRecord(record: JsonObject): EtalabStation? {
+    internal fun parseStationFromRecord(record: JsonObject): DataGouvPrixCarburantStation? {
         val id = record["id"]?.jsonPrimitive?.contentOrNull
             ?: record["id_"]?.jsonPrimitive?.contentOrNull
             ?: return null
@@ -101,7 +103,7 @@ class EtalabClient(
             ?: brand
             ?: if (ville.isNotBlank()) "Station $ville" else "Station"
         val fuels = parseFuels(record)
-        return EtalabStation(
+        return DataGouvPrixCarburantStation(
             id = id,
             name = name.ifBlank { if (ville.isNotBlank()) "Station $ville" else "Station" },
             address = address.ifBlank { "$cp $ville" },
@@ -124,14 +126,12 @@ class EtalabClient(
             ?: record["geolocation"]?.jsonObject
             ?: record["coordonnees_geo"]?.jsonObject
         if (geo != null) {
-            // Handle GeoJSON-style { "type": "Point", "coordinates": [lng, lat] }
             val coords = geo["coordinates"]?.jsonArray
             if (coords != null && coords.size >= 2) {
                 val lng2 = coords[0].jsonPrimitive.contentOrNull?.toDoubleOrNull()
                 val lat2 = coords[1].jsonPrimitive.contentOrNull?.toDoubleOrNull()
                 if (lat2 != null && lng2 != null) return Pair(lat2, lng2)
             }
-            // Handle ODS Explore v2.1 style { "lat": 48.8, "lon": 2.3 }
             val latVal = geo["lat"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
             val lonVal = geo["lon"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
                 ?: geo["lng"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
@@ -149,8 +149,8 @@ class EtalabClient(
         return if (kotlin.math.abs(d) > 1000.0) d / 100_000.0 else d
     }
 
-    private fun parseFuels(record: JsonObject): List<EtalabFuelPrice> {
-        val list = mutableListOf<EtalabFuelPrice>()
+    private fun parseFuels(record: JsonObject): List<DataGouvPrixCarburantFuelPrice> {
+        val list = mutableListOf<DataGouvPrixCarburantFuelPrice>()
         val prixElement = record["prix"] ?: return list
         val prixArray = try {
             when {
@@ -173,38 +173,40 @@ class EtalabClient(
                 val raw = obj["valeur"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
                     ?: obj["@valeur"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
                     ?: obj["value"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
-                if (raw != null) list.add(EtalabFuelPrice(name = nom, priceEur = raw))
+                if (raw != null) list.add(DataGouvPrixCarburantFuelPrice(name = nom, priceEur = raw))
             }
         }
 
-        // Single fuel per record (flattened): prix_nom, prix_valeur
         val singleNom = record["prix_nom"]?.jsonPrimitive?.contentOrNull
         val singleVal = record["prix_valeur"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
         if (singleNom != null && singleVal != null) {
             val exists = list.any { it.name == singleNom }
             if (!exists) {
-                list.add(EtalabFuelPrice(name = singleNom, priceEur = singleVal))
+                list.add(DataGouvPrixCarburantFuelPrice(name = singleNom, priceEur = singleVal))
             }
         }
         return list
     }
+
+    companion object {
+        const val DEFAULT_BASE_URL =
+            "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2"
+    }
 }
 
-/** Gas station from Etalab fuel prices open data. */
 @Serializable
-data class EtalabStation(
+data class DataGouvPrixCarburantStation(
     val id: String,
     val name: String,
     val address: String,
     val latitude: Double,
     val longitude: Double,
     val brand: String? = null,
-    val fuels: List<EtalabFuelPrice> = emptyList()
+    val fuels: List<DataGouvPrixCarburantFuelPrice> = emptyList()
 )
 
-/** Fuel type and price (euros) from Etalab API. */
 @Serializable
-data class EtalabFuelPrice(
+data class DataGouvPrixCarburantFuelPrice(
     val name: String,
     val priceEur: Double
 )

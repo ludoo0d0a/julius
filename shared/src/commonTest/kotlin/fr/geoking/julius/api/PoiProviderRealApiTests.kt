@@ -6,10 +6,12 @@ import fr.geoking.julius.api.datagouv.DataGouvCampingClient
 import fr.geoking.julius.api.datagouv.DataGouvCampingProvider
 import fr.geoking.julius.api.datagouv.DataGouvElecProvider
 import fr.geoking.julius.api.datagouv.DataGouvProvider
-import fr.geoking.julius.api.etalab.EtalabProvider
+import fr.geoking.julius.api.datagouv.DataGouvPrixCarburantProvider
 import fr.geoking.julius.api.gas.GasApiProvider
 import fr.geoking.julius.api.openchargemap.OpenChargeMapClient
 import fr.geoking.julius.api.openchargemap.OpenChargeMapProvider
+import fr.geoking.julius.api.openvan.OpenVanCampClient
+import fr.geoking.julius.api.openvan.OpenVanCampProvider
 import fr.geoking.julius.api.overpass.OverpassClient
 import fr.geoking.julius.api.overpass.OverpassProvider
 import fr.geoking.julius.api.routex.RoutexProvider
@@ -38,6 +40,8 @@ class PoiProviderRealApiTests {
 
     private val parisLat = 48.8566
     private val parisLon = 2.3522
+    private val luxCityLat = 49.6116
+    private val luxCityLon = 6.1319
 
     @Test
     fun testRoutexProvider() = runBlocking {
@@ -53,13 +57,30 @@ class PoiProviderRealApiTests {
     }
 
     @Test
-    fun testEtalabProvider() = runBlocking {
+    fun testDataGouvPrixCarburantProvider() = runBlocking {
         val client = createHttpClient()
         try {
-            val provider = EtalabProvider(client)
+            val provider = DataGouvPrixCarburantProvider(client)
             val pois = provider.getGasStations(parisLat, parisLon)
-            println("Etalab returned ${pois.size} POIs")
-            assertTrue(pois.isNotEmpty(), "Etalab should return some gas stations in Paris")
+            println("DataGouvPrixCarburant returned ${pois.size} POIs")
+            assertTrue(pois.isNotEmpty(), "DataGouvPrixCarburant should return some gas stations in Paris")
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun testOpenVanCampProvider() = runBlocking {
+        val client = createHttpClient()
+        try {
+            val openVan = OpenVanCampClient(client)
+            val overpassClient = OverpassClient(client)
+            val provider = OpenVanCampProvider(openVan, overpassClient, radiusKm = 5, limit = 50)
+            val pois = provider.getGasStations(luxCityLat, luxCityLon)
+            println("OpenVanCamp returned ${pois.size} POIs in Luxembourg City")
+            assertTrue(pois.isNotEmpty(), "OpenVanCamp should return OSM fuel stations in Luxembourg")
+            val withPrices = pois.count { !it.fuelPrices.isNullOrEmpty() }
+            assertTrue(withPrices > 0, "OpenVanCamp should attach reference prices when API succeeds")
         } finally {
             client.close()
         }

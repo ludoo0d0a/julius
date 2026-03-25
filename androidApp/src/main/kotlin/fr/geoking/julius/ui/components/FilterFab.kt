@@ -12,6 +12,8 @@ import androidx.compose.ui.unit.dp
 import fr.geoking.julius.DEFAULT_MAP_ENERGY_TYPES
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.poi.PoiProviderType
+import fr.geoking.julius.poi.anyProvidesElectric
+import fr.geoking.julius.poi.anyProvidesFuel
 import fr.geoking.julius.ui.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,8 +40,8 @@ fun FilterFab(
                 }
             } else {
                 val p = settings.selectedPoiProviders
-                val hasElec = p.any { it == PoiProviderType.DataGouvElec || it == PoiProviderType.OpenChargeMap || it == PoiProviderType.Chargy }
-                val hasFuel = p.any { it == PoiProviderType.Routex || it == PoiProviderType.Etalab || it == PoiProviderType.GasApi || it == PoiProviderType.DataGouv }
+                val hasElec = p.anyProvidesElectric()
+                val hasFuel = p.anyProvidesFuel()
                 val hasHybrid = p.contains(PoiProviderType.Hybrid)
 
                 when {
@@ -128,7 +130,7 @@ fun FilterFab(
                         onClick = {
                             filterMode = 0
                             val p = settings.selectedPoiProviders
-                            val hasElec = p.any { it == PoiProviderType.DataGouvElec || it == PoiProviderType.OpenChargeMap || it == PoiProviderType.Chargy }
+                            val hasElec = p.anyProvidesElectric()
                             val hasHybrid = p.contains(PoiProviderType.Hybrid)
                             if (hasElec || hasHybrid) {
                                 settingsManager.setPoiProviderTypes(setOf(PoiProviderType.Routex))
@@ -148,7 +150,7 @@ fun FilterFab(
                         onClick = {
                             filterMode = 1
                             val p = settings.selectedPoiProviders
-                            val hasFuel = p.any { it == PoiProviderType.Routex || it == PoiProviderType.Etalab || it == PoiProviderType.GasApi || it == PoiProviderType.DataGouv }
+                            val hasFuel = p.anyProvidesFuel()
                             val hasHybrid = p.contains(PoiProviderType.Hybrid)
                             if (hasFuel || hasHybrid || p.isEmpty()) {
                                 settingsManager.setPoiProviderTypes(setOf(PoiProviderType.DataGouvElec))

@@ -19,9 +19,9 @@ import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiSearchRequest
 import fr.geoking.julius.poi.PoiProvider
-import fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory
-import fr.geoking.julius.api.availability.StationAvailabilitySummary
-import fr.geoking.julius.api.availability.matchAvailabilityToPois
+import fr.geoking.julius.api.belib.BorneAvailabilityProviderFactory
+import fr.geoking.julius.api.belib.StationAvailabilitySummary
+import fr.geoking.julius.api.belib.matchAvailabilityToPois
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map

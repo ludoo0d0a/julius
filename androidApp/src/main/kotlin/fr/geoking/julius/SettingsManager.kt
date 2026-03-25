@@ -156,6 +156,8 @@ data class AppSettings(
     val completionsMeModel: String = "claude-sonnet-4.5",
     val apifreellmKey: String = "",
     val julesKey: String = "",
+    /** Personal access token for GitHub (merge/close PRs, comments from the Jules screen). */
+    val githubApiKey: String = "",
     val selectedAgent: AgentType = DEFAULT_AGENT,
     val selectedTheme: AppTheme = AppTheme.Particles,
     val selectedModel: PerplexityModel = PerplexityModel.LLAMA_3_1_SONAR_SMALL,
@@ -205,6 +207,7 @@ open class SettingsManager(context: Context) {
         val completionsMeModel = prefs.getString("completions_me_model", "claude-sonnet-4.5") ?: "claude-sonnet-4.5"
         val apifreellmKey = prefs.getString("apifreellm_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.APIFREELLM_KEY
         val julesKey = prefs.getString("jules_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.JULES_KEY
+        val githubApiKey = prefs.getString("github_api_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.GITHUB_TOKEN
         val lastJulesRepoId = prefs.getString("last_jules_repo_id", "") ?: ""
         val lastJulesRepoName = prefs.getString("last_jules_repo_name", "") ?: ""
         val googleUserName = prefs.getString("google_user_name", null)
@@ -214,7 +217,7 @@ open class SettingsManager(context: Context) {
         persistBuildTimeKeysIfUsed(
             openAiKey, elevenLabsKey, perplexityKey, geminiKey, deepgramKey,
             firebaseAiKey, firebaseAiModel, opencodeZenKey, opencodeZenModel,
-            completionsMeKey, completionsMeModel, apifreellmKey, julesKey
+            completionsMeKey, completionsMeModel, apifreellmKey, julesKey, githubApiKey
         )
 
         val speakingInterruptMode = loadSpeakingInterruptMode()
@@ -362,6 +365,7 @@ open class SettingsManager(context: Context) {
             completionsMeModel = completionsMeModel,
             apifreellmKey = apifreellmKey,
             julesKey = julesKey,
+            githubApiKey = githubApiKey,
             selectedAgent = run {
                 val rawAgent = prefs.getString("agent", null)
                 if (rawAgent == "Native") {
@@ -464,7 +468,8 @@ open class SettingsManager(context: Context) {
         completionsMeKey: String,
         completionsMeModel: String,
         apifreellmKey: String,
-        julesKey: String
+        julesKey: String,
+        githubApiKey: String
     ) {
         val edit = prefs.edit()
         if (prefs.getString("openai_key", "")?.isEmpty() != false && openAiKey.isNotEmpty()) edit.putString("openai_key", openAiKey)
@@ -480,6 +485,7 @@ open class SettingsManager(context: Context) {
         if (prefs.getString("completions_me_model", "")?.isEmpty() != false && completionsMeModel.isNotEmpty()) edit.putString("completions_me_model", completionsMeModel)
         if (prefs.getString("apifreellm_key", "")?.isEmpty() != false && apifreellmKey.isNotEmpty()) edit.putString("apifreellm_key", apifreellmKey)
         if (prefs.getString("jules_key", "")?.isEmpty() != false && julesKey.isNotEmpty()) edit.putString("jules_key", julesKey)
+        if (prefs.getString("github_api_key", "")?.isEmpty() != false && githubApiKey.isNotEmpty()) edit.putString("github_api_key", githubApiKey)
         edit.apply()
     }
 
@@ -685,6 +691,7 @@ open class SettingsManager(context: Context) {
             .putString("completions_me_model", settings.completionsMeModel)
             .putString("apifreellm_key", settings.apifreellmKey)
             .putString("jules_key", settings.julesKey)
+            .putString("github_api_key", settings.githubApiKey)
             .putString("agent", settings.selectedAgent.name)
             .putString("theme", settings.selectedTheme.name)
             .putString("model", settings.selectedModel.name)
@@ -779,6 +786,7 @@ open class SettingsManager(context: Context) {
             completionsMeModel = completionsMeModel,
             apifreellmKey = apifreellmKey,
             julesKey = julesKey.ifBlank { _settings.value.julesKey },
+            githubApiKey = _settings.value.githubApiKey,
             selectedAgent = agent,
             selectedTheme = theme,
             selectedModel = model,

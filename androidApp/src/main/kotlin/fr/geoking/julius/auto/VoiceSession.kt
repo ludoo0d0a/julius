@@ -10,7 +10,7 @@ import fr.geoking.julius.di.MapModuleLoader
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.agents.ConversationalAgent
 import fr.geoking.julius.shared.ConversationStore
-import fr.geoking.julius.api.availability.BorneAvailabilityProviderFactory
+import fr.geoking.julius.api.belib.BorneAvailabilityProviderFactory
 import fr.geoking.julius.api.routing.RoutePlanner
 import fr.geoking.julius.api.routing.RoutingClient
 import fr.geoking.julius.api.traffic.TrafficProviderFactory

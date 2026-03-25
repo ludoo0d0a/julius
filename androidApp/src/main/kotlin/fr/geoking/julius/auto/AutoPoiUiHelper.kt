@@ -9,7 +9,7 @@ import androidx.car.app.model.PlaceMarker
 import androidx.car.app.model.Row
 import androidx.core.graphics.drawable.IconCompat
 import fr.geoking.julius.R
-import fr.geoking.julius.api.availability.StationAvailabilitySummary
+import fr.geoking.julius.api.belib.StationAvailabilitySummary
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.ui.map.PoiMarkerHelper
 

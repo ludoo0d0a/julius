@@ -5,6 +5,7 @@ import androidx.car.app.Screen
 import androidx.car.app.model.*
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.poi.PoiProviderType
+import fr.geoking.julius.poi.anyProvidesElectric
 
 class AutoAdvancedFiltersScreen(
     carContext: CarContext,
@@ -16,7 +17,7 @@ class AutoAdvancedFiltersScreen(
         val listBuilder = ItemList.Builder()
         val providers = settings.selectedPoiProviders
 
-        val hasElec = providers.any { it == PoiProviderType.DataGouvElec || it == PoiProviderType.OpenChargeMap || it == PoiProviderType.Chargy || it == PoiProviderType.Hybrid }
+        val hasElec = providers.anyProvidesElectric()
         if (hasElec) {
             listBuilder.addItem(
                 Row.Builder()

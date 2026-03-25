@@ -1,4 +1,4 @@
-package fr.geoking.julius.api.etalab
+package fr.geoking.julius.api.datagouv
 
 import io.ktor.client.HttpClient
 import kotlinx.serialization.json.Json
@@ -7,9 +7,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
-class EtalabClientTest {
+class DataGouvPrixCarburantClientTest {
 
-    private val client = EtalabClient(HttpClient())
+    private val client = DataGouvPrixCarburantClient(HttpClient())
 
     @Test
     fun parseRecords_parsesStation() {
@@ -46,7 +46,6 @@ class EtalabClientTest {
 
     @Test
     fun parseRecords_handlesResultsAsSingleObject() {
-        // API may return "results" as a single object instead of array
         val body = """
             {
                 "results": {
@@ -106,7 +105,8 @@ class EtalabClientTest {
     @Test
     fun parseGeo_prefersGeom() {
         val json = Json { ignoreUnknownKeys = true }
-        val record = json.parseToJsonElement("""
+        val record = json.parseToJsonElement(
+            """
             {
                 "geom": {
                     "type": "Point",
@@ -117,7 +117,8 @@ class EtalabClientTest {
                     "coordinates": [0.0, 0.0]
                 }
             }
-        """).jsonObject
+            """
+        ).jsonObject
 
         val coords = client.parseGeo(record)
         assertNotNull(coords)
@@ -128,7 +129,8 @@ class EtalabClientTest {
     @Test
     fun parseStationFromRecord_usesBrandWhenNameMissing() {
         val json = Json { ignoreUnknownKeys = true }
-        val record = json.parseToJsonElement("""
+        val record = json.parseToJsonElement(
+            """
             {
                 "id": "123",
                 "marque": "TotalEnergies",
@@ -136,7 +138,8 @@ class EtalabClientTest {
                 "latitude": 48.0,
                 "longitude": 2.0
             }
-        """).jsonObject
+            """
+        ).jsonObject
 
         val station = client.parseStationFromRecord(record)
         assertNotNull(station)
@@ -146,14 +149,16 @@ class EtalabClientTest {
     @Test
     fun parseStationFromRecord_usesCityFallbackWhenNameAndBrandMissing() {
         val json = Json { ignoreUnknownKeys = true }
-        val record = json.parseToJsonElement("""
+        val record = json.parseToJsonElement(
+            """
             {
                 "id": "456",
                 "ville": "Lyon",
                 "latitude": 45.0,
                 "longitude": 4.0
             }
-        """).jsonObject
+            """
+        ).jsonObject
 
         val station = client.parseStationFromRecord(record)
         assertNotNull(station)
@@ -163,13 +168,15 @@ class EtalabClientTest {
     @Test
     fun parseStationFromRecord_usesGenericFallbackWhenAllMissing() {
         val json = Json { ignoreUnknownKeys = true }
-        val record = json.parseToJsonElement("""
+        val record = json.parseToJsonElement(
+            """
             {
                 "id": "789",
                 "latitude": 44.0,
                 "longitude": 3.0
             }
-        """).jsonObject
+            """
+        ).jsonObject
 
         val station = client.parseStationFromRecord(record)
         assertNotNull(station)

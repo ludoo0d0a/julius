@@ -1,21 +1,27 @@
 package fr.geoking.julius.poi
 
 import android.util.Log
+import fr.geoking.julius.StationMapFilters
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.VehicleType
+import fr.geoking.julius.api.openvan.OpenVanCampClient
+import fr.geoking.julius.api.openvan.OpenVanCampProvider
+import fr.geoking.julius.parking.ParkingRegion
 
 /**
- * Delegates to the currently selected [PoiProvider] (Routex, Etalab, GasApi, DataGouv, DataGouvElec, OpenChargeMap, Overpass)
+ * Delegates to the currently selected [PoiProvider] (Routex, DataGouv prix carburant instantané, GasApi, …)
  * based on [SettingsManager.settings].selectedPoiProvider.
  */
 class SelectorPoiProvider(
     private val routex: PoiProvider,
-    private val etalab: PoiProvider,
+    private val dataGouvPrixCarburant: PoiProvider,
     private val gasApi: PoiProvider,
     private val dataGouv: PoiProvider,
     private val dataGouvElec: PoiProvider,
     private val openChargeMap: PoiProvider,
     private val chargy: PoiProvider,
+    private val openVanCamp: PoiProvider,
+    private val openVanCampClient: OpenVanCampClient,
     private val overpass: PoiProvider,
     private val dataGouvCamping: PoiProvider?,
     private val settingsManager: SettingsManager
@@ -25,12 +31,13 @@ class SelectorPoiProvider(
 
     private fun getProvider(type: PoiProviderType): PoiProvider = when (type) {
         PoiProviderType.Routex -> routex
-        PoiProviderType.Etalab -> etalab
+        PoiProviderType.Etalab -> dataGouvPrixCarburant
         PoiProviderType.GasApi -> gasApi
         PoiProviderType.DataGouv -> dataGouv
         PoiProviderType.DataGouvElec -> dataGouvElec
         PoiProviderType.OpenChargeMap -> openChargeMap
         PoiProviderType.Chargy -> chargy
+        PoiProviderType.OpenVanCamp -> openVanCamp
         PoiProviderType.Overpass -> overpass
         PoiProviderType.Hybrid -> hybridProvider
     }
@@ -134,72 +141,18 @@ class SelectorPoiProvider(
         }
 
         var result = mergePois(allPois)
-
-        if (providers.any { it != PoiProviderType.Overpass }) {
-            val selectedEnergies = if (settings.useVehicleFilter) {
-                when (settings.vehicleEnergy) {
-                    "electric" -> setOf("electric")
-                    "hybrid" -> settings.vehicleGasTypes + "electric"
-                    else -> settings.vehicleGasTypes
-                }
-            } else settings.selectedMapEnergyTypes
-
-            if (selectedEnergies.isNotEmpty()) {
-                result = result.filter { MapPoiFilter.matchesEnergyFilter(it, selectedEnergies) }
-            }
-
-            val filterBrands = if (settings.useVehicleFilter) {
-                if (settings.fuelCard == fr.geoking.julius.FuelCard.Routex && (settings.vehicleEnergy == "gas" || settings.vehicleEnergy == "hybrid")) {
-                    setOf("esso", "eni", "total", "shell", "aral", "totalenergies")
-                } else emptySet()
-            } else settings.mapBrands
-
-            if (filterBrands.isNotEmpty()) {
-                val brandIds = filterBrands.map { it.lowercase() }.toSet()
-                result = result.filter { poi ->
-                    poi.isElectric || (poi.brand?.lowercase()?.let { brand ->
-                        brandIds.any { id -> brand.contains(id) }
-                    } ?: false)
-                }
-            }
-
-            // Apply IRVE filters (power, operator, connectors) to all electric stations regardless of provider
-            val filterPowerLevels = if (settings.useVehicleFilter && (settings.vehicleEnergy == "electric" || settings.vehicleEnergy == "hybrid")) {
-                settings.vehiclePowerLevels
-            } else settings.mapPowerLevels
-
-            if (filterPowerLevels.isNotEmpty()) {
-                val levels = filterPowerLevels
-                result = result.filter { poi ->
-                    !poi.isElectric || poi.powerKw == null || levels.any { level ->
-                        val p = poi.powerKw!!
-                        when (level) {
-                            0 -> true
-                            20 -> p in 20.0..49.9
-                            50 -> p in 50.0..99.9
-                            100 -> p in 100.0..199.9
-                            200 -> p in 200.0..299.9
-                            300 -> p >= 300.0
-                            else -> p >= level
-                        }
-                    }
-                }
-            }
-            val filterIrveOperators = if (settings.useVehicleFilter && (settings.vehicleEnergy == "electric" || settings.vehicleEnergy == "hybrid")) {
-                emptySet() // No specific operator filter for vehicle yet
-            } else settings.mapIrveOperators
-
-            if (filterIrveOperators.isNotEmpty()) {
-                val operators = filterIrveOperators.map { it.trim().lowercase() }
-                result = result.filter { poi ->
-                    !poi.isElectric || operators.any { op -> poi.operator?.trim()?.lowercase()?.contains(op) == true }
-                }
-            }
-            if (settings.selectedMapConnectorTypes.isNotEmpty()) {
-                val connectorSet = settings.selectedMapConnectorTypes
-                result = result.filter { poi -> !poi.isElectric || poi.irveDetails?.connectorTypes?.any { it in connectorSet } == true }
-            }
-        }
+        result = enrichLuxembourgOpenVanReferencePrices(
+            pois = result,
+            providers = providers,
+            centerLat = request.latitude,
+            centerLon = request.longitude
+        )
+        result = StationMapFilters.apply(
+            settings = settings,
+            pois = result,
+            providers = providers,
+            skipWhenOnlyOverpass = true,
+        )
         Log.d("SelectorPoiProvider", "search providers=$providers categories=$categories -> ${result.size} pois")
         return PoiSearchResult(pois = result, errors = errors)
     }
@@ -276,71 +229,53 @@ class SelectorPoiProvider(
         }
 
         var result = mergePois(allPois)
-
-        val selectedEnergies = if (settings.useVehicleFilter) {
-            when (settings.vehicleEnergy) {
-                "electric" -> setOf("electric")
-                "hybrid" -> settings.vehicleGasTypes + "electric"
-                else -> settings.vehicleGasTypes
-            }
-        } else settings.selectedMapEnergyTypes
-
-        if (selectedEnergies.isNotEmpty()) {
-            result = result.filter { MapPoiFilter.matchesEnergyFilter(it, selectedEnergies) }
-        }
-
-        val filterBrands = if (settings.useVehicleFilter) {
-            if (settings.fuelCard == fr.geoking.julius.FuelCard.Routex && (settings.vehicleEnergy == "gas" || settings.vehicleEnergy == "hybrid")) {
-                setOf("esso", "eni", "total", "shell", "aral", "totalenergies")
-            } else emptySet()
-        } else settings.mapBrands
-
-        if (filterBrands.isNotEmpty()) {
-            val brandIds = filterBrands.map { it.lowercase() }.toSet()
-            result = result.filter { poi ->
-                poi.isElectric || (poi.brand?.lowercase()?.let { brand ->
-                    brandIds.any { id -> brand.contains(id) }
-                } ?: false)
-            }
-        }
-
-        // Apply IRVE filters
-        val filterPowerLevels = if (settings.useVehicleFilter && (settings.vehicleEnergy == "electric" || settings.vehicleEnergy == "hybrid")) {
-            settings.vehiclePowerLevels
-        } else settings.mapPowerLevels
-
-        if (filterPowerLevels.isNotEmpty()) {
-            val levels = filterPowerLevels
-            result = result.filter { poi ->
-                !poi.isElectric || poi.powerKw == null || levels.any { level ->
-                    val p = poi.powerKw!!
-                    when (level) {
-                        0 -> true
-                        20 -> p in 20.0..49.9
-                        50 -> p in 50.0..99.9
-                        100 -> p in 100.0..199.9
-                        200 -> p in 200.0..299.9
-                        300 -> p >= 300.0
-                        else -> p >= level
-                    }
-                }
-            }
-        }
-        val filterIrveOperators = if (settings.useVehicleFilter && (settings.vehicleEnergy == "electric" || settings.vehicleEnergy == "hybrid")) {
-            emptySet()
-        } else settings.mapIrveOperators
-
-        if (filterIrveOperators.isNotEmpty()) {
-            val operators = filterIrveOperators.map { it.trim().lowercase() }
-            result = result.filter { poi ->
-                !poi.isElectric || operators.any { op -> poi.operator?.trim()?.lowercase()?.contains(op) == true }
-            }
-        }
-        if (settings.selectedMapConnectorTypes.isNotEmpty()) {
-            val connectorSet = settings.selectedMapConnectorTypes
-            result = result.filter { poi -> !poi.isElectric || poi.irveDetails?.connectorTypes?.any { it in connectorSet } == true }
-        }
+        result = enrichLuxembourgOpenVanReferencePrices(
+            pois = result,
+            providers = providers,
+            centerLat = latitude,
+            centerLon = longitude
+        )
+        result = StationMapFilters.apply(
+            settings = settings,
+            pois = result,
+            providers = providers,
+            skipWhenOnlyOverpass = false,
+        )
         Log.d("SelectorPoiProvider", "selected=$providers lat=$latitude lon=$longitude -> ${result.size} pois (energy+power+operator+connector filter)")
         return result
+    }
+
+    /**
+     * When OpenVan.camp is enabled, attach Luxembourg weekly reference prices to gas POIs inside the
+     * country that do not already have per-station prices (e.g. Routex locations).
+     */
+    private suspend fun enrichLuxembourgOpenVanReferencePrices(
+        pois: List<Poi>,
+        providers: Set<PoiProviderType>,
+        centerLat: Double,
+        centerLon: Double
+    ): List<Poi> {
+        if (PoiProviderType.OpenVanCamp !in providers) return pois
+        if (!OpenVanCampProvider.searchCenterMayIncludeLuxembourg(centerLat, centerLon)) return pois
+        val prices = try {
+            openVanCampClient.getLuxembourgFuelPrices()?.takeIf { it.isNotEmpty() } ?: return pois
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            return pois
+        }
+        return pois.map { p ->
+            if (p.isElectric) return@map p
+            val cat = p.poiCategory ?: PoiCategory.Gas
+            if (cat != PoiCategory.Gas) return@map p
+            if (!ParkingRegion.Luxembourg.contains(p.latitude, p.longitude)) return@map p
+            if (!p.fuelPrices.isNullOrEmpty()) return@map p
+            p.copy(
+                fuelPrices = prices,
+                source = when (val s = p.source) {
+                    null -> "OpenVan.camp (LU weekly avg.)"
+                    else -> "$s + OpenVan.camp (LU weekly avg.)"
+                }
+            )
+        }
     }
 }

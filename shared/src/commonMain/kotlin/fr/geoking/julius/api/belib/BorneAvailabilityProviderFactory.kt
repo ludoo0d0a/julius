@@ -1,4 +1,4 @@
-package fr.geoking.julius.api.availability
+package fr.geoking.julius.api.belib
 
 /**
  * Returns the appropriate [BorneAvailabilityProvider] for a given location.

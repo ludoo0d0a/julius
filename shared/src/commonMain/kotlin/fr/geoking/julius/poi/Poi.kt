@@ -64,18 +64,31 @@ enum class PoiCategory {
     }
 }
 
-/** Source of gas station data shown on the map. */
-enum class PoiProviderType {
-    Routex,   // Wigeogis SiteFinder
-    Etalab,   // data.economie.gouv.fr / donnees.roulez-eco.fr
-    GasApi,  //  gas-api.ovh
-    DataGouv, // data.gouv.fr (fuel)
-    DataGouvElec, // data.gouv.fr IRVE (EV charging)
-    OpenChargeMap, // openchargemap.org (EV, Europe/world)
-    Chargy, // Chargy.lu (Luxembourg real-time)
-    Overpass, // OpenStreetMap Overpass API (toilets, drinking water, etc.)
-    Hybrid // Combined Fuel + Electric (Routex + DataGouvElec)
+/**
+ * POI data source. [providesFuel] / [providesElectric] classify providers for UI (e.g. filter mode), not OSM extras.
+ */
+enum class PoiProviderType(
+    val providesFuel: Boolean = false,
+    val providesElectric: Boolean = false,
+) {
+    Routex(providesFuel = true),
+    Etalab(providesFuel = true),
+    GasApi(providesFuel = true),
+    DataGouv(providesFuel = true),
+    DataGouvElec(providesElectric = true),
+    OpenChargeMap(providesElectric = true),
+    Chargy(providesElectric = true),
+    /** Luxembourg OSM fuel + OpenVan.camp weekly reference prices (CC BY 4.0). */
+    OpenVanCamp(providesFuel = true),
+    Overpass,
+    Hybrid(providesFuel = true, providesElectric = true),
 }
+
+/** True if any selected provider can supply fuel POIs (for filter / mode chips). */
+fun Iterable<PoiProviderType>.anyProvidesFuel(): Boolean = any { it.providesFuel }
+
+/** True if any selected provider can supply electric / IRVE POIs. */
+fun Iterable<PoiProviderType>.anyProvidesElectric(): Boolean = any { it.providesElectric }
 
 /**
  * IRVE-only details: connector types, tarification (free text), opening hours, payment, etc.
@@ -198,7 +211,7 @@ data class PoiProviderError(
 )
 
 /**
- * Maps API fuel names (from data.gouv.fr / Etalab / gas-api.ovh) to filter ids used in map settings.
+ * Maps API fuel names (data.gouv / prix instantané / gas-api.ovh) to filter ids used in map settings.
  * Aligned with [prix-carburants.gouv.fr](https://www.prix-carburants.gouv.fr/) fuel list.
  */
 object MapPoiFilter {
