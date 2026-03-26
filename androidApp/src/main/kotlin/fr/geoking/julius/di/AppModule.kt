@@ -77,7 +77,7 @@ class DynamicAgentWrapper(
         AgentType.GeminiNano -> LocalPlaceholderAgent("Gemini Nano", settings.llamatikModelPath)
         AgentType.RunAnywhere -> LocalPlaceholderAgent("RunAnywhere", settings.llamatikModelPath)
         AgentType.MlcLlm -> LocalPlaceholderAgent("MLC-LLM", settings.llamatikModelPath)
-        AgentType.LlamaCpp -> LocalPlaceholderAgent("llama.cpp", settings.llamatikModelPath)
+        AgentType.LlamaCpp -> LlamatikAgent(modelPath = settings.llamatikModelPath)
         AgentType.MediaPipe -> LocalPlaceholderAgent("MediaPipe GenAI", settings.llamatikModelPath)
         AgentType.AiEdge -> LocalPlaceholderAgent("AI Edge Gallery", settings.llamatikModelPath)
         AgentType.PocketPal -> LocalPlaceholderAgent("PocketPal AI", settings.llamatikModelPath)
