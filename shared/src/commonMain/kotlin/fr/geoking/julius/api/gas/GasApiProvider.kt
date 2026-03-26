@@ -1,5 +1,6 @@
 package fr.geoking.julius.api.gas
 
+import fr.geoking.julius.api.routex.radiusKmFromMapViewport
 import fr.geoking.julius.poi.FuelPrice
 import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.Poi
@@ -29,10 +30,17 @@ class GasApiProvider(
         longitude: Double,
         viewport: MapViewport?
     ): List<Poi> {
+        val effectiveRadiusKm = viewport
+            ?.let {
+                radiusKmFromMapViewport(latitude, longitude, it.zoom, it.mapWidthPx, it.mapHeightPx)
+                    .coerceIn(1, 50)
+            }
+            ?: radiusKm
+
         val stations = gasApiClient.searchStations(
             latitude = latitude,
             longitude = longitude,
-            radiusKm = radiusKm,
+            radiusKm = effectiveRadiusKm,
             limit = limit
         )
         return stations.map { station ->

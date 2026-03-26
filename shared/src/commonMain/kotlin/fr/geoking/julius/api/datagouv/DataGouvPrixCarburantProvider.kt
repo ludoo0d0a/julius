@@ -4,6 +4,7 @@ import fr.geoking.julius.poi.FuelPrice
 import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiCategory
+import fr.geoking.julius.api.routex.radiusKmFromMapViewport
 import fr.geoking.julius.poi.PoiProvider
 import io.ktor.client.HttpClient
 
@@ -40,7 +41,14 @@ class DataGouvPrixCarburantProvider(
         longitude: Double,
         viewport: MapViewport?
     ): List<Poi> {
-        val stations = prixCarburantClient.getStations(latitude, longitude, radiusKm, limit)
+        val effectiveRadiusKm = viewport
+            ?.let {
+                radiusKmFromMapViewport(latitude, longitude, it.zoom, it.mapWidthPx, it.mapHeightPx)
+                    .coerceIn(1, 50)
+            }
+            ?: radiusKm
+
+        val stations = prixCarburantClient.getStations(latitude, longitude, effectiveRadiusKm, limit)
         return stations.map { station ->
             Poi(
                 id = station.id,

@@ -37,6 +37,15 @@ fun PoiDetailsFullscreenDialog(
     onDismiss: () -> Unit
 ) {
     val brandInfo = BrandHelper.getBrandInfo(poi.brand)
+    val sources = remember(poi.source) {
+        poi.source
+            ?.split("+")
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            ?.distinct()
+            ?: emptyList()
+    }
+    val isMergedPoi = sources.size >= 2
     val locationSummary = buildList {
         listOf(poi.townLocal, poi.postcode).filter { !it.isNullOrBlank() }.joinToString(", ").takeIf { it.isNotBlank() }?.let { add(it) }
         poi.countryLocal?.takeIf { it.isNotBlank() }?.let { add(it) }
@@ -88,6 +97,24 @@ fun PoiDetailsFullscreenDialog(
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
+                    if (isMergedPoi) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            AssistChip(
+                                onClick = {},
+                                label = { Text("Merged POI", fontSize = 12.sp) },
+                                colors = AssistChipDefaults.assistChipColors(
+                                    containerColor = Color(0xFF0F172A),
+                                    labelColor = Color.White
+                                )
+                            )
+                            Text(
+                                text = sources.joinToString(" + "),
+                                color = Color.White.copy(alpha = 0.75f),
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
                     brandInfo?.let {
                         Text(it.displayName, color = Color.White.copy(alpha = 0.7f), fontSize = 16.sp)
                     }
@@ -112,6 +139,17 @@ fun PoiDetailsFullscreenDialog(
                                 text = info,
                                 color = Color.White.copy(alpha = 0.7f),
                                 fontSize = 13.sp
+                            )
+                        }
+                    }
+
+                    if (isMergedPoi) {
+                        SectionHeader("Sources")
+                        sources.forEach { s ->
+                            Text(
+                                text = "• $s",
+                                color = Color.White.copy(alpha = 0.9f),
+                                fontSize = 14.sp
                             )
                         }
                     }

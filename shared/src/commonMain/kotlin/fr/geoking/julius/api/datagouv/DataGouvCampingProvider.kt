@@ -1,5 +1,6 @@
 package fr.geoking.julius.api.datagouv
 
+import fr.geoking.julius.api.routex.radiusKmFromMapViewport
 import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiCategory
@@ -22,10 +23,18 @@ class DataGouvCampingProvider(
     override suspend fun search(request: PoiSearchRequest): List<Poi> {
         val wanted = request.categories.ifEmpty { supportedCategories() }
         if (PoiCategory.CaravanSite !in wanted) return emptyList()
+
+        val effectiveRadiusKm = request.viewport
+            ?.let {
+                radiusKmFromMapViewport(request.latitude, request.longitude, it.zoom, it.mapWidthPx, it.mapHeightPx)
+                    .coerceIn(1, 50)
+            }
+            ?: radiusKm
+
         val aires = client.getAires(
             latitude = request.latitude,
             longitude = request.longitude,
-            radiusKm = radiusKm,
+            radiusKm = effectiveRadiusKm,
             limit = limit
         )
         return aires.map { r ->

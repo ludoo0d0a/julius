@@ -1,6 +1,7 @@
 package fr.geoking.julius.api.openvan
 
 import fr.geoking.julius.api.overpass.OverpassClient
+import fr.geoking.julius.api.routex.radiusKmFromMapViewport
 import fr.geoking.julius.parking.ParkingRegion
 import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.Poi
@@ -31,6 +32,12 @@ class OpenVanCampProvider(
     ): List<Poi> {
         if (!searchCenterMayIncludeLuxembourg(latitude, longitude)) return emptyList()
 
+        val effectiveRadiusKm = viewport
+            ?.let {
+                radiusKmFromMapViewport(latitude, longitude, it.zoom, it.mapWidthPx, it.mapHeightPx).coerceIn(1, 50)
+            }
+            ?: radiusKm
+
         val fuelPrices = try {
             openVanClient.getLuxembourgFuelPrices()?.takeIf { it.isNotEmpty() }
         } catch (_: Exception) {
@@ -41,7 +48,7 @@ class OpenVanCampProvider(
             overpassClient.queryNodesAndWaysWithTagFilters(
                 latitude = latitude,
                 longitude = longitude,
-                radiusKm = radiusKm,
+                    radiusKm = effectiveRadiusKm,
                 tagFilters = listOf("amenity" to setOf("fuel")),
                 limit = limit
             )

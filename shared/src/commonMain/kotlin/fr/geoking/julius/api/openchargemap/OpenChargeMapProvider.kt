@@ -1,5 +1,6 @@
 package fr.geoking.julius.api.openchargemap
 
+import fr.geoking.julius.api.routex.radiusKmFromMapViewport
 import fr.geoking.julius.poi.IrveDetails
 import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.Poi
@@ -23,10 +24,17 @@ class OpenChargeMapProvider(
         longitude: Double,
         viewport: MapViewport?
     ): List<Poi> {
+        val effectiveRadiusKm = viewport
+            ?.let {
+                radiusKmFromMapViewport(latitude, longitude, it.zoom, it.mapWidthPx, it.mapHeightPx)
+                    .coerceIn(1, 50)
+            }
+            ?: radiusKm
+
         val stations = client.getStations(
             latitude = latitude,
             longitude = longitude,
-            distanceKm = radiusKm,
+            distanceKm = effectiveRadiusKm,
             maxResults = limit
         )
         return stations.map { s ->

@@ -1,5 +1,6 @@
 package fr.geoking.julius.api.datagouv
 
+import fr.geoking.julius.api.routex.radiusKmFromMapViewport
 import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiCategory
@@ -31,10 +32,17 @@ class DataGouvElecProvider(
         longitude: Double,
         viewport: MapViewport?
     ): List<Poi> {
+        val effectiveRadiusKm = viewport
+            ?.let {
+                radiusKmFromMapViewport(latitude, longitude, it.zoom, it.mapWidthPx, it.mapHeightPx)
+                    .coerceIn(1, 50)
+            }
+            ?: radiusKm
+
         val stations = dataGouvElecClient.getStations(
             latitude = latitude,
             longitude = longitude,
-            radiusKm = radiusKm,
+            radiusKm = effectiveRadiusKm,
             limit = limit
         )
         return stations.map { station ->

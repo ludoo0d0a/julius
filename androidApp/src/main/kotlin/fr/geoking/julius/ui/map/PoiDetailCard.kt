@@ -21,8 +21,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.R
 import fr.geoking.julius.api.belib.StationAvailabilitySummary
+import fr.geoking.julius.poi.PoiCategory
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.ui.BrandHelper
+import kotlin.math.roundToInt
 
 @Composable
 fun PoiDetailCard(
@@ -62,10 +64,14 @@ fun PoiDetailCard(
         if (isEmpty()) add("%.4f, %.4f".format(poi.latitude, poi.longitude))
     }
 
+    val sources = rememberSources(poi.source)
+    val isMergedPoi = sources.size >= 2
+    val effectiveCategory = poi.poiCategory ?: if (poi.isElectric) PoiCategory.Irve else PoiCategory.Gas
+
     Card(
         modifier = modifier
             .widthIn(min = 300.dp, max = 360.dp)
-            .height(210.dp),
+            .height(if (isSelected && isMergedPoi) 320.dp else 210.dp),
         colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFF475569) else Color(0xFF334155)),
         shape = MaterialTheme.shapes.large
     ) {
@@ -109,6 +115,28 @@ fun PoiDetailCard(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                        if (isMergedPoi) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AssistChip(
+                                    onClick = {},
+                                    label = { Text("Merged POI", fontSize = 11.sp) },
+                                    colors = AssistChipDefaults.assistChipColors(
+                                        containerColor = Color(0xFF0F172A),
+                                        labelColor = Color.White
+                                    )
+                                )
+                                Text(
+                                    text = sources.joinToString(" + "),
+                                    color = Color.White.copy(alpha = 0.7f),
+                                    fontSize = 11.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
                         brandInfo?.let { info ->
                             if (isGenericName || !displayTitle.startsWith(info.displayName, ignoreCase = true)) {
                                 Text(
@@ -168,6 +196,124 @@ fun PoiDetailCard(
                         }
                     }
                 }
+
+                if (isSelected && isMergedPoi) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.12f))
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Compact “show everything we have” summary for merged POIs.
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
+                    ) {
+                        when (effectiveCategory) {
+                            PoiCategory.Gas -> {
+                                val prices = poi.fuelPrices.orEmpty()
+                                if (prices.isNotEmpty()) {
+                                    val sorted = prices.sortedBy { it.fuelName.lowercase() }
+                                    sorted.take(6).forEach { fp ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = fp.fuelName,
+                                                color = Color.White.copy(alpha = 0.85f),
+                                                fontSize = 12.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = if (fp.outOfStock) "—" else "€%.3f".format(fp.price),
+                                                color = if (fp.outOfStock) Color.White.copy(alpha = 0.5f) else Color(0xFF22C55E),
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
+                                    if (prices.size > 6) {
+                                        Text(
+                                            text = "+${prices.size - 6} more…",
+                                            color = Color.White.copy(alpha = 0.6f),
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                } else {
+                                    Text(
+                                        text = "No fuel price details available",
+                                        color = Color.White.copy(alpha = 0.7f),
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                            PoiCategory.Irve -> {
+                                val line = listOfNotNull(
+                                    poi.operator?.takeIf { it.isNotBlank() },
+                                    poi.powerKw?.let { "${it.roundToInt()} kW" },
+                                    poi.chargePointCount?.let { n -> if (n == 1) "1 point" else "$n points" },
+                                ).joinToString(" • ")
+                                if (line.isNotBlank()) {
+                                    Text(
+                                        text = line,
+                                        color = Color.White.copy(alpha = 0.85f),
+                                        fontSize = 12.sp,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                }
+                                val connectors = poi.irveDetails?.connectorTypes.orEmpty().sorted()
+                                if (connectors.isNotEmpty()) {
+                                    Text(
+                                        text = "Connectors: " + connectors.joinToString(", ") { BrandHelper.connectorTypeLabel(it) },
+                                        color = Color.White.copy(alpha = 0.7f),
+                                        fontSize = 11.sp,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                            else -> {
+                                // For non fuel/IRVE categories, show whatever extra info we have.
+                                poi.restaurantDetails?.let { d ->
+                                    val r = listOfNotNull(
+                                        if (d.isFastFood) "Fast food" else null,
+                                        d.brand?.takeIf { it.isNotBlank() },
+                                        d.cuisine?.takeIf { it.isNotBlank() }
+                                    ).joinToString(" • ")
+                                    if (r.isNotBlank()) {
+                                        Text(
+                                            text = r,
+                                            color = Color.White.copy(alpha = 0.85f),
+                                            fontSize = 12.sp,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                                poi.routexDetails?.let { d ->
+                                    val flags = listOfNotNull(
+                                        if (d.open24h == true) "24h" else null,
+                                        if (d.restaurant == true) "Restaurant" else null,
+                                        if (d.shop == true) "Shop" else null,
+                                        if (d.showers == true) "Showers" else null,
+                                    ).joinToString(" • ")
+                                    if (flags.isNotBlank()) {
+                                        Text(
+                                            text = flags,
+                                            color = Color.White.copy(alpha = 0.7f),
+                                            fontSize = 11.sp,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             Row(
@@ -213,6 +359,18 @@ fun PoiDetailCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun rememberSources(source: String?): List<String> {
+    return remember(source) {
+        source
+            ?.split("+")
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            ?.distinct()
+            ?: emptyList()
     }
 }
 

@@ -7,6 +7,7 @@ import fr.geoking.julius.VehicleType
 import fr.geoking.julius.api.openvan.OpenVanCampClient
 import fr.geoking.julius.api.openvan.OpenVanCampProvider
 import fr.geoking.julius.parking.ParkingRegion
+import fr.geoking.julius.poi.PoiMerger
 
 /**
  * Delegates to the currently selected [PoiProvider] (Routex, DataGouv prix carburant instantané, GasApi, …)
@@ -140,7 +141,7 @@ class SelectorPoiProvider(
             }
         }
 
-        var result = mergePois(allPois)
+        var result = PoiMerger.mergePois(allPois)
         result = enrichLuxembourgOpenVanReferencePrices(
             pois = result,
             providers = providers,
@@ -161,47 +162,8 @@ class SelectorPoiProvider(
         return searchResult(request).pois
     }
 
-    private fun mergePois(pois: List<Poi>): List<Poi> {
-        val merged = mutableListOf<Poi>()
-        val sorted = pois.sortedBy { it.id }
-
-        for (poi in sorted) {
-            val existing = merged.find {
-                it.id == poi.id || (
-                    Math.abs(it.latitude - poi.latitude) < 0.0005 &&
-                        Math.abs(it.longitude - poi.longitude) < 0.0005 &&
-                        it.name.lowercase().take(5) == poi.name.lowercase().take(5)
-                    )
-            }
-
-            if (existing != null) {
-                val index = merged.indexOf(existing)
-                merged[index] = existing.copy(
-                    fuelPrices = (existing.fuelPrices.orEmpty() + poi.fuelPrices.orEmpty())
-                        .distinctBy { it.fuelName },
-                    irveDetails = run {
-                        val e = existing.irveDetails
-                        val p = poi.irveDetails
-                        if (e != null && p != null) {
-                            e.copy(
-                                connectorTypes = e.connectorTypes + p.connectorTypes
-                            )
-                        } else e ?: p
-                    },
-                    source = if (existing.source != null && poi.source != null && existing.source != poi.source) {
-                        "${existing.source} + ${poi.source}"
-                    } else existing.source ?: poi.source,
-                    brand = existing.brand ?: poi.brand,
-                    powerKw = existing.powerKw ?: poi.powerKw,
-                    operator = existing.operator ?: poi.operator,
-                    chargePointCount = (existing.chargePointCount ?: 0).coerceAtLeast(poi.chargePointCount ?: 0)
-                )
-            } else {
-                merged.add(poi)
-            }
-        }
-        return merged
-    }
+    // POI deduplication/merge is centralized in `PoiMerger` so the map cache and selectors
+    // use the same “close enough + similar enough” matching rules.
 
     override suspend fun getGasStations(
         latitude: Double,
@@ -228,7 +190,7 @@ class SelectorPoiProvider(
             allPois.addAll(extra)
         }
 
-        var result = mergePois(allPois)
+        var result = PoiMerger.mergePois(allPois)
         result = enrichLuxembourgOpenVanReferencePrices(
             pois = result,
             providers = providers,

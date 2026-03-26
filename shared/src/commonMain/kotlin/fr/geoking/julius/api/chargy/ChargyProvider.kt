@@ -1,5 +1,6 @@
 package fr.geoking.julius.api.chargy
 
+import fr.geoking.julius.api.routex.radiusKmFromMapViewport
 import fr.geoking.julius.poi.IrveDetails
 import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.Poi
@@ -40,6 +41,13 @@ class ChargyProvider(
         longitude: Double,
         viewport: MapViewport?
     ): List<Poi> {
+        val effectiveRadiusKm = viewport
+            ?.let {
+                radiusKmFromMapViewport(latitude, longitude, it.zoom, it.mapWidthPx, it.mapHeightPx)
+                    .coerceIn(1, 50)
+            }
+            ?: radiusKm
+
         // Only return results if coordinates are within/near Luxembourg
         if (latitude < luxBbox.latMin - 0.2 || latitude > luxBbox.latMax + 0.2 ||
             longitude < luxBbox.lonMin - 0.2 || longitude > luxBbox.lonMax + 0.2) {
@@ -50,7 +58,7 @@ class ChargyProvider(
 
         return stations
             .map { s -> s to haversineKm(latitude, longitude, s.latitude, s.longitude) }
-            .filter { it.second <= radiusKm }
+            .filter { it.second <= effectiveRadiusKm }
             .sortedBy { it.second }
             .take(limit)
             .map { (s, dist) ->

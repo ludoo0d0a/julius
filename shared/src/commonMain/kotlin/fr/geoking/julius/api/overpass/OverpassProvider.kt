@@ -1,5 +1,6 @@
 package fr.geoking.julius.api.overpass
 
+import fr.geoking.julius.api.routex.radiusKmFromMapViewport
 import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiCategory
@@ -32,6 +33,10 @@ class OverpassProvider(
     )
 
     override suspend fun search(request: PoiSearchRequest): List<Poi> {
+        val effectiveRadiusKm = request.viewport
+            ?.let { radiusKmFromMapViewport(request.latitude, request.longitude, it.zoom, it.mapWidthPx, it.mapHeightPx).coerceIn(1, 50) }
+            ?: radiusKm
+
         val cat = request.categories.ifEmpty { supportedCategories() }
         val wanted = cat.filter { it in supportedCategories() }.toSet()
         if (wanted.isEmpty()) return emptyList()
@@ -50,7 +55,7 @@ class OverpassProvider(
             client.queryNodesAndWaysWithTagFilters(
                 latitude = request.latitude,
                 longitude = request.longitude,
-                radiusKm = radiusKm,
+                radiusKm = effectiveRadiusKm,
                 tagFilters = tagFilters,
                 limit = limit
             )
@@ -58,7 +63,7 @@ class OverpassProvider(
             client.queryNodesWithTagFilters(
                 latitude = request.latitude,
                 longitude = request.longitude,
-                radiusKm = radiusKm,
+                radiusKm = effectiveRadiusKm,
                 tagFilters = tagFilters,
                 limit = limit
             )

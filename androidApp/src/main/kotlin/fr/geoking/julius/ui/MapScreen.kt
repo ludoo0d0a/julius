@@ -70,8 +70,13 @@ import fr.geoking.julius.ui.map.AddPoiSheet
 import fr.geoking.julius.ui.map.PoiDetailCard
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
 import fr.geoking.julius.ui.map.PoiMarkerHelper
+import fr.geoking.julius.poi.PoiMerger
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import fr.geoking.julius.api.routex.radiusKmFromMapViewport
 
 /** Converts a vector drawable to a BitmapDescriptor for map markers (fromResource only supports bitmaps). Scales with zoom when sizePx varies. */
 private fun vectorDrawableToBitmapDescriptor(
@@ -93,6 +98,35 @@ private fun markerSizePxForZoom(zoom: Float): Int {
     return 96
 }
 
+private data class LoadedPoiRegion(
+    val centerLat: Double,
+    val centerLng: Double,
+    val maxRadiusKmLoaded: Int,
+    val loadedAtMs: Long
+)
+
+private fun haversineKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+    val r = 6371.0
+    val rad = kotlin.math.PI / 180.0
+    val dLat = (lat2 - lat1) * rad
+    val dLon = (lon2 - lon1) * rad
+    val sinDLat = kotlin.math.sin(dLat / 2)
+    val sinDLon = kotlin.math.sin(dLon / 2)
+    val a = sinDLat * sinDLat +
+        kotlin.math.cos(lat1 * rad) * kotlin.math.cos(lat2 * rad) *
+        sinDLon * sinDLon
+    val c = 2 * kotlin.math.atan2(kotlin.math.sqrt(a), kotlin.math.sqrt(1 - a))
+    return r * c
+}
+
+private fun approxDistanceKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+    // Fast equirectangular approximation (good for small distances).
+    val dLatKm = (lat2 - lat1) * 111.0
+    val avgLatRad = ((lat1 + lat2) / 2.0) * kotlin.math.PI / 180.0
+    val dLonKm = (lon2 - lon1) * 111.0 * kotlin.math.cos(avgLatRad)
+    return kotlin.math.sqrt(dLatKm * dLatKm + dLonKm * dLonKm)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(
@@ -111,7 +145,7 @@ fun MapScreen(
     val context = LocalContext.current
     val settings by settingsManager.settings.collectAsState()
     val selectedProviders = settings.selectedPoiProviders
-    var pois by remember { mutableStateOf<List<Poi>>(emptyList()) }
+    var cachedPois by remember { mutableStateOf<List<Poi>>(emptyList()) }
     var trafficInfo by remember { mutableStateOf<TrafficInfo?>(null) }
     var mapErrorMessage by remember(selectedProviders) { mutableStateOf<String?>(null) }
     var isErrorPaused by remember(selectedProviders) { mutableStateOf(false) }
@@ -174,70 +208,219 @@ fun MapScreen(
     val lazyListState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(pois, favoritesRepo) {
+    LaunchedEffect(favoritesRepo) {
         if (favoritesRepo != null) {
             favoriteIds = favoritesRepo.getFavorites().map { it.id }.toSet()
         }
     }
 
-    LaunchedEffect(selectedProviders, settings.selectedMapEnergyTypes, settings.mapPowerLevels, settings.mapIrveOperators, settings.mapBrands, settings.selectedMapConnectorTypes, cameraPositionState.position, mapSizePx, retryCount) {
+    val poiQueryKey = remember(
+        selectedProviders,
+        settings.selectedMapEnergyTypes,
+        settings.mapPowerLevels,
+        settings.mapIrveOperators,
+        settings.mapBrands,
+        settings.selectedMapConnectorTypes,
+        settings.useVehicleFilter,
+        settings.fuelCard,
+        settings.vehicleType,
+        settings.vehicleEnergy,
+        settings.vehicleGasTypes,
+        settings.selectedOverpassAmenityTypes
+    ) {
+        buildString {
+            append(selectedProviders.sortedBy { it.name }.joinToString(",") { it.name })
+            append("|energy=").append(settings.selectedMapEnergyTypes.sorted().joinToString(","))
+            append("|power=").append(settings.mapPowerLevels.sorted().joinToString(","))
+            append("|irveOps=").append(settings.mapIrveOperators.sorted().joinToString(","))
+            append("|brands=").append(settings.mapBrands.sorted().joinToString(","))
+            append("|connectors=").append(settings.selectedMapConnectorTypes.sorted().joinToString(","))
+            append("|vehicleFilter=").append(settings.useVehicleFilter)
+            append("|fuelCard=").append(settings.fuelCard)
+            append("|vehicleType=").append(settings.vehicleType)
+            append("|vehicleEnergy=").append(settings.vehicleEnergy)
+            append("|vehicleGasTypes=").append(settings.vehicleGasTypes.sorted().joinToString(","))
+            append("|overpassAmenities=").append(settings.selectedOverpassAmenityTypes.sorted().joinToString(","))
+        }
+    }
+
+    val loadedRegions = remember { mutableListOf<LoadedPoiRegion>() }
+    // POI cache metadata: used for TTL + bounded cache size.
+    val poiSeenAtMs = remember { mutableStateMapOf<String, Long>() }
+    var lastCacheKey by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(poiQueryKey, mapSizePx, retryCount) {
+        val currentCacheKey = "$poiQueryKey|size=${mapSizePx.width}x${mapSizePx.height}"
+        val cacheKeyChanged = lastCacheKey != currentCacheKey
+        if (cacheKeyChanged) {
+            loadedRegions.clear()
+            cachedPois = emptyList()
+            poiSeenAtMs.clear()
+            availabilityByPoiId = emptyMap()
+            trafficInfo = null
+            mapErrorMessage = null
+            isErrorPaused = false
+            lastCacheKey = currentCacheKey
+        }
+
+        if (mapSizePx.width <= 0 || mapSizePx.height <= 0) return@LaunchedEffect
+
         if (!hasLocationPermission) {
             launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
-        if (isErrorPaused) return@LaunchedEffect
 
-        mapErrorMessage = null
-        val center = cameraPositionState.position.target
-        val centerLat = center.latitude
-        val centerLng = center.longitude
-        val zoom = cameraPositionState.position.zoom
-        val viewport = if (mapSizePx.width > 0 && mapSizePx.height > 0) {
-            MapViewport(zoom = zoom, mapWidthPx = mapSizePx.width, mapHeightPx = mapSizePx.height)
-        } else null
-        try {
-            pois = poiProvider.search(PoiSearchRequest(centerLat, centerLng, viewport, emptySet()))
-            val radiusKm = 10
-            val availabilityProvider = availabilityProviderFactory?.getProvider(centerLat, centerLng)
-            if (availabilityProvider != null) {
-                try {
-                    val availabilities = availabilityProvider.getAvailability(centerLat, centerLng, radiusKm)
-                    availabilityByPoiId = matchAvailabilityToPois(availabilities, pois)
-                } catch (e: Exception) {
-                    if (e is kotlinx.coroutines.CancellationException) throw e
-                    availabilityByPoiId = emptyMap()
+        snapshotFlow { cameraPositionState.position }
+            .debounce(350)
+            .collectLatest { position ->
+                if (isErrorPaused) return@collectLatest
+
+                val centerLat = position.target.latitude
+                val centerLng = position.target.longitude
+                val zoom = position.zoom
+                val nowMs = System.currentTimeMillis()
+                val ttlMs = 8L * 60L * 60L * 1000L
+                val expiresBeforeMs = nowMs - ttlMs
+                val maxRegions = 8
+                val maxPoisInCache = 1200
+
+                val requiredRadiusKm = radiusKmFromMapViewport(
+                    centerLat,
+                    centerLng,
+                    zoom,
+                    mapSizePx.width,
+                    mapSizePx.height
+                ).coerceIn(1, 50)
+
+                // TTL eviction before coverage check, so we don't "think" an expired region still covers the view.
+                loadedRegions.removeAll { it.loadedAtMs < expiresBeforeMs }
+                if (poiSeenAtMs.isNotEmpty()) {
+                    val expiredPoiIds = poiSeenAtMs
+                        .asSequence()
+                        .filter { (_, seenAt) -> seenAt < expiresBeforeMs }
+                        .map { (id, _) -> id }
+                        .toSet()
+                    if (expiredPoiIds.isNotEmpty()) {
+                        poiSeenAtMs.keys.removeAll(expiredPoiIds)
+                        cachedPois = cachedPois.filterNot { it.id in expiredPoiIds }
+                        availabilityByPoiId = availabilityByPoiId - expiredPoiIds
+                    }
                 }
-            } else {
-                availabilityByPoiId = emptyMap()
-            }
-            val trafficProvider = trafficProviderFactory?.getProvider(centerLat, centerLng)
-            if (trafficProvider != null) {
+
+                val viewportCovered = loadedRegions.any { region ->
+                    region.maxRadiusKmLoaded >= requiredRadiusKm &&
+                        haversineKm(
+                            centerLat,
+                            centerLng,
+                            region.centerLat,
+                            region.centerLng
+                        ) <= (region.maxRadiusKmLoaded - requiredRadiusKm).toDouble() + 0.5
+                }
+
+                if (viewportCovered) return@collectLatest
+
+                mapErrorMessage = null
+
+                val viewport = MapViewport(
+                    zoom = zoom,
+                    mapWidthPx = mapSizePx.width,
+                    mapHeightPx = mapSizePx.height
+                )
+
                 try {
-                    val halfSpan = 0.15
-                    trafficInfo = trafficProvider.getTraffic(
-                        TrafficRequest.Bbox(
-                            centerLat - halfSpan,
-                            centerLng - halfSpan,
-                            centerLat + halfSpan,
-                            centerLng + halfSpan
+                    val newPois = poiProvider.search(
+                        PoiSearchRequest(
+                            latitude = centerLat,
+                            longitude = centerLng,
+                            viewport = viewport,
+                            categories = emptySet()
                         )
                     )
+
+                    cachedPois = PoiMerger.mergeInto(cachedPois, newPois)
+                    // Update "seen" timestamps for TTL tracking.
+                    val mergedNow = System.currentTimeMillis()
+                    newPois.forEach { poiSeenAtMs[it.id] = mergedNow }
+                    // POIs that were merged into existing entries may have kept the existing ID (and that is OK).
+                    cachedPois.forEach { p ->
+                        // Ensure stable entries remain "warm" when reloaded.
+                        if (poiSeenAtMs[p.id] == null) poiSeenAtMs[p.id] = mergedNow
+                    }
+                    loadedRegions.add(
+                        LoadedPoiRegion(
+                            centerLat = centerLat,
+                            centerLng = centerLng,
+                            maxRadiusKmLoaded = requiredRadiusKm,
+                            loadedAtMs = System.currentTimeMillis()
+                        )
+                    )
+
+                    // Keep the region cache bounded.
+                    while (loadedRegions.size > maxRegions) {
+                        val currentCenter = LatLng(centerLat, centerLng)
+                        val farthest = loadedRegions.maxBy { r ->
+                            haversineKm(
+                                r.centerLat,
+                                r.centerLng,
+                                currentCenter.latitude,
+                                currentCenter.longitude
+                            )
+                        }
+                        loadedRegions.remove(farthest)
+                    }
+
+                    // Keep the POI cache bounded: keep closest POIs to current center.
+                    if (cachedPois.size > maxPoisInCache) {
+                        val sortedByDist = cachedPois
+                            .asSequence()
+                            .map { p -> p to approxDistanceKm(centerLat, centerLng, p.latitude, p.longitude) }
+                            .sortedBy { it.second }
+                            .take(maxPoisInCache)
+                            .map { it.first }
+                            .toList()
+                        val keepIds = sortedByDist.asSequence().map { it.id }.toSet()
+                        cachedPois = sortedByDist
+                        poiSeenAtMs.keys.retainAll(keepIds)
+                        availabilityByPoiId = availabilityByPoiId.filterKeys { it in keepIds }
+                    }
+
+                    // Availability: refresh for POIs close enough for the cards.
+                    val availabilityProvider = availabilityProviderFactory?.getProvider(centerLat, centerLng)
+                    if (availabilityProvider != null) {
+                        val availabilityRadiusKm = requiredRadiusKm.coerceAtMost(20).coerceAtLeast(10)
+                        val availabilities = availabilityProvider.getAvailability(centerLat, centerLng, availabilityRadiusKm)
+                        val poisForAvailability = cachedPois.filter { poi ->
+                            approxDistanceKm(centerLat, centerLng, poi.latitude, poi.longitude) <= availabilityRadiusKm * 1.05
+                        }
+                        val matched = matchAvailabilityToPois(availabilities, poisForAvailability)
+                        availabilityByPoiId = availabilityByPoiId + matched
+                    }
+
+                    // Traffic: updated only when a POI fetch happens.
+                    val trafficProvider = trafficProviderFactory?.getProvider(centerLat, centerLng)
+                    if (trafficProvider != null) {
+                        val halfSpan = 0.15
+                        trafficInfo = trafficProvider.getTraffic(
+                            TrafficRequest.Bbox(
+                                centerLat - halfSpan,
+                                centerLng - halfSpan,
+                                centerLat + halfSpan,
+                                centerLng + halfSpan
+                            )
+                        )
+                    } else {
+                        trafficInfo = null
+                    }
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
-                    trafficInfo = null
+                    val msg = e.message?.takeIf { it.isNotBlank() } ?: e.toString()
+                    mapErrorMessage = msg
+                    isErrorPaused = true
+                    store.recordError(
+                        (e as? fr.geoking.julius.shared.NetworkException)?.httpCode,
+                        "Map ($selectedProviders): $msg"
+                    )
                 }
-            } else {
-                trafficInfo = null
             }
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            val msg = e.message?.takeIf { it.isNotBlank() } ?: e.toString()
-            mapErrorMessage = msg
-            isErrorPaused = true
-            store.recordError((e as? fr.geoking.julius.shared.NetworkException)?.httpCode, "Map ($selectedProviders): $msg")
-            pois = emptyList()
-            availabilityByPoiId = emptyMap()
-            trafficInfo = null
-        }
     }
 
     if (showMapSettings) {
@@ -503,7 +686,27 @@ fun MapScreen(
                     val zoom = cameraPositionState.position.zoom
                     val sizePx = remember(zoom) { markerSizePxForZoom(zoom) }
 
-                    val poisToShow = if (showFavoritesOnly && favoriteIds.isNotEmpty()) pois.filter { it.id in favoriteIds } else pois
+                    val center = cameraPositionState.position.target
+                    val displayRadiusKm = if (mapSizePx.width > 0 && mapSizePx.height > 0) {
+                        radiusKmFromMapViewport(
+                            center.latitude,
+                            center.longitude,
+                            zoom,
+                            mapSizePx.width,
+                            mapSizePx.height
+                        ).coerceIn(1, 50)
+                    } else 0
+
+                    val poisInView = if (displayRadiusKm > 0) {
+                        cachedPois.filter { poi ->
+                            approxDistanceKm(center.latitude, center.longitude, poi.latitude, poi.longitude) <= displayRadiusKm * 1.05
+                        }
+                    } else {
+                        cachedPois
+                    }
+
+                    val poisToShow =
+                        if (showFavoritesOnly && favoriteIds.isNotEmpty()) poisInView.filter { it.id in favoriteIds } else poisInView
                     poisToShow.forEach { poi ->
                         val markerBitmap = remember(poi, settings.selectedMapEnergyTypes, settings.useVehicleFilter, settings.vehicleEnergy, settings.vehicleGasTypes, sizePx) {
                             BitmapDescriptorFactory.fromBitmap(
@@ -570,7 +773,26 @@ fun MapScreen(
     }
 
     if (selectedPoi != null) {
-        val base = if (showFavoritesOnly && favoriteIds.isNotEmpty()) pois.filter { it.id in favoriteIds } else pois
+        val center = cameraPositionState.position.target
+        val displayRadiusKm = if (mapSizePx.width > 0 && mapSizePx.height > 0) {
+            radiusKmFromMapViewport(
+                center.latitude,
+                center.longitude,
+                cameraPositionState.position.zoom,
+                mapSizePx.width,
+                mapSizePx.height
+            ).coerceIn(1, 50)
+        } else 0
+
+        val poisInView = if (displayRadiusKm > 0) {
+            cachedPois.filter { poi ->
+                approxDistanceKm(center.latitude, center.longitude, poi.latitude, poi.longitude) <= displayRadiusKm * 1.05
+            }
+        } else {
+            cachedPois
+        }
+
+        val base = if (showFavoritesOnly && favoriteIds.isNotEmpty()) poisInView.filter { it.id in favoriteIds } else poisInView
         val listToShow = remember(base, selectedPoi?.id) {
             val sel = selectedPoi ?: return@remember base
             if (base.any { it.id == sel.id }) base else listOf(sel) + base

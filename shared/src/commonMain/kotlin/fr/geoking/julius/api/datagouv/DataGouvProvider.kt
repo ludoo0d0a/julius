@@ -4,6 +4,7 @@ import fr.geoking.julius.poi.FuelPrice
 import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiCategory
+import fr.geoking.julius.api.routex.radiusKmFromMapViewport
 import fr.geoking.julius.api.gas.GasApiClient
 import fr.geoking.julius.poi.PoiProvider
 import io.ktor.client.HttpClient
@@ -36,10 +37,17 @@ class DataGouvProvider(
         longitude: Double,
         viewport: MapViewport?
     ): List<Poi> {
+        val effectiveRadiusKm = viewport
+            ?.let {
+                radiusKmFromMapViewport(latitude, longitude, it.zoom, it.mapWidthPx, it.mapHeightPx)
+                    .coerceIn(1, 50)
+            }
+            ?: radiusKm
+
         var stations = dataGouvClient.getStations(
             latitude = latitude,
             longitude = longitude,
-            radiusKm = radiusKm,
+            radiusKm = effectiveRadiusKm,
             limit = limit
         )
         if (gasApiClient != null && stations.isNotEmpty()) {
@@ -47,7 +55,7 @@ class DataGouvProvider(
                 val gas = gasApiClient.searchStations(
                     latitude = latitude,
                     longitude = longitude,
-                    radiusKm = radiusKm.coerceIn(1, 100),
+                    radiusKm = effectiveRadiusKm.coerceIn(1, 100),
                     limit = 100
                 )
                 stations = DataGouvGasBrandMerge.mergeGasApiBrands(stations, gas)

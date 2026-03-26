@@ -1,5 +1,6 @@
 package fr.geoking.julius.poi
 
+import fr.geoking.julius.api.routex.radiusKmFromMapViewport
 import fr.geoking.julius.community.CommunityPoiRepository
 
 /**
@@ -14,9 +15,16 @@ class MergedPoiProvider(
     override suspend fun search(request: PoiSearchRequest): List<Poi> {
         val basePois = base.search(request)
         val hiddenIds = communityRepo.getHiddenOfficialIds()
-        val radiusKm = request.viewport?.let { v ->
-            (10.0 * (v.zoom / 12.0)).coerceIn(5.0, 100.0)
-        } ?: 50.0
+        val radiusKm = request.viewport
+            ?.let { v ->
+                radiusKmFromMapViewport(
+                    centerLat = request.latitude,
+                    centerLng = request.longitude,
+                    zoom = v.zoom,
+                    mapWidthPx = v.mapWidthPx,
+                    mapHeightPx = v.mapHeightPx
+                ).coerceIn(5, 50).toDouble()
+            } ?: 50.0
         val communityPois = communityRepo.getCommunityPoisInArea(request.latitude, request.longitude, radiusKm)
         val linkedOfficialIds = communityRepo.getCommunityLinkedOfficialIdsInArea(request.latitude, request.longitude, radiusKm)
         val filteredBase = basePois
