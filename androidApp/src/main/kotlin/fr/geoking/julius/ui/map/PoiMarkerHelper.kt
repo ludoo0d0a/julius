@@ -3,12 +3,14 @@ package fr.geoking.julius.ui.map
 import android.content.Context
 import android.graphics.*
 import android.util.LruCache
+import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.ContextCompat
 import fr.geoking.julius.R
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiCategory
 import fr.geoking.julius.poi.MapPoiFilter
 import fr.geoking.julius.ui.BrandHelper
+import fr.geoking.julius.ui.ColorHelper
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -28,8 +30,10 @@ object PoiMarkerHelper {
         val label = getPoiLabel(poi, selectedEnergyTypes, useVehicleFilter, vehicleEnergy, vehicleGasTypes)
         val brandInfo = BrandHelper.getBrandInfo(poi.brand)
         val iconResId = getIconResId(poi, brandInfo)
+        val category = poi.poiCategory ?: if (poi.isElectric) PoiCategory.Irve else PoiCategory.Gas
+        val color = getPoiColor(poi, category, selectedEnergyTypes, useVehicleFilter, vehicleEnergy, vehicleGasTypes)
 
-        val cacheKey = "${poi.id}_${label}_${iconResId}_$sizePx"
+        val cacheKey = "${poi.id}_${label}_${iconResId}_${color}_$sizePx"
         synchronized(cache) {
             cache.get(cacheKey)?.let { return it }
         }
@@ -37,9 +41,6 @@ object PoiMarkerHelper {
         val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-
-        val category = poi.poiCategory ?: if (poi.isElectric) PoiCategory.Irve else PoiCategory.Gas
-        val color = getCategoryColor(category)
 
         // 1. Draw Shape Background
         paint.color = color
@@ -103,10 +104,31 @@ object PoiMarkerHelper {
         }
     }
 
-    private fun getCategoryColor(category: PoiCategory): Int {
+    private fun getPoiColor(
+        poi: Poi,
+        category: PoiCategory,
+        selectedEnergyTypes: Set<String>,
+        useVehicleFilter: Boolean,
+        vehicleEnergy: String,
+        vehicleGasTypes: Set<String>
+    ): Int {
         return when (category) {
-            PoiCategory.Gas -> 0xFF007BFF.toInt() // Blue
-            PoiCategory.Irve -> 0xFF28A745.toInt() // Green
+            PoiCategory.Irve -> {
+                poi.powerKw?.let { ColorHelper.getPowerColor(it).toArgb() } ?: 0xFF28A745.toInt()
+            }
+            PoiCategory.Gas -> {
+                val preferredEnergies = if (useVehicleFilter) {
+                    if (vehicleEnergy == "hybrid") vehicleGasTypes + "electric"
+                    else vehicleGasTypes
+                } else selectedEnergyTypes
+
+                val cheapestFuelId = poi.fuelPrices?.filter { p ->
+                    val id = MapPoiFilter.fuelNameToId(p.fuelName)
+                    id != null && (preferredEnergies.isEmpty() || id in preferredEnergies)
+                }?.minByOrNull { it.price }?.let { MapPoiFilter.fuelNameToId(it.fuelName) }
+
+                cheapestFuelId?.let { ColorHelper.getFuelColor(it)?.toArgb() } ?: 0xFF007BFF.toInt()
+            }
             PoiCategory.Radar -> 0xFFDC3545.toInt() // Red
             else -> 0xFF17A2B8.toInt() // Teal
         }

@@ -15,6 +15,7 @@ import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.poi.anyProvidesElectric
 import fr.geoking.julius.poi.anyProvidesFuel
 import fr.geoking.julius.ui.*
+import fr.geoking.julius.ui.ColorHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -291,24 +292,26 @@ private fun FuelFilters(settingsManager: SettingsManager) {
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         MAP_ENERGY_OPTIONS.filter { it.first != "electric" }.forEach { (id, label) ->
+            val isSelected = settings.selectedMapEnergyTypes.contains(id)
+            val chipColor = ColorHelper.getFuelColor(id) ?: MaterialTheme.colorScheme.primary
             FilterChip(
-                selected = settings.selectedMapEnergyTypes.contains(id),
+                selected = isSelected,
                 onClick = {
-                    val newEnergies = if (settings.selectedMapEnergyTypes.contains(id)) settings.selectedMapEnergyTypes - id else settings.selectedMapEnergyTypes + id
+                    val newEnergies = if (isSelected) settings.selectedMapEnergyTypes - id else settings.selectedMapEnergyTypes + id
                     settingsManager.setMapEnergyTypes(newEnergies)
                 },
                 label = { Text(label) },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    selectedContainerColor = chipColor,
+                    selectedLabelColor = Color.White,
                     labelColor = Color.White,
                     containerColor = Color(0xFF334155)
                 ),
                 border = FilterChipDefaults.filterChipBorder(
                     enabled = true,
-                    selected = settings.selectedMapEnergyTypes.contains(id),
+                    selected = isSelected,
                     borderColor = Color.White.copy(alpha = 0.3f),
-                    selectedBorderColor = MaterialTheme.colorScheme.primary
+                    selectedBorderColor = chipColor
                 )
             )
         }
@@ -357,24 +360,26 @@ private fun ElectricFilters(settingsManager: SettingsManager) {
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         MAP_IRVE_POWER_OPTIONS.forEach { (id, label) ->
+            val isSelected = settings.mapPowerLevels.contains(id)
+            val chipColor = ColorHelper.getPowerColorByLevel(id)
             FilterChip(
-                selected = settings.mapPowerLevels.contains(id),
+                selected = isSelected,
                 onClick = {
-                    val newLevels = if (settings.mapPowerLevels.contains(id)) settings.mapPowerLevels - id else settings.mapPowerLevels + id
+                    val newLevels = if (isSelected) settings.mapPowerLevels - id else settings.mapPowerLevels + id
                     settingsManager.setMapPowerLevels(newLevels)
                 },
                 label = { Text(label) },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    selectedContainerColor = chipColor,
+                    selectedLabelColor = Color.White,
                     labelColor = Color.White,
                     containerColor = Color(0xFF334155)
                 ),
                 border = FilterChipDefaults.filterChipBorder(
                     enabled = true,
-                    selected = settings.mapPowerLevels.contains(id),
+                    selected = isSelected,
                     borderColor = Color.White.copy(alpha = 0.3f),
-                    selectedBorderColor = MaterialTheme.colorScheme.primary
+                    selectedBorderColor = chipColor
                 )
             )
         }
