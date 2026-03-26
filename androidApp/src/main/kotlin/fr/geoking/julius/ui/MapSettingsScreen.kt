@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -311,12 +312,18 @@ fun MapSettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     MAP_ENERGY_OPTIONS.filter { it.first != "electric" }.forEach { (id, label) ->
+                        val isSelected = selectedEnergies.contains(id)
+                        val chipColor = ColorHelper.getFuelColor(id) ?: MaterialTheme.colorScheme.primary
                         FilterChip(
-                            selected = selectedEnergies.contains(id),
+                            selected = isSelected,
                             onClick = {
-                                selectedEnergies = if (selectedEnergies.contains(id)) selectedEnergies - id else selectedEnergies + id
+                                selectedEnergies = if (isSelected) selectedEnergies - id else selectedEnergies + id
                             },
-                            label = { Text(label) }
+                            label = { Text(label) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = chipColor,
+                                selectedLabelColor = Color.White
+                            )
                         )
                     }
                 }
@@ -387,12 +394,18 @@ fun MapSettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         MAP_IRVE_POWER_OPTIONS.forEach { (id, label) ->
+                        val isSelected = selectedPowerLevels.contains(id)
+                        val chipColor = ColorHelper.getPowerColorByLevel(id)
                             FilterChip(
-                                selected = selectedPowerLevels.contains(id),
+                            selected = isSelected,
                                 onClick = {
-                                    selectedPowerLevels = if (selectedPowerLevels.contains(id)) selectedPowerLevels - id else selectedPowerLevels + id
+                                selectedPowerLevels = if (isSelected) selectedPowerLevels - id else selectedPowerLevels + id
                                 },
-                                label = { Text(label) }
+                            label = { Text(label) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = chipColor,
+                                selectedLabelColor = Color.White
+                            )
                             )
                         }
                     }

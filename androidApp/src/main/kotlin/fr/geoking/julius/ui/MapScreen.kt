@@ -12,6 +12,7 @@ import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -50,6 +51,8 @@ import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.poi.PoiSearchRequest
 import fr.geoking.julius.poi.PoiCategory
+import fr.geoking.julius.poi.anyProvidesElectric
+import fr.geoking.julius.poi.anyProvidesFuel
 import fr.geoking.julius.api.belib.BorneAvailabilityProviderFactory
 import fr.geoking.julius.api.belib.matchAvailabilityToPois
 import fr.geoking.julius.api.belib.StationAvailabilitySummary
@@ -62,6 +65,7 @@ import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.community.isCommunityPoiId
 import fr.geoking.julius.ui.components.FilterFab
+import fr.geoking.julius.ui.ColorHelper
 import fr.geoking.julius.ui.map.AddPoiSheet
 import fr.geoking.julius.ui.map.PoiDetailCard
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
@@ -368,58 +372,114 @@ fun MapScreen(
                     }
                 }
             }
-            Row(
+            LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                contentPadding = PaddingValues(horizontal = 16.dp)
             ) {
-                FilterChip(
-                    selected = false,
-                    onClick = { showMapSettings = true },
-                    label = {
-                        Text(
-                            if (selectedProviders.isEmpty()) "No Source"
-                            else if (selectedProviders.size == 1) {
-                                when (selectedProviders.first()) {
-                                    PoiProviderType.Routex -> "Source: Routex"
-                                    PoiProviderType.Etalab -> "Source: data.gouv.fr (prix carburants, instantané)"
-                                    PoiProviderType.GasApi -> "Source: Gas API"
-                                    PoiProviderType.DataGouv -> "Source: data.gouv.fr"
-                                    PoiProviderType.DataGouvElec -> "Source: IRVE"
-                                    PoiProviderType.OpenChargeMap -> "Source: Open Charge Map"
-                                    PoiProviderType.Chargy -> "Source: Chargy (real-time)"
-                                    PoiProviderType.OpenVanCamp -> "Source: OpenVan.camp (Luxembourg)"
-                                    PoiProviderType.Overpass -> "Source: OSM + data.gouv (camping, picnic…)"
-                                    PoiProviderType.Hybrid -> "Source: Hybrid (Gas + EV)"
-                                }
-                            } else "Sources (${selectedProviders.size})"
+                item {
+                    FilterChip(
+                        selected = false,
+                        onClick = { showMapSettings = true },
+                        label = {
+                            Text(
+                                if (selectedProviders.isEmpty()) "No Source"
+                                else if (selectedProviders.size == 1) {
+                                    when (selectedProviders.first()) {
+                                        PoiProviderType.Routex -> "Source: Routex"
+                                        PoiProviderType.Etalab -> "Source: data.gouv.fr (prix carburants, instantané)"
+                                        PoiProviderType.GasApi -> "Source: Gas API"
+                                        PoiProviderType.DataGouv -> "Source: data.gouv.fr"
+                                        PoiProviderType.DataGouvElec -> "Source: IRVE"
+                                        PoiProviderType.OpenChargeMap -> "Source: Open Charge Map"
+                                        PoiProviderType.Chargy -> "Source: Chargy (real-time)"
+                                        PoiProviderType.OpenVanCamp -> "Source: OpenVan.camp (Luxembourg)"
+                                        PoiProviderType.Overpass -> "Source: OSM + data.gouv (camping, picnic…)"
+                                        PoiProviderType.Hybrid -> "Source: Hybrid (Gas + EV)"
+                                    }
+                                } else "Sources (${selectedProviders.size})"
+                            )
+                        }
+                    )
+                }
+
+                if (selectedProviders.anyProvidesFuel()) {
+                    items(MAP_ENERGY_OPTIONS.filter { it.first != "electric" }) { (id, label) ->
+                        val isSelected = settings.selectedMapEnergyTypes.contains(id)
+                        val color = ColorHelper.getFuelColor(id) ?: MaterialTheme.colorScheme.primary
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                val newEnergies = if (isSelected) settings.selectedMapEnergyTypes - id else settings.selectedMapEnergyTypes + id
+                                settingsManager.setMapEnergyTypes(newEnergies)
+                            },
+                            label = { Text(label) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = color,
+                                selectedLabelColor = Color.White,
+                                iconColor = color,
+                                selectedLeadingIconColor = Color.White
+                            ),
+                            leadingIcon = {
+                                Box(modifier = Modifier.size(12.dp).background(color, MaterialTheme.shapes.small))
+                            }
                         )
                     }
-                )
+                }
+
+                if (selectedProviders.anyProvidesElectric()) {
+                    items(MAP_IRVE_POWER_OPTIONS) { (kw, label) ->
+                        val isSelected = settings.mapPowerLevels.contains(kw)
+                        val color = ColorHelper.getPowerColorByLevel(kw)
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                val newLevels = if (isSelected) settings.mapPowerLevels - kw else settings.mapPowerLevels + kw
+                                settingsManager.setMapPowerLevels(newLevels)
+                            },
+                            label = { Text(label) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = color,
+                                selectedLabelColor = Color.White,
+                                iconColor = color,
+                                selectedLeadingIconColor = Color.White
+                            ),
+                            leadingIcon = {
+                                Box(modifier = Modifier.size(12.dp).background(color, MaterialTheme.shapes.small))
+                            }
+                        )
+                    }
+                }
+
                 if (settings.isLoggedIn && (communityRepo != null || favoritesRepo != null)) {
                     if (communityRepo != null) {
-                        FilterChip(
-                            selected = false,
-                            onClick = {
-                                addPoiInitialLat = cameraPositionState.position.target.latitude
-                                addPoiInitialLng = cameraPositionState.position.target.longitude
-                                addPoiLinkedOfficialId = null
-                                addPoiExistingCommunityId = null
-                                addPoiInitialName = ""
-                                addPoiInitialAddress = ""
-                                showAddPoiSheet = true
-                            },
-                            label = { Text("+ POI") }
-                        )
+                        item {
+                            FilterChip(
+                                selected = false,
+                                onClick = {
+                                    addPoiInitialLat = cameraPositionState.position.target.latitude
+                                    addPoiInitialLng = cameraPositionState.position.target.longitude
+                                    addPoiLinkedOfficialId = null
+                                    addPoiExistingCommunityId = null
+                                    addPoiInitialName = ""
+                                    addPoiInitialAddress = ""
+                                    showAddPoiSheet = true
+                                },
+                                label = { Text("+ POI") }
+                            )
+                        }
                     }
                     if (favoritesRepo != null) {
-                        FilterChip(
-                            selected = showFavoritesOnly,
-                            onClick = { showFavoritesOnly = !showFavoritesOnly },
-                            label = { Text(if (showFavoritesOnly) "Saved only" else "Saved") }
-                        )
+                        item {
+                            FilterChip(
+                                selected = showFavoritesOnly,
+                                onClick = { showFavoritesOnly = !showFavoritesOnly },
+                                label = { Text(if (showFavoritesOnly) "Saved only" else "Saved") }
+                            )
+                        }
                     }
                 }
             }
