@@ -89,7 +89,8 @@ private fun vectorDrawableToBitmapDescriptor(
 
 /** Marker size in px (fixed, not scaling with zoom). */
 private fun markerSizePxForZoom(zoom: Float): Int {
-    return 80
+    // Larger marker + label for readability on phone screens.
+    return 96
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -166,6 +167,7 @@ fun MapScreen(
 
     var mapSizePx by remember { mutableStateOf(IntSize.Zero) }
     var selectedPoi by remember { mutableStateOf<Poi?>(null) }
+    var scrollRequestPoiId by remember { mutableStateOf<String?>(null) }
     var poiForDetailsDialog by remember { mutableStateOf<Poi?>(null) }
     var availabilityByPoiId by remember { mutableStateOf<Map<String, StationAvailabilitySummary>>(emptyMap()) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
@@ -524,6 +526,7 @@ fun MapScreen(
                             icon = markerBitmap,
                             onClick = {
                                 selectedPoi = poi
+                                scrollRequestPoiId = poi.id
                                 scope.launch { sheetState.show() }
                                 true
                             }
@@ -552,14 +555,68 @@ fun MapScreen(
         }
     }
 
+    // Keep the map camera centered on the POI currently selected in the bottom sheet.
+    // We intentionally wait for programmatic sheet scrolling to finish (see `scrollRequestPoiId`),
+    // otherwise the map animation could fight with the sheet repositioning.
+    LaunchedEffect(selectedPoi?.id, scrollRequestPoiId) {
+        val poi = selectedPoi ?: return@LaunchedEffect
+        if (scrollRequestPoiId != null) return@LaunchedEffect
+        cameraPositionState.animate(
+            CameraUpdateFactory.newLatLngZoom(
+                LatLng(poi.latitude, poi.longitude),
+                15f
+            )
+        )
+    }
+
     if (selectedPoi != null) {
-        val listToShow = remember(pois, selectedPoi, showFavoritesOnly, favoriteIds) {
-            val base = if (showFavoritesOnly && favoriteIds.isNotEmpty()) pois.filter { it.id in favoriteIds } else pois
+        val base = if (showFavoritesOnly && favoriteIds.isNotEmpty()) pois.filter { it.id in favoriteIds } else pois
+        val listToShow = remember(base, selectedPoi?.id) {
             val sel = selectedPoi ?: return@remember base
-            listOf(sel) + base.filter { it.id != sel.id }
+            if (base.any { it.id == sel.id }) base else listOf(sel) + base
         }
+        val currentListToShow by rememberUpdatedState(listToShow)
+
+        // If the user tapped a map marker, scroll the bottom sheet so the corresponding card is shown.
+        LaunchedEffect(scrollRequestPoiId) {
+            val requestId = scrollRequestPoiId ?: return@LaunchedEffect
+            val index = currentListToShow.indexOfFirst { it.id == requestId }
+            if (index >= 0) {
+                lazyListState.animateScrollToItem(index)
+            }
+            scrollRequestPoiId = null
+        }
+
+        // When the LazyRow is snapped, consider the card closest to the center as the "selected" card.
+        // Selecting a new card drives the camera centering via the `LaunchedEffect(selectedPoi?.id, ...)` above.
+        val currentScrollRequestPoiId by rememberUpdatedState(scrollRequestPoiId)
+        LaunchedEffect(lazyListState) {
+            snapshotFlow { lazyListState.isScrollInProgress }.collect { inProgress ->
+                if (inProgress) return@collect
+                if (currentScrollRequestPoiId != null) return@collect
+
+                val viewportWidth = lazyListState.layoutInfo.viewportSize.width
+                if (viewportWidth <= 0) return@collect
+
+                val viewportCenter = viewportWidth / 2
+                val closestItem = lazyListState.layoutInfo.visibleItemsInfo.minByOrNull { item ->
+                    val itemCenter = item.offset + item.size / 2
+                    kotlin.math.abs(itemCenter - viewportCenter)
+                }
+
+                val centeredPoi = closestItem?.index?.let { idx -> currentListToShow.getOrNull(idx) } ?: return@collect
+                if (selectedPoi?.id != centeredPoi.id) {
+                    selectedPoi = centeredPoi
+                }
+            }
+        }
+
         ModalBottomSheet(
-            onDismissRequest = { scope.launch { sheetState.hide() }; selectedPoi = null },
+            onDismissRequest = {
+                scope.launch { sheetState.hide() }
+                selectedPoi = null
+                scrollRequestPoiId = null
+            },
             sheetState = sheetState,
             containerColor = Color(0xFF1E293B),
             dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.7f)) }
@@ -593,6 +650,7 @@ fun MapScreen(
                             }
                         },
                         onShowDetails = { poiForDetailsDialog = poi },
+                        isSelected = poi.id == selectedPoi?.id,
                         isLoggedIn = settings.isLoggedIn,
                         isFavorite = isFav,
                         onToggleFavorite = if (settings.isLoggedIn && favoritesRepo != null) {

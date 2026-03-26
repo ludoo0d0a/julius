@@ -26,7 +26,7 @@ object AutoPoiUiHelper {
             useVehicleFilter = false,
             vehicleEnergy = "",
             vehicleGasTypes = emptySet(),
-            sizePx = 64
+            sizePx = 72
         )
         return Place.Builder(CarLocation.create(poi.latitude, poi.longitude))
             .setMarker(
@@ -60,7 +60,7 @@ object AutoPoiUiHelper {
             useVehicleFilter = useVehicleFilter,
             vehicleEnergy = vehicleEnergy,
             vehicleGasTypes = vehicleGasTypes,
-            sizePx = 64
+            sizePx = 72
         )
         val place = Place.Builder(CarLocation.create(poi.latitude, poi.longitude))
             .setMarker(

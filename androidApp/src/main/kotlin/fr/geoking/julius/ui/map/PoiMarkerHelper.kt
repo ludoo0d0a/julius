@@ -48,23 +48,49 @@ object PoiMarkerHelper {
         drawShape(canvas, paint, category, sizePx)
 
         // 2. Draw Icon
-        val iconSize = (sizePx * 0.45).toInt()
+        // Slightly oversized icon: makes the POI "anchor" easier to read.
+        val iconSize = (sizePx * 0.52).toInt()
         val iconBitmap = vectorToBitmap(context, iconResId, iconSize)
         if (iconBitmap != null) {
             val left = (sizePx - iconSize) / 2f
-            val top = sizePx * 0.15f
+            // Keep some headroom for the price badge which overlays the icon.
+            val top = sizePx * 0.20f
             canvas.drawBitmap(iconBitmap, left, top, null)
         }
 
-        // 3. Draw Label
+        // 3. Draw Label (price / power) as a badge overlay on top of the icon.
         if (!label.isNullOrEmpty()) {
+            val textSizePx = sizePx * 0.26f
             paint.color = Color.WHITE
-            paint.textSize = sizePx * 0.22f
+            paint.textSize = textSizePx
             paint.textAlign = Paint.Align.CENTER
             paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
 
             val textX = sizePx / 2f
-            val textY = sizePx * 0.85f
+            val badgeCenterY = sizePx * 0.45f
+
+            val textWidth = paint.measureText(label)
+            val badgePaddingX = sizePx * 0.06f
+            val badgeWidth = (textWidth + badgePaddingX * 2f).coerceAtMost(sizePx * 0.88f)
+            val badgeHeight = textSizePx * 1.25f
+            val badgeRadius = badgeHeight / 2f
+            val badgeLeft = textX - badgeWidth / 2f
+            val badgeTop = badgeCenterY - badgeHeight / 2f
+
+            val badgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                this.color = Color.argb(180, 0, 0, 0) // readable on all marker background colors
+                this.style = Paint.Style.FILL
+            }
+            canvas.drawRoundRect(
+                RectF(badgeLeft, badgeTop, badgeLeft + badgeWidth, badgeTop + badgeHeight),
+                badgeRadius,
+                badgeRadius,
+                badgePaint
+            )
+
+            // Center the text inside the badge using font metrics.
+            val fm = paint.fontMetrics
+            val textY = badgeCenterY - (fm.ascent + fm.descent) / 2f
             canvas.drawText(label, textX, textY, paint)
         }
 
@@ -98,7 +124,7 @@ object PoiMarkerHelper {
                     val id = MapPoiFilter.fuelNameToId(p.fuelName)
                     id != null && (preferredEnergies.isEmpty() || id in preferredEnergies)
                 }?.minByOrNull { it.price }?.price
-                price?.let { "%.2f".format(it) }
+                price?.let { "€%.2f".format(it) }
             }
             else -> null
         }

@@ -123,7 +123,8 @@ class AutoSurfaceRenderer(
         val centerX = lonToTileX(lon, zoom)
         val centerY = latToTileY(lat, zoom)
 
-        val markerSize = 60 // smaller for Android Auto
+        // Larger marker makes the price/power badge readable at a glance.
+        val markerSize = 72
 
         pois.forEach { poi ->
             val tileX = lonToTileX(poi.longitude, zoom)

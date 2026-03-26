@@ -31,6 +31,7 @@ fun PoiDetailCard(
     onNavigate: () -> Unit,
     onLocate: () -> Unit,
     onShowDetails: () -> Unit,
+    isSelected: Boolean = false,
     isLoggedIn: Boolean = false,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
@@ -65,7 +66,7 @@ fun PoiDetailCard(
         modifier = modifier
             .widthIn(min = 300.dp, max = 360.dp)
             .height(210.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF334155)),
+        colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFF475569) else Color(0xFF334155)),
         shape = MaterialTheme.shapes.large
     ) {
         Column(
