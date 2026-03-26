@@ -31,17 +31,45 @@ enum class LlamatikModelVariant(
     ),
     Gemma2BGguf(
         AgentType.Llamatik,
-        displayName = "Gemma 2B (Q4_0)",
-        sizeDescription = "~1.4 GB, GGUF",
-        fileName = "gemma-2-2b-Q4_0.gguf",
-        downloadUrl = "https://huggingface.co/tensorblock/gemma-2-2b-GGUF/resolve/main/gemma-2-2b-Q4_0.gguf"
+        displayName = "Gemma 2B IT (Q4_K_M)",
+        sizeDescription = "~1.7 GB, GGUF",
+        fileName = "gemma-2-2b-it-Q4_K_M.gguf",
+        downloadUrl = "https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf"
+    ),
+    Llama32_1B_Gguf(
+        AgentType.Llamatik,
+        displayName = "Llama 3.2 1B (Q4_K_M)",
+        sizeDescription = "~800 MB, GGUF",
+        fileName = "Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+        downloadUrl = "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf"
+    ),
+    TinyLlamaGguf(
+        AgentType.Llamatik,
+        displayName = "TinyLlama 1.1B (Q4_K_M)",
+        sizeDescription = "~670 MB, GGUF",
+        fileName = "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
+        downloadUrl = "https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
     ),
     Qwen05BGguf(
         AgentType.LlamaCpp,
         displayName = "Qwen 2.5 0.5B (Q4_K_M)",
-        sizeDescription = "~390 MB, GGUF",
-        fileName = "qwen2.5-0.5b-instruct-q4_k_m.gguf",
-        downloadUrl = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
+        sizeDescription = "~400 MB, GGUF",
+        fileName = "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
+        downloadUrl = "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
+    ),
+    SmolLM2_135M_Gguf(
+        AgentType.PocketPal,
+        displayName = "SmolLM2 135M (Q4_K_M)",
+        sizeDescription = "~100 MB, GGUF",
+        fileName = "SmolLM2-135M-Instruct-Q4_K_M.gguf",
+        downloadUrl = "https://huggingface.co/bartowski/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct-Q4_K_M.gguf"
+    ),
+    Qwen05B_Pocket_Gguf(
+        AgentType.PocketPal,
+        displayName = "Qwen 2.5 0.5B (Q4_K_M)",
+        sizeDescription = "~400 MB, GGUF",
+        fileName = "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
+        downloadUrl = "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
     ),
 
     // MediaPipe / Gemini Nano / AI Edge (.bin / .task)
@@ -50,23 +78,39 @@ enum class LlamatikModelVariant(
         displayName = "Gemma 2B IT (Int4)",
         sizeDescription = "~1.35 GB, MediaPipe",
         fileName = "gemma-1.1-2b-it-gpu-int4.bin",
-        downloadUrl = "https://huggingface.co/google/gemma-1.1-2b-it-gpu-int4/resolve/main/gemma-1.1-2b-it-gpu-int4.bin"
+        downloadUrl = "https://huggingface.co/jeiku/Gemma-2b-it-MediaPipe/resolve/main/gemma-2b-it-gpu-int4.bin"
     ),
     Phi2MediaPipe(
         AgentType.MediaPipe,
         displayName = "Phi-2 (Int4)",
         sizeDescription = "~1.5 GB, MediaPipe",
         fileName = "phi-2-gpu-int4.bin",
-        downloadUrl = "https://huggingface.co/google/phi-2-gpu-int4/resolve/main/phi-2-gpu-int4.bin"
+        downloadUrl = "https://huggingface.co/jeiku/Phi-2-MediaPipe/resolve/main/phi-2-gpu-int4.bin"
     ),
 
-    // MLC-LLM (Multi-file, but we point to a main one for identification)
-    Llama3Mlc(
+    // RunAnywhere / AI Edge
+    Qwen05B_Edge_Gguf(
+        AgentType.AiEdge,
+        displayName = "Qwen 2.5 0.5B (Q4_K_M)",
+        sizeDescription = "~400 MB, GGUF",
+        fileName = "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
+        downloadUrl = "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
+    ),
+    SmolLM2_135M_Run_Gguf(
+        AgentType.RunAnywhere,
+        displayName = "SmolLM2 135M (Q4_K_M)",
+        sizeDescription = "~100 MB, GGUF",
+        fileName = "SmolLM2-135M-Instruct-Q4_K_M.gguf",
+        downloadUrl = "https://huggingface.co/bartowski/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct-Q4_K_M.gguf"
+    ),
+
+    // MLC-LLM
+    Phi2_Mlc(
         AgentType.MlcLlm,
-        displayName = "Llama-3-8B (Q4f16_1)",
-        sizeDescription = "~4.5 GB, MLC format",
-        fileName = "llama-3-8b-q4f16_1.mlc",
-        downloadUrl = "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f16_1-MLC/resolve/main/params/ndarray-cache.json"
+        displayName = "Phi-2 (Q4f16_1)",
+        sizeDescription = "~1.6 GB, MLC format",
+        fileName = "phi-2-q4f16_1-MLC",
+        downloadUrl = "https://huggingface.co/mlc-ai/phi-2-q4f16_1-MLC/resolve/main/params/ndarray-cache.json"
     )
 }
 
