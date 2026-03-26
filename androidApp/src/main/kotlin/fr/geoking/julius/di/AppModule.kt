@@ -229,7 +229,9 @@ val appModule = module {
             val db = Room.databaseBuilder(
                 androidContext(),
                 AppDatabase::class.java, "julius-db"
-            ).fallbackToDestructiveMigration().build()
+            )
+                .addMigrations(AppDatabase.MIGRATION_1_2)
+                .build()
             RoomMessagePersistence(db.chatMessageDao())
         } catch (e: Throwable) {
             android.util.Log.e("AppModule", "Failed to initialize Room persistence", e)

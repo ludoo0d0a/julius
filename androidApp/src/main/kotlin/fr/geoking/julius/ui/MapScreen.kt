@@ -71,6 +71,8 @@ import fr.geoking.julius.ui.map.PoiDetailCard
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
 import fr.geoking.julius.ui.map.PoiMarkerHelper
 import fr.geoking.julius.poi.PoiMerger
+import fr.geoking.julius.effectiveIrvePowerLevels
+import fr.geoking.julius.effectiveMapEnergyFilterIds
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
@@ -857,6 +859,8 @@ fun MapScreen(
                     PoiDetailCard(
                         poi = poi,
                         availabilitySummary = availabilityByPoiId[poi.id],
+                        highlightedFuelIds = settings.effectiveMapEnergyFilterIds(),
+                        highlightedPowerLevels = settings.effectiveIrvePowerLevels(),
                         onNavigate = {
                             val uri = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${Uri.encode(poi.name)}")
                             context.startActivity(Intent(Intent.ACTION_VIEW, uri))
@@ -908,6 +912,8 @@ fun MapScreen(
         PoiDetailsFullscreenDialog(
             poi = poi,
             availabilitySummary = availabilityByPoiId[poi.id],
+            highlightedFuelIds = settings.effectiveMapEnergyFilterIds(),
+            highlightedPowerLevels = settings.effectiveIrvePowerLevels(),
             rating = ratingState.value,
             onRate = { r ->
                 settingsManager.setPoiRating(poi.id, r)

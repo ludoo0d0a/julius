@@ -102,11 +102,16 @@ open class ConversationStore(
 
     init {
         scope.launch {
-            persistence?.let {
-                val oneWeekAgo = getCurrentTimeMillis() - 7L * 24 * 60 * 60 * 1000
-                it.cleanupOldMessages(oneWeekAgo)
-                val lastMessages = it.loadMessages(limit = 20)
+            val p = persistence ?: return@launch
+            try {
+                val lastMessages = withContext(Dispatchers.IO) {
+                    val oneWeekAgo = getCurrentTimeMillis() - 7L * 24 * 60 * 60 * 1000
+                    p.cleanupOldMessages(oneWeekAgo)
+                    p.loadMessages(limit = 20)
+                }
                 _state.value = _state.value.copy(messages = lastMessages)
+            } catch (e: Exception) {
+                log.e(e) { "Failed to load persisted messages" }
             }
         }
 
@@ -283,7 +288,14 @@ open class ConversationStore(
         val current = _state.value.messages
         _state.value = _state.value.copy(messages = current + msg)
         scope.launch {
-            persistence?.saveMessage(msg)
+            val p = persistence ?: return@launch
+            try {
+                withContext(Dispatchers.IO) {
+                    p.saveMessage(msg)
+                }
+            } catch (e: Exception) {
+                log.e(e) { "Failed to persist message (id=${msg.id})" }
+            }
         }
     }
 
@@ -356,7 +368,14 @@ open class ConversationStore(
             lastError = null
         )
         scope.launch {
-            persistence?.clearMessages()
+            val p = persistence ?: return@launch
+            try {
+                withContext(Dispatchers.IO) {
+                    p.clearMessages()
+                }
+            } catch (e: Exception) {
+                log.e(e) { "Failed to clear persisted messages" }
+            }
         }
     }
 

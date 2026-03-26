@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -21,15 +22,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.R
 import fr.geoking.julius.api.belib.StationAvailabilitySummary
+import fr.geoking.julius.poi.MapPoiFilter
 import fr.geoking.julius.poi.PoiCategory
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.ui.BrandHelper
+import fr.geoking.julius.ui.ColorHelper
 import kotlin.math.roundToInt
 
 @Composable
 fun PoiDetailCard(
     poi: Poi,
     availabilitySummary: StationAvailabilitySummary? = null,
+    highlightedFuelIds: Set<String> = emptySet(),
+    highlightedPowerLevels: Set<Int> = emptySet(),
     onNavigate: () -> Unit,
     onLocate: () -> Unit,
     onShowDetails: () -> Unit,
@@ -167,6 +172,23 @@ fun PoiDetailCard(
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
+
+                            // Highlight power bucket match when a power filter is active.
+                            val powerKw = poi.powerKw
+                            if (powerKw != null && highlightedPowerLevels.isNotEmpty()) {
+                                val matchedLevel = matchedPowerLevel(powerKw, highlightedPowerLevels)
+                                val color = matchedLevel?.let { ColorHelper.getPowerColorByLevel(it) }
+                                Text(
+                                    text = "${powerKw.roundToInt()} kW",
+                                    color = when {
+                                        matchedLevel != null && color != null -> color
+                                        else -> Color.White.copy(alpha = 0.45f)
+                                    },
+                                    fontSize = 11.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 }
@@ -214,20 +236,32 @@ fun PoiDetailCard(
                                 if (prices.isNotEmpty()) {
                                     val sorted = prices.sortedBy { it.fuelName.lowercase() }
                                     sorted.take(6).forEach { fp ->
+                                        val fuelId = MapPoiFilter.fuelNameToId(fp.fuelName)
+                                        val hasFuelFilter = highlightedFuelIds.isNotEmpty()
+                                        val isMatch = !hasFuelFilter || (fuelId != null && fuelId in highlightedFuelIds)
+                                        val matchColor = fuelId?.let { ColorHelper.getFuelColor(it) }
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween
                                         ) {
                                             Text(
                                                 text = fp.fuelName,
-                                                color = Color.White.copy(alpha = 0.85f),
+                                                color = when {
+                                                    hasFuelFilter && isMatch && matchColor != null -> matchColor
+                                                    hasFuelFilter && !isMatch -> Color.White.copy(alpha = 0.45f)
+                                                    else -> Color.White.copy(alpha = 0.85f)
+                                                },
                                                 fontSize = 12.sp,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                             Text(
                                                 text = if (fp.outOfStock) "—" else "€%.3f".format(fp.price),
-                                                color = if (fp.outOfStock) Color.White.copy(alpha = 0.5f) else Color(0xFF22C55E),
+                                                color = when {
+                                                    fp.outOfStock -> Color.White.copy(alpha = 0.5f)
+                                                    hasFuelFilter && !isMatch -> Color.White.copy(alpha = 0.45f)
+                                                    else -> Color(0xFF22C55E)
+                                                },
                                                 fontSize = 12.sp,
                                                 fontWeight = FontWeight.Medium
                                             )
@@ -255,9 +289,17 @@ fun PoiDetailCard(
                                     poi.chargePointCount?.let { n -> if (n == 1) "1 point" else "$n points" },
                                 ).joinToString(" • ")
                                 if (line.isNotBlank()) {
+                                    val powerKw = poi.powerKw
+                                    val hasPowerFilter = highlightedPowerLevels.isNotEmpty()
+                                    val matchedLevel = if (powerKw != null && hasPowerFilter) matchedPowerLevel(powerKw, highlightedPowerLevels) else null
+                                    val powerColor = matchedLevel?.let { ColorHelper.getPowerColorByLevel(it) }
                                     Text(
                                         text = line,
-                                        color = Color.White.copy(alpha = 0.85f),
+                                        color = when {
+                                            powerColor != null -> powerColor
+                                            hasPowerFilter && matchedLevel == null -> Color.White.copy(alpha = 0.45f)
+                                            else -> Color.White.copy(alpha = 0.85f)
+                                        },
                                         fontSize = 12.sp,
                                         maxLines = 2,
                                         overflow = TextOverflow.Ellipsis
@@ -371,6 +413,21 @@ private fun rememberSources(source: String?): List<String> {
             ?.filter { it.isNotBlank() }
             ?.distinct()
             ?: emptyList()
+    }
+}
+
+private fun matchedPowerLevel(powerKw: Double, levels: Set<Int>): Int? {
+    // Same semantics as `StationMapFilters.powerMatchesAnyLevel`, but returns the matched bucket.
+    return levels.sorted().firstOrNull { level ->
+        when (level) {
+            0 -> true
+            20 -> powerKw in 20.0..49.9
+            50 -> powerKw in 50.0..99.9
+            100 -> powerKw in 100.0..199.9
+            200 -> powerKw in 200.0..299.9
+            300 -> powerKw >= 300.0
+            else -> powerKw >= level.toDouble()
+        }
     }
 }
 
