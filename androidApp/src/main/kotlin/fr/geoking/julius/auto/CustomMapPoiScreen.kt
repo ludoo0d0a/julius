@@ -224,8 +224,12 @@ class CustomMapPoiScreen(
                                 object : Screen(carContext) {
                                     override fun onGetTemplate(): Template {
                                         return MessageTemplate.Builder(errorMsg)
-                                            .setTitle("API Errors")
-                                            .setHeaderAction(Action.BACK)
+                                            .setHeader(
+                                                Header.Builder()
+                                                    .setTitle("API Errors")
+                                                    .setStartHeaderAction(Action.BACK)
+                                                    .build()
+                                            )
                                             .addAction(
                                                 Action.Builder()
                                                     .setTitle("Retry")
