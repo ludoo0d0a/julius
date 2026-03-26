@@ -113,6 +113,7 @@ class AndroidNetworkService(
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun mapTelephonyNetworkType(type: Int): NetworkType {
         return when (type) {
             TelephonyManager.NETWORK_TYPE_GPRS -> NetworkType.GPRS
