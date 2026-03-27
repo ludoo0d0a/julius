@@ -151,19 +151,31 @@ class PoiProviderRealApiTests {
             val overpassClient = OverpassClient(client)
             val provider = OverpassProvider(overpassClient)
 
-            // Test for Toilets
-            val toilets = provider.search(PoiSearchRequest(parisLat, parisLon, categories = setOf(PoiCategory.Toilet)))
-            println("Overpass Toilets: ${toilets.size}")
-            assertTrue(toilets.isNotEmpty(), "Overpass should return some toilets in Paris")
+            var success = false
+            var attempts = 0
+            while (!success && attempts < 3) {
+                try {
+                    attempts++
+                    // Test for Toilets
+                    val toilets = provider.search(PoiSearchRequest(parisLat, parisLon, categories = setOf(PoiCategory.Toilet)))
+                    println("Overpass Toilets: ${toilets.size}")
+                    assertTrue(toilets.isNotEmpty(), "Overpass should return some toilets in Paris")
 
-            delay(1500) // Avoid rate limiting
+                    delay(3000) // Avoid rate limiting
 
-            // Test for Restaurants
-            val restaurants = provider.search(PoiSearchRequest(parisLat, parisLon, categories = setOf(PoiCategory.Restaurant)))
-            println("Overpass Restaurants: ${restaurants.size}")
-            assertTrue(restaurants.isNotEmpty(), "Overpass should return some restaurants in Paris")
+                    // Test for Restaurants
+                    val restaurants = provider.search(PoiSearchRequest(parisLat, parisLon, categories = setOf(PoiCategory.Restaurant)))
+                    println("Overpass Restaurants: ${restaurants.size}")
+                    assertTrue(restaurants.isNotEmpty(), "Overpass should return some restaurants in Paris")
 
-            delay(1500) // Avoid rate limiting
+                    success = true
+                } catch (e: Exception) {
+                    println("⚠️ Overpass test attempt $attempts failed: ${e.message}")
+                    if (attempts < 3) delay(5000) else throw e
+                }
+            }
+
+            delay(3000) // Avoid rate limiting
 
             // Test for Radars
             try {

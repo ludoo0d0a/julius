@@ -61,56 +61,67 @@ class SelectorPoiProvider(
     }
 
     override suspend fun searchResult(request: PoiSearchRequest): PoiSearchResult {
+        val allPois = mutableListOf<Poi>()
+        val errors = mutableListOf<PoiProviderError>()
+
         val settings = settingsManager.settings.value
-        val providers = if (settings.useVehicleFilter && settings.fuelCard == fr.geoking.julius.FuelCard.Routex && (settings.vehicleEnergy == "gas" || settings.vehicleEnergy == "hybrid")) {
-            setOf(PoiProviderType.Routex)
-        } else {
+        val providers = try {
+            if (settings.useVehicleFilter && settings.fuelCard == fr.geoking.julius.FuelCard.Routex && (settings.vehicleEnergy == "gas" || settings.vehicleEnergy == "hybrid")) {
+                setOf(PoiProviderType.Routex)
+            } else {
+                settings.selectedPoiProviders
+            }
+        } catch (e: Exception) {
+            Log.e("SelectorPoiProvider", "Failed to resolve providers from settings", e)
             settings.selectedPoiProviders
         }
 
         if (providers.isEmpty()) return PoiSearchResult()
 
         val vehicleType = settings.vehicleType
-        val categories = providers.flatMap { provider ->
-            when (provider) {
-                PoiProviderType.Overpass -> {
-                val fromSettings = settings.selectedOverpassAmenityTypes.mapNotNull { id ->
-                    when (id) {
-                        "toilets" -> PoiCategory.Toilet
-                        "drinking_water" -> PoiCategory.DrinkingWater
-                        "camp_site" -> PoiCategory.Camping
-                        "caravan_site" -> PoiCategory.CaravanSite
-                        "picnic_site" -> PoiCategory.PicnicSite
-                        "truck_stop" -> PoiCategory.TruckStop
-                        "rest_area" -> PoiCategory.RestArea
-                        "restaurant" -> PoiCategory.Restaurant
-                        "fast_food" -> PoiCategory.FastFood
-                        "speed_camera" -> PoiCategory.Radar
-                        else -> null
+        val categories = try {
+            providers.flatMap { provider ->
+                when (provider) {
+                    PoiProviderType.Overpass -> {
+                        val fromSettings = settings.selectedOverpassAmenityTypes.mapNotNull { id ->
+                            when (id) {
+                                "toilets" -> PoiCategory.Toilet
+                                "drinking_water" -> PoiCategory.DrinkingWater
+                                "camp_site" -> PoiCategory.Camping
+                                "caravan_site" -> PoiCategory.CaravanSite
+                                "picnic_site" -> PoiCategory.PicnicSite
+                                "truck_stop" -> PoiCategory.TruckStop
+                                "rest_area" -> PoiCategory.RestArea
+                                "restaurant" -> PoiCategory.Restaurant
+                                "fast_food" -> PoiCategory.FastFood
+                                "speed_camera" -> PoiCategory.Radar
+                                else -> null
+                            }
+                        }.toSet()
+                        val defaultOverpass = fromSettings.ifEmpty {
+                            setOf(PoiCategory.Toilet, PoiCategory.DrinkingWater)
+                        }
+                        when (vehicleType) {
+                            VehicleType.Truck -> defaultOverpass + setOf(PoiCategory.TruckStop, PoiCategory.RestArea, PoiCategory.Gas)
+                            VehicleType.Motorhome -> defaultOverpass + setOf(PoiCategory.CaravanSite, PoiCategory.Camping, PoiCategory.PicnicSite)
+                            else -> defaultOverpass
+                        }
                     }
-                }.toSet()
-                val defaultOverpass = fromSettings.ifEmpty {
-                    setOf(PoiCategory.Toilet, PoiCategory.DrinkingWater)
+
+                    else -> {
+                        when (vehicleType) {
+                            VehicleType.Truck -> setOf(PoiCategory.Gas, PoiCategory.TruckStop, PoiCategory.RestArea)
+                            else -> setOf(PoiCategory.Gas, PoiCategory.Irve)
+                        }
+                    }
                 }
-                when (vehicleType) {
-                    VehicleType.Truck -> defaultOverpass + setOf(PoiCategory.TruckStop, PoiCategory.RestArea, PoiCategory.Gas)
-                    VehicleType.Motorhome -> defaultOverpass + setOf(PoiCategory.CaravanSite, PoiCategory.Camping, PoiCategory.PicnicSite)
-                    else -> defaultOverpass
-                }
-            }
-            else -> {
-                when (vehicleType) {
-                    VehicleType.Truck -> setOf(PoiCategory.Gas, PoiCategory.TruckStop, PoiCategory.RestArea)
-                    else -> setOf(PoiCategory.Gas, PoiCategory.Irve)
-                }
-            }
+            }.toSet()
+        } catch (e: Exception) {
+            Log.e("SelectorPoiProvider", "Failed to map categories", e)
+            setOf(PoiCategory.Gas, PoiCategory.Irve)
         }
-        }.toSet()
 
         val effectiveRequest = request.copy(categories = categories)
-
-        val allPois = mutableListOf<Poi>()
-        val errors = mutableListOf<PoiProviderError>()
 
         providers.forEach { providerType ->
             val activeProvider = getProvider(providerType)
