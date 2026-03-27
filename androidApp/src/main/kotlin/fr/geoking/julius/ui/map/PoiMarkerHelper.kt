@@ -48,49 +48,31 @@ object PoiMarkerHelper {
         drawShape(canvas, paint, category, sizePx)
 
         // 2. Draw Icon
-        // Slightly oversized icon: makes the POI "anchor" easier to read.
-        val iconSize = (sizePx * 0.52).toInt()
+        // Icon fits at 90% in colored circles.
+        val iconSize = (sizePx * 0.90).toInt()
         val iconBitmap = vectorToBitmap(context, iconResId, iconSize)
         if (iconBitmap != null) {
             val left = (sizePx - iconSize) / 2f
-            // Keep some headroom for the price badge which overlays the icon.
-            val top = sizePx * 0.20f
+            val top = (sizePx - iconSize) / 2f
             canvas.drawBitmap(iconBitmap, left, top, null)
         }
 
-        // 3. Draw Label (price / power) as a badge overlay on top of the icon.
+        // 3. Draw Label (price / power) directly upon the icon.
         if (!label.isNullOrEmpty()) {
             val textSizePx = sizePx * 0.26f
             paint.color = Color.WHITE
             paint.textSize = textSizePx
             paint.textAlign = Paint.Align.CENTER
             paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            // Add shadow to ensure readability on different icon backgrounds.
+            paint.setShadowLayer(3f, 0f, 0f, Color.BLACK)
 
             val textX = sizePx / 2f
-            val badgeCenterY = sizePx * 0.45f
+            val textCenterY = sizePx / 2f
 
-            val textWidth = paint.measureText(label)
-            val badgePaddingX = sizePx * 0.06f
-            val badgeWidth = (textWidth + badgePaddingX * 2f).coerceAtMost(sizePx * 0.88f)
-            val badgeHeight = textSizePx * 1.25f
-            val badgeRadius = badgeHeight / 2f
-            val badgeLeft = textX - badgeWidth / 2f
-            val badgeTop = badgeCenterY - badgeHeight / 2f
-
-            val badgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                this.color = Color.argb(180, 0, 0, 0) // readable on all marker background colors
-                this.style = Paint.Style.FILL
-            }
-            canvas.drawRoundRect(
-                RectF(badgeLeft, badgeTop, badgeLeft + badgeWidth, badgeTop + badgeHeight),
-                badgeRadius,
-                badgeRadius,
-                badgePaint
-            )
-
-            // Center the text inside the badge using font metrics.
+            // Center the text using font metrics.
             val fm = paint.fontMetrics
-            val textY = badgeCenterY - (fm.ascent + fm.descent) / 2f
+            val textY = textCenterY - (fm.ascent + fm.descent) / 2f
             canvas.drawText(label, textX, textY, paint)
         }
 
@@ -162,41 +144,10 @@ object PoiMarkerHelper {
 
     private fun drawShape(canvas: Canvas, paint: Paint, category: PoiCategory, size: Int) {
         val s = size.toFloat()
-        when (category) {
-            PoiCategory.Gas -> {
-                canvas.drawCircle(s / 2, s / 2, s / 2, paint)
-            }
-            PoiCategory.Irve -> {
-                val rect = RectF(0f, 0f, s, s)
-                canvas.drawRoundRect(rect, s * 0.2f, s * 0.2f, paint)
-            }
-            PoiCategory.Radar -> {
-                val path = createPolygonPath(s / 2, s / 2, s / 2, 6) // Hexagon
-                canvas.drawPath(path, paint)
-            }
-            else -> {
-                val path = createPolygonPath(s / 2, s / 2, s / 2, 5) // Pentagon
-                canvas.drawPath(path, paint)
-            }
-        }
+        // Unify all markers to use colored circles.
+        canvas.drawCircle(s / 2, s / 2, s / 2, paint)
     }
 
-    private fun createPolygonPath(cx: Float, cy: Float, radius: Float, sides: Int): Path {
-        val path = Path()
-        val angle = 2.0 * Math.PI / sides
-        path.moveTo(
-            cx + (radius * cos(0.0)).toFloat(),
-            cy + (radius * sin(0.0)).toFloat()
-        )
-        for (i in 1 until sides) {
-            path.lineTo(
-                cx + (radius * cos(angle * i)).toFloat(),
-                cy + (radius * sin(angle * i)).toFloat()
-            )
-        }
-        path.close()
-        return path
-    }
 
     private fun getIconResId(poi: Poi, brandInfo: BrandHelper.BrandInfo?): Int {
         brandInfo?.roundedIconResId?.let { return it }
