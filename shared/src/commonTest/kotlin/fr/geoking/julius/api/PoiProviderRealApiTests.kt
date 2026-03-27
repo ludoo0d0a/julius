@@ -151,23 +151,43 @@ class PoiProviderRealApiTests {
             val overpassClient = OverpassClient(client)
             val provider = OverpassProvider(overpassClient)
 
+            suspend fun <T> withRetry(block: suspend () -> T): T {
+                var lastException: Exception? = null
+                repeat(3) { attempt ->
+                    try {
+                        return block()
+                    } catch (e: Exception) {
+                        lastException = e
+                        println("⚠️ Overpass attempt ${attempt + 1} failed: ${e.message}. Retrying...")
+                        delay(5000) // Wait longer on failure
+                    }
+                }
+                throw lastException ?: Exception("Unknown error")
+            }
+
             // Test for Toilets
-            val toilets = provider.search(PoiSearchRequest(parisLat, parisLon, categories = setOf(PoiCategory.Toilet)))
+            val toilets = withRetry {
+                provider.search(PoiSearchRequest(parisLat, parisLon, categories = setOf(PoiCategory.Toilet)))
+            }
             println("Overpass Toilets: ${toilets.size}")
             assertTrue(toilets.isNotEmpty(), "Overpass should return some toilets in Paris")
 
-            delay(1500) // Avoid rate limiting
+            delay(3000) // Avoid rate limiting
 
             // Test for Restaurants
-            val restaurants = provider.search(PoiSearchRequest(parisLat, parisLon, categories = setOf(PoiCategory.Restaurant)))
+            val restaurants = withRetry {
+                provider.search(PoiSearchRequest(parisLat, parisLon, categories = setOf(PoiCategory.Restaurant)))
+            }
             println("Overpass Restaurants: ${restaurants.size}")
             assertTrue(restaurants.isNotEmpty(), "Overpass should return some restaurants in Paris")
 
-            delay(1500) // Avoid rate limiting
+            delay(3000) // Avoid rate limiting
 
             // Test for Radars
             try {
-                val radars = provider.search(PoiSearchRequest(parisLat, parisLon, categories = setOf(PoiCategory.Radar)))
+                val radars = withRetry {
+                    provider.search(PoiSearchRequest(parisLat, parisLon, categories = setOf(PoiCategory.Radar)))
+                }
                 println("Overpass Radars: ${radars.size}")
             } catch (e: Exception) {
                 println("⚠️ Overpass Radar search failed (likely rate limit): ${e.message}")
