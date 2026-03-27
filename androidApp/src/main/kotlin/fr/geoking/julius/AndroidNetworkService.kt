@@ -38,6 +38,20 @@ class AndroidNetworkService(
         // Ensure map module is loaded for Geocoder/Weather deps if needed by LocationHelper indirectly
         // although LocationHelper seems standalone here, MapModuleLoader.ensureLoaded() is often needed
         // for some providers.
+
+        // Register network callback for real-time updates
+        connectivityManager.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: android.net.Network) {
+                updateStatus()
+            }
+            override fun onLost(network: android.net.Network) {
+                updateStatus()
+            }
+            override fun onCapabilitiesChanged(network: android.net.Network, capabilities: NetworkCapabilities) {
+                updateStatus()
+            }
+        })
+
         // Initial status update
         updateStatus()
     }

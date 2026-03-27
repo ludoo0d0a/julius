@@ -22,9 +22,11 @@ import fr.geoking.julius.ui.AgentSetupIssue
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.ConversationState
 import fr.geoking.julius.shared.VoiceEvent
+import fr.geoking.julius.shared.NetworkStatus
 import fr.geoking.julius.ui.anim.AnimationPalette
 import fr.geoking.julius.ui.anim.phone.TrayLightEffectCanvas
 import fr.geoking.julius.ui.components.JulesButton
+import fr.geoking.julius.ui.components.NetworkStatusIcon
 
 /**
  * Main voice UI: status content, tray effect, waveform, mic button, settings.
@@ -35,6 +37,7 @@ fun VoiceMainContent(
     settings: AppSettings,
     palette: AnimationPalette,
     store: ConversationStore,
+    networkStatus: NetworkStatus,
     onSettingsClick: () -> Unit,
     onHistoryClick: () -> Unit = {},
     onMapClick: () -> Unit,
@@ -51,6 +54,12 @@ fun VoiceMainContent(
             .widthIn(max = 600.dp)
             .fillMaxSize()
     ) {
+        NetworkStatusIcon(
+            status = networkStatus,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 16.dp, end = 16.dp)
+        )
         VoiceStatusContent(
             agentName = settings.selectedAgent.name,
             status = state.status,
