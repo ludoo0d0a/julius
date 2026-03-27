@@ -140,18 +140,6 @@ class SelectorPoiProvider(
             }
         }
 
-        if (PoiCategory.Irve in categories &&
-            request.latitude in 49.4..50.2 && request.longitude in 5.7..6.6 &&
-            PoiProviderType.Chargy !in providers) {
-            try {
-                val extra = chargy.search(effectiveRequest)
-                allPois.addAll(extra)
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errors.add(PoiProviderError("Chargy", e.message ?: "Unknown error"))
-            }
-        }
-
         var result = PoiMerger.mergePois(allPois)
         result = enrichLuxembourgOpenVanReferencePrices(
             pois = result,
@@ -194,11 +182,6 @@ class SelectorPoiProvider(
         providers.forEach { providerType ->
             val activeProvider = getProvider(providerType)
             allPois.addAll(activeProvider.getGasStations(latitude, longitude, viewport))
-        }
-
-        if (latitude in 49.4..50.2 && longitude in 5.7..6.6 && PoiProviderType.Chargy !in providers) {
-            val extra = chargy.getGasStations(latitude, longitude, viewport)
-            allPois.addAll(extra)
         }
 
         var result = PoiMerger.mergePois(allPois)

@@ -28,6 +28,9 @@ import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.ConversationState
 import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.shared.PermissionManager
+import fr.geoking.julius.shared.NetworkService
+import fr.geoking.julius.shared.NetworkStatus
+import fr.geoking.julius.shared.VoiceManager
 import fr.geoking.julius.di.MapDeps
 import fr.geoking.julius.di.MapModuleLoader
 import fr.geoking.julius.ui.JulesScreen
@@ -136,8 +139,9 @@ class MainActivity : ComponentActivity() {
             val authManager: GoogleAuthManager = get()
             val permissionManager: PermissionManager = get()
             val julesClient: JulesClient = get()
-            val voiceManager: fr.geoking.julius.shared.VoiceManager = get()
+            val voiceManager: VoiceManager = get()
             val conversationalAgent: ConversationalAgent = get()
+            val networkService: NetworkService = get()
             // Map/route deps are resolved lazily when user opens map (see mapDepsState / ensureMapDeps)
 
             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
@@ -169,6 +173,7 @@ class MainActivity : ComponentActivity() {
                     julesClient = julesClient,
                     voiceManager = voiceManager,
                     conversationalAgent = conversationalAgent,
+                    networkService = networkService,
                     inAppUpdateHelper = inAppUpdateHelper,
                     onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) },
                     pendingNavDestinationFlow = pendingNavDestination
@@ -195,13 +200,15 @@ fun MainUI(
     mapDepsState: kotlinx.coroutines.flow.StateFlow<MapDeps?>,
     onRequestMapDeps: () -> Unit,
     julesClient: JulesClient,
-    voiceManager: fr.geoking.julius.shared.VoiceManager,
+    voiceManager: VoiceManager,
     conversationalAgent: ConversationalAgent,
+    networkService: NetworkService,
     inAppUpdateHelper: InAppUpdateHelper? = null,
     onStartUpdate: (AppUpdateInfo) -> Unit = {},
     pendingNavDestinationFlow: kotlinx.coroutines.flow.MutableStateFlow<NavDestination?> = remember { MutableStateFlow(null) }
 ) {
     val mapDeps by mapDepsState.collectAsState()
+    val networkStatus by networkService.status.collectAsState()
     var showSettings by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
     var showMap by remember { mutableStateOf(false) }
@@ -341,6 +348,7 @@ fun MainUI(
                         palette = palette,
                         settingsManager = settingsManager,
                         store = store,
+                        networkStatus = networkStatus,
                         onSettingsClick = {
                             settingsInitialStack = null
                             showSettings = true
@@ -448,6 +456,12 @@ fun MainUIPreview() {
             object : ConversationalAgent {
                 override suspend fun process(input: String) =
                     fr.geoking.julius.agents.AgentResponse("Mock response", null, null)
+            }
+        },
+        networkService = remember {
+            object : NetworkService {
+                override val status = MutableStateFlow(NetworkStatus())
+                override suspend fun getCurrentStatus() = status.value
             }
         }
     )

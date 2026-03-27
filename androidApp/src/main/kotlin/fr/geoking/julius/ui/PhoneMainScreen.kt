@@ -27,6 +27,7 @@ import fr.geoking.julius.AppTheme
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.ConversationState
+import fr.geoking.julius.shared.NetworkStatus
 import fr.geoking.julius.ui.AgentSetupIssue
 import fr.geoking.julius.ui.anim.AnimationPalette
 import fr.geoking.julius.ui.anim.AnimationPalettes
@@ -45,6 +46,7 @@ fun PhoneMainScreen(
     palette: AnimationPalette,
     settingsManager: SettingsManager,
     store: ConversationStore,
+    networkStatus: NetworkStatus,
     onSettingsClick: () -> Unit,
     onHistoryClick: () -> Unit = {},
     onMapClick: () -> Unit,
@@ -92,6 +94,7 @@ fun PhoneMainScreen(
             settings = settings,
             palette = palette,
             store = store,
+            networkStatus = networkStatus,
             onSettingsClick = onSettingsClick,
             onHistoryClick = onHistoryClick,
             onMapClick = onMapClick,

@@ -129,7 +129,7 @@ private fun approxDistanceKm(lat1: Double, lon1: Double, lat2: Double, lon2: Dou
     return kotlin.math.sqrt(dLatKm * dLatKm + dLonKm * dLonKm)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, kotlinx.coroutines.FlowPreview::class)
 @Composable
 fun MapScreen(
     poiProvider: PoiProvider,
@@ -767,9 +767,8 @@ fun MapScreen(
         val poi = selectedPoi ?: return@LaunchedEffect
         if (scrollRequestPoiId != null) return@LaunchedEffect
         cameraPositionState.animate(
-            CameraUpdateFactory.newLatLngZoom(
-                LatLng(poi.latitude, poi.longitude),
-                15f
+            CameraUpdateFactory.newLatLng(
+                LatLng(poi.latitude, poi.longitude)
             )
         )
     }
@@ -806,7 +805,7 @@ fun MapScreen(
             val requestId = scrollRequestPoiId ?: return@LaunchedEffect
             val index = currentListToShow.indexOfFirst { it.id == requestId }
             if (index >= 0) {
-                lazyListState.animateScrollToItem(index)
+                lazyListState.scrollToItem(index)
             }
             scrollRequestPoiId = null
         }
@@ -868,9 +867,8 @@ fun MapScreen(
                         onLocate = {
                             scope.launch {
                                 cameraPositionState.animate(
-                                    CameraUpdateFactory.newLatLngZoom(
-                                        LatLng(poi.latitude, poi.longitude),
-                                        15f
+                                    CameraUpdateFactory.newLatLng(
+                                        LatLng(poi.latitude, poi.longitude)
                                     )
                                 )
                             }
