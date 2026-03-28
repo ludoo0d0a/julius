@@ -9,10 +9,9 @@ import fr.geoking.julius.R
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiCategory
 import fr.geoking.julius.poi.MapPoiFilter
+import fr.geoking.julius.api.belib.StationAvailabilitySummary
 import fr.geoking.julius.ui.BrandHelper
 import fr.geoking.julius.ui.ColorHelper
-import kotlin.math.cos
-import kotlin.math.sin
 
 object PoiMarkerHelper {
 
@@ -25,56 +24,125 @@ object PoiMarkerHelper {
         useVehicleFilter: Boolean,
         vehicleEnergy: String,
         vehicleGasTypes: Set<String>,
-        sizePx: Int = 100
+        sizePx: Int = 120,
+        availability: StationAvailabilitySummary? = null
     ): Bitmap {
         val label = getPoiLabel(poi, selectedEnergyTypes, useVehicleFilter, vehicleEnergy, vehicleGasTypes)
         val brandInfo = BrandHelper.getBrandInfo(poi.brand)
-        val iconResId = getIconResId(poi, brandInfo)
         val category = poi.poiCategory ?: if (poi.isElectric) PoiCategory.Irve else PoiCategory.Gas
         val color = getPoiColor(poi, category, selectedEnergyTypes, useVehicleFilter, vehicleEnergy, vehicleGasTypes)
 
-        val cacheKey = "${poi.id}_${label}_${iconResId}_${color}_$sizePx"
+        val cacheKey = "${poi.id}_${label}_${brandInfo?.iconResId}_${color}_${availability?.availableCount}_${availability?.totalCount}_$sizePx"
         synchronized(cache) {
             cache.get(cacheKey)?.let { return it }
         }
 
+        // Bitmap is square, but we'll draw a slightly wider bubble to fit content.
         val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-        // 1. Draw Shape Background
+        val padding = sizePx * 0.05f
+        val bubbleWidth = sizePx - 2 * padding
+        val bubbleHeight = (sizePx - 2 * padding) * 0.85f // Leave room for the tail
+        val cornerRadius = bubbleHeight * 0.25f
+
+        val rect = RectF(padding, padding, padding + bubbleWidth, padding + bubbleHeight)
+
+        // 1. Draw Shadow for the bubble
+        paint.setShadowLayer(4f, 0f, 2f, 0x40000000)
+        paint.color = Color.WHITE
+        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, paint)
+        paint.clearShadowLayer()
+
+        // 2. Draw Tail
+        val tailWidth = bubbleWidth * 0.2f
+        val tailHeight = sizePx * 0.15f
+        val path = Path()
+        path.moveTo(sizePx / 2f - tailWidth / 2f, padding + bubbleHeight - 2f) // Overlap slightly to avoid gaps
+        path.lineTo(sizePx / 2f, sizePx - padding)
+        path.lineTo(sizePx / 2f + tailWidth / 2f, padding + bubbleHeight - 2f)
+        path.close()
+        paint.color = Color.WHITE
+        canvas.drawPath(path, paint)
+
+        // 3. Draw Header (Colored part)
+        val headerHeight = bubbleHeight * 0.45f
+        val headerRect = RectF(padding, padding, padding + bubbleWidth, padding + headerHeight)
+        val headerPath = Path()
+        headerPath.addRoundRect(rect, cornerRadius, cornerRadius, Path.Direction.CW)
+        canvas.save()
+        canvas.clipPath(headerPath)
+        canvas.clipRect(headerRect)
         paint.color = color
-        paint.style = Paint.Style.FILL
-        drawShape(canvas, paint, category, sizePx)
+        canvas.drawRect(headerRect, paint)
 
-        // 2. Draw Icon
-        // Icon fits at 90% in colored circles.
-        val iconSize = (sizePx * 0.90).toInt()
-        val iconBitmap = vectorToBitmap(context, iconResId, iconSize)
-        if (iconBitmap != null) {
-            val left = (sizePx - iconSize) / 2f
-            val top = (sizePx - iconSize) / 2f
-            canvas.drawBitmap(iconBitmap, left, top, null)
-        }
-
-        // 3. Draw Label (price / power) directly upon the icon.
+        // 3.1 Header Content (Label & Category Icon)
         if (!label.isNullOrEmpty()) {
-            val textSizePx = sizePx * 0.26f
             paint.color = Color.WHITE
-            paint.textSize = textSizePx
-            paint.textAlign = Paint.Align.CENTER
+            paint.textSize = headerHeight * 0.55f
             paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-            // Add shadow to ensure readability on different icon backgrounds.
-            paint.setShadowLayer(3f, 0f, 0f, Color.BLACK)
+            paint.textAlign = Paint.Align.LEFT
 
-            val textX = sizePx / 2f
-            val textCenterY = sizePx / 2f
+            val labelWidth = paint.measureText(label)
+            val iconSize = headerHeight * 0.5f
+            val spacing = headerHeight * 0.15f
+            val totalWidth = labelWidth + spacing + iconSize
 
-            // Center the text using font metrics.
+            val startX = padding + (bubbleWidth - totalWidth) / 2f
             val fm = paint.fontMetrics
-            val textY = textCenterY - (fm.ascent + fm.descent) / 2f
-            canvas.drawText(label, textX, textY, paint)
+            val textY = padding + headerHeight / 2f - (fm.ascent + fm.descent) / 2f
+
+            canvas.drawText(label, startX, textY, paint)
+
+            val categoryIconRes = if (poi.isElectric) R.drawable.ic_poi_electric else R.drawable.ic_poi_gas
+            val categoryIcon = vectorToBitmap(context, categoryIconRes, iconSize.toInt())
+            if (categoryIcon != null) {
+                canvas.drawBitmap(categoryIcon, startX + labelWidth + spacing, padding + (headerHeight - iconSize) / 2f, null)
+            }
         }
+        canvas.restore()
+
+        // 4. Draw Body Content (Brand Icon & Availability)
+        val bodyTop = padding + headerHeight
+        val bodyHeight = bubbleHeight - headerHeight
+        val availText = availability?.let { "${it.availableCount} / ${it.totalCount}" }
+        val brandResId = brandInfo?.iconResId // Use non-rounded icon as background is already white/shaped
+
+        if (brandResId != null) {
+            val brandIconSize = (bodyHeight * (if (availText != null) 0.55f else 0.75f)).toInt()
+            val brandIcon = vectorToBitmap(context, brandResId, brandIconSize)
+            if (brandIcon != null) {
+                val left = padding + (bubbleWidth - brandIconSize) / 2f
+                val top = if (availText != null) bodyTop + bodyHeight * 0.1f else bodyTop + (bodyHeight - brandIconSize) / 2f
+                canvas.drawBitmap(brandIcon, left, top, null)
+            }
+        } else if (availText == null) {
+            // Fallback if nothing to show in body: show category icon again but larger
+            val iconSize = (bodyHeight * 0.7f).toInt()
+            val categoryIconRes = if (poi.isElectric) R.drawable.ic_poi_electric_rounded else R.drawable.ic_poi_gas_rounded
+            val fallbackIcon = vectorToBitmap(context, categoryIconRes, iconSize)
+            if (fallbackIcon != null) {
+                canvas.drawBitmap(fallbackIcon, padding + (bubbleWidth - iconSize) / 2f, bodyTop + (bodyHeight - iconSize) / 2f, null)
+            }
+        }
+
+        if (availText != null) {
+            paint.color = Color.BLACK
+            paint.textSize = bodyHeight * 0.35f
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            paint.textAlign = Paint.Align.CENTER
+            val fm = paint.fontMetrics
+            val textY = padding + bubbleHeight - bodyHeight * 0.1f - fm.descent
+            canvas.drawText(availText, sizePx / 2f, textY, paint)
+        }
+
+        // 5. Border
+        paint.style = Paint.Style.STROKE
+        paint.color = Color.LTGRAY
+        paint.strokeWidth = 1f
+        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, paint)
+        canvas.drawPath(path, paint)
 
         synchronized(cache) {
             cache.put(cacheKey, bitmap)
@@ -142,25 +210,6 @@ object PoiMarkerHelper {
         }
     }
 
-    private fun drawShape(canvas: Canvas, paint: Paint, category: PoiCategory, size: Int) {
-        val s = size.toFloat()
-        // Unify all markers to use colored circles.
-        canvas.drawCircle(s / 2, s / 2, s / 2, paint)
-    }
-
-
-    private fun getIconResId(poi: Poi, brandInfo: BrandHelper.BrandInfo?): Int {
-        brandInfo?.roundedIconResId?.let { return it }
-        return when (poi.poiCategory) {
-            PoiCategory.Toilet -> R.drawable.ic_poi_toilet_rounded
-            PoiCategory.DrinkingWater -> R.drawable.ic_poi_water_rounded
-            PoiCategory.Camping -> R.drawable.ic_poi_camping_rounded
-            PoiCategory.CaravanSite -> R.drawable.ic_poi_caravan_rounded
-            PoiCategory.PicnicSite -> R.drawable.ic_poi_picnic_rounded
-            PoiCategory.Radar -> R.drawable.ic_poi_radar_rounded
-            else -> if (poi.isElectric) R.drawable.ic_poi_electric_rounded else R.drawable.ic_poi_gas_rounded
-        }
-    }
 
     private fun vectorToBitmap(context: Context, drawableId: Int, size: Int): Bitmap? {
         val drawable = ContextCompat.getDrawable(context, drawableId) ?: return null
