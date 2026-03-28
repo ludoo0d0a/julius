@@ -18,9 +18,10 @@ object SpeechLanguageResolver {
         LanguageAliases("hi", setOf("hindi"))
     )
 
-    private val aliasToTag = languageAliases.flatMap { spec ->
-        spec.aliases.map { alias -> alias.lowercase() to spec.tag }
-    }.toMap()
+    private val aliasToTag = languageAliases
+        .map { spec -> spec.aliases.map { alias -> alias.lowercase() to spec.tag } }
+        .flatten()
+        .toMap()
 
     private val explicitLanguageRegex = run {
         val aliasPattern = aliasToTag.keys.joinToString("|") { Regex.escape(it) }
@@ -38,7 +39,8 @@ object SpeechLanguageResolver {
 
     fun getLanguageName(tag: String?): String? {
         val baseTag = tag?.take(2)?.lowercase()
-        return languageAliases.find { it.tag == baseTag }?.aliases?.firstOrNull()?.replaceFirstChar { it.uppercase() }
+        val raw = languageAliases.find { it.tag == baseTag }?.aliases?.firstOrNull() ?: return null
+        return if (raw.isEmpty()) raw else raw[0].uppercaseChar() + raw.substring(1)
     }
 
     fun detectLanguageTag(text: String): String? {

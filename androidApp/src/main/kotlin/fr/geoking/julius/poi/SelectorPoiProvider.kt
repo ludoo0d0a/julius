@@ -80,8 +80,8 @@ class SelectorPoiProvider(
 
         val vehicleType = settings.vehicleType
         val categories = try {
-            providers.flatMap { provider ->
-                when (provider) {
+            providers.map { providerType ->
+                when (providerType) {
                     PoiProviderType.Overpass -> {
                         val fromSettings = settings.selectedOverpassAmenityTypes.mapNotNull { id ->
                             when (id) {
@@ -115,7 +115,7 @@ class SelectorPoiProvider(
                         }
                     }
                 }
-            }.toSet()
+            }.flatten().toSet()
         } catch (e: Exception) {
             Log.e("SelectorPoiProvider", "Failed to map categories", e)
             setOf(PoiCategory.Gas, PoiCategory.Irve)

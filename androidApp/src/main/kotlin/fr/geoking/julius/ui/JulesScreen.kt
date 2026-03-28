@@ -377,6 +377,7 @@ fun JulesScreen(
         ModalBottomSheet(
             onDismissRequest = { showRepoSheet = false },
             sheetState = sheetState,
+            sheetGesturesEnabled = true,
             containerColor = JulesBg,
             contentColor = Color.White
         ) {

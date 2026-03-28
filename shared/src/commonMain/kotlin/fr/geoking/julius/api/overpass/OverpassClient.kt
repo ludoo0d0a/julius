@@ -60,7 +60,7 @@ class OverpassClient(
         tagFilters: List<Pair<String, Set<String>>>,
         limit: Int = 100
     ): List<OverpassElement> {
-        val flat = tagFilters.flatMap { (key, values) -> values.map { key to it } }
+        val flat = tagFilters.map { (key, values) -> values.map { v -> key to v } }.flatten()
         if (flat.isEmpty()) return emptyList()
         val deltaLat = radiusKm / 111.0
         val deltaLng = radiusKm / (111.0 * cos(latitude * PI / 180)).coerceAtLeast(0.01)
@@ -104,7 +104,7 @@ class OverpassClient(
         tagFilters: List<Pair<String, Set<String>>>,
         limit: Int = 100
     ): List<OverpassElement> {
-        val flat = tagFilters.flatMap { (key, values) -> values.map { key to it } }
+        val flat = tagFilters.map { (key, values) -> values.map { v -> key to v } }.flatten()
         if (flat.isEmpty()) return emptyList()
         val deltaLat = radiusKm / 111.0
         val deltaLng = radiusKm / (111.0 * cos(latitude * PI / 180)).coerceAtLeast(0.01)

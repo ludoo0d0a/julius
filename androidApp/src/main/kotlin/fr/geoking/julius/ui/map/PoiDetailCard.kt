@@ -1,5 +1,6 @@
 package fr.geoking.julius.ui.map
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -131,7 +132,8 @@ fun PoiDetailCard(
                                     colors = AssistChipDefaults.assistChipColors(
                                         containerColor = Color(0xFF0F172A),
                                         labelColor = Color.White
-                                    )
+                                    ),
+                                    interactionSource = MutableInteractionSource()
                                 )
                                 Text(
                                     text = sources.joinToString(" + "),

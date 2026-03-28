@@ -165,6 +165,51 @@ class CustomMapPoiScreen(
         }
     }
 
+    /**
+     * MapWithContentTemplate with a surface renderer allows at most one action on the top [ActionStrip].
+     * Extra actions (e.g. API errors) belong on the nested template [Header].
+     */
+    private fun pushApiErrorsDetailScreen() {
+        val errorMsg = errors.joinToString("\n") { "${it.providerName}: ${it.message}" }
+        screenManager.push(
+            object : Screen(carContext) {
+                override fun onGetTemplate(): Template {
+                    return MessageTemplate.Builder(errorMsg)
+                        .setHeader(
+                            Header.Builder()
+                                .setTitle("API Errors")
+                                .setStartHeaderAction(Action.BACK)
+                                .build()
+                        )
+                        .addAction(
+                            Action.Builder()
+                                .setTitle("Retry")
+                                .setOnClickListener {
+                                    screenManager.pop()
+                                    loadPois()
+                                }
+                                .build()
+                        )
+                        .build()
+                }
+            }
+        )
+    }
+
+    private fun mapContentHeaderBuilder(title: String): Header.Builder {
+        val builder = Header.Builder()
+            .setTitle(title)
+            .setStartHeaderAction(Action.BACK)
+        if (errors.isNotEmpty()) {
+            builder.addEndHeaderAction(
+                Action.Builder()
+                    .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_error_outline)).build())
+                    .setOnClickListener { pushApiErrorsDetailScreen() }
+                    .build()
+            )
+        }
+        return builder
+    }
 
     override fun onSurfaceAvailable(surfaceContainer: SurfaceContainer) {
         Log.d("CustomMapPoiScreen", "onSurfaceAvailable")
@@ -205,7 +250,7 @@ class CustomMapPoiScreen(
 
     override fun onGetTemplate(): Template {
         return try {
-            val actionStripBuilder = ActionStrip.Builder()
+            val actionStrip = ActionStrip.Builder()
                 .addAction(
                     Action.Builder()
                         .setTitle("Home")
@@ -213,41 +258,7 @@ class CustomMapPoiScreen(
                         .setOnClickListener { screenManager.popToRoot() }
                         .build()
                 )
-
-            if (errors.isNotEmpty()) {
-                actionStripBuilder.addAction(
-                    Action.Builder()
-                        .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_error_outline)).build())
-                        .setOnClickListener {
-                            val errorMsg = errors.joinToString("\n") { "${it.providerName}: ${it.message}" }
-                            screenManager.push(
-                                object : Screen(carContext) {
-                                    override fun onGetTemplate(): Template {
-                                        return MessageTemplate.Builder(errorMsg)
-                                            .setHeader(
-                                                Header.Builder()
-                                                    .setTitle("API Errors")
-                                                    .setStartHeaderAction(Action.BACK)
-                                                    .build()
-                                            )
-                                            .addAction(
-                                                Action.Builder()
-                                                    .setTitle("Retry")
-                                                    .setOnClickListener {
-                                                        screenManager.pop()
-                                                        loadPois()
-                                                    }
-                                                    .build()
-                                            )
-                                            .build()
-                                    }
-                                }
-                            )
-                        }
-                        .build()
-                )
-            }
-            val actionStrip = actionStripBuilder.build()
+                .build()
 
             val title = "Nearby POIs (Custom)"
 
@@ -256,12 +267,7 @@ class CustomMapPoiScreen(
                     .setContentTemplate(
                         ListTemplate.Builder()
                             .setLoading(true)
-                            .setHeader(
-                                Header.Builder()
-                                    .setTitle(title)
-                                    .setStartHeaderAction(Action.BACK)
-                                    .build()
-                            )
+                            .setHeader(mapContentHeaderBuilder(title).build())
                             .build()
                     )
                     .setActionStrip(actionStrip)
@@ -368,12 +374,7 @@ class CustomMapPoiScreen(
             }
 
             val listTemplate = ListTemplate.Builder()
-                .setHeader(
-                    Header.Builder()
-                        .setTitle(title)
-                        .setStartHeaderAction(Action.BACK)
-                        .build()
-                )
+                .setHeader(mapContentHeaderBuilder(title).build())
                 .setSingleList(itemListBuilder.build())
                 .build()
 

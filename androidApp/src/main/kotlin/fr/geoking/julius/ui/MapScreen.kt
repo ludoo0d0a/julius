@@ -841,6 +841,7 @@ fun MapScreen(
                 scrollRequestPoiId = null
             },
             sheetState = sheetState,
+            sheetGesturesEnabled = true,
             containerColor = Color(0xFF1E293B),
             dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.7f)) }
         ) {

@@ -7,6 +7,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -151,37 +153,45 @@ class MainActivity : ComponentActivity() {
             }
 
             android.util.Log.d("MainActivity", "Calling setContent...")
-            setContent {
-                android.util.Log.d("MainActivity", "Compose setContent block running")
-                val state by store.state.collectAsState()
-                val settings by settingsManager.settings.collectAsState()
-
-                LaunchedEffect(Unit) {
-                    android.util.Log.d("MainActivity", "Compose first frame")
-                }
-                LaunchedEffect(settings.googleUserName) {
-                    store.userName = settings.googleUserName
-                }
-
-                MainUI(
-                    state = state,
-                    store = store,
-                    settingsManager = settingsManager,
-                    authManager = authManager,
-                    mapDepsState = mapDepsState,
-                    onRequestMapDeps = { ensureMapDeps() },
-                    julesClient = julesClient,
-                    voiceManager = voiceManager,
-                    conversationalAgent = conversationalAgent,
-                    networkService = networkService,
-                    inAppUpdateHelper = inAppUpdateHelper,
-                    onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) },
-                    pendingNavDestinationFlow = pendingNavDestination
-                )
-            }
+            installMainComposeContent(
+                store = store,
+                settingsManager = settingsManager,
+                authManager = authManager,
+                julesClient = julesClient,
+                voiceManager = voiceManager,
+                conversationalAgent = conversationalAgent,
+                networkService = networkService
+            )
         } catch (e: Throwable) {
             android.util.Log.e("MainActivity", "Startup failed", e)
             setContent { StartupErrorContent(e) }
+        }
+    }
+
+    private fun installMainComposeContent(
+        store: ConversationStore,
+        settingsManager: SettingsManager,
+        authManager: GoogleAuthManager,
+        julesClient: JulesClient,
+        voiceManager: VoiceManager,
+        conversationalAgent: ConversationalAgent,
+        networkService: NetworkService
+    ) {
+        setContent {
+            MainActivityComposeRoot(
+                store = store,
+                settingsManager = settingsManager,
+                authManager = authManager,
+                mapDepsState = mapDepsState,
+                onRequestMapDeps = { ensureMapDeps() },
+                julesClient = julesClient,
+                voiceManager = voiceManager,
+                conversationalAgent = conversationalAgent,
+                networkService = networkService,
+                inAppUpdateHelper = inAppUpdateHelper,
+                updateResultLauncher = updateResultLauncher,
+                pendingNavDestination = pendingNavDestination
+            )
         }
     }
 
@@ -189,6 +199,49 @@ class MainActivity : ComponentActivity() {
         inAppUpdateHelper.unregister()
         super.onDestroy()
     }
+}
+
+@Composable
+private fun MainActivityComposeRoot(
+    store: ConversationStore,
+    settingsManager: SettingsManager,
+    authManager: GoogleAuthManager,
+    mapDepsState: kotlinx.coroutines.flow.MutableStateFlow<MapDeps?>,
+    onRequestMapDeps: () -> Unit,
+    julesClient: JulesClient,
+    voiceManager: VoiceManager,
+    conversationalAgent: ConversationalAgent,
+    networkService: NetworkService,
+    inAppUpdateHelper: InAppUpdateHelper,
+    updateResultLauncher: ActivityResultLauncher<IntentSenderRequest>,
+    pendingNavDestination: MutableStateFlow<NavDestination?>
+) {
+    android.util.Log.d("MainActivity", "Compose setContent block running")
+    val state by store.state.collectAsState()
+    val settings by settingsManager.settings.collectAsState()
+
+    LaunchedEffect(Unit) {
+        android.util.Log.d("MainActivity", "Compose first frame")
+    }
+    LaunchedEffect(settings.googleUserName) {
+        store.userName = settings.googleUserName
+    }
+
+    MainUI(
+        state = state,
+        store = store,
+        settingsManager = settingsManager,
+        authManager = authManager,
+        mapDepsState = mapDepsState,
+        onRequestMapDeps = onRequestMapDeps,
+        julesClient = julesClient,
+        voiceManager = voiceManager,
+        conversationalAgent = conversationalAgent,
+        networkService = networkService,
+        inAppUpdateHelper = inAppUpdateHelper,
+        onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) },
+        pendingNavDestinationFlow = pendingNavDestination
+    )
 }
 
 @Composable
@@ -205,8 +258,9 @@ fun MainUI(
     networkService: NetworkService,
     inAppUpdateHelper: InAppUpdateHelper? = null,
     onStartUpdate: (AppUpdateInfo) -> Unit = {},
-    pendingNavDestinationFlow: kotlinx.coroutines.flow.MutableStateFlow<NavDestination?> = remember { MutableStateFlow(null) }
+    pendingNavDestinationFlow: kotlinx.coroutines.flow.MutableStateFlow<NavDestination?>? = null
 ) {
+    val pendingNavFlow = pendingNavDestinationFlow ?: remember { MutableStateFlow<NavDestination?>(null) }
     val mapDeps by mapDepsState.collectAsState()
     val networkStatus by networkService.status.collectAsState()
     var showSettings by remember { mutableStateOf(false) }
@@ -219,12 +273,12 @@ fun MainUI(
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
-        pendingNavDestinationFlow.collect { nav ->
+        pendingNavFlow.collect { nav ->
             if (nav != null) {
                 initialNavDestination = nav
                 showRoutePlanning = true
                 showMap = true
-                pendingNavDestinationFlow.value = null
+                pendingNavFlow.value = null
             }
         }
     }

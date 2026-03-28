@@ -1,5 +1,6 @@
 package fr.geoking.julius.ui.map
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -109,7 +110,8 @@ fun PoiDetailsFullscreenDialog(
                                 colors = AssistChipDefaults.assistChipColors(
                                     containerColor = Color(0xFF0F172A),
                                     labelColor = Color.White
-                                )
+                                ),
+                                interactionSource = MutableInteractionSource()
                             )
                             Text(
                                 text = sources.joinToString(" + "),
@@ -276,7 +278,8 @@ fun PoiDetailsFullscreenDialog(
                                     AssistChip(
                                         onClick = {},
                                         label = { Text(BrandHelper.connectorTypeLabel(id), fontSize = 12.sp) },
-                                        colors = AssistChipDefaults.assistChipColors(containerColor = Color(0xFF475569))
+                                        colors = AssistChipDefaults.assistChipColors(containerColor = Color(0xFF475569)),
+                                        interactionSource = MutableInteractionSource()
                                     )
                                 }
                             }

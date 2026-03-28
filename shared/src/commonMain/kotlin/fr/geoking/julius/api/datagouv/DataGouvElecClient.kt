@@ -100,7 +100,7 @@ class DataGouvElecClient(
         val byStation = records.groupBy { it.stationId }
         return byStation.map { (_, group) ->
             val first = group.first()
-            val connectors = group.flatMap { it.connectorTypes }.toSet()
+            val connectors = group.map { it.connectorTypes }.flatten().toSet()
             val tarification = group.mapNotNull { it.tarification }.firstOrNull()?.takeIf { it.isNotBlank() }
             val openingHours = group.mapNotNull { it.openingHours }.firstOrNull()?.takeIf { it.isNotBlank() }
             val gratuit = group.mapNotNull { it.gratuit }.firstOrNull()
@@ -109,7 +109,7 @@ class DataGouvElecClient(
             val paymentCb = group.mapNotNull { it.paymentCb }.firstOrNull()
             val paymentAutre = group.mapNotNull { it.paymentAutre }.firstOrNull()
             val conditionAcces = group.mapNotNull { it.conditionAcces }.firstOrNull()?.takeIf { it.isNotBlank() }
-            val nbrePdc = group.maxOfOrNull { it.nbrePdc ?: 0 }?.takeIf { it > 0 }
+            val nbrePdc = group.fold(0) { acc, rec -> maxOf(acc, rec.nbrePdc ?: 0) }.takeIf { n -> n > 0 }
             val puissanceKw = group.mapNotNull { it.puissanceKw }.maxOrNull()
             DataGouvElecStation(
                 id = first.id,

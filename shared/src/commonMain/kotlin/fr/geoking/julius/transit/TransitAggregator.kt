@@ -22,7 +22,7 @@ class TransitAggregator(
             if (selected.isEmpty()) return@coroutineScope emptyList()
             val points = context.points()
             if (points.isEmpty()) return@coroutineScope emptyList()
-            val deferred = selected.flatMap { provider ->
+            val deferred = selected.map { provider ->
                 points.map { (lat, lon) ->
                     async {
                         if (!provider.covers(lat, lon)) return@async emptyList<TransitStop>()
@@ -32,7 +32,7 @@ class TransitAggregator(
                         }.getOrElse { emptyList() }
                     }
                 }
-            }
+            }.flatten()
             val results = deferred.awaitAll().flatten()
             deduplicateStops(results)
         }

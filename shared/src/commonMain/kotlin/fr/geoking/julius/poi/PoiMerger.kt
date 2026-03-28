@@ -213,7 +213,8 @@ object PoiMerger {
 
     private fun mergeSources(a: String?, b: String?): String? {
         val parts = listOfNotNull(a, b)
-            .flatMap { it.split("+").map { p -> p.trim() }.filter { p -> p.isNotBlank() } }
+            .map { s -> s.split("+").map { part -> part.trim() }.filter { part -> part.isNotBlank() } }
+            .flatten()
             .distinct()
         return parts.takeIf { it.isNotEmpty() }?.joinToString(" + ")
     }
