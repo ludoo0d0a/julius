@@ -22,10 +22,9 @@ object AutoPoiUiHelper {
         val markerBitmap = PoiMarkerHelper.getMarkerBitmap(
             context = carContext,
             poi = poi,
-            selectedEnergyTypes = emptySet(), // No easy access to settings here, using default
-            useVehicleFilter = false,
-            vehicleEnergy = "",
-            vehicleGasTypes = emptySet(),
+            effectiveEnergyTypes = emptySet(), // No easy access to settings here, using default
+            effectivePowerLevels = emptySet(),
+            isSelected = false,
             sizePx = 72,
             availability = null
         )
@@ -45,10 +44,8 @@ object AutoPoiUiHelper {
         carContext: CarContext,
         poi: Poi,
         availability: StationAvailabilitySummary?,
-        selectedEnergyTypes: Set<String> = emptySet(),
-        useVehicleFilter: Boolean = false,
-        vehicleEnergy: String = "",
-        vehicleGasTypes: Set<String> = emptySet(),
+        effectiveEnergyTypes: Set<String> = emptySet(),
+        effectivePowerLevels: Set<Int> = emptySet(),
         onClick: () -> Unit
     ): Row {
         val title = poi.siteName?.takeIf { it.isNotBlank() } ?: poi.name.ifBlank { "POI" }
@@ -57,10 +54,9 @@ object AutoPoiUiHelper {
         val markerBitmap = PoiMarkerHelper.getMarkerBitmap(
             context = carContext,
             poi = poi,
-            selectedEnergyTypes = selectedEnergyTypes,
-            useVehicleFilter = useVehicleFilter,
-            vehicleEnergy = vehicleEnergy,
-            vehicleGasTypes = vehicleGasTypes,
+            effectiveEnergyTypes = effectiveEnergyTypes,
+            effectivePowerLevels = effectivePowerLevels,
+            isSelected = false,
             sizePx = 72,
             availability = availability
         )
