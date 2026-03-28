@@ -14,6 +14,12 @@ interface LlamaBackend {
     /** Generates text with system/context/user prompts. */
     fun generateWithContext(systemPrompt: String, contextBlock: String, userPrompt: String): String
 
+    /**
+     * Called after [initGenerateModel] returns true. Apply conversational defaults per Llamatik docs
+     * ([LlamaBridge.updateGenerateParams](https://docs.llamatik.com/api/llamabridge/)).
+     */
+    fun onGenerateModelInitialized()
+
     /** Releases native resources. */
     fun shutdown()
 }

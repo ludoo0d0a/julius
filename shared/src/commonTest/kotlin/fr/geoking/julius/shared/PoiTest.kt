@@ -1,12 +1,23 @@
 package fr.geoking.julius.shared
 
 import fr.geoking.julius.poi.MockPoiProvider
+import fr.geoking.julius.poi.PoiProviderType
+import fr.geoking.julius.poi.sanitizeUserPoiProviderSelection
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class PoiTest {
+
+    @Test
+    fun sanitizeUserPoiProviderSelection_mapsEtalabAndGasApiToDataGouv() {
+        val inSet = setOf(PoiProviderType.Etalab, PoiProviderType.GasApi, PoiProviderType.Routex)
+        assertEquals(
+            setOf(PoiProviderType.DataGouv, PoiProviderType.Routex),
+            inSet.sanitizeUserPoiProviderSelection()
+        )
+    }
 
     @Test
     fun testMockPoiProvider() = runBlocking {

@@ -31,6 +31,8 @@ class FakeLlamaBackend(
         return response
     }
 
+    override fun onGenerateModelInitialized() {}
+
     override fun shutdown() {
         shutdownCalls++
     }

@@ -43,6 +43,7 @@ class LlamatikAgent(
             if (!ok) {
                 throw IllegalStateException("Failed to initialize Llamatik model at: $fullModelPath")
             }
+            bridge.onGenerateModelInitialized()
             isModelInitialized = true
         } catch (e: NetworkException) {
             throw e

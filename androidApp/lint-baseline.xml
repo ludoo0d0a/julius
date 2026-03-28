@@ -377,17 +377,6 @@
 
     <issue
         id="NewerVersionAvailable"
-        message="A newer version of com.llamatik:library than 0.17.0 is available: 0.18.0"
-        errorLine1="llamatik-library = &quot;0.17.0&quot;"
-        errorLine2="                   ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="14"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
         message="A newer version of com.google.maps.android:maps-compose than 8.2.0 is available: 8.2.2"
         errorLine1="maps-compose = &quot;8.2.0&quot;"
         errorLine2="               ~~~~~~~">

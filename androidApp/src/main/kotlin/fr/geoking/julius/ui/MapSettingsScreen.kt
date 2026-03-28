@@ -20,6 +20,7 @@ import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.VehicleType
 import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.poi.anyProvidesElectric
+import fr.geoking.julius.poi.isUserSelectablePoiDataSource
 
 val OVERPASS_AMENITY_OPTIONS = listOf(
     "toilets" to "Toilets",
@@ -203,7 +204,7 @@ fun MapSettingsScreen(
                         PoiProviderType.GasApi to "GasApi",
                         PoiProviderType.DataGouv to "data.gouv (Fuel)",
                         PoiProviderType.OpenVanCamp to "OpenVan.camp (LU)"
-                    )
+                    ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }
                     fuelProviders.forEach { (type, label) ->
                         FilterChip(
                             selected = selectedProviders.contains(type),

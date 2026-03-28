@@ -10,7 +10,8 @@ import fr.geoking.julius.parking.ParkingRegion
 import fr.geoking.julius.poi.PoiMerger
 
 /**
- * Delegates to the currently selected [PoiProvider] (Routex, DataGouv prix carburant instantané, GasApi, …)
+ * Delegates to the currently selected [PoiProvider] (Routex, DataGouv fuel, …). Etalab / GasApi stay wired for tests;
+ * user selection is sanitized to DataGouv in [SettingsManager].
  * based on [SettingsManager.settings].selectedPoiProvider.
  */
 class SelectorPoiProvider(

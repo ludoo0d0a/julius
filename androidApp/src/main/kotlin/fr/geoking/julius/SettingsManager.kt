@@ -2,6 +2,7 @@ package fr.geoking.julius
 
 import android.content.Context
 import android.content.SharedPreferences
+import fr.geoking.julius.poi.sanitizeUserPoiProviderSelection
 import fr.geoking.julius.VehicleType
 import fr.geoking.julius.shared.SttEnginePreference
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,13 +24,14 @@ enum class AgentType(val enabled: Boolean = true) {
     CompletionsMe,
     ApiFreeLLM,
     Llamatik,
-    GeminiNano,
-    RunAnywhere,
-    MlcLlm,
+    /** Not wired to an on-device runtime yet; hidden until implemented. */
+    GeminiNano(enabled = false),
+    RunAnywhere(enabled = false),
+    MlcLlm(enabled = false),
     LlamaCpp,
-    MediaPipe,
-    AiEdge,
-    PocketPal,
+    MediaPipe(enabled = false),
+    AiEdge(enabled = false),
+    PocketPal(enabled = false),
     Offline
 }
 
@@ -302,7 +304,7 @@ open class SettingsManager(context: Context) {
         }
         val useVehicleFilter = prefs.getBoolean("use_vehicle_filter", false)
 
-        val selectedPoiProviders = run {
+        val selectedPoiProvidersRaw = run {
             val providersStr = prefs.getString("selected_poi_providers", null)
             if (!providersStr.isNullOrBlank()) {
                 providersStr.split(",").mapNotNull {
@@ -321,6 +323,12 @@ open class SettingsManager(context: Context) {
                     setOf(fr.geoking.julius.poi.PoiProviderType.Routex)
                 }
             }
+        }
+        val selectedPoiProviders = selectedPoiProvidersRaw.sanitizeUserPoiProviderSelection()
+        if (selectedPoiProviders != selectedPoiProvidersRaw) {
+            prefs.edit()
+                .putString("selected_poi_providers", selectedPoiProviders.joinToString(",") { it.name })
+                .apply()
         }
 
         return AppSettings(
@@ -490,8 +498,9 @@ open class SettingsManager(context: Context) {
     }
 
     open fun setPoiProviderTypes(types: Set<fr.geoking.julius.poi.PoiProviderType>) {
-        prefs.edit().putString("selected_poi_providers", types.joinToString(",") { it.name }).apply()
-        _settings.value = _settings.value.copy(selectedPoiProviders = types)
+        val sanitized = types.sanitizeUserPoiProviderSelection()
+        prefs.edit().putString("selected_poi_providers", sanitized.joinToString(",") { it.name }).apply()
+        _settings.value = _settings.value.copy(selectedPoiProviders = sanitized)
     }
 
     open fun togglePoiProviderType(type: fr.geoking.julius.poi.PoiProviderType) {

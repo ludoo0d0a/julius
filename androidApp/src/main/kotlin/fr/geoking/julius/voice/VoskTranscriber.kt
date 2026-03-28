@@ -32,13 +32,11 @@ class VoskTranscriber(
         if (audioData.isEmpty()) return@withContext null
         try {
             val rec = getOrCreateRecognizer() ?: return@withContext null
-            val accepted = synchronized(lock) {
-                rec.acceptWaveForm(audioData, audioData.size)
-            }
-            val result = if (accepted) {
-                synchronized(lock) { rec.result }
-            } else {
-                synchronized(lock) { rec.partialResult }
+            // Fresh utterance per buffer (Vosk/Kaldi state); matches typical Android batch usage.
+            val result = synchronized(lock) {
+                rec.reset()
+                val accepted = rec.acceptWaveForm(audioData, audioData.size)
+                if (accepted) rec.result else rec.partialResult
             }
             parseTextFromResult(result)?.takeIf { it.isNotBlank() }
         } catch (e: Exception) {

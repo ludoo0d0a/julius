@@ -392,7 +392,7 @@ Julius supports multiple AI agents, each with different capabilities, pricing mo
 
 ### Development Workflow
 
-**Pull Requests:** When creating a PR, always enable auto-merge.
+**Pull Requests:** When creating a PR on GitHub, turn on **Enable auto-merge** in the PR UI (merge options) so the branch merges automatically once required checks and reviews pass.
 
 **Adding a new agent:**
 1. Create new class in `shared/src/commonMain/kotlin/fr/geoking/julius/agents/`

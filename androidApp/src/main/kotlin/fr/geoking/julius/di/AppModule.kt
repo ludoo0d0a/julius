@@ -15,6 +15,7 @@ import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.LocalTranscriber
 import fr.geoking.julius.shared.NetworkService
 import fr.geoking.julius.shared.VoiceManager
+import fr.geoking.julius.agents.AndroidLlamaBackend
 import fr.geoking.julius.voice.VoskTranscriber
 import fr.geoking.julius.shared.ActionExecutor
 import fr.geoking.julius.shared.PermissionManager
@@ -48,7 +49,8 @@ import kotlin.random.Random
 // Wrapper to switch agents at runtime without Koin reload
 class DynamicAgentWrapper(
     private val client: HttpClient,
-    private val settingsManager: SettingsManager
+    private val settingsManager: SettingsManager,
+    private val llamaBackend: LlamaBackend
 ) : ConversationalAgent {
 
     private var cachedAgent: ConversationalAgent? = null
@@ -73,11 +75,11 @@ class DynamicAgentWrapper(
         AgentType.OpenCodeZen -> OpenCodeZenAgent(client, apiKey = settings.opencodeZenKey, model = settings.opencodeZenModel)
         AgentType.CompletionsMe -> CompletionsMeAgent(client, apiKey = settings.completionsMeKey, model = settings.completionsMeModel)
         AgentType.ApiFreeLLM -> ApiFreeLLMAgent(client, apiKey = settings.apifreellmKey)
-        AgentType.Llamatik -> LlamatikAgent(modelPath = settings.llamatikModelPath)
+        AgentType.Llamatik -> LlamatikAgent(modelPath = settings.llamatikModelPath, backend = llamaBackend)
         AgentType.GeminiNano -> LocalPlaceholderAgent("Gemini Nano", settings.llamatikModelPath)
         AgentType.RunAnywhere -> LocalPlaceholderAgent("RunAnywhere", settings.llamatikModelPath)
         AgentType.MlcLlm -> LocalPlaceholderAgent("MLC-LLM", settings.llamatikModelPath)
-        AgentType.LlamaCpp -> LlamatikAgent(modelPath = settings.llamatikModelPath)
+        AgentType.LlamaCpp -> LlamatikAgent(modelPath = settings.llamatikModelPath, backend = llamaBackend)
         AgentType.MediaPipe -> LocalPlaceholderAgent("MediaPipe GenAI", settings.llamatikModelPath)
         AgentType.AiEdge -> LocalPlaceholderAgent("AI Edge Gallery", settings.llamatikModelPath)
         AgentType.PocketPal -> LocalPlaceholderAgent("PocketPal AI", settings.llamatikModelPath)
@@ -188,9 +190,11 @@ val appModule = module {
         GoogleAuthManager(androidContext(), get(), { get<ConversationStore>() })
     }
     
+    single<LlamaBackend> { AndroidLlamaBackend(androidContext()) }
+
     // Use the dynamic wrapper instead of a static agent
     single<ConversationalAgent> {
-        DynamicAgentWrapper(get(), get())
+        DynamicAgentWrapper(get(), get(), get())
     }
     
     single<VoiceManager> {

@@ -5,6 +5,7 @@ import androidx.car.app.Screen
 import androidx.car.app.model.*
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.poi.PoiProviderType
+import fr.geoking.julius.poi.isUserSelectablePoiDataSource
 
 class AutoPoiProviderSelectionScreen(
     carContext: CarContext,
@@ -22,7 +23,7 @@ class AutoPoiProviderSelectionScreen(
         PoiProviderType.OpenVanCamp to "OpenVan.camp (LU fuel + OSM)",
         PoiProviderType.Overpass to "Overpass",
         PoiProviderType.Hybrid to "Hybrid (Gas + EV)"
-    )
+    ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }
 
     override fun onGetTemplate(): Template {
         val settings = settingsManager.settings.value
