@@ -15,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -65,6 +66,7 @@ import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.community.isCommunityPoiId
 import fr.geoking.julius.ui.components.FilterFab
+import fr.geoking.julius.ui.components.MapLoader
 import fr.geoking.julius.ui.ColorHelper
 import fr.geoking.julius.ui.map.AddPoiSheet
 import fr.geoking.julius.ui.map.PoiDetailCard
@@ -137,6 +139,7 @@ fun MapScreen(
     trafficProviderFactory: TrafficProviderFactory? = null,
     settingsManager: fr.geoking.julius.SettingsManager,
     store: ConversationStore,
+    palette: fr.geoking.julius.ui.anim.AnimationPalette,
     onBack: () -> Unit,
     onPlanRoute: (() -> Unit)? = null,
     communityRepo: CommunityPoiRepository? = null,
@@ -162,6 +165,7 @@ fun MapScreen(
     var addPoiExistingCommunityId by remember { mutableStateOf<String?>(null) }
     var showFavoritesOnly by remember { mutableStateOf(false) }
     var favoriteIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var isLoading by remember { mutableStateOf(false) }
 
     var hasLocationPermission by remember {
         mutableStateOf(
@@ -329,6 +333,7 @@ fun MapScreen(
                 )
 
                 try {
+                    isLoading = true
                     val newPois = poiProvider.search(
                         PoiSearchRequest(
                             latitude = centerLat,
@@ -421,6 +426,8 @@ fun MapScreen(
                         (e as? fr.geoking.julius.shared.NetworkException)?.httpCode,
                         "Map ($selectedProviders): $msg"
                     )
+                } finally {
+                    isLoading = false
                 }
             }
     }
@@ -675,6 +682,15 @@ fun MapScreen(
                     .fillMaxSize()
                     .onSizeChanged { mapSizePx = it }
             ) {
+                if (isLoading) {
+                    MapLoader(
+                        palette = palette,
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .zIndex(1f)
+                    )
+                }
+
                 val configuration = LocalConfiguration.current
                 val mapPaddingBottom = if (selectedPoi != null) (configuration.screenHeightDp * 0.4f).dp else 0.dp
 
@@ -1030,6 +1046,7 @@ private fun MapScreenPreview() {
         availabilityProviderFactory = null,
         settingsManager = fakeSettingsManager,
         store = fakeStore,
+        palette = fr.geoking.julius.ui.anim.AnimationPalettes.paletteFor(0),
         onBack = {}
     )
 }
