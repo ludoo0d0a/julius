@@ -22,6 +22,8 @@ import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.api.belib.BorneAvailabilityProviderFactory
 import fr.geoking.julius.api.belib.StationAvailabilitySummary
 import fr.geoking.julius.api.belib.matchAvailabilityToPois
+import fr.geoking.julius.effectiveIrvePowerLevels
+import fr.geoking.julius.effectiveMapEnergyFilterIds
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -112,6 +114,8 @@ class NativeMapPoiScreen(
             .setNoItemsMessage("No POIs found")
 
         val currentSettings = settingsManager.settings.value
+        val effectiveEnergies = currentSettings.effectiveMapEnergyFilterIds()
+        val effectivePowerLevels = currentSettings.effectiveIrvePowerLevels()
         pois.take(6).forEach { poi ->
             val availability = availabilityByPoiId[poi.id]
             itemListBuilder.addItem(
@@ -119,10 +123,8 @@ class NativeMapPoiScreen(
                     carContext = carContext,
                     poi = poi,
                     availability = availability,
-                    selectedEnergyTypes = currentSettings.selectedMapEnergyTypes,
-                    useVehicleFilter = currentSettings.useVehicleFilter,
-                    vehicleEnergy = currentSettings.vehicleEnergy,
-                    vehicleGasTypes = currentSettings.vehicleGasTypes
+                    effectiveEnergyTypes = effectiveEnergies,
+                    effectivePowerLevels = effectivePowerLevels
                 ) {
                     screenManager.push(
                         PoiDetailScreen(

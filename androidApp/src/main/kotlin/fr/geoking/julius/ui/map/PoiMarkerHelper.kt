@@ -20,129 +20,134 @@ object PoiMarkerHelper {
     fun getMarkerBitmap(
         context: Context,
         poi: Poi,
-        selectedEnergyTypes: Set<String>,
-        useVehicleFilter: Boolean,
-        vehicleEnergy: String,
-        vehicleGasTypes: Set<String>,
+        effectiveEnergyTypes: Set<String>,
+        effectivePowerLevels: Set<Int>,
+        isSelected: Boolean = false,
         sizePx: Int = 120,
         availability: StationAvailabilitySummary? = null
     ): Bitmap {
-        val label = getPoiLabel(poi, selectedEnergyTypes, useVehicleFilter, vehicleEnergy, vehicleGasTypes)
+        val totalFilters = effectiveEnergyTypes.size + effectivePowerLevels.size
+        val showLabel = totalFilters == 1
+
+        val label = if (showLabel) getPoiLabel(poi, effectiveEnergyTypes, effectivePowerLevels) else null
         val brandInfo = BrandHelper.getBrandInfo(poi.brand)
         val category = poi.poiCategory ?: if (poi.isElectric) PoiCategory.Irve else PoiCategory.Gas
-        val color = getPoiColor(poi, category, selectedEnergyTypes, useVehicleFilter, vehicleEnergy, vehicleGasTypes)
+        val color = if (showLabel) getPoiColor(poi, category, effectiveEnergyTypes, effectivePowerLevels) else Color.LTGRAY
 
-        val cacheKey = "${poi.id}_${label}_${brandInfo?.iconResId}_${color}_${availability?.availableCount}_${availability?.totalCount}_$sizePx"
+        val cacheKey = "${poi.id}_${label}_${brandInfo?.iconResId}_${color}_${availability?.availableCount}_${availability?.totalCount}_${sizePx}_${isSelected}"
         synchronized(cache) {
             cache.get(cacheKey)?.let { return it }
         }
 
-        // Bitmap is square, but we'll draw a slightly wider bubble to fit content.
-        val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val scale = if (isSelected) 1.2f else 1.0f
+        val actualSize = (sizePx * scale).toInt()
+
+        val bitmap = Bitmap.createBitmap(actualSize, actualSize, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-        val padding = sizePx * 0.05f
-        val bubbleWidth = sizePx - 2 * padding
-        val bubbleHeight = (sizePx - 2 * padding) * 0.85f // Leave room for the tail
-        val cornerRadius = bubbleHeight * 0.25f
+        val padding = actualSize * 0.1f
+        val contentSize = actualSize - 2 * padding
 
-        val rect = RectF(padding, padding, padding + bubbleWidth, padding + bubbleHeight)
+        // Shape logic
+        val isFuel = poi.fuelPrices?.isNotEmpty() == true
+        val isElectric = poi.isElectric
 
-        // 1. Draw Shadow for the bubble
-        paint.setShadowLayer(4f, 0f, 2f, 0x40000000)
+        val centerX = actualSize / 2f
+        val centerY = actualSize / 2f
+
+        // Draw Shadow
+        paint.setShadowLayer(if (isSelected) 8f else 4f, 0f, 2f, 0x40000000)
         paint.color = Color.WHITE
-        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, paint)
+        paint.style = Paint.Style.FILL
+
+        val shapePath = Path()
+        when {
+            isFuel && isElectric -> {
+                // Triangle pointing down
+                shapePath.moveTo(centerX, actualSize - padding)
+                shapePath.lineTo(padding, padding)
+                shapePath.lineTo(actualSize - padding, padding)
+                shapePath.close()
+            }
+            isElectric -> {
+                // Square
+                shapePath.addRect(padding, padding, actualSize - padding, actualSize - padding, Path.Direction.CW)
+            }
+            else -> {
+                // Circle
+                shapePath.addCircle(centerX, centerY, contentSize / 2f, Path.Direction.CW)
+            }
+        }
+        canvas.drawPath(shapePath, paint)
         paint.clearShadowLayer()
 
-        // 2. Draw Tail
-        val tailWidth = bubbleWidth * 0.2f
-        val tailHeight = sizePx * 0.15f
-        val path = Path()
-        path.moveTo(sizePx / 2f - tailWidth / 2f, padding + bubbleHeight - 2f) // Overlap slightly to avoid gaps
-        path.lineTo(sizePx / 2f, sizePx - padding)
-        path.lineTo(sizePx / 2f + tailWidth / 2f, padding + bubbleHeight - 2f)
-        path.close()
+        // Draw Shape Fill (White)
         paint.color = Color.WHITE
-        canvas.drawPath(path, paint)
+        canvas.drawPath(shapePath, paint)
 
-        // 3. Draw Header (Colored part)
-        val headerHeight = bubbleHeight * 0.45f
-        val headerRect = RectF(padding, padding, padding + bubbleWidth, padding + headerHeight)
-        val headerPath = Path()
-        headerPath.addRoundRect(rect, cornerRadius, cornerRadius, Path.Direction.CW)
-        canvas.save()
-        canvas.clipPath(headerPath)
-        canvas.clipRect(headerRect)
-        paint.color = color
-        canvas.drawRect(headerRect, paint)
-
-        // 3.1 Header Content (Label & Category Icon)
-        if (!label.isNullOrEmpty()) {
-            paint.color = Color.WHITE
-            paint.textSize = headerHeight * 0.55f
-            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-            paint.textAlign = Paint.Align.LEFT
-
-            val labelWidth = paint.measureText(label)
-            val iconSize = headerHeight * 0.5f
-            val spacing = headerHeight * 0.15f
-            val totalWidth = labelWidth + spacing + iconSize
-
-            val startX = padding + (bubbleWidth - totalWidth) / 2f
-            val fm = paint.fontMetrics
-            val textY = padding + headerHeight / 2f - (fm.ascent + fm.descent) / 2f
-
-            canvas.drawText(label, startX, textY, paint)
-
-            val categoryIconRes = if (poi.isElectric) R.drawable.ic_poi_electric else R.drawable.ic_poi_gas
-            val categoryIcon = vectorToBitmap(context, categoryIconRes, iconSize.toInt())
-            if (categoryIcon != null) {
-                canvas.drawBitmap(categoryIcon, startX + labelWidth + spacing, padding + (headerHeight - iconSize) / 2f, null)
-            }
-        }
-        canvas.restore()
-
-        // 4. Draw Body Content (Brand Icon & Availability)
-        val bodyTop = padding + headerHeight
-        val bodyHeight = bubbleHeight - headerHeight
-        val availText = availability?.let { "${it.availableCount} / ${it.totalCount}" }
-        val brandResId = brandInfo?.iconResId // Use non-rounded icon as background is already white/shaped
-
-        if (brandResId != null) {
-            val brandIconSize = (bodyHeight * (if (availText != null) 0.55f else 0.75f)).toInt()
-            val brandIcon = vectorToBitmap(context, brandResId, brandIconSize)
-            if (brandIcon != null) {
-                val left = padding + (bubbleWidth - brandIconSize) / 2f
-                val top = if (availText != null) bodyTop + bodyHeight * 0.1f else bodyTop + (bodyHeight - brandIconSize) / 2f
-                canvas.drawBitmap(brandIcon, left, top, null)
-            }
-        } else if (availText == null) {
-            // Fallback if nothing to show in body: show category icon again but larger
-            val iconSize = (bodyHeight * 0.7f).toInt()
-            val categoryIconRes = if (poi.isElectric) R.drawable.ic_poi_electric_rounded else R.drawable.ic_poi_gas_rounded
-            val fallbackIcon = vectorToBitmap(context, categoryIconRes, iconSize)
-            if (fallbackIcon != null) {
-                canvas.drawBitmap(fallbackIcon, padding + (bubbleWidth - iconSize) / 2f, bodyTop + (bodyHeight - iconSize) / 2f, null)
-            }
-        }
-
-        if (availText != null) {
-            paint.color = Color.BLACK
-            paint.textSize = bodyHeight * 0.35f
-            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-            paint.textAlign = Paint.Align.CENTER
-            val fm = paint.fontMetrics
-            val textY = padding + bubbleHeight - bodyHeight * 0.1f - fm.descent
-            canvas.drawText(availText, sizePx / 2f, textY, paint)
-        }
-
-        // 5. Border
+        // Draw Color Strike (Border)
         paint.style = Paint.Style.STROKE
-        paint.color = Color.LTGRAY
-        paint.strokeWidth = 1f
-        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, paint)
-        canvas.drawPath(path, paint)
+        paint.strokeWidth = if (isSelected) 6f else 4f
+        paint.color = if (showLabel) color else Color.LTGRAY
+        canvas.drawPath(shapePath, paint)
+
+        // Draw Highlight if selected
+        if (isSelected) {
+            paint.strokeWidth = 2f
+            paint.color = Color.WHITE
+            canvas.drawPath(shapePath, paint)
+        }
+
+        // Draw Brand Icon inside
+        val brandResId = brandInfo?.iconResId
+        if (brandResId != null) {
+            val iconSize = (contentSize * 0.6f).toInt()
+            val brandIcon = vectorToBitmap(context, brandResId, iconSize)
+            if (brandIcon != null) {
+                canvas.drawBitmap(brandIcon, centerX - iconSize / 2f, centerY - iconSize / 2f, null)
+            }
+        } else {
+            // Fallback to category icon
+            val iconSize = (contentSize * 0.5f).toInt()
+            val categoryIconRes = if (poi.isElectric) R.drawable.ic_poi_electric else R.drawable.ic_poi_gas
+            val categoryIcon = vectorToBitmap(context, categoryIconRes, iconSize)
+            if (categoryIcon != null) {
+                canvas.drawBitmap(categoryIcon, centerX - iconSize / 2f, centerY - iconSize / 2f, null)
+            }
+        }
+
+        // Draw Label Pill above if showLabel is true
+        if (showLabel && !label.isNullOrEmpty()) {
+            paint.style = Paint.Style.FILL
+            paint.color = color
+            paint.textSize = actualSize * 0.18f
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            val textWidth = paint.measureText(label)
+            val pillPaddingH = paint.textSize * 0.4f
+            val pillPaddingV = paint.textSize * 0.2f
+            val pillWidth = textWidth + 2 * pillPaddingH
+            val pillHeight = paint.textSize + 2 * pillPaddingV
+
+            val pillRect = RectF(
+                centerX - pillWidth / 2f,
+                padding - pillHeight / 2f,
+                centerX + pillWidth / 2f,
+                padding + pillHeight / 2f
+            )
+
+            // Draw pill shadow
+            val shadowPaint = Paint(paint)
+            shadowPaint.setShadowLayer(4f, 0f, 2f, 0x40000000)
+            canvas.drawRoundRect(pillRect, pillHeight / 2f, pillHeight / 2f, shadowPaint)
+
+            canvas.drawRoundRect(pillRect, pillHeight / 2f, pillHeight / 2f, paint)
+
+            paint.color = Color.WHITE
+            val fm = paint.fontMetrics
+            val textY = pillRect.centerY() - (fm.ascent + fm.descent) / 2f
+            canvas.drawText(label, centerX - textWidth / 2f, textY, paint)
+        }
 
         synchronized(cache) {
             cache.put(cacheKey, bitmap)
@@ -152,64 +157,55 @@ object PoiMarkerHelper {
 
     private fun getPoiLabel(
         poi: Poi,
-        selectedEnergyTypes: Set<String>,
-        useVehicleFilter: Boolean,
-        vehicleEnergy: String,
-        vehicleGasTypes: Set<String>
+        effectiveEnergyTypes: Set<String>,
+        effectivePowerLevels: Set<Int>
     ): String? {
-        return when (poi.poiCategory) {
-            PoiCategory.Radar -> {
-                val regex = Regex("""(\d+)""")
-                regex.find(poi.name)?.value?.let { "$it" } // Just the number to save space
-            }
-            PoiCategory.Irve -> {
-                poi.powerKw?.let { "${it.toInt()}kW" }
-            }
-            PoiCategory.Gas -> {
-                val preferredEnergies = if (useVehicleFilter) {
-                    if (vehicleEnergy == "hybrid") vehicleGasTypes + "electric"
-                    else vehicleGasTypes
-                } else selectedEnergyTypes
-                val price = poi.fuelPrices?.filter { p ->
-                    val id = MapPoiFilter.fuelNameToId(p.fuelName)
-                    id != null && (preferredEnergies.isEmpty() || id in preferredEnergies)
-                }?.minByOrNull { it.price }?.price
-                price?.let { "€%.2f".format(it) }
-            }
-            else -> null
+        if (poi.poiCategory == PoiCategory.Radar) {
+            val regex = Regex("""(\d+)""")
+            return regex.find(poi.name)?.value
         }
+
+        if (effectiveEnergyTypes.isNotEmpty()) {
+            val energyId = effectiveEnergyTypes.first()
+            if (energyId == "electric") {
+                 return poi.powerKw?.let { "${it.toInt()}kW" }
+            } else {
+                val price = poi.fuelPrices?.find { MapPoiFilter.fuelNameToId(it.fuelName) == energyId }?.price
+                return price?.let { "€%.2f".format(it) }
+            }
+        }
+
+        if (effectivePowerLevels.isNotEmpty()) {
+            return poi.powerKw?.let { "${it.toInt()}kW" }
+        }
+
+        return null
     }
 
     private fun getPoiColor(
         poi: Poi,
         category: PoiCategory,
-        selectedEnergyTypes: Set<String>,
-        useVehicleFilter: Boolean,
-        vehicleEnergy: String,
-        vehicleGasTypes: Set<String>
+        effectiveEnergyTypes: Set<String>,
+        effectivePowerLevels: Set<Int>
     ): Int {
+        if (effectiveEnergyTypes.isNotEmpty()) {
+            val energyId = effectiveEnergyTypes.first()
+            if (energyId == "electric") {
+                return poi.powerKw?.let { ColorHelper.getPowerColor(it).toArgb() } ?: 0xFF28A745.toInt()
+            } else {
+                return ColorHelper.getFuelColor(energyId)?.toArgb() ?: 0xFF007BFF.toInt()
+            }
+        }
+
+        if (effectivePowerLevels.isNotEmpty()) {
+             return poi.powerKw?.let { ColorHelper.getPowerColor(it).toArgb() } ?: 0xFF28A745.toInt()
+        }
+
         return when (category) {
-            PoiCategory.Irve -> {
-                poi.powerKw?.let { ColorHelper.getPowerColor(it).toArgb() } ?: 0xFF28A745.toInt()
-            }
-            PoiCategory.Gas -> {
-                val preferredEnergies = if (useVehicleFilter) {
-                    if (vehicleEnergy == "hybrid") vehicleGasTypes + "electric"
-                    else vehicleGasTypes
-                } else selectedEnergyTypes
-
-                val cheapestFuelId = poi.fuelPrices?.filter { p ->
-                    val id = MapPoiFilter.fuelNameToId(p.fuelName)
-                    id != null && (preferredEnergies.isEmpty() || id in preferredEnergies)
-                }?.minByOrNull { it.price }?.let { MapPoiFilter.fuelNameToId(it.fuelName) }
-
-                cheapestFuelId?.let { ColorHelper.getFuelColor(it)?.toArgb() } ?: 0xFF007BFF.toInt()
-            }
-            PoiCategory.Radar -> 0xFFDC3545.toInt() // Red
-            else -> 0xFF17A2B8.toInt() // Teal
+            PoiCategory.Radar -> 0xFFDC3545.toInt()
+            else -> Color.LTGRAY
         }
     }
-
 
     private fun vectorToBitmap(context: Context, drawableId: Int, size: Int): Bitmap? {
         val drawable = ContextCompat.getDrawable(context, drawableId) ?: return null

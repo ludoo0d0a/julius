@@ -675,6 +675,9 @@ fun MapScreen(
                     .fillMaxSize()
                     .onSizeChanged { mapSizePx = it }
             ) {
+                val configuration = LocalConfiguration.current
+                val mapPaddingBottom = if (selectedPoi != null) (configuration.screenHeightDp * 0.4f).dp else 0.dp
+
                 GoogleMap(
                     modifier = Modifier.fillMaxSize(),
                     cameraPositionState = cameraPositionState,
@@ -682,7 +685,8 @@ fun MapScreen(
                         isMyLocationEnabled = hasLocationPermission,
                         isTrafficEnabled = settings.mapTrafficEnabled
                     ),
-                    uiSettings = MapUiSettings(myLocationButtonEnabled = hasLocationPermission)
+                    uiSettings = MapUiSettings(myLocationButtonEnabled = hasLocationPermission),
+                    contentPadding = PaddingValues(bottom = mapPaddingBottom)
                 ) {
                     val mapContext = LocalContext.current
                     val zoom = cameraPositionState.position.zoom
@@ -707,19 +711,22 @@ fun MapScreen(
                         cachedPois
                     }
 
+                    val effectiveEnergies = settings.effectiveMapEnergyFilterIds()
+                    val effectivePowerLevels = settings.effectiveIrvePowerLevels()
+
                     val poisToShow =
                         if (showFavoritesOnly && favoriteIds.isNotEmpty()) poisInView.filter { it.id in favoriteIds } else poisInView
                     poisToShow.forEach { poi ->
                         val availability = availabilityByPoiId[poi.id]
-                        val markerBitmap = remember(poi, settings.selectedMapEnergyTypes, settings.useVehicleFilter, settings.vehicleEnergy, settings.vehicleGasTypes, sizePx, availability) {
+                        val isPoiSelected = selectedPoi?.id == poi.id
+                        val markerBitmap = remember(poi, effectiveEnergies, effectivePowerLevels, isPoiSelected, sizePx, availability) {
                             BitmapDescriptorFactory.fromBitmap(
                                 PoiMarkerHelper.getMarkerBitmap(
                                     context = mapContext,
                                     poi = poi,
-                                    selectedEnergyTypes = settings.selectedMapEnergyTypes,
-                                    useVehicleFilter = settings.useVehicleFilter,
-                                    vehicleEnergy = settings.vehicleEnergy,
-                                    vehicleGasTypes = settings.vehicleGasTypes,
+                                    effectiveEnergyTypes = effectiveEnergies,
+                                    effectivePowerLevels = effectivePowerLevels,
+                                    isSelected = isPoiSelected,
                                     sizePx = sizePx,
                                     availability = availability
                                 )
@@ -768,6 +775,7 @@ fun MapScreen(
     LaunchedEffect(selectedPoi?.id, scrollRequestPoiId) {
         val poi = selectedPoi ?: return@LaunchedEffect
         if (scrollRequestPoiId != null) return@LaunchedEffect
+        // Animation accounts for the contentPadding set in GoogleMap when selectedPoi != null
         cameraPositionState.animate(
             CameraUpdateFactory.newLatLng(
                 LatLng(poi.latitude, poi.longitude)

@@ -37,6 +37,8 @@ import fr.geoking.julius.api.geocoding.GeocodingClient
 import fr.geoking.julius.api.routing.RoutePlanner
 import fr.geoking.julius.api.routing.RoutingClient
 import fr.geoking.julius.api.traffic.TrafficProviderFactory
+import fr.geoking.julius.effectiveIrvePowerLevels
+import fr.geoking.julius.effectiveMapEnergyFilterIds
 import fr.geoking.julius.toll.TollCalculator
 import kotlinx.coroutines.flow.collectLatest
 import fr.geoking.julius.api.belib.matchAvailabilityToPois
@@ -131,12 +133,12 @@ class CustomMapPoiScreen(
                 val settings = settingsManager.settings.value
                 val result = poiProvider.searchResult(PoiSearchRequest(lat, lon, null, emptySet()))
                 pois = result.pois
+                val effectiveEnergies = settingsManager.settings.value.effectiveMapEnergyFilterIds()
+                val effectivePowerLevels = settingsManager.settings.value.effectiveIrvePowerLevels()
                 surfaceRenderer?.updatePois(
                     newPois = pois,
-                    selectedEnergyTypes = settings.selectedMapEnergyTypes,
-                    useVehicleFilter = settings.useVehicleFilter,
-                    vehicleEnergy = settings.vehicleEnergy,
-                    vehicleGasTypes = settings.vehicleGasTypes
+                    effectiveEnergyTypes = effectiveEnergies,
+                    effectivePowerLevels = effectivePowerLevels
                 )
                 errors = result.errors
                 Log.d("CustomMapPoiScreen", "pois loaded: ${pois.size}, errors: ${errors.size}")
@@ -224,10 +226,8 @@ class CustomMapPoiScreen(
             val settings = settingsManager.settings.value
             updatePois(
                 newPois = pois,
-                selectedEnergyTypes = settings.selectedMapEnergyTypes,
-                useVehicleFilter = settings.useVehicleFilter,
-                vehicleEnergy = settings.vehicleEnergy,
-                vehicleGasTypes = settings.vehicleGasTypes
+                effectiveEnergyTypes = settings.effectiveMapEnergyFilterIds(),
+                effectivePowerLevels = settings.effectiveIrvePowerLevels()
             )
             start()
         }
@@ -349,6 +349,8 @@ class CustomMapPoiScreen(
 
             val limitedPois = pois.take(10)
             val currentSettings = settingsManager.settings.value
+            val effectiveEnergies = currentSettings.effectiveMapEnergyFilterIds()
+            val effectivePowerLevels = currentSettings.effectiveIrvePowerLevels()
             limitedPois.forEach { poi ->
                 val availability = availabilityByPoiId[poi.id]
                 itemListBuilder.addItem(
@@ -356,10 +358,8 @@ class CustomMapPoiScreen(
                         carContext = carContext,
                         poi = poi,
                         availability = availability,
-                        selectedEnergyTypes = currentSettings.selectedMapEnergyTypes,
-                        useVehicleFilter = currentSettings.useVehicleFilter,
-                        vehicleEnergy = currentSettings.vehicleEnergy,
-                        vehicleGasTypes = currentSettings.vehicleGasTypes
+                        effectiveEnergyTypes = effectiveEnergies,
+                        effectivePowerLevels = effectivePowerLevels
                     ) {
                         screenManager.push(
                             PoiDetailScreen(
