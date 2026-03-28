@@ -20,7 +20,8 @@ data class NetworkStatus(
     val networkType: NetworkType = NetworkType.UNKNOWN,
     val isRoaming: Boolean = false,
     val operatorName: String? = null,
-    val isConnected: Boolean = false
+    val isConnected: Boolean = false,
+    val signalLevel: Int = 0 // 0 to 4
 )
 
 interface NetworkService {

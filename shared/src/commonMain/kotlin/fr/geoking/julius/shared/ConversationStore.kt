@@ -388,4 +388,16 @@ open class ConversationStore(
             errorLog = newErrorLog
         )
     }
+
+    /** Triggers a descriptive connection status report as an assistant message. */
+    fun reportNetworkStatus() {
+        scope.launch {
+            val result = actionExecutor?.executeAction(DeviceAction(ActionType.GET_NETWORK_STATUS))
+            if (result != null && result.success) {
+                val aiMsg = ChatMessage("a_net_${getCurrentTimeMillis()}", Role.Assistant, result.message, getCurrentTimeMillis())
+                updateMessages(aiMsg)
+                speakAgain(result.message)
+            }
+        }
+    }
 }

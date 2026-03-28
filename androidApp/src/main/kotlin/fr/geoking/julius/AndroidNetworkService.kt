@@ -7,6 +7,7 @@ import android.location.Geocoder
 import android.location.Location
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.telephony.TelephonyManager
 import fr.geoking.julius.shared.NetworkService
@@ -33,6 +34,7 @@ class AndroidNetworkService(
 
     private val telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
     private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    private val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
 
     init {
         // Ensure map module is loaded for Geocoder/Weather deps if needed by LocationHelper indirectly
@@ -75,6 +77,8 @@ class AndroidNetworkService(
         val isRoaming = telephonyManager.isNetworkRoaming
         val operatorName = telephonyManager.networkOperatorName
 
+        val signalLevel = getSignalLevel()
+
         // Try to get country from Telephony (MCC)
         val telephonyCountry = telephonyManager.networkCountryIso?.uppercase(Locale.US)
 
@@ -100,8 +104,31 @@ class AndroidNetworkService(
             networkType = networkType,
             isRoaming = isRoaming,
             operatorName = operatorName,
-            isConnected = isConnected
+            isConnected = isConnected,
+            signalLevel = signalLevel
         )
+    }
+
+    private fun getSignalLevel(): Int {
+        val activeNetwork = connectivityManager.activeNetwork ?: return 0
+        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return 0
+
+        return when {
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> {
+                val rssi = wifiManager.connectionInfo.rssi
+                @Suppress("DEPRECATION")
+                WifiManager.calculateSignalLevel(rssi, 5) // returns 0-4
+            }
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    telephonyManager.signalStrength?.level ?: 0
+                } else {
+                    @Suppress("DEPRECATION")
+                    telephonyManager.signalStrength?.level ?: 0
+                }
+            }
+            else -> 0
+        }
     }
 
     private fun getNetworkType(): NetworkType {

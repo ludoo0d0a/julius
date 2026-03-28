@@ -1,6 +1,7 @@
 package fr.geoking.julius.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -11,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.SignalCellular4Bar
 import androidx.compose.material.icons.filled.SignalCellularConnectedNoInternet4Bar
 import androidx.compose.material.icons.filled.SignalCellularNull
+import androidx.compose.material.icons.filled.SignalCellularOff
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Icon
@@ -29,12 +31,14 @@ import fr.geoking.julius.shared.NetworkType
 @Composable
 fun NetworkStatusIcon(
     status: NetworkStatus,
+    onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
             .background(Color.Black.copy(alpha = 0.25f))
+            .clickable { onClick() }
             .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -51,7 +55,7 @@ fun NetworkStatusIcon(
 
         // Signal Icon
         val icon = when {
-            !status.isConnected -> if (status.networkType == NetworkType.WIFI) Icons.Default.WifiOff else Icons.Default.SignalCellularConnectedNoInternet4Bar
+            !status.isConnected -> if (status.networkType == NetworkType.WIFI) Icons.Default.WifiOff else Icons.Default.SignalCellularOff
             status.networkType == NetworkType.WIFI -> Icons.Default.Wifi
             status.networkType == NetworkType.NONE -> Icons.Default.SignalCellularNull
             else -> Icons.Default.SignalCellular4Bar
