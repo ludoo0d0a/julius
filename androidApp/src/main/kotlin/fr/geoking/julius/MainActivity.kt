@@ -376,6 +376,7 @@ fun MainUI(
                             trafficProviderFactory = mapDeps!!.trafficProviderFactory,
                             settingsManager = settingsManager,
                             store = store,
+                            palette = palette,
                             onBack = { showMap = false },
                             onPlanRoute = { showRoutePlanning = true },
                             communityRepo = mapDeps!!.communityRepo,
@@ -529,6 +530,7 @@ private fun MapScreenPreview() {
         availabilityProviderFactory = null,
         settingsManager = mockSettingsManager,
         store = rememberMockStore(),
+        palette = fr.geoking.julius.ui.anim.AnimationPalettes.paletteFor(0),
         onBack = {}
     )
 }
