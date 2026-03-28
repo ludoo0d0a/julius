@@ -11,8 +11,8 @@ import androidx.car.app.model.Row
 import androidx.car.app.model.Template
 import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.SettingsManager
-import fr.geoking.julius.ui.LlamatikModelHelper
-import fr.geoking.julius.ui.LlamatikModelVariant
+import fr.geoking.julius.agents.LlamatikModelHelper
+import fr.geoking.julius.agents.LlamatikModelVariant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -64,7 +64,7 @@ class AutoLlamatikModelScreen(
         }
 
         val listBuilder = ItemList.Builder()
-        for (variant in LlamatikModelVariant.entries.filter { it.agentType == settings.selectedAgent }) {
+        for (variant in LlamatikModelVariant.entries.filter { it.forAgentName == settings.selectedAgent.name }) {
             val isDownloaded = helper.isVariantDownloaded(variant)
             val subtitle = if (isDownloaded) "Downloaded" else variant.sizeDescription
             listBuilder.addItem(

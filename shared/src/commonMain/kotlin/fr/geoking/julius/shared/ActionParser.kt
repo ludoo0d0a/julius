@@ -46,6 +46,20 @@ object ActionParser {
                 )
             }
 
+            // Battery level (extended actions / local LLM phrasing)
+            lowerText.contains("battery level") || lowerText.contains("how much battery") ||
+            lowerText.contains("niveau de batterie") || lowerText.contains("niveau batterie") ||
+            lowerText.contains("pourcentage de batterie") -> {
+                return DeviceAction(type = ActionType.GET_BATTERY_LEVEL)
+            }
+
+            // Volume levels
+            lowerText.contains("volume level") || lowerText.contains("volume levels") ||
+            lowerText.contains("how loud") || lowerText.contains("niveau du volume") ||
+            lowerText.contains("niveaux de volume") || lowerText.contains("son du téléphone") -> {
+                return DeviceAction(type = ActionType.GET_VOLUME_LEVEL)
+            }
+
             // Get location - English: where am i, current location | French: où suis-je, ma position, ma localisation
             lowerText.contains("where am i") || lowerText.contains("current location") ||
             lowerText.contains("où suis-je") || lowerText.contains("ou suis-je") ||

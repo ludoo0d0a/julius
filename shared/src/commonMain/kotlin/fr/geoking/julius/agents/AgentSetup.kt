@@ -29,7 +29,7 @@ sealed class AgentSetupDescriptor {
     data class MissingLlamatikModel(override val message: String) : AgentSetupDescriptor()
 }
 
-internal fun llamatikModelSetupFromInput(input: AgentSetupInput): AgentSetupDescriptor.MissingLlamatikModel? {
+fun llamatikModelSetupFromInput(input: AgentSetupInput): AgentSetupDescriptor.MissingLlamatikModel? {
     if (input.hasLlamatikModelFile) return null
     val message = if (input.firstLlamatikVariantDisplay != null && input.firstLlamatikVariantSizeDescription != null) {
         "No model file found. Download ${input.firstLlamatikVariantDisplay} (${input.firstLlamatikVariantSizeDescription}) in Settings. Tap to open."

@@ -30,6 +30,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import fr.geoking.julius.agents.LlamatikModelHelper
+import fr.geoking.julius.agents.LlamatikModelVariant
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.enabledAgentTypes
 import fr.geoking.julius.AppSettings
@@ -1200,22 +1202,27 @@ private fun AgentConfig(
 
                 val selectedVariant = remember(settings.selectedLlamatikModelVariant, agent) {
                     LlamatikModelVariant.entries
-                        .filter { it.agentType == agent }
+                        .filter { it.forAgentName == agent.name }
                         .find { it.name == settings.selectedLlamatikModelVariant }
-                        ?: LlamatikModelVariant.entries.firstOrNull { it.agentType == agent }
+                        ?: LlamatikModelVariant.entries.firstOrNull { it.forAgentName == agent.name }
                 }
-                val downloaded = helper.isModelDownloaded(settings, agent)
+                val downloaded = helper.isModelDownloaded(settings.llamatikModelPath)
                 val variantDownloaded = selectedVariant?.let { helper.isVariantDownloaded(it) } ?: false
-                val displayPath = helper.getDisplayPath(settings, agent)
+                val displayPath = helper.getDisplayPath(settings.llamatikModelPath)
 
                 Text(
-                    "This agent runs offline using a Llamatik-format model path. Choose a variant below and download, or use a model in assets.",
+                    when (agent) {
+                        AgentType.GeminiNano, AgentType.MediaPipe, AgentType.AiEdge ->
+                            "This agent prefers Google AI Edge LiteRT-LM (.litertlm). Download the LiteRT variant below, or use a GGUF model with Llamatik. You can also place files under assets."
+                        else ->
+                            "This agent runs offline with a GGUF model via Llamatik (llama.cpp). Pick a variant and download, or place a .gguf under assets."
+                    },
                     color = Lavender,
                     fontSize = 14.sp,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
-                val variants = LlamatikModelVariant.entries.filter { it.agentType == agent }
+                val variants = LlamatikModelVariant.entries.filter { it.forAgentName == agent.name }
                 if (variants.isEmpty()) {
                     Text(
                         text = "No pre-configured models available for ${agent.name} yet.",

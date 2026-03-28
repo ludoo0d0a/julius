@@ -25,7 +25,7 @@ import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.nextSelectableAgent
 import fr.geoking.julius.agents.ConversationalAgent
 import fr.geoking.julius.ui.AgentSetupIssue
-import fr.geoking.julius.ui.LlamatikModelHelper
+import fr.geoking.julius.agents.LlamatikModelHelper
 import fr.geoking.julius.ui.evaluateAgentSetup
 import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.DetailedError

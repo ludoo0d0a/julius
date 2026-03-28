@@ -91,6 +91,11 @@
             android:name="org.apache.http.legacy"
             android:required="false" />
 
+        <!-- LiteRT-LM GPU backend (OpenCL); optional — CPU/NPU paths still work if unavailable -->
+        <uses-native-library
+            android:name="libLiteRtOpenClAccelerator.so"
+            android:required="false" />
+
     </application>
 
 </manifest>

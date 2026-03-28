@@ -5,6 +5,8 @@ import fr.geoking.julius.AppSettings
 import fr.geoking.julius.agents.AgentSetupDescriptor
 import fr.geoking.julius.agents.AgentSetupInput
 import fr.geoking.julius.agents.ConversationalAgent
+import fr.geoking.julius.agents.LlamatikModelHelper
+import fr.geoking.julius.agents.LlamatikModelVariant
 
 /**
  * Proactive setup problem for the current conversational agent (API key or Llamatik model).
@@ -27,7 +29,7 @@ sealed class AgentSetupIssue {
 
 fun AppSettings.toAgentSetupInput(helper: LlamatikModelHelper): AgentSetupInput {
     val type = selectedAgent
-    val firstVariant = LlamatikModelVariant.entries.firstOrNull { it.agentType == type }
+    val firstVariant = LlamatikModelVariant.entries.firstOrNull { it.forAgentName == type.name }
     return AgentSetupInput(
         openAiKey = openAiKey,
         geminiKey = geminiKey,
@@ -39,7 +41,7 @@ fun AppSettings.toAgentSetupInput(helper: LlamatikModelHelper): AgentSetupInput 
         completionsMeKey = completionsMeKey,
         apifreellmKey = apifreellmKey,
         selectedAgentDisplayName = type.name,
-        hasLlamatikModelFile = helper.isModelDownloaded(this, type),
+        hasLlamatikModelFile = helper.isModelDownloaded(llamatikModelPath),
         firstLlamatikVariantDisplay = firstVariant?.displayName,
         firstLlamatikVariantSizeDescription = firstVariant?.sizeDescription
     )

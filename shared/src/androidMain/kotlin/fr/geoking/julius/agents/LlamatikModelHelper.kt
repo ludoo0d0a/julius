@@ -1,7 +1,6 @@
-package fr.geoking.julius.ui
+package fr.geoking.julius.agents
 
 import android.content.Context
-import fr.geoking.julius.AppSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -9,13 +8,13 @@ import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
-import fr.geoking.julius.AgentType
-
 /**
- * Downloadable on-device model variants grouped by agent (GGUF and related formats).
+ * Downloadable on-device models: **LiteRT-LM** (`.litertlm`, Google AI Edge GenAI) and **GGUF** (Llamatik / llama.cpp).
+ *
+ * [forAgentName] must match the app `AgentType` enum’s `.name` for the slot (e.g. `"Llamatik"`, `"GeminiNano"`).
  */
 enum class LlamatikModelVariant(
-    val agentType: AgentType,
+    val forAgentName: String,
     val displayName: String,
     val sizeDescription: String,
     val fileName: String,
@@ -23,116 +22,136 @@ enum class LlamatikModelVariant(
 ) {
     // GGUF Models (Llamatik, llama.cpp, PocketPal)
     Phi2Gguf(
-        AgentType.Llamatik,
+        "Llamatik",
         displayName = "Phi-2 (Q4_0)",
         sizeDescription = "~1.6 GB, GGUF",
         fileName = "phi-2.Q4_0.gguf",
         downloadUrl = "https://huggingface.co/TheBloke/phi-2-GGUF/resolve/main/phi-2.Q4_0.gguf"
     ),
     Gemma2BGguf(
-        AgentType.Llamatik,
+        "Llamatik",
         displayName = "Gemma 2B IT (Q4_K_M)",
         sizeDescription = "~1.7 GB, GGUF",
         fileName = "gemma-2-2b-it-Q4_K_M.gguf",
         downloadUrl = "https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf"
     ),
     Llama32_1B_Gguf(
-        AgentType.Llamatik,
+        "Llamatik",
         displayName = "Llama 3.2 1B (Q4_K_M)",
         sizeDescription = "~800 MB, GGUF",
         fileName = "Llama-3.2-1B-Instruct-Q4_K_M.gguf",
         downloadUrl = "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf"
     ),
     TinyLlamaGguf(
-        AgentType.Llamatik,
+        "Llamatik",
         displayName = "TinyLlama 1.1B (Q4_K_M)",
         sizeDescription = "~670 MB, GGUF",
         fileName = "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
         downloadUrl = "https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
     ),
     Qwen05BGguf(
-        AgentType.LlamaCpp,
+        "LlamaCpp",
         displayName = "Qwen 2.5 0.5B (Q4_K_M)",
         sizeDescription = "~400 MB, GGUF",
         fileName = "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
         downloadUrl = "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
     ),
     SmolLM2_135M_Gguf(
-        AgentType.PocketPal,
+        "PocketPal",
         displayName = "SmolLM2 135M (Q4_K_M)",
         sizeDescription = "~100 MB, GGUF",
         fileName = "SmolLM2-135M-Instruct-Q4_K_M.gguf",
         downloadUrl = "https://huggingface.co/bartowski/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct-Q4_K_M.gguf"
     ),
     Qwen05B_Pocket_Gguf(
-        AgentType.PocketPal,
+        "PocketPal",
         displayName = "Qwen 2.5 0.5B (Q4_K_M)",
         sizeDescription = "~400 MB, GGUF",
         fileName = "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
         downloadUrl = "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
     ),
 
-    // MediaPipe / Gemini Nano / AI Edge (.bin / .task)
+    // LiteRT-LM (GenAI priority for GeminiNano / MediaPipe / AiEdge agent slots)
+    Gemma3_270m_LiteRt_GeminiNano(
+        "GeminiNano",
+        displayName = "Gemma 3 270M IT (Q8, LiteRT-LM)",
+        sizeDescription = "~290 MB, .litertlm",
+        fileName = "gemma3-270m-it-q8.litertlm",
+        downloadUrl = "https://huggingface.co/litert-community/gemma-3-270m-it/resolve/main/gemma3-270m-it-q8.litertlm"
+    ),
+    Gemma3_270m_LiteRt_MediaPipe(
+        "MediaPipe",
+        displayName = "Gemma 3 270M IT (Q8, LiteRT-LM)",
+        sizeDescription = "~290 MB, .litertlm",
+        fileName = "gemma3-270m-it-q8.litertlm",
+        downloadUrl = "https://huggingface.co/litert-community/gemma-3-270m-it/resolve/main/gemma3-270m-it-q8.litertlm"
+    ),
+    Gemma3_270m_LiteRt_AiEdge(
+        "AiEdge",
+        displayName = "Gemma 3 270M IT (Q8, LiteRT-LM)",
+        sizeDescription = "~290 MB, .litertlm",
+        fileName = "gemma3-270m-it-q8.litertlm",
+        downloadUrl = "https://huggingface.co/litert-community/gemma-3-270m-it/resolve/main/gemma3-270m-it-q8.litertlm"
+    ),
+
+    // Gemini Nano / MediaPipe / AiEdge: GGUF fallback (Llamatik)
     Gemma2BMediaPipe(
-        AgentType.GeminiNano,
-        displayName = "Gemma 2B IT (Int4)",
-        sizeDescription = "~1.35 GB, MediaPipe",
-        fileName = "gemma-1.1-2b-it-gpu-int4.bin",
-        downloadUrl = "https://huggingface.co/jeiku/Gemma-2b-it-MediaPipe/resolve/main/gemma-2b-it-gpu-int4.bin"
+        "GeminiNano",
+        displayName = "Gemma 2B IT (Q4_K_M)",
+        sizeDescription = "~1.7 GB, GGUF",
+        fileName = "gemma-2-2b-it-Q4_K_M.gguf",
+        downloadUrl = "https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf"
     ),
     Phi2MediaPipe(
-        AgentType.MediaPipe,
-        displayName = "Phi-2 (Int4)",
-        sizeDescription = "~1.5 GB, MediaPipe",
-        fileName = "phi-2-gpu-int4.bin",
-        downloadUrl = "https://huggingface.co/jeiku/Phi-2-MediaPipe/resolve/main/phi-2-gpu-int4.bin"
+        "MediaPipe",
+        displayName = "Phi-2 (Q4_0)",
+        sizeDescription = "~1.6 GB, GGUF",
+        fileName = "phi-2.Q4_0.gguf",
+        downloadUrl = "https://huggingface.co/TheBloke/phi-2-GGUF/resolve/main/phi-2.Q4_0.gguf"
     ),
 
     // RunAnywhere / AI Edge
     Qwen05B_Edge_Gguf(
-        AgentType.AiEdge,
+        "AiEdge",
         displayName = "Qwen 2.5 0.5B (Q4_K_M)",
         sizeDescription = "~400 MB, GGUF",
         fileName = "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
         downloadUrl = "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
     ),
     SmolLM2_135M_Run_Gguf(
-        AgentType.RunAnywhere,
+        "RunAnywhere",
         displayName = "SmolLM2 135M (Q4_K_M)",
         sizeDescription = "~100 MB, GGUF",
         fileName = "SmolLM2-135M-Instruct-Q4_K_M.gguf",
         downloadUrl = "https://huggingface.co/bartowski/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct-Q4_K_M.gguf"
     ),
 
-    // MLC-LLM
+    // MLC-LLM slot: same GGUF runtime as Llamatik (full phi-2 GGUF; not MLC bundle).
     Phi2_Mlc(
-        AgentType.MlcLlm,
-        displayName = "Phi-2 (Q4f16_1)",
-        sizeDescription = "~1.6 GB, MLC format",
-        fileName = "phi-2-q4f16_1-MLC",
-        downloadUrl = "https://huggingface.co/mlc-ai/phi-2-q4f16_1-MLC/resolve/main/params/ndarray-cache.json"
+        "MlcLlm",
+        displayName = "Phi-2 (Q4_0)",
+        sizeDescription = "~1.6 GB, GGUF",
+        fileName = "phi-2.Q4_0.gguf",
+        downloadUrl = "https://huggingface.co/TheBloke/phi-2-GGUF/resolve/main/phi-2.Q4_0.gguf"
     )
 }
 
 /**
- * Llamatik / on-device model path: check if model exists, resolve display path, download GGUF.
- * Downloaded models are stored in app files dir: [context.filesDir]/models/[variant.fileName].
+ * On-device model path checks and downloads. Files live under [Context.getFilesDir]/models/<agentName>/.
  */
 class LlamatikModelHelper(private val context: Context) {
 
     companion object {
-        /** Default asset-relative path used when no download has been done. */
+        /** Default asset-relative path when no download has been done. */
         const val DEFAULT_ASSET_PATH = "models/phi-2.Q4_0.gguf"
     }
 
     private fun fileForVariant(variant: LlamatikModelVariant): File =
-        File(context.filesDir, "models/${variant.agentType.name}/${variant.fileName}")
+        File(context.filesDir, "models/${variant.forAgentName}/${variant.fileName}")
 
-    /**
-     * Returns true if the model for the given agent is available.
-     */
-    fun isModelDownloaded(settings: AppSettings, agentType: AgentType): Boolean {
-        val path = getModelPathForAgent(settings, agentType)
+    /** True if [modelPath] exists as a file or as an asset (when not absolute). */
+    fun isModelDownloaded(modelPath: String): Boolean {
+        val path = modelPath.trim()
         if (path.isBlank()) return false
         return if (isAbsolutePath(path)) {
             File(path).exists()
@@ -146,39 +165,18 @@ class LlamatikModelHelper(private val context: Context) {
         }
     }
 
-    private fun getModelPathForAgent(settings: AppSettings, agentType: AgentType): String {
-        return when (agentType) {
-            AgentType.Llamatik -> settings.llamatikModelPath
-            // Other on-device agents share [AppSettings.llamatikModelPath] until split per agent.
-            else -> settings.llamatikModelPath
-        }
-    }
-
-    /**
-     * Returns true if the given variant has been downloaded (file exists in app storage).
-     */
     fun isVariantDownloaded(variant: LlamatikModelVariant): Boolean =
         fileForVariant(variant).exists()
 
-    /**
-     * Path to show in UI (absolute path or "assets: models/...").
-     */
-    fun getDisplayPath(settings: AppSettings, agentType: AgentType): String {
-        val path = getModelPathForAgent(settings, agentType)
+    fun getDisplayPath(modelPath: String): String {
+        val path = modelPath.trim()
         if (path.isBlank()) return DEFAULT_ASSET_PATH
         return if (isAbsolutePath(path)) path else "assets: $path"
     }
 
-    /**
-     * Absolute path where the selected variant will be saved when downloading.
-     */
     fun getDownloadDestinationPath(variant: LlamatikModelVariant): String =
         fileForVariant(variant).absolutePath
 
-    /**
-     * Downloads the given variant to app files dir. Reports progress (bytes read, total if known).
-     * Returns the absolute path to use as [AppSettings.llamatikModelPath] on success.
-     */
     suspend fun download(
         variant: LlamatikModelVariant,
         onProgress: (bytesDownloaded: Long, totalBytes: Long?) -> Unit

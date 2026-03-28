@@ -1,5 +1,6 @@
 package fr.geoking.julius.di
 
+import android.content.Context
 import fr.geoking.julius.AndroidVoiceManager
 import fr.geoking.julius.AndroidActionExecutor
 import fr.geoking.julius.AndroidNetworkService
@@ -15,7 +16,6 @@ import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.LocalTranscriber
 import fr.geoking.julius.shared.NetworkService
 import fr.geoking.julius.shared.VoiceManager
-import fr.geoking.julius.agents.AndroidLlamaBackend
 import fr.geoking.julius.voice.VoskTranscriber
 import fr.geoking.julius.shared.ActionExecutor
 import fr.geoking.julius.shared.PermissionManager
@@ -50,11 +50,32 @@ import kotlin.random.Random
 class DynamicAgentWrapper(
     private val client: HttpClient,
     private val settingsManager: SettingsManager,
-    private val llamaBackend: LlamaBackend
+    private val llamaBackend: LlamaBackend,
+    private val appContext: Context,
 ) : ConversationalAgent {
 
     private var cachedAgent: ConversationalAgent? = null
     private var cachedKey: String? = null
+
+    private fun llamatik(settings: AppSettings) = LlamatikAgent(
+        modelPath = settings.llamatikModelPath,
+        backend = llamaBackend,
+        extendedActionsEnabled = settings.extendedActionsEnabled,
+    )
+
+    /** Prefer Google AI Edge LiteRT-LM for `.litertlm`; fall back to Llamatik (GGUF). */
+    private fun liteRtOrLlamatik(settings: AppSettings): ConversationalAgent {
+        val p = settings.llamatikModelPath.trim()
+        return if (p.endsWith(".litertlm", ignoreCase = true)) {
+            LiteRtLmOnDeviceAgent(
+                appContext.applicationContext,
+                p,
+                extendedActionsEnabled = settings.extendedActionsEnabled,
+            )
+        } else {
+            llamatik(settings)
+        }
+    }
 
     private fun createAgent(settings: AppSettings): ConversationalAgent {
         android.util.Log.d("DynamicAgentWrapper", "Creating agent: ${settings.selectedAgent.name}")
@@ -75,25 +96,35 @@ class DynamicAgentWrapper(
         AgentType.OpenCodeZen -> OpenCodeZenAgent(client, apiKey = settings.opencodeZenKey, model = settings.opencodeZenModel)
         AgentType.CompletionsMe -> CompletionsMeAgent(client, apiKey = settings.completionsMeKey, model = settings.completionsMeModel)
         AgentType.ApiFreeLLM -> ApiFreeLLMAgent(client, apiKey = settings.apifreellmKey)
-        AgentType.Llamatik -> LlamatikAgent(modelPath = settings.llamatikModelPath, backend = llamaBackend)
-        AgentType.GeminiNano -> LocalPlaceholderAgent("Gemini Nano", settings.llamatikModelPath)
-        AgentType.RunAnywhere -> LocalPlaceholderAgent("RunAnywhere", settings.llamatikModelPath)
-        AgentType.MlcLlm -> LocalPlaceholderAgent("MLC-LLM", settings.llamatikModelPath)
-        AgentType.LlamaCpp -> LlamatikAgent(modelPath = settings.llamatikModelPath, backend = llamaBackend)
-        AgentType.MediaPipe -> LocalPlaceholderAgent("MediaPipe GenAI", settings.llamatikModelPath)
-        AgentType.AiEdge -> LocalPlaceholderAgent("AI Edge Gallery", settings.llamatikModelPath)
-        AgentType.PocketPal -> LocalPlaceholderAgent("PocketPal AI", settings.llamatikModelPath)
-        AgentType.Offline -> OfflineAgent()
+        AgentType.Llamatik -> llamatik(settings)
+        // GenAI priority: LiteRT-LM (.litertlm) when path matches; else GGUF via Llamatik.
+        AgentType.GeminiNano -> liteRtOrLlamatik(settings)
+        AgentType.MediaPipe -> liteRtOrLlamatik(settings)
+        AgentType.AiEdge -> liteRtOrLlamatik(settings)
+        AgentType.RunAnywhere -> llamatik(settings)
+        AgentType.MlcLlm -> llamatik(settings)
+        AgentType.LlamaCpp -> llamatik(settings)
+        AgentType.PocketPal -> llamatik(settings)
+        AgentType.Offline -> OfflineAgent(extendedActionsEnabled = settings.extendedActionsEnabled)
         }
     }
 
     private fun getOrCreateAgent(settings: AppSettings): ConversationalAgent {
         val key = cacheKey(settings)
         if (cachedKey == key && cachedAgent != null) return cachedAgent!!
+        releaseCachedAgentResources()
         val newAgent = createAgent(settings)
         cachedAgent = newAgent
         cachedKey = key
         return newAgent
+    }
+
+    private fun releaseCachedAgentResources() {
+        when (val old = cachedAgent) {
+            is LlamatikAgent -> old.shutdown()
+            is LiteRtLmOnDeviceAgent -> old.close()
+            else -> {}
+        }
     }
 
     override fun evaluateSetupIssue(input: AgentSetupInput): AgentSetupDescriptor? =
@@ -194,7 +225,7 @@ val appModule = module {
 
     // Use the dynamic wrapper instead of a static agent
     single<ConversationalAgent> {
-        DynamicAgentWrapper(get(), get(), get())
+        DynamicAgentWrapper(get(), get(), get(), androidContext())
     }
     
     single<VoiceManager> {

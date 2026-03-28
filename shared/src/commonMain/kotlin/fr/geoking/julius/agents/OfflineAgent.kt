@@ -1,5 +1,6 @@
 package fr.geoking.julius.agents
 
+import fr.geoking.julius.shared.ActionParser
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.random.Random
@@ -7,15 +8,27 @@ import kotlin.random.Random
 /**
  * OfflineAgent - Fully offline agent.
  * Supports: basic math, counting (EN/FR), hangman, quote of the day.
- * Implements the same [ConversationalAgent] interface as other agents.
+ * When [extendedActionsEnabled] is true, matching utterances yield [ToolCall]s like cloud agents (same store loop).
  */
-class OfflineAgent : ConversationalAgent {
+class OfflineAgent(
+    private val extendedActionsEnabled: Boolean = false,
+) : ConversationalAgent {
 
     private val mutex = Mutex()
 
     override suspend fun process(input: String): AgentResponse = mutex.withLock {
         val lastUserMessage = extractLastUserMessage(input)
         val normalized = lastUserMessage.trim().lowercase()
+
+        if (extendedActionsEnabled) {
+            ActionParser.parseActionFromResponse(lastUserMessage)?.let { action ->
+                return AgentResponse(
+                    text = LocalExtendedToolSupport.briefAckForExtendedAction(action),
+                    toolCalls = listOf(ToolCall(id = LocalExtendedToolSupport.newLocalToolCallId(), action = action)),
+                    audio = null,
+                )
+            }
+        }
 
         // 1. Check for active hangman game first
         HangmanState.current?.let { game ->
@@ -50,9 +63,19 @@ class OfflineAgent : ConversationalAgent {
             normalized.contains("français") || normalized.contains("french") || normalized.contains("en français")
         return AgentResponse(
             text = if (isFrench) {
-                "Je suis un agent hors ligne. Je peux : calculer (ex: 5 plus 3), compter (ex: compte jusqu'à 10 en français), jouer au pendu (dis \"jouer au pendu\"), ou donner une citation du jour (dis \"citation du jour\")."
+                buildString {
+                    append("Je suis un agent hors ligne. Je peux : calculer, compter, pendu, citation du jour.")
+                    if (extendedActionsEnabled) {
+                        append(" Avec actions étendues : navigation, carte, météo, stations, etc. — utilise les mêmes formulations que pour l'assistant vocal.")
+                    }
+                }
             } else {
-                "I'm an offline agent. I can: compute math (e.g. 5 plus 3), count (e.g. count to 10 in English), play hangman (say \"play hangman\"), or give a quote of the day (say \"quote of the day\")."
+                buildString {
+                    append("I'm an offline agent. I can: math, counting, hangman, quote of the day.")
+                    if (extendedActionsEnabled) {
+                        append(" With extended actions enabled, try navigate, weather, gas station, map, and other driving phrases like the cloud assistant.")
+                    }
+                }
             },
             audio = null
         )

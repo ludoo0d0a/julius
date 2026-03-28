@@ -237,29 +237,7 @@ class OpenAIAgent(
 
         val text = responseMessage.content ?: ""
         val toolCalls = responseMessage.tool_calls?.mapNotNull { tc ->
-            val type = when (tc.function.name) {
-                "get_location" -> ActionType.GET_LOCATION
-                "show_map" -> ActionType.SHOW_MAP
-                "get_battery_level" -> ActionType.GET_BATTERY_LEVEL
-                "get_volume_levels" -> ActionType.GET_VOLUME_LEVEL
-                "find_gas_stations_nearby" -> ActionType.FIND_GAS_STATIONS
-                "find_electric_stations_nearby" -> ActionType.FIND_ELECTRIC_STATIONS
-                "find_hybrid_stations_nearby" -> ActionType.FIND_HYBRID_STATIONS
-                "find_parking_nearby" -> ActionType.FIND_PARKING
-                "find_restaurants_nearby" -> ActionType.FIND_RESTAURANTS
-                "find_fastfood_nearby" -> ActionType.FIND_FASTFOOD
-                "find_service_area_nearby" -> ActionType.FIND_SERVICE_AREA
-                "get_traffic_info" -> ActionType.GET_TRAFFIC
-                "get_weather" -> ActionType.GET_WEATHER
-                "play_music" -> ActionType.PLAY_MUSIC
-                "play_audiobook" -> ActionType.PLAY_AUDIOBOOK
-                "call_contact" -> ActionType.CALL_CONTACT
-                "find_nearest_hospital" -> ActionType.FIND_HOSPITAL
-                "request_roadside_assistance" -> ActionType.ROADSIDE_ASSISTANCE
-                "emergency_call" -> ActionType.EMERGENCY_CALL
-                "navigate_to" -> ActionType.NAVIGATE
-                else -> null
-            }
+            val type = ExtendedToolActionRegistry.apiToolNameToActionType(tc.function.name)
 
             val target = try {
                 val args = json.parseToJsonElement(tc.function.arguments).jsonObject

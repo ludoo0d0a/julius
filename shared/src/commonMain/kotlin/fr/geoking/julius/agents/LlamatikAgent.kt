@@ -19,15 +19,25 @@ import kotlinx.coroutines.sync.withLock
  *
  * @param modelPath Asset-relative or absolute path to the GGUF model (e.g. "models/phi-2.Q4_0.gguf").
  * @param backend Optional backend; if null, uses [DefaultLlamaBackend] (Llamatik). Inject a fake in tests.
+ * @param extendedActionsEnabled When true, system prompt includes [ExtendedToolActionRegistry] guidance (same tool surface as OpenAI/Gemini).
  */
 class LlamatikAgent(
     private val modelPath: String = "models/phi-2.Q4_0.gguf",
-    private val backend: LlamaBackend? = DefaultLlamaBackend
+    private val backend: LlamaBackend? = DefaultLlamaBackend,
+    private val extendedActionsEnabled: Boolean = false,
 ) : ConversationalAgent {
 
     private val mutex = Mutex()
     private var isModelInitialized = false
-    private val systemPrompt = "You are a helpful and concise voice assistant. Provide clear, brief responses suitable for voice interaction."
+    private val baseSystemPrompt =
+        "You are a helpful and concise voice assistant. Provide clear, brief responses suitable for voice interaction."
+
+    private fun resolvedSystemPrompt(): String =
+        if (extendedActionsEnabled) {
+            "$baseSystemPrompt\n\n${ExtendedToolActionRegistry.localModelExtendedActionsSystemAddendum()}"
+        } else {
+            baseSystemPrompt
+        }
 
     private fun getBackend(): LlamaBackend = backend ?: DefaultLlamaBackend
 
@@ -62,11 +72,15 @@ class LlamatikAgent(
                 initializeModelIfNeeded()
             }
             val response = bridge.generateWithContext(
-                systemPrompt = systemPrompt,
+                systemPrompt = resolvedSystemPrompt(),
                 contextBlock = "",
                 userPrompt = input
             )
-            return AgentResponse(text = response.trim(), audio = null)
+            return LocalExtendedToolSupport.augmentWithToolCallsIfNeeded(
+                modelText = response,
+                fullConversationPrompt = input,
+                extendedActionsEnabled = extendedActionsEnabled,
+            )
         } catch (e: NetworkException) {
             throw e
         } catch (e: Exception) {

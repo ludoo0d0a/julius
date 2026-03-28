@@ -95,3 +95,9 @@
 # ---------------------------------------------------------------------------
 -keep class com.llamatik.** { *; }
 -dontwarn com.llamatik.**
+
+# ---------------------------------------------------------------------------
+# Google AI Edge LiteRT-LM (on-device GenAI)
+# ---------------------------------------------------------------------------
+-keep class com.google.ai.edge.litertlm.** { *; }
+-dontwarn com.google.ai.edge.litertlm.**

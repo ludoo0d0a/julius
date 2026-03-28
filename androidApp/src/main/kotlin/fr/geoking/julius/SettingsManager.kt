@@ -24,14 +24,15 @@ enum class AgentType(val enabled: Boolean = true) {
     CompletionsMe,
     ApiFreeLLM,
     Llamatik,
-    /** Not wired to an on-device runtime yet; hidden until implemented. */
-    GeminiNano(enabled = false),
-    RunAnywhere(enabled = false),
-    MlcLlm(enabled = false),
+    /** On-device GGUF via Llamatik; default download Gemma-class model. */
+    GeminiNano,
+    RunAnywhere,
+    MlcLlm,
     LlamaCpp,
-    MediaPipe(enabled = false),
-    AiEdge(enabled = false),
-    PocketPal(enabled = false),
+    /** On-device GGUF via Llamatik; suggested Phi-2–class model (MediaPipe-style UI label). */
+    MediaPipe,
+    AiEdge,
+    PocketPal,
     Offline
 }
 
@@ -176,8 +177,8 @@ data class AppSettings(
     val textAnimation: TextAnimation = TextAnimation.Fade,
     /** Path to Llamatik GGUF model: asset-relative (e.g. "models/phi-2.Q4_0.gguf") or absolute path after download. */
     val llamatikModelPath: String = "models/phi-2.Q4_0.gguf",
-    /** Selected Llamatik model variant for download UI; must match [fr.geoking.julius.ui.LlamatikModelVariant].name (e.g. Phi2Q4_0). */
-    val selectedLlamatikModelVariant: String = "Phi2Q4_0",
+    /** Selected Llamatik model variant for download UI; must match [fr.geoking.julius.agents.LlamatikModelVariant].name (e.g. Phi2Gguf). */
+    val selectedLlamatikModelVariant: String = "Phi2Gguf",
     val lastJulesRepoId: String = "",
     val lastJulesRepoName: String = "",
     val googleUserName: String? = null,
@@ -436,7 +437,7 @@ open class SettingsManager(context: Context) {
                 TextAnimation.Fade
             },
             llamatikModelPath = prefs.getString("llamatik_model_path", "models/phi-2.Q4_0.gguf") ?: "models/phi-2.Q4_0.gguf",
-            selectedLlamatikModelVariant = prefs.getString("selected_llamatik_model_variant", "Phi2Q4_0") ?: "Phi2Q4_0",
+            selectedLlamatikModelVariant = prefs.getString("selected_llamatik_model_variant", "Phi2Gguf") ?: "Phi2Gguf",
             tollDataPath = prefs.getString("toll_data_path", null),
             mobiliteitLuxembourgKey = mobiliteitLuxembourgKey,
             lastJulesRepoId = lastJulesRepoId,
