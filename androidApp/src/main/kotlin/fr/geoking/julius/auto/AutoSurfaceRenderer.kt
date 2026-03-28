@@ -145,7 +145,8 @@ class AutoSurfaceRenderer(
                 useVehicleFilter = useVehicleFilter,
                 vehicleEnergy = vehicleEnergy,
                 vehicleGasTypes = vehicleGasTypes,
-                sizePx = markerSize
+                sizePx = markerSize,
+                availability = null // Surface renderer doesn't have easy access to availability yet
             )
 
             canvas.drawBitmap(bitmap, drawX - markerSize / 2f, drawY - markerSize / 2f, null)

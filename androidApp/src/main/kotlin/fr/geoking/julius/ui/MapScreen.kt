@@ -97,7 +97,7 @@ private fun vectorDrawableToBitmapDescriptor(
 /** Marker size in px (fixed, not scaling with zoom). */
 private fun markerSizePxForZoom(zoom: Float): Int {
     // Larger marker + label for readability on phone screens.
-    return 96
+    return 120
 }
 
 private data class LoadedPoiRegion(
@@ -710,7 +710,8 @@ fun MapScreen(
                     val poisToShow =
                         if (showFavoritesOnly && favoriteIds.isNotEmpty()) poisInView.filter { it.id in favoriteIds } else poisInView
                     poisToShow.forEach { poi ->
-                        val markerBitmap = remember(poi, settings.selectedMapEnergyTypes, settings.useVehicleFilter, settings.vehicleEnergy, settings.vehicleGasTypes, sizePx) {
+                        val availability = availabilityByPoiId[poi.id]
+                        val markerBitmap = remember(poi, settings.selectedMapEnergyTypes, settings.useVehicleFilter, settings.vehicleEnergy, settings.vehicleGasTypes, sizePx, availability) {
                             BitmapDescriptorFactory.fromBitmap(
                                 PoiMarkerHelper.getMarkerBitmap(
                                     context = mapContext,
@@ -719,7 +720,8 @@ fun MapScreen(
                                     useVehicleFilter = settings.useVehicleFilter,
                                     vehicleEnergy = settings.vehicleEnergy,
                                     vehicleGasTypes = settings.vehicleGasTypes,
-                                    sizePx = sizePx
+                                    sizePx = sizePx,
+                                    availability = availability
                                 )
                             )
                         }
