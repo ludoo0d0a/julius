@@ -56,6 +56,7 @@ fun VoiceMainContent(
     ) {
         NetworkStatusIcon(
             status = networkStatus,
+            onClick = { store.reportNetworkStatus() },
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 16.dp, end = 16.dp)
