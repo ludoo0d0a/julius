@@ -104,7 +104,7 @@ open class ConversationStore(
         scope.launch {
             val p = persistence ?: return@launch
             try {
-                val lastMessages = withContext(Dispatchers.IO) {
+                val lastMessages = withContext(Dispatchers.Default) {
                     val oneWeekAgo = getCurrentTimeMillis() - 7L * 24 * 60 * 60 * 1000
                     p.cleanupOldMessages(oneWeekAgo)
                     p.loadMessages(limit = 20)
@@ -290,7 +290,7 @@ open class ConversationStore(
         scope.launch {
             val p = persistence ?: return@launch
             try {
-                withContext(Dispatchers.IO) {
+                withContext(Dispatchers.Default) {
                     p.saveMessage(msg)
                 }
             } catch (e: Exception) {
@@ -370,7 +370,7 @@ open class ConversationStore(
         scope.launch {
             val p = persistence ?: return@launch
             try {
-                withContext(Dispatchers.IO) {
+                withContext(Dispatchers.Default) {
                     p.clearMessages()
                 }
             } catch (e: Exception) {
