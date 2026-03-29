@@ -24,7 +24,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Merge
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -53,6 +58,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.time.Duration
@@ -61,9 +67,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.api.github.GitHubClient
 import fr.geoking.julius.api.jules.JulesChatItem
 import fr.geoking.julius.api.jules.JulesClient
+import fr.geoking.julius.persistence.JulesSessionEntity
+import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.NetworkException
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 private val JulesBg = Color(0xFF0F172A)
@@ -79,6 +89,7 @@ private val JulesListBg = Color(0xFF1E293B)
 fun JulesScreen(
     onBack: () -> Unit,
     julesClient: JulesClient,
+    julesRepository: JulesRepository,
     settingsManager: SettingsManager,
     voiceManager: fr.geoking.julius.shared.VoiceManager
 ) {
@@ -86,10 +97,11 @@ fun JulesScreen(
 
     val settings by settingsManager.settings.collectAsState()
     val apiKey = settings.julesKey
+    val githubToken = settings.githubApiKey
 
     var sources by remember { mutableStateOf<List<JulesClient.JulesSource>>(emptyList()) }
-    var sessions by remember { mutableStateOf<List<JulesClient.JulesSession>>(emptyList()) }
-    var currentSession by remember { mutableStateOf<JulesClient.JulesSession?>(null) }
+    var sessions by remember { mutableStateOf<List<JulesSessionEntity>>(emptyList()) }
+    var currentSession by remember { mutableStateOf<JulesSessionEntity?>(null) }
     val chatItems = remember { mutableStateListOf<JulesChatItem>() }
     var loading by remember { mutableStateOf(false) }
     var loadingSessions by remember { mutableStateOf(false) }
@@ -137,24 +149,15 @@ fun JulesScreen(
     }
 
     fun loadSessions() {
-        if (apiKey.isBlank() || selectedSourceName == null) return
+        val sourceName = selectedSourceName ?: return
+        if (apiKey.isBlank()) return
         scope.launch {
             loadingSessions = true
             clearError()
-            try {
-                val resp = julesClient.listSessions(apiKey, pageSize = 50)
-                val list = resp.sessions.orEmpty().filter { s ->
-                    s.sourceContext?.source == selectedSourceName
-                }
+            julesRepository.getSessions(apiKey, sourceName, githubToken).collectLatest { list ->
                 sessions = list
-            } catch (e: Exception) {
-                error = when {
-                    e is NetworkException && e.httpCode == 401 -> "Invalid or wrong Jules API key."
-                    e is NetworkException && e.httpCode != null -> "Failed to load conversations (${e.httpCode}): ${e.message}"
-                    else -> "Failed to load conversations: ${e.message ?: "Unknown error"}"
-                }
+                loadingSessions = false
             }
-            loadingSessions = false
         }
     }
 
@@ -163,20 +166,14 @@ fun JulesScreen(
         if (apiKey.isBlank()) return
         loading = true
         clearError()
-        try {
-            val resp = julesClient.listActivities(apiKey, session.id, pageSize = 50)
+        julesRepository.getActivities(apiKey, session.id).collectLatest { list ->
             chatItems.clear()
-            chatItems.addAll(julesClient.activitiesToChatItems(resp.activities))
+            chatItems.addAll(list)
             if (chatItems.isNotEmpty()) {
                 listState.animateScrollToItem(chatItems.size - 1)
             }
-        } catch (e: Exception) {
-            error = when {
-                e is NetworkException && e.httpCode == 401 -> "Invalid API key."
-                else -> "Failed to load messages: ${e.message ?: "Unknown error"}"
-            }
+            loading = false
         }
-        loading = false
     }
 
     fun refreshActivities() {
@@ -296,14 +293,12 @@ fun JulesScreen(
                                         julesClient.sendMessage(apiKey, currentSession!!.id, prompt)
 
                                         // Poll for response
-                                        var foundNew = false
                                         repeat(10) {
                                             kotlinx.coroutines.delay(2000)
                                             refreshActivitiesInternal()
                                             val newLastAgentMsg = chatItems.lastOrNull { it is JulesChatItem.AgentMessage } as? JulesChatItem.AgentMessage
                                             if (newLastAgentMsg != null && newLastAgentMsg.id != oldLastId) {
                                                 voiceManager.speak(newLastAgentMsg.text)
-                                                foundNew = true
                                                 return@repeat
                                             }
                                         }
@@ -338,8 +333,19 @@ fun JulesScreen(
                                             source = source,
                                             title = newSessionPrompt.take(80)
                                         )
+                                        val entity = JulesSessionEntity(
+                                            id = session.id,
+                                            title = session.title,
+                                            prompt = session.prompt,
+                                            sourceName = source,
+                                            prUrl = session.outputs?.firstOrNull()?.pullRequest?.url,
+                                            prTitle = session.outputs?.firstOrNull()?.pullRequest?.title,
+                                            prState = null,
+                                            isArchived = false,
+                                            lastUpdated = System.currentTimeMillis()
+                                        )
                                         newSessionPrompt = ""
-                                        currentSession = session
+                                        currentSession = entity
                                         loadSessions()
                                     } catch (e: Exception) {
                                         error = when {
@@ -351,7 +357,42 @@ fun JulesScreen(
                                     loading = false
                                 }
                             },
-                            onOpenSession = { currentSession = it }
+                            onOpenSession = { currentSession = it },
+                            onMergePr = { session ->
+                                scope.launch {
+                                    loading = true
+                                    val res = julesRepository.mergePr(githubToken, session.prUrl!!)
+                                    if (res.isFailure) error = "Merge failed: ${res.exceptionOrNull()?.message}"
+                                    else loadSessions()
+                                    loading = false
+                                }
+                            },
+                            onClosePr = { session ->
+                                scope.launch {
+                                    loading = true
+                                    val res = julesRepository.closePr(githubToken, session.prUrl!!)
+                                    if (res.isFailure) error = "Close failed: ${res.exceptionOrNull()?.message}"
+                                    else loadSessions()
+                                    loading = false
+                                }
+                            },
+                            onGetPrDetails = { session, onResult ->
+                                scope.launch {
+                                    loading = true
+                                    val res = julesRepository.getPrDetails(githubToken, session.prUrl!!)
+                                    if (res.isSuccess) onResult(res.getOrNull())
+                                    else error = "Could not get details: ${res.exceptionOrNull()?.message}"
+                                    loading = false
+                                }
+                            },
+                            onArchive = { session ->
+                                scope.launch {
+                                    loading = true
+                                    julesRepository.archiveSession(session.id)
+                                    loadSessions()
+                                    loading = false
+                                }
+                            }
                         )
                     }
 
@@ -479,7 +520,7 @@ private fun ErrorCard(
 
 @Composable
 private fun InConversationContent(
-    currentSession: JulesClient.JulesSession,
+    currentSession: JulesSessionEntity,
     chatItems: List<JulesChatItem>,
     listState: androidx.compose.foundation.lazy.LazyListState,
     inputText: String,
@@ -630,15 +671,20 @@ private fun InConversationContent(
 @Composable
 private fun RepoAndSessionsContent(
     apiKey: String,
-    sessions: List<JulesClient.JulesSession>,
+    sessions: List<JulesSessionEntity>,
     selectedSourceName: String?,
     loading: Boolean,
     loadingSessions: Boolean,
     newSessionPrompt: String,
     onNewSessionPromptChange: (String) -> Unit,
     onCreateSession: () -> Unit,
-    onOpenSession: (JulesClient.JulesSession) -> Unit
+    onOpenSession: (JulesSessionEntity) -> Unit,
+    onMergePr: (JulesSessionEntity) -> Unit,
+    onClosePr: (JulesSessionEntity) -> Unit,
+    onGetPrDetails: (JulesSessionEntity, (GitHubClient.GitHubPullRequestDetail?) -> Unit) -> Unit,
+    onArchive: (JulesSessionEntity) -> Unit
 ) {
+    var showPrDetails by remember { mutableStateOf<GitHubClient.GitHubPullRequestDetail?>(null) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -734,18 +780,49 @@ private fun RepoAndSessionsContent(
                 items(sessions) { session ->
                     SessionRow(
                         session = session,
-                        onClick = { onOpenSession(session) }
+                        onClick = { onOpenSession(session) },
+                        onMerge = { onMergePr(session) },
+                        onClose = { onClosePr(session) },
+                        onArchive = { onArchive(session) },
+                        onDetails = {
+                            onGetPrDetails(session) { showPrDetails = it }
+                        }
                     )
                 }
             }
         }
     }
+
+    if (showPrDetails != null) {
+        val pr = showPrDetails!!
+        AlertDialog(
+            onDismissRequest = { showPrDetails = null },
+            title = { Text(pr.title, color = Color.White) },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Text("State: ${pr.state.uppercase()}", color = JulesAccent, fontWeight = FontWeight.Bold)
+                    if (pr.merged) Text("Status: MERGED", color = Color.Green)
+                    if (pr.mergeable == false) Text("Status: CONFLICTS", color = Color.Red)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(pr.body ?: "No description.", color = Color.White.copy(alpha = 0.8f))
+                }
+            },
+            confirmButton = {
+                OutlinedButton(onClick = { showPrDetails = null }) { Text("Close") }
+            },
+            containerColor = JulesBg
+        )
+    }
 }
 
 @Composable
 private fun SessionRow(
-    session: JulesClient.JulesSession,
-    onClick: () -> Unit
+    session: JulesSessionEntity,
+    onClick: () -> Unit,
+    onMerge: () -> Unit,
+    onClose: () -> Unit,
+    onArchive: () -> Unit,
+    onDetails: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -769,13 +846,42 @@ private fun SessionRow(
                     fontSize = 13.sp
                 )
             }
-            val hasOutput = !session.outputs.isNullOrEmpty()
+            val hasOutput = !session.prUrl.isNullOrBlank()
             Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = if (hasOutput) "Has output (e.g. PR)" else "In progress",
-                color = if (hasOutput) JulesAccent else Color.White.copy(alpha = 0.6f),
-                fontSize = 12.sp
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val (statusText, statusColor) = when (session.prState) {
+                    "merged" -> "Merged" to Color.Magenta
+                    "closed" -> "Closed" to Color.Red
+                    "open" -> "Open PR" to Color.Green
+                    else -> (if (hasOutput) "Output available" else "In progress") to (if (hasOutput) JulesAccent else Color.White.copy(alpha = 0.6f))
+                }
+                Box(modifier = Modifier.size(8.dp).background(statusColor, RoundedCornerShape(4.dp)))
+                Spacer(modifier = Modifier.size(6.dp))
+                Text(
+                    text = statusText,
+                    color = statusColor,
+                    fontSize = 12.sp,
+                    modifier = Modifier.weight(1f)
+                )
+
+                IconButton(onClick = onArchive, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Default.Archive, contentDescription = "Archive", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                }
+
+                if (hasOutput && session.prState == "open") {
+                    IconButton(onClick = onDetails, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Description, contentDescription = "Details", tint = Color.White, modifier = Modifier.size(16.dp))
+                    }
+                    Spacer(modifier = Modifier.size(4.dp))
+                    IconButton(onClick = onMerge, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Merge, contentDescription = "Merge", tint = Color.White, modifier = Modifier.size(16.dp))
+                    }
+                    Spacer(modifier = Modifier.size(4.dp))
+                    IconButton(onClick = onClose, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
         }
     }
 }

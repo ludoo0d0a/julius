@@ -80,6 +80,7 @@ class GitHubClient(
         val number: Int = 0,
         val title: String = "",
         val state: String = "",
+        val body: String? = null,
         @SerialName("html_url") val htmlUrl: String = "",
         val draft: Boolean = false,
         val merged: Boolean = false,
