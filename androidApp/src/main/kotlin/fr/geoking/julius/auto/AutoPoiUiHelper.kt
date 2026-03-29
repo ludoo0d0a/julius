@@ -12,6 +12,7 @@ import fr.geoking.julius.R
 import fr.geoking.julius.api.belib.StationAvailabilitySummary
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.ui.map.PoiMarkerHelper
+import fr.geoking.julius.ui.map.MarkerStyle
 
 /**
  * Shared logic for mapping POIs to car UI components (rows, markers, icons).
@@ -26,7 +27,8 @@ object AutoPoiUiHelper {
             effectivePowerLevels = emptySet(),
             isSelected = false,
             sizePx = 72,
-            availability = null
+            availability = null,
+            style = MarkerStyle.Circle
         )
         return Place.Builder(CarLocation.create(poi.latitude, poi.longitude))
             .setMarker(
@@ -58,7 +60,8 @@ object AutoPoiUiHelper {
             effectivePowerLevels = effectivePowerLevels,
             isSelected = false,
             sizePx = 72,
-            availability = availability
+            availability = availability,
+            style = MarkerStyle.Circle
         )
         val place = Place.Builder(CarLocation.create(poi.latitude, poi.longitude))
             .setMarker(
