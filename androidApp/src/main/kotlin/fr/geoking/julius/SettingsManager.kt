@@ -23,6 +23,9 @@ enum class AgentType(val enabled: Boolean = true) {
     OpenCodeZen,
     CompletionsMe,
     ApiFreeLLM,
+    DeepSeek,
+    Groq,
+    OpenRouter,
     Llamatik,
     /** On-device GGUF via Llamatik; default download Gemma-class model. */
     GeminiNano,
@@ -158,6 +161,12 @@ data class AppSettings(
     val completionsMeKey: String = "",
     val completionsMeModel: String = "claude-sonnet-4.5",
     val apifreellmKey: String = "",
+    val deepSeekKey: String = "",
+    val deepSeekModel: String = "deepseek-chat",
+    val groqKey: String = "",
+    val groqModel: String = "llama-3.3-70b-versatile",
+    val openRouterKey: String = "",
+    val openRouterModel: String = "openrouter/auto",
     val julesKey: String = "",
     /** Personal access token for GitHub (merge/close PRs, comments from the Jules screen). */
     val githubApiKey: String = "",
@@ -209,6 +218,12 @@ open class SettingsManager(context: Context) {
         val completionsMeKey = prefs.getString("completions_me_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.COMPLETIONS_ME_KEY
         val completionsMeModel = prefs.getString("completions_me_model", "claude-sonnet-4.5") ?: "claude-sonnet-4.5"
         val apifreellmKey = prefs.getString("apifreellm_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.APIFREELLM_KEY
+        val deepSeekKey = prefs.getString("deepseek_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.DEEPSEEK_KEY
+        val deepSeekModel = prefs.getString("deepseek_model", "deepseek-chat") ?: "deepseek-chat"
+        val groqKey = prefs.getString("groq_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.GROQ_KEY
+        val groqModel = prefs.getString("groq_model", "llama-3.3-70b-versatile") ?: "llama-3.3-70b-versatile"
+        val openRouterKey = prefs.getString("openrouter_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.OPENROUTER_KEY
+        val openRouterModel = prefs.getString("openrouter_model", "openrouter/auto") ?: "openrouter/auto"
         val julesKey = prefs.getString("jules_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.JULES_KEY
         val githubApiKey = prefs.getString("github_api_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.GITHUB_TOKEN
         val lastJulesRepoId = prefs.getString("last_jules_repo_id", "") ?: ""
@@ -220,7 +235,10 @@ open class SettingsManager(context: Context) {
         persistBuildTimeKeysIfUsed(
             openAiKey, elevenLabsKey, perplexityKey, geminiKey, deepgramKey,
             firebaseAiKey, firebaseAiModel, opencodeZenKey, opencodeZenModel,
-            completionsMeKey, completionsMeModel, apifreellmKey, julesKey, githubApiKey
+            completionsMeKey, completionsMeModel, apifreellmKey,
+            deepSeekKey, deepSeekModel, groqKey, groqModel,
+            openRouterKey, openRouterModel,
+            julesKey, githubApiKey
         )
 
         val speakingInterruptMode = loadSpeakingInterruptMode()
@@ -373,6 +391,12 @@ open class SettingsManager(context: Context) {
             completionsMeKey = completionsMeKey,
             completionsMeModel = completionsMeModel,
             apifreellmKey = apifreellmKey,
+            deepSeekKey = deepSeekKey,
+            deepSeekModel = deepSeekModel,
+            groqKey = groqKey,
+            groqModel = groqModel,
+            openRouterKey = openRouterKey,
+            openRouterModel = openRouterModel,
             julesKey = julesKey,
             githubApiKey = githubApiKey,
             selectedAgent = run {
@@ -477,6 +501,12 @@ open class SettingsManager(context: Context) {
         completionsMeKey: String,
         completionsMeModel: String,
         apifreellmKey: String,
+        deepSeekKey: String,
+        deepSeekModel: String,
+        groqKey: String,
+        groqModel: String,
+        openRouterKey: String,
+        openRouterModel: String,
         julesKey: String,
         githubApiKey: String
     ) {
@@ -493,6 +523,12 @@ open class SettingsManager(context: Context) {
         if (prefs.getString("completions_me_key", "")?.isEmpty() != false && completionsMeKey.isNotEmpty()) edit.putString("completions_me_key", completionsMeKey)
         if (prefs.getString("completions_me_model", "")?.isEmpty() != false && completionsMeModel.isNotEmpty()) edit.putString("completions_me_model", completionsMeModel)
         if (prefs.getString("apifreellm_key", "")?.isEmpty() != false && apifreellmKey.isNotEmpty()) edit.putString("apifreellm_key", apifreellmKey)
+        if (prefs.getString("deepseek_key", "")?.isEmpty() != false && deepSeekKey.isNotEmpty()) edit.putString("deepseek_key", deepSeekKey)
+        if (prefs.getString("deepseek_model", "")?.isEmpty() != false && deepSeekModel.isNotEmpty()) edit.putString("deepseek_model", deepSeekModel)
+        if (prefs.getString("groq_key", "")?.isEmpty() != false && groqKey.isNotEmpty()) edit.putString("groq_key", groqKey)
+        if (prefs.getString("groq_model", "")?.isEmpty() != false && groqModel.isNotEmpty()) edit.putString("groq_model", groqModel)
+        if (prefs.getString("openrouter_key", "")?.isEmpty() != false && openRouterKey.isNotEmpty()) edit.putString("openrouter_key", openRouterKey)
+        if (prefs.getString("openrouter_model", "")?.isEmpty() != false && openRouterModel.isNotEmpty()) edit.putString("openrouter_model", openRouterModel)
         if (prefs.getString("jules_key", "")?.isEmpty() != false && julesKey.isNotEmpty()) edit.putString("jules_key", julesKey)
         if (prefs.getString("github_api_key", "")?.isEmpty() != false && githubApiKey.isNotEmpty()) edit.putString("github_api_key", githubApiKey)
         edit.apply()
@@ -700,6 +736,12 @@ open class SettingsManager(context: Context) {
             .putString("completions_me_key", settings.completionsMeKey)
             .putString("completions_me_model", settings.completionsMeModel)
             .putString("apifreellm_key", settings.apifreellmKey)
+            .putString("deepseek_key", settings.deepSeekKey)
+            .putString("deepseek_model", settings.deepSeekModel)
+            .putString("groq_key", settings.groqKey)
+            .putString("groq_model", settings.groqModel)
+            .putString("openrouter_key", settings.openRouterKey)
+            .putString("openrouter_model", settings.openRouterModel)
             .putString("jules_key", settings.julesKey)
             .putString("github_api_key", settings.githubApiKey)
             .putString("agent", settings.selectedAgent.name)
@@ -743,6 +785,12 @@ open class SettingsManager(context: Context) {
         completionsMeKey: String = "",
         completionsMeModel: String = "claude-sonnet-4.5",
         apifreellmKey: String = "",
+        deepSeekKey: String = "",
+        deepSeekModel: String = "deepseek-chat",
+        groqKey: String = "",
+        groqModel: String = "llama-3.3-70b-versatile",
+        openRouterKey: String = "",
+        openRouterModel: String = "openrouter/auto",
         julesKey: String = "",
         agent: AgentType,
         theme: AppTheme,
@@ -795,6 +843,12 @@ open class SettingsManager(context: Context) {
             completionsMeKey = completionsMeKey,
             completionsMeModel = completionsMeModel,
             apifreellmKey = apifreellmKey,
+            deepSeekKey = deepSeekKey,
+            deepSeekModel = deepSeekModel,
+            groqKey = groqKey,
+            groqModel = groqModel,
+            openRouterKey = openRouterKey,
+            openRouterModel = openRouterModel,
             julesKey = julesKey.ifBlank { _settings.value.julesKey },
             githubApiKey = _settings.value.githubApiKey,
             selectedAgent = agent,

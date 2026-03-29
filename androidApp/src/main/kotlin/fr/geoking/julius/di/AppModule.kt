@@ -98,6 +98,9 @@ class DynamicAgentWrapper(
         AgentType.OpenCodeZen -> OpenCodeZenAgent(client, apiKey = settings.opencodeZenKey, model = settings.opencodeZenModel)
         AgentType.CompletionsMe -> CompletionsMeAgent(client, apiKey = settings.completionsMeKey, model = settings.completionsMeModel)
         AgentType.ApiFreeLLM -> ApiFreeLLMAgent(client, apiKey = settings.apifreellmKey)
+        AgentType.DeepSeek -> DeepSeekAgent(client, apiKey = settings.deepSeekKey, model = settings.deepSeekModel)
+        AgentType.Groq -> GroqAgent(client, apiKey = settings.groqKey, model = settings.groqModel)
+        AgentType.OpenRouter -> OpenRouterAgent(client, apiKey = settings.openRouterKey, model = settings.openRouterModel)
         AgentType.Llamatik -> llamatik(settings)
         // GenAI priority: LiteRT-LM (.litertlm) when path matches; else GGUF via Llamatik.
         AgentType.GeminiNano -> liteRtOrLlamatik(settings)
@@ -150,6 +153,12 @@ class DynamicAgentWrapper(
         append("|").append(settings.completionsMeKey.take(8))
         append("|").append(settings.completionsMeModel)
         append("|").append(settings.apifreellmKey.take(8))
+        append("|").append(settings.deepSeekKey.take(8))
+        append("|").append(settings.deepSeekModel)
+        append("|").append(settings.groqKey.take(8))
+        append("|").append(settings.groqModel)
+        append("|").append(settings.openRouterKey.take(8))
+        append("|").append(settings.openRouterModel)
         append("|").append(settings.llamatikModelPath)
     }
     
