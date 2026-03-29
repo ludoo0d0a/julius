@@ -89,7 +89,7 @@ enum class GeminiModel(val modelName: String, val displayName: String) {
 }
 
 /** Energy/fuel types for map POI filter (multi-select). Aligned with prix-carburants.gouv.fr. */
-val DEFAULT_MAP_ENERGY_TYPES = setOf("gazole", "sp98", "sp95", "gplc", "e85")
+val DEFAULT_MAP_ENERGY_TYPES = emptySet<String>()
 
 /** Enseigne type for map filter, aligned with prix-carburants.gouv.fr. "all" = Toutes les enseignes. */
 const val DEFAULT_MAP_ENSEIGNE_TYPE = "all"

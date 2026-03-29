@@ -258,6 +258,20 @@ object MapPoiFilter {
         if (fuelIds.isEmpty()) return true // no price data: show anyway
         return fuelIds.any { it in selectedEnergyIds }
     }
+
+    /** Returns true if [powerKw] falls into any of the selected [levels] buckets. */
+    fun powerMatchesAnyLevel(powerKw: Double, levels: Set<Int>): Boolean =
+        levels.any { level ->
+            when (level) {
+                0 -> true
+                20 -> powerKw in 20.0..49.9
+                50 -> powerKw in 50.0..99.9
+                100 -> powerKw in 100.0..199.9
+                200 -> powerKw in 200.0..299.9
+                300 -> powerKw >= 300.0
+                else -> powerKw >= level
+            }
+        }
 }
 
 /**

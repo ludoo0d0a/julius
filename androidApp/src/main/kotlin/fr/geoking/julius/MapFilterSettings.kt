@@ -59,11 +59,9 @@ object StationMapFilters {
 
         var result = pois
 
-        val selectedEnergies = settings.effectiveMapEnergyFilterIds()
-        if (selectedEnergies.isNotEmpty()) {
-            result = result.filter { MapPoiFilter.matchesEnergyFilter(it, selectedEnergies) }
-        }
-
+        // Do not filter out stations from the map based on energy, power, operator or connector filters.
+        // Instead, we show all stations and adjust their markers (label/color) based on these filters.
+        // Brand filter remains active as it's often used to find specific networks or for fuel card compatibility.
         val filterBrands = settings.effectiveFuelBrandFilterIds()
         if (filterBrands.isNotEmpty()) {
             val brandIds = filterBrands.map { it.lowercase() }.toSet()
@@ -73,44 +71,7 @@ object StationMapFilters {
             }
         }
 
-        val filterPowerLevels = settings.effectiveIrvePowerLevels()
-        if (filterPowerLevels.isNotEmpty()) {
-            result = result.filter { poi ->
-                !poi.isElectric ||
-                    poi.powerKw == null ||
-                    powerMatchesAnyLevel(poi.powerKw!!, filterPowerLevels)
-            }
-        }
-
-        val filterIrveOperators = settings.effectiveIrveOperatorFilter()
-        if (filterIrveOperators.isNotEmpty()) {
-            val operators = filterIrveOperators.map { it.trim().lowercase() }
-            result = result.filter { poi ->
-                !poi.isElectric ||
-                    operators.any { op -> poi.operator?.trim()?.lowercase()?.contains(op) == true }
-            }
-        }
-
-        if (settings.selectedMapConnectorTypes.isNotEmpty()) {
-            val connectorSet = settings.selectedMapConnectorTypes
-            result = result.filter { poi ->
-                !poi.isElectric || poi.irveDetails?.connectorTypes?.any { it in connectorSet } == true
-            }
-        }
-
         return result
     }
 
-    private fun powerMatchesAnyLevel(powerKw: Double, levels: Set<Int>): Boolean =
-        levels.any { level ->
-            when (level) {
-                0 -> true
-                20 -> powerKw in 20.0..49.9
-                50 -> powerKw in 50.0..99.9
-                100 -> powerKw in 100.0..199.9
-                200 -> powerKw in 200.0..299.9
-                300 -> powerKw >= 300.0
-                else -> powerKw >= level
-            }
-        }
 }

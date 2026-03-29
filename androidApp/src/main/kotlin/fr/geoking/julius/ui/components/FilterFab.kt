@@ -62,7 +62,7 @@ fun FilterFab(
         if (settings.useVehicleFilter) return@remember 1 + favCount
         val fuelFilters = if (filterMode == 0 || filterMode == 2) {
             val brandFilter = if (settings.mapBrands.isNotEmpty()) 1 else 0
-            val energyFilter = if (settings.selectedMapEnergyTypes.size < DEFAULT_MAP_ENERGY_TYPES.size) 1 else 0
+            val energyFilter = if (settings.selectedMapEnergyTypes.isNotEmpty()) 1 else 0
             brandFilter + energyFilter
         } else 0
 
