@@ -10,6 +10,7 @@ import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.telephony.TelephonyManager
+import android.util.Log
 import fr.geoking.julius.shared.NetworkService
 import fr.geoking.julius.shared.NetworkStatus
 import fr.geoking.julius.shared.NetworkType
@@ -22,6 +23,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
+
+private const val TAG = "AndroidNetworkService"
 
 class AndroidNetworkService(
     private val context: Context,
@@ -41,18 +44,22 @@ class AndroidNetworkService(
         // although LocationHelper seems standalone here, MapModuleLoader.ensureLoaded() is often needed
         // for some providers.
 
-        // Register network callback for real-time updates
-        connectivityManager.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: android.net.Network) {
-                updateStatus()
-            }
-            override fun onLost(network: android.net.Network) {
-                updateStatus()
-            }
-            override fun onCapabilitiesChanged(network: android.net.Network, capabilities: NetworkCapabilities) {
-                updateStatus()
-            }
-        })
+        // Requires manifest ACCESS_NETWORK_STATE (see ConnectivityManager.registerDefaultNetworkCallback).
+        try {
+            connectivityManager.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: android.net.Network) {
+                    updateStatus()
+                }
+                override fun onLost(network: android.net.Network) {
+                    updateStatus()
+                }
+                override fun onCapabilitiesChanged(network: android.net.Network, capabilities: NetworkCapabilities) {
+                    updateStatus()
+                }
+            })
+        } catch (e: SecurityException) {
+            Log.e(TAG, "registerDefaultNetworkCallback failed (ACCESS_NETWORK_STATE?)", e)
+        }
 
         // Initial status update
         updateStatus()
@@ -72,41 +79,47 @@ class AndroidNetworkService(
     }
 
     private suspend fun fetchCurrentStatus(): NetworkStatus {
-        val networkType = getNetworkType()
-        val isConnected = isNetworkConnected()
-        val isRoaming = telephonyManager.isNetworkRoaming
-        val operatorName = telephonyManager.networkOperatorName
+        return try {
+            val networkType = getNetworkType()
+            val isConnected = isNetworkConnected()
+            val isRoaming = telephonyManager.isNetworkRoaming
+            val operatorName = telephonyManager.networkOperatorName
 
-        val signalLevel = getSignalLevel()
+            val signalLevel = getSignalLevel()
 
-        // Try to get country from Telephony (MCC)
-        val telephonyCountry = telephonyManager.networkCountryIso?.uppercase(Locale.US)
+            // Try to get country from Telephony (MCC)
+            val telephonyCountry = telephonyManager.networkCountryIso?.uppercase(Locale.US)
 
-        // Try to get country from Location (GPS) if permission granted
-        var locationCountryCode: String? = null
-        var locationCountryName: String? = null
+            // Try to get country from Location (GPS) if permission granted
+            var locationCountryCode: String? = null
+            var locationCountryName: String? = null
 
-        if (permissionManager.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-            val location = LocationHelper.getCurrentLocation(context)
-            if (location != null) {
-                val address = getAddress(location)
-                locationCountryCode = address?.countryCode?.uppercase(Locale.US)
-                locationCountryName = address?.countryName
+            if (permissionManager.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                val location = LocationHelper.getCurrentLocation(context)
+                if (location != null) {
+                    val address = getAddress(location)
+                    locationCountryCode = address?.countryCode?.uppercase(Locale.US)
+                    locationCountryName = address?.countryName
+                }
             }
+
+            // Prefer GPS-based country code for cross-border accuracy, fallback to Telephony
+            val finalCountryCode = locationCountryCode ?: telephonyCountry
+
+            NetworkStatus(
+                countryCode = finalCountryCode,
+                countryName = locationCountryName, // Might be null if only telephony worked
+                networkType = networkType,
+                isRoaming = isRoaming,
+                operatorName = operatorName,
+                isConnected = isConnected,
+                signalLevel = signalLevel
+            )
+        } catch (e: SecurityException) {
+            // e.g. cellular signal / telephony fields without READ_PHONE_STATE on some API levels
+            Log.w(TAG, "fetchCurrentStatus limited by permissions", e)
+            NetworkStatus(isConnected = runCatching { isNetworkConnected() }.getOrDefault(false))
         }
-
-        // Prefer GPS-based country code for cross-border accuracy, fallback to Telephony
-        val finalCountryCode = locationCountryCode ?: telephonyCountry
-
-        return NetworkStatus(
-            countryCode = finalCountryCode,
-            countryName = locationCountryName, // Might be null if only telephony worked
-            networkType = networkType,
-            isRoaming = isRoaming,
-            operatorName = operatorName,
-            isConnected = isConnected,
-            signalLevel = signalLevel
-        )
     }
 
     private fun getSignalLevel(): Int {
