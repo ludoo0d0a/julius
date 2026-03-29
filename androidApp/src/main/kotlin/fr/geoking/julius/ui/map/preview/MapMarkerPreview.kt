@@ -1,33 +1,37 @@
-package fr.geoking.julius.ui.map
+package fr.geoking.julius.ui.map.preview
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import fr.geoking.julius.DEFAULT_MAP_ENERGY_TYPES
 import fr.geoking.julius.poi.Poi
+import fr.geoking.julius.ui.map.MarkerStyle
+import fr.geoking.julius.ui.map.PoiMarkerHelper
 
 /** Same marker width as [fr.geoking.julius.ui.MapScreen] / [PoiMarkerHelper]. */
 private const val PREVIEW_MARKER_SIZE_PX = 96
-
-/** Fuels + electric so gas (€) and IRVE (kW) labels both resolve in one preview. */
-private val PREVIEW_MARKER_ENERGY_TYPES: Set<String> =
-    DEFAULT_MAP_ENERGY_TYPES + setOf("electric")
 
 private data class PreviewLatLngBounds(
     val minLat: Double,
@@ -38,7 +42,7 @@ private data class PreviewLatLngBounds(
 
 private fun boundsForPois(pois: List<Poi>): PreviewLatLngBounds {
     if (pois.isEmpty()) {
-        return PreviewLatLngBounds(48.855, 48.858, 2.350, 2.355)
+        return PreviewLatLngBounds(48.865, 48.869, 2.350, 2.356)
     }
     val minLat = pois.minOf { it.latitude }
     val maxLat = pois.maxOf { it.latitude }
@@ -53,14 +57,13 @@ private fun boundsForPois(pois: List<Poi>): PreviewLatLngBounds {
 
 @Composable
 private fun MapMarkerPreviewCanvas(
-    pois: List<Poi>,
-    markerSelectedEnergyTypes: Set<String>,
-    effectivePowerLevels: Set<Int>,
+    markerSpecs: List<PreviewMapMarkerSpec>,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
-    val bounds = remember(pois) { boundsForPois(pois) }
+    val pois = remember(markerSpecs) { markerSpecs.map { it.poi } }
+    val bounds = remember(markerSpecs) { boundsForPois(pois) }
     /** Minimum inset from preview edge (frame). */
     val framePadDp = 2.dp
 
@@ -101,19 +104,20 @@ private fun MapMarkerPreviewCanvas(
         val latRange = bounds.maxLat - bounds.minLat
         val lngRange = bounds.maxLng - bounds.minLng
 
-        pois.forEach { poi ->
+        markerSpecs.forEach { spec ->
+            val poi = spec.poi
             key(poi.id) {
-                val androidBitmap = remember(poi.id, markerSelectedEnergyTypes, effectivePowerLevels) {
+                val androidBitmap = remember(poi.id, spec.effectiveEnergyTypes, spec.effectivePowerLevels) {
                     PoiMarkerHelper.getMarkerBitmap(
                         context = context,
                         poi = poi,
-                        effectiveEnergyTypes = markerSelectedEnergyTypes,
-                        effectivePowerLevels = effectivePowerLevels,
+                        effectiveEnergyTypes = spec.effectiveEnergyTypes,
+                        effectivePowerLevels = spec.effectivePowerLevels,
                         sizePx = PREVIEW_MARKER_SIZE_PX,
                         markerStyle = MarkerStyle.Circle
                     )
                 }
-                val imageBitmap = remember(poi.id, markerSelectedEnergyTypes, effectivePowerLevels) {
+                val imageBitmap = remember(poi.id, spec.effectiveEnergyTypes, spec.effectivePowerLevels) {
                     androidBitmap.asImageBitmap()
                 }
 
@@ -122,10 +126,10 @@ private fun MapMarkerPreviewCanvas(
                 val bh = androidBitmap.height.toFloat()
                 val boxW = with(density) { maxWidth.toPx() }
                 val boxH = with(density) { maxHeight.toPx() }
-                // Extra insets so label (top) and pin width don’t clip; bottom anchor keeps tip inside frame.
+                // Extra insets so marker pill (top), pin width, and legend under each pin don’t clip.
                 val insetHalfW = bw / 2f + with(density) { 2.dp.toPx() }
                 val insetTop = bh + with(density) { 2.dp.toPx() }
-                val insetBottom = with(density) { 3.dp.toPx() }
+                val insetBottom = with(density) { 34.dp.toPx() }
                 val innerW = (boxW - 2 * framePadPx - 2 * insetHalfW).coerceAtLeast(1f)
                 val innerH = (boxH - 2 * framePadPx - insetTop - insetBottom).coerceAtLeast(1f)
                 val xBase = framePadPx + insetHalfW +
@@ -139,14 +143,28 @@ private fun MapMarkerPreviewCanvas(
                 val wDp = (bw / density.density).dp
                 val hDp = (bh / density.density).dp
 
-                Image(
-                    bitmap = imageBitmap,
-                    contentDescription = poi.name,
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
                         .offset(xOffsetDp, yOffsetDp)
-                        .width(wDp)
-                        .height(hDp)
-                )
+                        .widthIn(max = 120.dp)
+                ) {
+                    Image(
+                        bitmap = imageBitmap,
+                        contentDescription = poi.name,
+                        modifier = Modifier
+                            .width(wDp)
+                            .height(hDp)
+                    )
+                    Text(
+                        text = spec.legend,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFFE2E8F0),
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
@@ -154,30 +172,26 @@ private fun MapMarkerPreviewCanvas(
 
 @Composable
 private fun MapPoiMarkersPreviewContent(
-    pois: List<Poi>,
-    markerSelectedEnergyTypes: Set<String>,
-    effectivePowerLevels: Set<Int>,
+    markerSpecs: List<PreviewMapMarkerSpec>,
 ) {
-    MapMarkerPreviewCanvas(
-        pois = pois,
-        markerSelectedEnergyTypes = markerSelectedEnergyTypes,
-        effectivePowerLevels = effectivePowerLevels,
-        modifier = Modifier.fillMaxSize()
-    )
+    MaterialTheme {
+        MapMarkerPreviewCanvas(
+            markerSpecs = markerSpecs,
+            modifier = Modifier.fillMaxSize()
+        )
+    }
 }
 
 @Preview(
     showBackground = true,
     backgroundColor = 0xFF0F172A,
-    name = "Map canvas — 6 IRVE (power + range) + 4 fuel",
-    widthDp = 440,
-    heightDp = 300
+    name = "Map canvas — 7 IRVE (1 band each + no filter) + 6 fuels (1 type each + none)",
+    widthDp = 520,
+    heightDp = 360
 )
 @Composable
 private fun MapPoiMarkersPreviewDiverse() {
     MapPoiMarkersPreviewContent(
-        pois = PreviewPoiSamples.diverseMapPois(),
-        markerSelectedEnergyTypes = PREVIEW_MARKER_ENERGY_TYPES,
-        effectivePowerLevels = PreviewPoiSamples.previewAllIrvePowerLevels,
+        markerSpecs = PreviewPoiSamples.diverseMapMarkerSpecs(),
     )
 }

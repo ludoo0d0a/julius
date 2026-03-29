@@ -1,4 +1,4 @@
-package fr.geoking.julius.ui.map
+package fr.geoking.julius.ui.map.preview
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background

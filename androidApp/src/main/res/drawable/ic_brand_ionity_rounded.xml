@@ -1,10 +1,8 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@drawable/ic_poi_background_circle" />
     <item
+        android:width="20.4dp"
+        android:height="20.4dp"
         android:drawable="@drawable/ic_brand_ionity"
-        android:gravity="center"
-        android:bottom="4.8dp"
-        android:left="4.8dp"
-        android:right="4.8dp"
-        android:top="4.8dp" />
+        android:gravity="center" />
 </layer-list>

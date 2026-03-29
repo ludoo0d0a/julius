@@ -22,7 +22,7 @@ object PoiMarkerHelper {
     private val vectorRasterCache = LruCache<String, Bitmap>(150)
 
     /** Bump when marker layout changes so [cache] entries are not stale. */
-    private const val MARKER_LAYOUT_CACHE_TAG = "pinColumn10"
+    private const val MARKER_LAYOUT_CACHE_TAG = "pinColumn11"
 
     /**
      * Builds a column marker bitmap: optional label pill (top) → rounded head (circle + logo in asset) → triangle pin (bottom).
@@ -194,20 +194,9 @@ object PoiMarkerHelper {
         }
     }
 
-    /** Matches [ColorHelper.getPowerColor] bands; shown when IRVE power filter is active. */
-    private fun irvePowerRangeLabel(powerKw: Double): String = when {
-        powerKw < 20 -> "0–20 kW"
-        powerKw < 50 -> "20–50 kW"
-        powerKw < 100 -> "50–100 kW"
-        powerKw < 200 -> "100–200 kW"
-        powerKw < 300 -> "200–300 kW"
-        else -> "300+ kW"
-    }
-
-    private fun formatIrvePowerLabel(powerKw: Double, includeRange: Boolean): String {
+    private fun formatIrvePowerLabel(powerKw: Double): String {
         val k = powerKw.toInt()
-        if (!includeRange) return "${k}kW"
-        return "${k}kW (${irvePowerRangeLabel(powerKw)})"
+        return "${k}kW"
     }
 
     private fun getPoiLabel(
@@ -221,13 +210,15 @@ object PoiMarkerHelper {
         val fuelIds = effectiveEnergyTypes - "electric"
 
         if ((category == PoiCategory.Irve || poi.isElectric) && (hasElectricInFilter || hasPowerFilter)) {
-            return poi.powerKw?.let { formatIrvePowerLabel(it, includeRange = hasPowerFilter) }
+            return poi.powerKw?.let { formatIrvePowerLabel(it) }
         }
 
-        if (fuelIds.isNotEmpty()) {
-            val price = poi.fuelPrices?.filter { p ->
-                MapPoiFilter.fuelNameToId(p.fuelName) in fuelIds
-            }?.minByOrNull { it.price }?.price
+        if (category == PoiCategory.Gas && fuelIds.size == 1) {
+            val fid = fuelIds.first()
+            val price = poi.fuelPrices
+                ?.filter { !it.outOfStock && MapPoiFilter.fuelNameToId(it.fuelName) == fid }
+                ?.minByOrNull { it.price }
+                ?.price
             return price?.let { "€%.2f".format(it) }
         }
 
@@ -235,13 +226,6 @@ object PoiMarkerHelper {
             PoiCategory.Radar -> {
                 val regex = Regex("""(\d+)""")
                 regex.find(poi.name)?.value?.let { "$it" }
-            }
-            PoiCategory.Irve -> poi.powerKw?.let { formatIrvePowerLabel(it, includeRange = false) }
-            PoiCategory.Gas -> {
-                val price = poi.fuelPrices?.filter { p ->
-                    MapPoiFilter.fuelNameToId(p.fuelName) != null
-                }?.minByOrNull { it.price }?.price
-                price?.let { "€%.2f".format(it) }
             }
             else -> null
         }
@@ -261,22 +245,20 @@ object PoiMarkerHelper {
             return poi.powerKw?.let { ColorHelper.getPowerColor(it).toArgb() } ?: 0xFF28A745.toInt()
         }
 
-        if (category == PoiCategory.Gas && fuelIds.isNotEmpty()) {
-            val cheapestFuelId = poi.fuelPrices?.filter { p ->
-                MapPoiFilter.fuelNameToId(p.fuelName) in fuelIds
-            }?.minByOrNull { it.price }?.let { MapPoiFilter.fuelNameToId(it.fuelName) }
-            return cheapestFuelId?.let { ColorHelper.getFuelColor(it)?.toArgb() } ?: 0xFF007BFF.toInt()
+        if (category == PoiCategory.Irve || poi.isElectric) {
+            return 0xFF28A745.toInt()
+        }
+
+        if (category == PoiCategory.Gas) {
+            return if (fuelIds.size == 1) {
+                ColorHelper.getFuelColor(fuelIds.first())?.toArgb() ?: 0xFF007BFF.toInt()
+            } else {
+                0xFF007BFF.toInt()
+            }
         }
 
         return when (category) {
-            PoiCategory.Gas -> {
-                val cheapestFuelId = poi.fuelPrices?.filter { p ->
-                    MapPoiFilter.fuelNameToId(p.fuelName) != null
-                }?.minByOrNull { it.price }?.let { MapPoiFilter.fuelNameToId(it.fuelName) }
-                cheapestFuelId?.let { ColorHelper.getFuelColor(it)?.toArgb() } ?: 0xFF007BFF.toInt()
-            }
             PoiCategory.Radar -> 0xFFDC3545.toInt()
-            PoiCategory.Irve -> poi.powerKw?.let { ColorHelper.getPowerColor(it).toArgb() } ?: 0xFF28A745.toInt()
             else -> 0xFF17A2B8.toInt()
         }
     }
