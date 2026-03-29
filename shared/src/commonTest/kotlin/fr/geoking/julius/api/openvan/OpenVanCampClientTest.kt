@@ -42,4 +42,43 @@ class OpenVanCampClientTest {
         assertEquals("GPLc", fuels[2].fuelName)
         assertEquals(0.804, fuels[2].price)
     }
+
+    @Test
+    fun decodeCurrentLiveResponse_handlesGasolinePremium() {
+        // Real sample from https://openvan.camp/api/fuel/prices on 2026-03-28
+        val body = """
+            {
+              "success": true,
+              "data": {
+                "LU": {
+                  "country_code": "LU",
+                  "country_name": "Luxembourg",
+                  "currency": "EUR",
+                  "prices": {
+                    "gasoline": 1.7213,
+                    "diesel": 2.026,
+                    "lpg": 0.9605,
+                    "e85": null,
+                    "premium": null,
+                    "gasoline_premium": 1.814
+                  },
+                  "fetched_at": "2026-03-28T13:59:57+03:00"
+                }
+              }
+            }
+        """.trimIndent()
+
+        val root = json.decodeFromString<OpenVanFuelPricesResponse>(body)
+        val lu = root.data!!["LU"]!!
+        val fuels = lu.toFuelPrices()
+
+        // If we haven't updated the code yet, this might fail if we expect SP98
+        // Let's see what it returns currently
+        assertTrue(fuels.any { it.fuelName == "SP95 E10" })
+        assertTrue(fuels.any { it.fuelName == "Gazole" })
+        assertTrue(fuels.any { it.fuelName == "GPLc" })
+
+        // We want to add SP98 support for "gasoline_premium"
+        assertTrue(fuels.any { it.fuelName == "SP98" }, "Should include SP98 from gasoline_premium")
+    }
 }

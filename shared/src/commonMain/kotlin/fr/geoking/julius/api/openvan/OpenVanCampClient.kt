@@ -69,7 +69,8 @@ data class OpenVanPriceBlock(
     val diesel: Double? = null,
     val lpg: Double? = null,
     val e85: Double? = null,
-    val premium: Double? = null
+    val premium: Double? = null,
+    @SerialName("gasoline_premium") val gasolinePremium: Double? = null
 )
 
 /** Map API block to in-app fuel rows (EUR/l). */
@@ -89,7 +90,7 @@ fun OpenVanCountryEntry.toFuelPrices(): List<FuelPrice> {
         p.e85?.let {
             add(FuelPrice(fuelName = "E85", price = it, updatedAt = updated, outOfStock = false))
         }
-        p.premium?.let {
+        (p.gasolinePremium ?: p.premium)?.let {
             add(FuelPrice(fuelName = "SP98", price = it, updatedAt = updated, outOfStock = false))
         }
     }
