@@ -216,9 +216,17 @@ class CustomMapPoiScreen(
     override fun onSurfaceAvailable(surfaceContainer: SurfaceContainer) {
         Log.d("CustomMapPoiScreen", "onSurfaceAvailable")
         surfaceRenderer?.stop()
+        val surface = surfaceContainer.surface
+        if (surface == null) {
+            // Some head units/emulators can report an available container before the Surface is ready.
+            // Avoid crashing; we'll get called again when the Surface is non-null.
+            Log.w("CustomMapPoiScreen", "SurfaceContainer.surface is null; skipping renderer start")
+            surfaceRenderer = null
+            return
+        }
         surfaceRenderer = AutoSurfaceRenderer(
             carContext,
-            surfaceContainer.surface!!,
+            surface,
             surfaceContainer.width,
             surfaceContainer.height
         ).apply {
