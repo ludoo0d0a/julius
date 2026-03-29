@@ -21,6 +21,8 @@ import fr.geoking.julius.shared.ActionExecutor
 import fr.geoking.julius.shared.PermissionManager
 import fr.geoking.julius.shared.WeatherLookup
 import fr.geoking.julius.api.jules.JulesClient
+import fr.geoking.julius.api.github.GitHubClient
+import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.MessagePersistence
 import fr.geoking.julius.persistence.AppDatabase
 import fr.geoking.julius.persistence.RoomMessagePersistence
@@ -216,6 +218,7 @@ val appModule = module {
     }
 
     single<JulesClient> { JulesClient(get()) }
+    single<GitHubClient> { GitHubClient(get()) }
     single<SettingsManager> { SettingsManager(androidContext()) }
     single<GoogleAuthManager> {
         GoogleAuthManager(androidContext(), get(), { get<ConversationStore>() })
@@ -257,16 +260,24 @@ val appModule = module {
     single { VoskTranscriber(androidContext(), modelDirPath = null) }
     single<LocalTranscriber> { get<VoskTranscriber>() }
     
+    single<AppDatabase> {
+        Room.databaseBuilder(
+            androidContext(),
+            AppDatabase::class.java, "julius-db"
+        )
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
+            .build()
+    }
+
+    single { get<AppDatabase>().julesDao() }
+
+    single { JulesRepository(get(), get(), get()) }
+
     single<ConversationStore> {
         val settingsManager = get<SettingsManager>()
 
         val persistence = try {
-            val db = Room.databaseBuilder(
-                androidContext(),
-                AppDatabase::class.java, "julius-db"
-            )
-                .addMigrations(AppDatabase.MIGRATION_1_2)
-                .build()
+            val db = get<AppDatabase>()
             RoomMessagePersistence(db.chatMessageDao())
         } catch (e: Throwable) {
             android.util.Log.e("AppModule", "Failed to initialize Room persistence", e)
