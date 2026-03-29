@@ -7,6 +7,7 @@ import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiCategory
 import fr.geoking.julius.poi.PoiProvider
+import fr.geoking.julius.shared.log
 
 /**
  * [PoiProvider] for Luxembourg: OpenStreetMap [amenity=fuel](https://wiki.openstreetmap.org/wiki/Tag:amenity%3Dfuel)
@@ -30,7 +31,9 @@ class OpenVanCampProvider(
         longitude: Double,
         viewport: MapViewport?
     ): List<Poi> {
-        if (!searchCenterMayIncludeLuxembourg(latitude, longitude)) return emptyList()
+        val inLux = searchCenterMayIncludeLuxembourg(latitude, longitude)
+        log.d { "[OpenVanCampProvider] getGasStations lat=$latitude lon=$longitude inLux=$inLux" }
+        if (!inLux) return emptyList()
 
         val effectiveRadiusKm = viewport
             ?.let {
@@ -40,7 +43,8 @@ class OpenVanCampProvider(
 
         val fuelPrices = try {
             openVanClient.getLuxembourgFuelPrices()?.takeIf { it.isNotEmpty() }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            log.w(e) { "[OpenVanCampProvider] Failed to fetch prices" }
             null
         }
 
