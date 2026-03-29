@@ -20,8 +20,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import fr.geoking.julius.api.belib.StationAvailabilitySummary
+import fr.geoking.julius.poi.MapPoiFilter
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.ui.BrandHelper
+import fr.geoking.julius.ui.ColorHelper
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -211,10 +213,8 @@ fun PoiDetailsFullscreenDialog(
                         if (prices.isNotEmpty()) {
                             SectionHeader("Prices")
                             prices.forEach { fp ->
-                                val fuelId = fr.geoking.julius.poi.MapPoiFilter.fuelNameToId(fp.fuelName)
-                                val hasFuelFilter = highlightedFuelIds.isNotEmpty()
-                                val isMatch = !hasFuelFilter || (fuelId != null && fuelId in highlightedFuelIds)
-                                val matchColor = fuelId?.let { fr.geoking.julius.ui.ColorHelper.getFuelColor(it) }
+                                val fuelId = MapPoiFilter.fuelNameToId(fp.fuelName)
+                                val matchColor = fuelId?.let { ColorHelper.getFuelColor(it) }
                                 Column(modifier = Modifier.padding(vertical = 4.dp)) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -222,20 +222,12 @@ fun PoiDetailsFullscreenDialog(
                                     ) {
                                         Text(
                                             text = fp.fuelName,
-                                            color = when {
-                                                hasFuelFilter && isMatch && matchColor != null -> matchColor
-                                                hasFuelFilter && !isMatch -> Color.White.copy(alpha = 0.45f)
-                                                else -> Color.White.copy(alpha = 0.9f)
-                                            },
+                                            color = matchColor ?: Color.White.copy(alpha = 0.9f),
                                             fontSize = 14.sp
                                         )
                                         Text(
                                             text = if (fp.outOfStock) "—" else "€%.3f".format(fp.price),
-                                            color = when {
-                                                fp.outOfStock -> Color.White.copy(alpha = 0.5f)
-                                                hasFuelFilter && !isMatch -> Color.White.copy(alpha = 0.45f)
-                                                else -> Color(0xFF22C55E)
-                                            },
+                                            color = if (fp.outOfStock) Color.White.copy(alpha = 0.5f) else Color(0xFF22C55E),
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Medium
                                         )
@@ -256,14 +248,12 @@ fun PoiDetailsFullscreenDialog(
                     if (poi.isElectric && poi.irveDetails != null) {
                         val d = poi.irveDetails!!
                         SectionHeader("Connecteurs")
-                        val hasPowerFilter = highlightedPowerLevels.isNotEmpty()
                         val powerKw = poi.powerKw
-                        val matchedLevel = if (powerKw != null && hasPowerFilter) matchedPowerLevel(powerKw, highlightedPowerLevels) else null
-                        val powerColor = matchedLevel?.let { fr.geoking.julius.ui.ColorHelper.getPowerColorByLevel(it) }
-                        if (powerKw != null && hasPowerFilter) {
+                        val powerColor = powerKw?.let { ColorHelper.getPowerColor(it) }
+                        if (powerKw != null) {
                             Text(
                                 text = "${powerKw.toInt()} kW",
-                                color = powerColor ?: Color.White.copy(alpha = 0.45f),
+                                color = powerColor ?: Color.White.copy(alpha = 0.9f),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium
                             )
@@ -387,19 +377,6 @@ fun PoiDetailsFullscreenDialog(
     }
 }
 
-private fun matchedPowerLevel(powerKw: Double, levels: Set<Int>): Int? {
-    return levels.sorted().firstOrNull { level ->
-        when (level) {
-            0 -> true
-            20 -> powerKw in 20.0..49.9
-            50 -> powerKw in 50.0..99.9
-            100 -> powerKw in 100.0..199.9
-            200 -> powerKw in 200.0..299.9
-            300 -> powerKw >= 300.0
-            else -> powerKw >= level.toDouble()
-        }
-    }
-}
 
 @Composable
 private fun SectionHeader(title: String) {
