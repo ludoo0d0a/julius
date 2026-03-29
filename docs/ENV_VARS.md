@@ -27,6 +27,9 @@ Use these names in `local.properties` or set the same name as an env var (e.g. f
 | `OPENCODE_ZEN_KEY` | OpenCode Zen API key. |
 | `COMPLETIONS_ME_KEY` | Completions.me API key. |
 | `APIFREELLM_KEY` | ApiFreeLLM API key. |
+| `DEEPSEEK_KEY` | DeepSeek API key. |
+| `GROQ_KEY` | Groq API key. |
+| `OPENROUTER_KEY` | OpenRouter API key. |
 | `JULES_KEY` | Jules (jules.google.com) API key for the Jules screen. |
 | `GOOGLE_MAPS_KEY` | Google Maps API key. **Required for map screen** (tiles); without it the map stays grey. |
 
@@ -62,6 +65,9 @@ Set **both** `JULES_KEY` and `GOOGLE_MAPS_KEY` in CI if you use the Jules screen
     OPENCODE_ZEN_KEY: ${{ secrets.OPENCODE_ZEN_KEY }}
     COMPLETIONS_ME_KEY: ${{ secrets.COMPLETIONS_ME_KEY }}
     APIFREELLM_KEY: ${{ secrets.APIFREELLM_KEY }}
+    DEEPSEEK_KEY: ${{ secrets.DEEPSEEK_KEY }}
+    GROQ_KEY: ${{ secrets.GROQ_KEY }}
+    OPENROUTER_KEY: ${{ secrets.OPENROUTER_KEY }}
     JULES_KEY: ${{ secrets.JULES_KEY }}
     GOOGLE_MAPS_KEY: ${{ secrets.GOOGLE_MAPS_KEY }}
   run: ./gradlew :androidApp:assembleFullRelease

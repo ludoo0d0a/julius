@@ -13,6 +13,9 @@ Julius is a Kotlin Multiplatform (KMP) voice assistant for Android and Android A
 - **Gemini**: Cost-effective interaction using Gemini 1.5 Flash and system TTS.
 - **Perplexity**: Real-time, web-aware responses with system TTS.
 - **ElevenLabs**: Premium voice synthesis combined with Perplexity's web search.
+- **DeepSeek**: High-performance models with a free tier for new users.
+- **Groq**: Extremely fast inference with a generous free tier for various open models.
+- **OpenRouter**: Unified API access to hundreds of models, including many free options.
 - **Embedded**: Fully offline privacy-focused assistant using on-device LLMs.
 - **Deepgram**: Specialized voice processing for low-latency interactions.
 

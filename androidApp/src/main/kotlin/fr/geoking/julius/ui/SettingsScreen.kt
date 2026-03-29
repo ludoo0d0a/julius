@@ -99,6 +99,9 @@ private val UsedApisList = listOf(
     UsedApi("OpenCode Zen", "https://opencode.ai", null),
     UsedApi("Completions.me", "https://www.completions.me", null),
     UsedApi("ApiFreeLLM", "https://apifreellm.com", null),
+    UsedApi("DeepSeek", "https://deepseek.com", "https://www.deepseek.com/favicon.ico"),
+    UsedApi("Groq", "https://groq.com", "https://groq.com/favicon.ico"),
+    UsedApi("OpenRouter", "https://openrouter.ai", "https://openrouter.ai/favicon.ico"),
     UsedApi("Jules (Google)", "https://jules.google.com", null),
     // Routing & maps
     UsedApi("OSRM", "https://project-osrm.org", "https://project-osrm.org/favicon.ico"),
@@ -1189,6 +1192,30 @@ private fun AgentConfig(
                     url = "https://apifreellm.com/en/api-access"
                 )
                 ConfigTextField("ApiFreeLLM Key", settings.apifreellmKey) { onUpdate(settings.copy(apifreellmKey = it)) }
+            }
+            AgentType.DeepSeek -> {
+                ApiKeyHelpLink(
+                    helpText = "Get your API key from the DeepSeek platform.",
+                    url = "https://platform.deepseek.com/"
+                )
+                ConfigTextField("DeepSeek Key", settings.deepSeekKey) { onUpdate(settings.copy(deepSeekKey = it)) }
+                ConfigTextField("Model (e.g. deepseek-chat, deepseek-reasoner)", settings.deepSeekModel) { onUpdate(settings.copy(deepSeekModel = it)) }
+            }
+            AgentType.Groq -> {
+                ApiKeyHelpLink(
+                    helpText = "Get your API key from the Groq console.",
+                    url = "https://console.groq.com/keys"
+                )
+                ConfigTextField("Groq Key", settings.groqKey) { onUpdate(settings.copy(groqKey = it)) }
+                ConfigTextField("Model (e.g. llama-3.3-70b-versatile, mixtral-8x7b-32768)", settings.groqModel) { onUpdate(settings.copy(groqModel = it)) }
+            }
+            AgentType.OpenRouter -> {
+                ApiKeyHelpLink(
+                    helpText = "Get your API key from OpenRouter. They provide free access to many models.",
+                    url = "https://openrouter.ai/keys"
+                )
+                ConfigTextField("OpenRouter Key", settings.openRouterKey) { onUpdate(settings.copy(openRouterKey = it)) }
+                ConfigTextField("Model (e.g. openrouter/auto, stepfun/step-3-5-flash:free)", settings.openRouterModel) { onUpdate(settings.copy(openRouterModel = it)) }
             }
             AgentType.Llamatik, AgentType.GeminiNano, AgentType.RunAnywhere,
             AgentType.MlcLlm, AgentType.LlamaCpp, AgentType.MediaPipe,

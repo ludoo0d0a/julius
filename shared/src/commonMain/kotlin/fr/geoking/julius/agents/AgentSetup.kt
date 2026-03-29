@@ -14,6 +14,9 @@ data class AgentSetupInput(
     val opencodeZenKey: String = "",
     val completionsMeKey: String = "",
     val apifreellmKey: String = "",
+    val deepSeekKey: String = "",
+    val groqKey: String = "",
+    val openRouterKey: String = "",
     /** Display name of the selected agent (e.g. enum name) for user-facing messages. */
     val selectedAgentDisplayName: String,
     /** Whether the configured Llamatik / on-device model path resolves to an existing file or asset. */
