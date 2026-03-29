@@ -502,7 +502,7 @@ Sideloaded/debug builds are hidden from the car launcher unless you allow non-Pl
 
 ### Brand Icon Implementation
 To add a new brand icon (e.g., for an EV operator like Chargy):
-1. **Source SVG:** Download a high-quality SVG from a trusted source (Wikipedia, official site).
+1. **Source SVG:** Prefer **[Wikimedia Commons](https://commons.wikimedia.org/)** or a **Wikipedia** file page (clear licensing, vector originals). Pick an image with aspect ratio **around 1:1** (square) so it scales cleanly in circular POI markers. **Prioritize a logo-only mark** (symbol, emblem, or icon); **avoid SVGs that include brand name text** or wide wordmarks—those read poorly at small sizes.
 2. **Standard Icon:** Convert the SVG to an Android Vector Drawable in `androidApp/src/main/res/drawable/ic_brand_<name>.xml`. Use the official brand color.
 3. **Rounded Icon:** Create a `layer-list` in `ic_brand_<name>_rounded.xml`. Use `ic_poi_background_circle` as the base. Center the logo and scale it to **85%** of the circle (e.g., `width="20.4dp"` and `height="20.4dp"` for a 24dp viewport).
 4. **BrandHelper:** Update `BrandHelper.kt` to include the brand in `brandNames`, `brandIcons`, `roundedBrandIcons`, and the appropriate energy set (`gasBrands` or `electricBrands`).
