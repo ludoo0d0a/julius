@@ -123,8 +123,7 @@ class AutoSurfaceRenderer(
         val centerX = lonToTileX(lon, zoom)
         val centerY = latToTileY(lat, zoom)
 
-        // Larger marker makes the price/power badge readable at a glance.
-        val markerSize = 72
+        val markerWidthPx = 72
 
         pois.forEach { poi ->
             val tileX = lonToTileX(poi.longitude, zoom)
@@ -133,11 +132,6 @@ class AutoSurfaceRenderer(
             val drawX = ((tileX - centerX) * tileSize + width / 2.0).toFloat()
             val drawY = ((tileY - centerY) * tileSize + height / 2.0).toFloat()
 
-            // Skip if outside viewport
-            if (drawX < -markerSize || drawX > width + markerSize || drawY < -markerSize || drawY > height + markerSize) {
-                return@forEach
-            }
-
             val bitmap = PoiMarkerHelper.getMarkerBitmap(
                 context = context,
                 poi = poi,
@@ -145,10 +139,18 @@ class AutoSurfaceRenderer(
                 useVehicleFilter = useVehicleFilter,
                 vehicleEnergy = vehicleEnergy,
                 vehicleGasTypes = vehicleGasTypes,
-                sizePx = markerSize
+                sizePx = markerWidthPx
             )
 
-            canvas.drawBitmap(bitmap, drawX - markerSize / 2f, drawY - markerSize / 2f, null)
+            val bw = bitmap.width.toFloat()
+            val bh = bitmap.height.toFloat()
+            val pad = markerWidthPx * 2f
+            if (drawX < -pad || drawX > width + pad || drawY < -pad || drawY > height + pad) {
+                return@forEach
+            }
+
+            // Pin tip at (drawX, drawY): bottom-center of bitmap aligned to POI.
+            canvas.drawBitmap(bitmap, drawX - bw / 2f, drawY - bh, null)
         }
     }
 

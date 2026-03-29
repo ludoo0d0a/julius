@@ -3,6 +3,7 @@ package fr.geoking.julius.ui.map
 import android.content.Context
 import android.graphics.*
 import android.util.LruCache
+import kotlin.math.pow
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.ContextCompat
 import fr.geoking.julius.R
@@ -11,13 +12,23 @@ import fr.geoking.julius.poi.PoiCategory
 import fr.geoking.julius.poi.MapPoiFilter
 import fr.geoking.julius.ui.BrandHelper
 import fr.geoking.julius.ui.ColorHelper
-import kotlin.math.cos
-import kotlin.math.sin
 
 object PoiMarkerHelper {
 
     private val cache = LruCache<String, Bitmap>(100)
 
+    /** Rasterized vector heads (rounded = circle + logo); keyed by id + bucketed pixel size. Do not recycle evicted entries (bitmaps may still be referenced by marker bitmaps in flight). */
+    private val vectorRasterCache = LruCache<String, Bitmap>(150)
+
+    /** Bump when marker layout changes so [cache] entries are not stale. */
+    private const val MARKER_LAYOUT_CACHE_TAG = "pinColumn10"
+
+    /**
+     * Builds a column marker bitmap: optional label pill (top) → rounded head (circle + logo in asset) → triangle pin (bottom).
+     * The pin tip is at the bottom center (for default map anchor u=0.5, v=1).
+     *
+     * @param sizePx base width in px; height is derived from the layout.
+     */
     fun getMarkerBitmap(
         context: Context,
         poi: Poi,
@@ -29,57 +40,151 @@ object PoiMarkerHelper {
     ): Bitmap {
         val label = getPoiLabel(poi, selectedEnergyTypes, useVehicleFilter, vehicleEnergy, vehicleGasTypes)
         val brandInfo = BrandHelper.getBrandInfo(poi.brand)
-        val iconResId = getIconResId(poi, brandInfo)
+        val headDrawableId = headDrawableResId(poi, brandInfo)
         val category = poi.poiCategory ?: if (poi.isElectric) PoiCategory.Irve else PoiCategory.Gas
-        val color = getPoiColor(poi, category, selectedEnergyTypes, useVehicleFilter, vehicleEnergy, vehicleGasTypes)
+        val categoryColor = getPoiColor(poi, category, selectedEnergyTypes, useVehicleFilter, vehicleEnergy, vehicleGasTypes)
 
-        val cacheKey = "${poi.id}_${label}_${iconResId}_${color}_$sizePx"
+        val cacheKey = "${poi.id}_${label}_${headDrawableId}_${categoryColor}_${sizePx}_$MARKER_LAYOUT_CACHE_TAG"
         synchronized(cache) {
             cache.get(cacheKey)?.let { return it }
         }
 
-        val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val w = sizePx.coerceIn(56, 512)
+        val fillColor = categoryColor
+        val labelFg = contrastingForegroundArgb(fillColor)
+        val edgeStrokeArgb = contrastingEdgeStrokeArgb(labelFg)
+        val strokeW = (w * 0.035f).coerceIn(2f, 5f)
+        val topMargin = w * 0.03f
+        val gapSmall = w * 0.025f
 
-        // 1. Draw Shape Background
-        paint.color = color
-        paint.style = Paint.Style.FILL
-        drawShape(canvas, paint, category, sizePx)
-
-        // 2. Draw Icon
-        // Icon fits at 90% in colored circles.
-        val iconSize = (sizePx * 0.90).toInt()
-        val iconBitmap = vectorToBitmap(context, iconResId, iconSize)
-        if (iconBitmap != null) {
-            val left = (sizePx - iconSize) / 2f
-            val top = (sizePx - iconSize) / 2f
-            canvas.drawBitmap(iconBitmap, left, top, null)
+        val labelTextSize = w * 0.38f
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = labelFg
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textSize = labelTextSize
         }
 
-        // 3. Draw Label (price / power) directly upon the icon.
+        var labelBlockH = 0f
+        var labelRect = RectF()
+        var labelBaseline = 0f
         if (!label.isNullOrEmpty()) {
-            val textSizePx = sizePx * 0.26f
-            paint.color = Color.WHITE
-            paint.textSize = textSizePx
-            paint.textAlign = Paint.Align.CENTER
-            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-            // Add shadow to ensure readability on different icon backgrounds.
-            paint.setShadowLayer(3f, 0f, 0f, Color.BLACK)
+            var ts = labelTextSize
+            for (i in 0 until 12) {
+                textPaint.textSize = ts
+                if (textPaint.measureText(label) <= w - w * 0.10f) break
+                ts *= 0.88f
+            }
+            val fm = textPaint.fontMetrics
+            val textH = fm.descent - fm.ascent
+            val padH = w * 0.08f
+            val padV = (textH * 0.22f).coerceIn(w * 0.04f, w * 0.12f)
+            val tw = textPaint.measureText(label)
+            val rw = (tw + padH * 2).coerceAtMost(w - w * 0.06f)
+            val rh = textH + padV * 2
+            val rx = (w - rw) / 2f
+            val ry = topMargin
+            labelRect = RectF(rx, ry, rx + rw, ry + rh)
+            val corner = w * 0.08f
+            labelBaseline = ry + padV - fm.ascent
+            labelBlockH = topMargin + rh + gapSmall
+        } else {
+            labelBlockH = topMargin
+        }
 
-            val textX = sizePx / 2f
-            val textCenterY = sizePx / 2f
+        val circleR = w * 0.42f
+        val circleCx = w / 2f
+        val circleCy = labelBlockH + circleR
+        val triH = w * 0.30f
+        val overlap = circleR * 0.14f
+        val triTopY = circleCy + circleR - overlap
+        // Triangle top width ~ circle diameter so the pin reads aligned with the head.
+        val triHalfW = circleR * 0.92f
 
-            // Center the text using font metrics.
-            val fm = paint.fontMetrics
-            val textY = textCenterY - (fm.ascent + fm.descent) / 2f
-            canvas.drawText(label, textX, textY, paint)
+        val h = (triTopY + triH + 2f).toInt().coerceAtLeast(w)
+        val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            isDither = true
+        }
+        val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            this.strokeWidth = strokeW
+            this.color = edgeStrokeArgb
+            isDither = true
+        }
+
+        // 1) Triangle pin (behind head)
+        val tipX = w / 2f
+        val tipY = h - 1f
+        val triPath = Path().apply {
+            moveTo(tipX, tipY)
+            lineTo(tipX - triHalfW, triTopY)
+            lineTo(tipX + triHalfW, triTopY)
+            close()
+        }
+        fillPaint.color = fillColor
+        canvas.drawPath(triPath, fillPaint)
+        canvas.drawPath(triPath, strokePaint)
+
+        // 2) Pin head: *_rounded / brand roundedIconResId already include ic_poi_background_circle — no extra drawCircle.
+        val headSizePx = (2f * circleR).toInt().coerceAtLeast(16)
+        val headBitmap = vectorToBitmapCached(context, headDrawableId, headSizePx)
+        if (headBitmap != null) {
+            val left = circleCx - headBitmap.width / 2f
+            val top = circleCy - headBitmap.height / 2f
+            canvas.drawBitmap(headBitmap, left, top, null)
+        }
+
+        // 3) Label pill (optional, on top) — same fill as triangle; text/stroke contrast from [fillColor].
+        if (!label.isNullOrEmpty() && labelRect.width() > 0f) {
+            val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.FILL
+                color = fillColor
+            }
+            val labelStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.STROKE
+                strokeWidth = strokeW * 0.75f
+                color = edgeStrokeArgb
+            }
+            val corner = w * 0.08f
+            canvas.drawRoundRect(labelRect, corner, corner, bgPaint)
+            canvas.drawRoundRect(labelRect, corner, corner, labelStroke)
+            canvas.drawText(label, labelRect.centerX(), labelBaseline, textPaint)
         }
 
         synchronized(cache) {
             cache.put(cacheKey, bitmap)
         }
         return bitmap
+    }
+
+    /** WCAG-style relative luminance (sRGB), 0..1. */
+    private fun relativeLuminance(argb: Int): Double {
+        fun channel(c: Int): Double {
+            val cs = c / 255.0
+            return if (cs <= 0.03928) cs / 12.92 else ((cs + 0.055) / 1.055).pow(2.4)
+        }
+        val r = channel(Color.red(argb))
+        val g = channel(Color.green(argb))
+        val b = channel(Color.blue(argb))
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+    }
+
+    /** Black or white for readable text on [backgroundArgb] (opaque). */
+    private fun contrastingForegroundArgb(backgroundArgb: Int): Int {
+        return if (relativeLuminance(backgroundArgb) > 0.45) Color.BLACK else Color.WHITE
+    }
+
+    /** Outline that reads on top of the category fill (pairs with [contrastingForegroundArgb]). */
+    private fun contrastingEdgeStrokeArgb(foregroundArgb: Int): Int {
+        return if (foregroundArgb == Color.WHITE) {
+            Color.argb(235, 255, 255, 255)
+        } else {
+            Color.argb(215, 28, 30, 34)
+        }
     }
 
     private fun getPoiLabel(
@@ -92,7 +197,7 @@ object PoiMarkerHelper {
         return when (poi.poiCategory) {
             PoiCategory.Radar -> {
                 val regex = Regex("""(\d+)""")
-                regex.find(poi.name)?.value?.let { "$it" } // Just the number to save space
+                regex.find(poi.name)?.value?.let { "$it" }
             }
             PoiCategory.Irve -> {
                 poi.powerKw?.let { "${it.toInt()}kW" }
@@ -137,20 +242,16 @@ object PoiMarkerHelper {
 
                 cheapestFuelId?.let { ColorHelper.getFuelColor(it)?.toArgb() } ?: 0xFF007BFF.toInt()
             }
-            PoiCategory.Radar -> 0xFFDC3545.toInt() // Red
-            else -> 0xFF17A2B8.toInt() // Teal
+            PoiCategory.Radar -> 0xFFDC3545.toInt()
+            else -> 0xFF17A2B8.toInt()
         }
     }
 
-    private fun drawShape(canvas: Canvas, paint: Paint, category: PoiCategory, size: Int) {
-        val s = size.toFloat()
-        // Unify all markers to use colored circles.
-        canvas.drawCircle(s / 2, s / 2, s / 2, paint)
-    }
-
-
-    private fun getIconResId(poi: Poi, brandInfo: BrandHelper.BrandInfo?): Int {
-        brandInfo?.roundedIconResId?.let { return it }
+    /**
+     * Layer-list drawables with built-in disc ([BrandHelper.BrandInfo.roundedIconResId] or [ic_poi_*_rounded]).
+     */
+    private fun headDrawableResId(poi: Poi, brandInfo: BrandHelper.BrandInfo?): Int {
+        if (brandInfo != null) return brandInfo.roundedIconResId
         return when (poi.poiCategory) {
             PoiCategory.Toilet -> R.drawable.ic_poi_toilet_rounded
             PoiCategory.DrinkingWater -> R.drawable.ic_poi_water_rounded
@@ -162,8 +263,22 @@ object PoiMarkerHelper {
         }
     }
 
+    private fun vectorToBitmapCached(context: Context, drawableId: Int, size: Int): Bitmap? {
+        val bucket = (size + 7) / 8 * 8
+        val key = "$drawableId-$bucket"
+        synchronized(vectorRasterCache) {
+            vectorRasterCache.get(key)?.let { return it }
+        }
+        val created = vectorToBitmap(context, drawableId, bucket) ?: return null
+        synchronized(vectorRasterCache) {
+            vectorRasterCache.get(key)?.let { return it }
+            vectorRasterCache.put(key, created)
+        }
+        return created
+    }
+
     private fun vectorToBitmap(context: Context, drawableId: Int, size: Int): Bitmap? {
-        val drawable = ContextCompat.getDrawable(context, drawableId) ?: return null
+        val drawable = ContextCompat.getDrawable(context, drawableId)?.mutate() ?: return null
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         drawable.setBounds(0, 0, size, size)

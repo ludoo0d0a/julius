@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
@@ -729,6 +730,7 @@ fun MapScreen(
                             title = poi.name,
                             snippet = poi.address,
                             icon = markerBitmap,
+                            anchor = Offset(0.5f, 1f),
                             onClick = {
                                 selectedPoi = poi
                                 scrollRequestPoiId = poi.id
