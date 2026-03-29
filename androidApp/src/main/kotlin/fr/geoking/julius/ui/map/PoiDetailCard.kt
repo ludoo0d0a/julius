@@ -1,5 +1,6 @@
 package fr.geoking.julius.ui.map
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -76,15 +77,18 @@ fun PoiDetailCard(
 
     Card(
         modifier = modifier
-            .widthIn(min = 300.dp, max = 360.dp)
-            .height(if (isSelected && isMergedPoi) 320.dp else 210.dp),
+            .heightIn(min = 180.dp),
         colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFF475569) else Color(0xFF334155)),
         shape = MaterialTheme.shapes.large
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(16.dp)
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) { onShowDetails() },
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
@@ -92,25 +96,13 @@ fun PoiDetailCard(
                     verticalAlignment = Alignment.Top,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Surface(
-                        shape = MaterialTheme.shapes.medium,
-                        color = Color(0xFF475569)
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(48.dp)
-                                .padding(10.dp)
-                        ) {
-                            val resId = brandInfo?.iconResId ?: if (poi.isElectric) R.drawable.ic_poi_electric else R.drawable.ic_poi_gas
-                            Icon(
-                                painter = painterResource(id = resId),
-                                contentDescription = brandInfo?.displayName ?: if (poi.isElectric) "Charging station" else "Gas station",
-                                modifier = Modifier.size(28.dp),
-                                tint = Color.White
-                            )
-                        }
-                    }
+                    val resId = brandInfo?.iconResId ?: if (poi.isElectric) R.drawable.ic_poi_electric else R.drawable.ic_poi_gas
+                    Icon(
+                        painter = painterResource(id = resId),
+                        contentDescription = brandInfo?.displayName ?: if (poi.isElectric) "Charging station" else "Gas station",
+                        modifier = Modifier.size(32.dp),
+                        tint = if (brandInfo != null) Color.Unspecified else Color.White
+                    )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -189,6 +181,17 @@ fun PoiDetailCard(
                             }
                         }
                     }
+                    IconButton(
+                        onClick = onNavigate,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Directions,
+                            contentDescription = "Navigate",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -217,7 +220,7 @@ fun PoiDetailCard(
                     }
                 }
 
-                if (isSelected && isMergedPoi) {
+                if (isSelected) {
                     Spacer(modifier = Modifier.height(10.dp))
                     HorizontalDivider(color = Color.White.copy(alpha = 0.12f))
                     Spacer(modifier = Modifier.height(10.dp))
@@ -338,32 +341,6 @@ fun PoiDetailCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
-                IconButton(onClick = onShowDetails) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Details",
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.weight(1f))
-
-                IconButton(onClick = onLocate) {
-                    Icon(
-                        imageVector = Icons.Default.MyLocation,
-                        contentDescription = "Locate",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                IconButton(onClick = onNavigate) {
-                    Icon(
-                        imageVector = Icons.Default.Directions,
-                        contentDescription = "Navigate",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
                 if (isLoggedIn && onToggleFavorite != null) {
                     IconButton(onClick = onToggleFavorite) {
                         Icon(
