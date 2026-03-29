@@ -55,6 +55,7 @@ private fun boundsForPois(pois: List<Poi>): PreviewLatLngBounds {
 private fun MapMarkerPreviewCanvas(
     pois: List<Poi>,
     markerSelectedEnergyTypes: Set<String>,
+    effectivePowerLevels: Set<Int>,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -102,18 +103,17 @@ private fun MapMarkerPreviewCanvas(
 
         pois.forEach { poi ->
             key(poi.id) {
-                val androidBitmap = remember(poi.id, markerSelectedEnergyTypes) {
+                val androidBitmap = remember(poi.id, markerSelectedEnergyTypes, effectivePowerLevels) {
                     PoiMarkerHelper.getMarkerBitmap(
                         context = context,
                         poi = poi,
-                        selectedEnergyTypes = markerSelectedEnergyTypes,
-                        useVehicleFilter = false,
-                        vehicleEnergy = "gas",
-                        vehicleGasTypes = DEFAULT_MAP_ENERGY_TYPES,
-                        sizePx = PREVIEW_MARKER_SIZE_PX
+                        effectiveEnergyTypes = markerSelectedEnergyTypes,
+                        effectivePowerLevels = effectivePowerLevels,
+                        sizePx = PREVIEW_MARKER_SIZE_PX,
+                        markerStyle = MarkerStyle.Circle
                     )
                 }
-                val imageBitmap = remember(poi.id, markerSelectedEnergyTypes) {
+                val imageBitmap = remember(poi.id, markerSelectedEnergyTypes, effectivePowerLevels) {
                     androidBitmap.asImageBitmap()
                 }
 
@@ -156,10 +156,12 @@ private fun MapMarkerPreviewCanvas(
 private fun MapPoiMarkersPreviewContent(
     pois: List<Poi>,
     markerSelectedEnergyTypes: Set<String>,
+    effectivePowerLevels: Set<Int>,
 ) {
     MapMarkerPreviewCanvas(
         pois = pois,
         markerSelectedEnergyTypes = markerSelectedEnergyTypes,
+        effectivePowerLevels = effectivePowerLevels,
         modifier = Modifier.fillMaxSize()
     )
 }
@@ -167,14 +169,15 @@ private fun MapPoiMarkersPreviewContent(
 @Preview(
     showBackground = true,
     backgroundColor = 0xFF0F172A,
-    name = "Map canvas — 5 IRVE + 4 fuel (2 rows)",
-    widthDp = 400,
+    name = "Map canvas — 6 IRVE (power + range) + 4 fuel",
+    widthDp = 440,
     heightDp = 300
 )
 @Composable
 private fun MapPoiMarkersPreviewDiverse() {
     MapPoiMarkersPreviewContent(
         pois = PreviewPoiSamples.diverseMapPois(),
-        markerSelectedEnergyTypes = PREVIEW_MARKER_ENERGY_TYPES
+        markerSelectedEnergyTypes = PREVIEW_MARKER_ENERGY_TYPES,
+        effectivePowerLevels = PreviewPoiSamples.previewAllIrvePowerLevels,
     )
 }

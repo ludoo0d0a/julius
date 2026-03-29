@@ -4,6 +4,6 @@
     <item
         android:width="20.4dp"
         android:height="20.4dp"
-        android:drawable="@drawable/ic_brand_avia"
+        android:drawable="@drawable/ic_brand_jet"
         android:gravity="center" />
 </layer-list>

@@ -29,6 +29,7 @@ object PoiMarkerHelper {
      * The pin tip is at the bottom center (for default map anchor u=0.5, v=1).
      *
      * @param sizePx base width in px; height is derived from the layout.
+     * @param markerStyle reserved for future pin layout variants (does not change rendering yet).
      */
     fun getMarkerBitmap(
         context: Context,
@@ -38,13 +39,17 @@ object PoiMarkerHelper {
         isSelected: Boolean = false,
         sizePx: Int = 120,
         availability: StationAvailabilitySummary? = null,
-        style: MarkerStyle = MarkerStyle.Circle
+        markerStyle: MarkerStyle = MarkerStyle.Circle
     ): Bitmap {
-        val label = getPoiLabel(poi, selectedEnergyTypes, useVehicleFilter, vehicleEnergy, vehicleGasTypes)
+        when (markerStyle) {
+            MarkerStyle.Circle,
+            MarkerStyle.Bubble -> Unit
+        }
+        val label = getPoiLabel(poi, effectiveEnergyTypes, effectivePowerLevels)
         val brandInfo = BrandHelper.getBrandInfo(poi.brand)
         val headDrawableId = headDrawableResId(poi, brandInfo)
         val category = poi.poiCategory ?: if (poi.isElectric) PoiCategory.Irve else PoiCategory.Gas
-        val categoryColor = getPoiColor(poi, category, selectedEnergyTypes, useVehicleFilter, vehicleEnergy, vehicleGasTypes)
+        val categoryColor = getPoiColor(poi, category, effectiveEnergyTypes, effectivePowerLevels)
 
         val cacheKey = "${poi.id}_${label}_${headDrawableId}_${categoryColor}_${sizePx}_$MARKER_LAYOUT_CACHE_TAG"
         synchronized(cache) {
@@ -189,48 +194,57 @@ object PoiMarkerHelper {
         }
     }
 
+    /** Matches [ColorHelper.getPowerColor] bands; shown when IRVE power filter is active. */
+    private fun irvePowerRangeLabel(powerKw: Double): String = when {
+        powerKw < 20 -> "0–20 kW"
+        powerKw < 50 -> "20–50 kW"
+        powerKw < 100 -> "50–100 kW"
+        powerKw < 200 -> "100–200 kW"
+        powerKw < 300 -> "200–300 kW"
+        else -> "300+ kW"
+    }
+
+    private fun formatIrvePowerLabel(powerKw: Double, includeRange: Boolean): String {
+        val k = powerKw.toInt()
+        if (!includeRange) return "${k}kW"
+        return "${k}kW (${irvePowerRangeLabel(powerKw)})"
+    }
+
     private fun getPoiLabel(
         poi: Poi,
         effectiveEnergyTypes: Set<String>,
         effectivePowerLevels: Set<Int>
     ): String? {
-        return when (poi.poiCategory) {
+        val category = poi.poiCategory ?: if (poi.isElectric) PoiCategory.Irve else PoiCategory.Gas
+        val hasElectricInFilter = effectiveEnergyTypes.contains("electric")
+        val hasPowerFilter = effectivePowerLevels.isNotEmpty()
+        val fuelIds = effectiveEnergyTypes - "electric"
+
+        if ((category == PoiCategory.Irve || poi.isElectric) && (hasElectricInFilter || hasPowerFilter)) {
+            return poi.powerKw?.let { formatIrvePowerLabel(it, includeRange = hasPowerFilter) }
+        }
+
+        if (fuelIds.isNotEmpty()) {
+            val price = poi.fuelPrices?.filter { p ->
+                MapPoiFilter.fuelNameToId(p.fuelName) in fuelIds
+            }?.minByOrNull { it.price }?.price
+            return price?.let { "€%.2f".format(it) }
+        }
+
+        return when (category) {
             PoiCategory.Radar -> {
                 val regex = Regex("""(\d+)""")
                 regex.find(poi.name)?.value?.let { "$it" }
             }
-            PoiCategory.Irve -> {
-                poi.powerKw?.let { "${it.toInt()}kW" }
-            }
+            PoiCategory.Irve -> poi.powerKw?.let { formatIrvePowerLabel(it, includeRange = false) }
             PoiCategory.Gas -> {
-                val preferredEnergies = if (useVehicleFilter) {
-                    if (vehicleEnergy == "hybrid") vehicleGasTypes + "electric"
-                    else vehicleGasTypes
-                } else selectedEnergyTypes
                 val price = poi.fuelPrices?.filter { p ->
-                    val id = MapPoiFilter.fuelNameToId(p.fuelName)
-                    id != null && (preferredEnergies.isEmpty() || id in preferredEnergies)
+                    MapPoiFilter.fuelNameToId(p.fuelName) != null
                 }?.minByOrNull { it.price }?.price
                 price?.let { "€%.2f".format(it) }
             }
             else -> null
         }
-
-        if (effectiveEnergyTypes.isNotEmpty()) {
-            val energyId = effectiveEnergyTypes.first()
-            if (energyId == "electric") {
-                 return poi.powerKw?.let { "${it.toInt()}kW" }
-            } else {
-                val price = poi.fuelPrices?.find { MapPoiFilter.fuelNameToId(it.fuelName) == energyId }?.price
-                return price?.let { "€%.2f".format(it) }
-            }
-        }
-
-        if (effectivePowerLevels.isNotEmpty()) {
-            return poi.powerKw?.let { "${it.toInt()}kW" }
-        }
-
-        return null
     }
 
     private fun getPoiColor(
@@ -239,29 +253,33 @@ object PoiMarkerHelper {
         effectiveEnergyTypes: Set<String>,
         effectivePowerLevels: Set<Int>
     ): Int {
-        if (effectiveEnergyTypes.isNotEmpty()) {
-            val energyId = effectiveEnergyTypes.first()
-            if (energyId == "electric") {
-                return poi.powerKw?.let { ColorHelper.getPowerColor(it).toArgb() } ?: 0xFF28A745.toInt()
-            } else {
-                return ColorHelper.getFuelColor(energyId)?.toArgb() ?: 0xFF007BFF.toInt()
-            }
+        val hasElectricInFilter = effectiveEnergyTypes.contains("electric")
+        val hasPowerFilter = effectivePowerLevels.isNotEmpty()
+        val fuelIds = effectiveEnergyTypes - "electric"
+
+        if ((category == PoiCategory.Irve || poi.isElectric) && (hasElectricInFilter || hasPowerFilter)) {
+            return poi.powerKw?.let { ColorHelper.getPowerColor(it).toArgb() } ?: 0xFF28A745.toInt()
+        }
+
+        if (category == PoiCategory.Gas && fuelIds.isNotEmpty()) {
+            val cheapestFuelId = poi.fuelPrices?.filter { p ->
+                MapPoiFilter.fuelNameToId(p.fuelName) in fuelIds
+            }?.minByOrNull { it.price }?.let { MapPoiFilter.fuelNameToId(it.fuelName) }
+            return cheapestFuelId?.let { ColorHelper.getFuelColor(it)?.toArgb() } ?: 0xFF007BFF.toInt()
+        }
+
+        return when (category) {
             PoiCategory.Gas -> {
-                val preferredEnergies = if (useVehicleFilter) {
-                    if (vehicleEnergy == "hybrid") vehicleGasTypes + "electric"
-                    else vehicleGasTypes
-                } else selectedEnergyTypes
-
                 val cheapestFuelId = poi.fuelPrices?.filter { p ->
-                    val id = MapPoiFilter.fuelNameToId(p.fuelName)
-                    id != null && (preferredEnergies.isEmpty() || id in preferredEnergies)
+                    MapPoiFilter.fuelNameToId(p.fuelName) != null
                 }?.minByOrNull { it.price }?.let { MapPoiFilter.fuelNameToId(it.fuelName) }
-
                 cheapestFuelId?.let { ColorHelper.getFuelColor(it)?.toArgb() } ?: 0xFF007BFF.toInt()
             }
             PoiCategory.Radar -> 0xFFDC3545.toInt()
+            PoiCategory.Irve -> poi.powerKw?.let { ColorHelper.getPowerColor(it).toArgb() } ?: 0xFF28A745.toInt()
             else -> 0xFF17A2B8.toInt()
         }
+    }
 
     /**
      * Layer-list drawables with built-in disc ([BrandHelper.BrandInfo.roundedIconResId] or [ic_poi_*_rounded]).

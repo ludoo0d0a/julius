@@ -11,10 +11,13 @@ import fr.geoking.julius.poi.PoiCategory
  */
 object PreviewPoiSamples {
 
+    /** Same buckets as [fr.geoking.julius.ui.MAP_IRVE_POWER_OPTIONS] — all selected for marker previews. */
+    val previewAllIrvePowerLevels: Set<Int> = setOf(0, 20, 50, 100, 200, 300)
+
     /**
-     * Map-canvas preview: row 1 (higher lat) — five IRVE stations (11, 35, 75, 250, 350 kW) for
-     * [ColorHelper.getPowerColor] tiers (100–200 kW tier omitted with five pins); row 2 — four fuel brands.
-     * [markerSelectedEnergyTypes] should include fuels + electric for labels.
+     * Map-canvas preview: row 1 (higher lat) — six IRVE stations (11, 35, 75, 150, 250, 350 kW) for
+     * every [ColorHelper.getPowerColor] tier; row 2 — four fuel brands.
+     * Pass [previewAllIrvePowerLevels] as [effectivePowerLevels] so IRVE pills show power-range text like the map filter.
      */
     fun diverseMapPois(): List<Poi> = listOf(
         // —— Electric row (north / higher lat) — one sample per power colour tier ——
@@ -23,7 +26,7 @@ object PreviewPoiSamples {
             name = "11 kW",
             address = "Preview",
             latitude = 48.86800,
-            longitude = 2.35190,
+            longitude = 2.35170,
             brand = null,
             isElectric = true,
             poiCategory = PoiCategory.Irve,
@@ -38,7 +41,7 @@ object PreviewPoiSamples {
             name = "35 kW",
             address = "Preview",
             latitude = 48.86800,
-            longitude = 2.35250,
+            longitude = 2.35226,
             brand = "Tesla",
             isElectric = true,
             poiCategory = PoiCategory.Irve,
@@ -53,7 +56,7 @@ object PreviewPoiSamples {
             name = "75 kW",
             address = "Preview",
             latitude = 48.86800,
-            longitude = 2.35310,
+            longitude = 2.35282,
             brand = "Allego",
             isElectric = true,
             poiCategory = PoiCategory.Irve,
@@ -64,11 +67,26 @@ object PreviewPoiSamples {
             source = "DataGouv"
         ),
         Poi(
+            id = "pv-ev-150",
+            name = "150 kW",
+            address = "Preview",
+            latitude = 48.86800,
+            longitude = 2.35338,
+            brand = "Lidl",
+            isElectric = true,
+            poiCategory = PoiCategory.Irve,
+            powerKw = 150.0,
+            operator = "Lidl",
+            chargePointCount = 2,
+            irveDetails = IrveDetails(connectorTypes = setOf("combo_ccs"), tarification = "Payant", gratuit = false),
+            source = "DataGouv"
+        ),
+        Poi(
             id = "pv-ev-250",
             name = "250 kW",
             address = "Preview",
             latitude = 48.86800,
-            longitude = 2.35370,
+            longitude = 2.35394,
             brand = "Fastned",
             isElectric = true,
             poiCategory = PoiCategory.Irve,
@@ -83,7 +101,7 @@ object PreviewPoiSamples {
             name = "350 kW",
             address = "Preview",
             latitude = 48.86800,
-            longitude = 2.35430,
+            longitude = 2.35450,
             brand = "Ionity",
             isElectric = true,
             poiCategory = PoiCategory.Irve,

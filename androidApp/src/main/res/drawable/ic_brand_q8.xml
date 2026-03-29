@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- AVIA-inspired: red field, white wing / motion mark (no wordmark; reads at small size). -->
+<!-- Q8-inspired mark: red field, white stacked rings + Q tail (simplified). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -8,8 +8,13 @@
     <path
         android:fillColor="#FFE30613"
         android:pathData="M24,4C35,4 44,13 44,24S35,44 24,44 4,35 4,24 13,4 24,4z" />
-    <!-- Three feathers / speed lines -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M10,34L18,12L22,14L14,36zM16,36L26,10L30,12L20,38zM22,38L34,8L38,10L26,40z" />
+        android:pathData="M24,13m-4,0a4,4 0 1,1 8,0a4,4 0 1,1 -8,0" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M24,27m-4,0a4,4 0 1,1 8,0a4,4 0 1,1 -8,0" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M10.5,22L15,12L17.5,14L13,24z" />
 </vector>

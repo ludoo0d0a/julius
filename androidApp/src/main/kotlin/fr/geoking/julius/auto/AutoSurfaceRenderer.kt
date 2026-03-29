@@ -10,6 +10,7 @@ import android.util.Log
 import android.util.LruCache
 import android.view.Surface
 import fr.geoking.julius.poi.Poi
+import fr.geoking.julius.ui.map.MarkerStyle
 import fr.geoking.julius.ui.map.PoiMarkerHelper
 import java.net.HttpURLConnection
 import java.net.URL
@@ -129,11 +130,10 @@ class AutoSurfaceRenderer(
             val bitmap = PoiMarkerHelper.getMarkerBitmap(
                 context = context,
                 poi = poi,
-                selectedEnergyTypes = selectedEnergyTypes,
-                useVehicleFilter = useVehicleFilter,
-                vehicleEnergy = vehicleEnergy,
-                vehicleGasTypes = vehicleGasTypes,
-                sizePx = markerWidthPx
+                effectiveEnergyTypes = effectiveEnergyTypes,
+                effectivePowerLevels = effectivePowerLevels,
+                sizePx = markerWidthPx,
+                markerStyle = MarkerStyle.Circle
             )
 
             val bw = bitmap.width.toFloat()

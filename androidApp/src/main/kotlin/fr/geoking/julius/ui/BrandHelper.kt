@@ -72,6 +72,14 @@ object BrandHelper {
         "repsol" to R.drawable.ic_brand_repsol,
         "omv" to R.drawable.ic_brand_omv,
         "avia" to R.drawable.ic_brand_avia,
+        "q8" to R.drawable.ic_brand_q8,
+        "agip" to R.drawable.ic_brand_agip,
+        "eurogarages" to R.drawable.ic_brand_eurogarages,
+        "jet" to R.drawable.ic_brand_jet,
+        "elf" to R.drawable.ic_brand_elf,
+        "migrol" to R.drawable.ic_brand_migrol,
+        "coop" to R.drawable.ic_brand_coop,
+        "migros" to R.drawable.ic_brand_migros,
         "rel" to R.drawable.ic_brand_rel,
         "rel.metz" to R.drawable.ic_brand_rel,
         "circle k" to R.drawable.ic_brand_circlek,
@@ -86,8 +94,8 @@ object BrandHelper {
         "allego" to R.drawable.ic_brand_allego,
         "lidl" to R.drawable.ic_brand_lidl,
         "chargy" to R.drawable.ic_brand_chargy,
-        "atlante" to R.drawable.ic_poi_electric,
-        "zunder" to R.drawable.ic_poi_electric,
+        "atlante" to R.drawable.ic_brand_atlante,
+        "zunder" to R.drawable.ic_brand_zunder,
         "freshmile" to R.drawable.ic_brand_freshmile,
         "superu" to R.drawable.ic_brand_superu,
         "système u" to R.drawable.ic_brand_superu,
@@ -110,6 +118,14 @@ object BrandHelper {
         "repsol" to R.drawable.ic_brand_repsol_rounded,
         "omv" to R.drawable.ic_brand_omv_rounded,
         "avia" to R.drawable.ic_brand_avia_rounded,
+        "q8" to R.drawable.ic_brand_q8_rounded,
+        "agip" to R.drawable.ic_brand_agip_rounded,
+        "eurogarages" to R.drawable.ic_brand_eurogarages_rounded,
+        "jet" to R.drawable.ic_brand_jet_rounded,
+        "elf" to R.drawable.ic_brand_elf_rounded,
+        "migrol" to R.drawable.ic_brand_migrol_rounded,
+        "coop" to R.drawable.ic_brand_coop_rounded,
+        "migros" to R.drawable.ic_brand_migros_rounded,
         "rel" to R.drawable.ic_brand_rel_rounded,
         "rel.metz" to R.drawable.ic_brand_rel_rounded,
         "circle k" to R.drawable.ic_brand_circlek_rounded,
@@ -124,8 +140,8 @@ object BrandHelper {
         "allego" to R.drawable.ic_brand_allego_rounded,
         "lidl" to R.drawable.ic_brand_lidl_rounded,
         "chargy" to R.drawable.ic_brand_chargy_rounded,
-        "atlante" to R.drawable.ic_poi_electric_rounded,
-        "zunder" to R.drawable.ic_poi_electric_rounded,
+        "atlante" to R.drawable.ic_brand_atlante_rounded,
+        "zunder" to R.drawable.ic_brand_zunder_rounded,
         "freshmile" to R.drawable.ic_brand_freshmile_rounded,
         "superu" to R.drawable.ic_brand_superu_rounded,
         "système u" to R.drawable.ic_brand_superu_rounded,
@@ -199,6 +215,39 @@ object BrandHelper {
             .entries.map { it.key to it.value }
             .distinctBy { it.second }
             .sortedBy { it.second }
+    }
+
+    /**
+     * Display label + [brandIcons] drawable for each [getElectricBrands] entry (fallback: generic plug).
+     */
+    fun getElectricBrandIconEntries(): List<Pair<String, Int>> {
+        return getElectricBrands().map { (key, label) ->
+            label to (brandIcons[key] ?: R.drawable.ic_poi_electric)
+        }
+    }
+
+    /**
+     * Display label + [brandIcons] drawable for each [getGasBrands] entry (fallback: generic pump).
+     */
+    fun getGasBrandIconEntries(): List<Pair<String, Int>> {
+        return getGasBrands().map { (key, label) ->
+            label to (brandIcons[key] ?: R.drawable.ic_poi_gas)
+        }
+    }
+
+    /**
+     * One row per distinct rounded marker-head drawable (circle + logo), for design previews.
+     * [Pair.first] is display name; [Pair.second] is `R.drawable.ic_brand_*_rounded` (or shared fallback).
+     */
+    fun distinctRoundedBrandHeads(): List<Pair<String, Int>> {
+        return brandIcons.entries
+            .mapNotNull { (key, _) ->
+                val label = brandNames[key] ?: return@mapNotNull null
+                val rounded = roundedBrandIcons[key] ?: return@mapNotNull null
+                label to rounded
+            }
+            .distinctBy { it.second }
+            .sortedBy { it.first.lowercase(Locale.getDefault()) }
     }
 
     /** Returns a human-readable label for IRVE connector type IDs. */

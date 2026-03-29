@@ -747,7 +747,7 @@ fun MapScreen(
                                     isSelected = isPoiSelected,
                                     sizePx = sizePx,
                                     availability = availability,
-                                    style = MarkerStyle.Bubble
+                                    markerStyle = MarkerStyle.Bubble
                                 )
                             )
                         }

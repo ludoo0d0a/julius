@@ -28,7 +28,7 @@ object AutoPoiUiHelper {
             isSelected = false,
             sizePx = 72,
             availability = null,
-            style = MarkerStyle.Circle
+            markerStyle = MarkerStyle.Circle
         )
         return Place.Builder(CarLocation.create(poi.latitude, poi.longitude))
             .setMarker(
@@ -61,7 +61,7 @@ object AutoPoiUiHelper {
             isSelected = false,
             sizePx = 72,
             availability = availability,
-            style = MarkerStyle.Circle
+            markerStyle = MarkerStyle.Circle
         )
         val place = Place.Builder(CarLocation.create(poi.latitude, poi.longitude))
             .setMarker(
