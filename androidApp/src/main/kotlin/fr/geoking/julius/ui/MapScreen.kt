@@ -887,6 +887,7 @@ fun MapScreen(
                 items(listToShow, key = { it.id }) { poi ->
                     val isFav = poi.id in favoriteIds
                     PoiDetailCard(
+                        modifier = Modifier.width((LocalConfiguration.current.screenWidthDp - 32).dp),
                         poi = poi,
                         availabilitySummary = availabilityByPoiId[poi.id],
                         highlightedFuelIds = settings.effectiveMapEnergyFilterIds(),
