@@ -418,10 +418,33 @@ class AndroidActionExecutor(
         return try {
             val status = networkService.getCurrentStatus()
             val country = status.countryName ?: status.countryCode ?: "Unknown"
-            val type = status.networkType.name
+            val type = when (status.networkType) {
+                fr.geoking.julius.shared.NetworkType.WIFI -> "WiFi"
+                fr.geoking.julius.shared.NetworkType.FIVE_G -> "5G"
+                fr.geoking.julius.shared.NetworkType.FOUR_G -> "4G"
+                fr.geoking.julius.shared.NetworkType.THREE_G -> "3G"
+                fr.geoking.julius.shared.NetworkType.TWO_G -> "2G"
+                fr.geoking.julius.shared.NetworkType.EDGE -> "Edge"
+                fr.geoking.julius.shared.NetworkType.GPRS -> "GPRS"
+                else -> "Mobile"
+            }
             val connected = if (status.isConnected) "Connected" else "Disconnected"
-            val roaming = if (status.isRoaming) "Roaming" else "Home Network"
-            val msg = "Network: $type ($connected, $roaming). Operator: ${status.operatorName}. Country: $country."
+            val roaming = if (status.isRoaming) "roaming" else "home network"
+
+            val quality = when (status.signalLevel) {
+                4 -> "excellent"
+                3 -> "good"
+                2 -> "fair"
+                1 -> "poor"
+                else -> if (status.isConnected) "unknown quality" else "no signal"
+            }
+
+            val msg = if (status.isConnected) {
+                "You are connected to the $type network of ${status.operatorName} in $country. The connection is $quality on your $roaming."
+            } else {
+                "You are currently disconnected from the network in $country. Status: $quality."
+            }
+
             ActionResult(true, msg)
         } catch (e: Exception) {
             ActionResult(false, "Failed to get network status: ${e.message}")

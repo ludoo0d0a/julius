@@ -36,10 +36,8 @@ class AutoSurfaceRenderer(
     private var zoom: Int = 13
 
     private var pois: List<Poi> = emptyList()
-    private var selectedEnergyTypes: Set<String> = emptySet()
-    private var useVehicleFilter: Boolean = false
-    private var vehicleEnergy: String = ""
-    private var vehicleGasTypes: Set<String> = emptySet()
+    private var effectiveEnergyTypes: Set<String> = emptySet()
+    private var effectivePowerLevels: Set<Int> = emptySet()
 
     // Cache up to 50 tile bitmaps (approx 50 * 256*256*4 bytes ~ 12MB)
     private val tileCache = LruCache<String, Bitmap>(50)
@@ -69,16 +67,12 @@ class AutoSurfaceRenderer(
 
     fun updatePois(
         newPois: List<Poi>,
-        selectedEnergyTypes: Set<String>,
-        useVehicleFilter: Boolean,
-        vehicleEnergy: String,
-        vehicleGasTypes: Set<String>
+        effectiveEnergyTypes: Set<String>,
+        effectivePowerLevels: Set<Int>
     ) {
         this.pois = newPois
-        this.selectedEnergyTypes = selectedEnergyTypes
-        this.useVehicleFilter = useVehicleFilter
-        this.vehicleEnergy = vehicleEnergy
-        this.vehicleGasTypes = vehicleGasTypes
+        this.effectiveEnergyTypes = effectiveEnergyTypes
+        this.effectivePowerLevels = effectivePowerLevels
     }
 
     private fun runDrawLoop() {

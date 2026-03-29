@@ -10,6 +10,7 @@ import fr.geoking.julius.R
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiCategory
 import fr.geoking.julius.poi.MapPoiFilter
+import fr.geoking.julius.api.belib.StationAvailabilitySummary
 import fr.geoking.julius.ui.BrandHelper
 import fr.geoking.julius.ui.ColorHelper
 
@@ -32,11 +33,12 @@ object PoiMarkerHelper {
     fun getMarkerBitmap(
         context: Context,
         poi: Poi,
-        selectedEnergyTypes: Set<String>,
-        useVehicleFilter: Boolean,
-        vehicleEnergy: String,
-        vehicleGasTypes: Set<String>,
-        sizePx: Int = 100
+        effectiveEnergyTypes: Set<String>,
+        effectivePowerLevels: Set<Int>,
+        isSelected: Boolean = false,
+        sizePx: Int = 120,
+        availability: StationAvailabilitySummary? = null,
+        style: MarkerStyle = MarkerStyle.Circle
     ): Bitmap {
         val label = getPoiLabel(poi, selectedEnergyTypes, useVehicleFilter, vehicleEnergy, vehicleGasTypes)
         val brandInfo = BrandHelper.getBrandInfo(poi.brand)
@@ -189,10 +191,8 @@ object PoiMarkerHelper {
 
     private fun getPoiLabel(
         poi: Poi,
-        selectedEnergyTypes: Set<String>,
-        useVehicleFilter: Boolean,
-        vehicleEnergy: String,
-        vehicleGasTypes: Set<String>
+        effectiveEnergyTypes: Set<String>,
+        effectivePowerLevels: Set<Int>
     ): String? {
         return when (poi.poiCategory) {
             PoiCategory.Radar -> {
@@ -215,19 +215,36 @@ object PoiMarkerHelper {
             }
             else -> null
         }
+
+        if (effectiveEnergyTypes.isNotEmpty()) {
+            val energyId = effectiveEnergyTypes.first()
+            if (energyId == "electric") {
+                 return poi.powerKw?.let { "${it.toInt()}kW" }
+            } else {
+                val price = poi.fuelPrices?.find { MapPoiFilter.fuelNameToId(it.fuelName) == energyId }?.price
+                return price?.let { "€%.2f".format(it) }
+            }
+        }
+
+        if (effectivePowerLevels.isNotEmpty()) {
+            return poi.powerKw?.let { "${it.toInt()}kW" }
+        }
+
+        return null
     }
 
     private fun getPoiColor(
         poi: Poi,
         category: PoiCategory,
-        selectedEnergyTypes: Set<String>,
-        useVehicleFilter: Boolean,
-        vehicleEnergy: String,
-        vehicleGasTypes: Set<String>
+        effectiveEnergyTypes: Set<String>,
+        effectivePowerLevels: Set<Int>
     ): Int {
-        return when (category) {
-            PoiCategory.Irve -> {
-                poi.powerKw?.let { ColorHelper.getPowerColor(it).toArgb() } ?: 0xFF28A745.toInt()
+        if (effectiveEnergyTypes.isNotEmpty()) {
+            val energyId = effectiveEnergyTypes.first()
+            if (energyId == "electric") {
+                return poi.powerKw?.let { ColorHelper.getPowerColor(it).toArgb() } ?: 0xFF28A745.toInt()
+            } else {
+                return ColorHelper.getFuelColor(energyId)?.toArgb() ?: 0xFF007BFF.toInt()
             }
             PoiCategory.Gas -> {
                 val preferredEnergies = if (useVehicleFilter) {
@@ -245,7 +262,6 @@ object PoiMarkerHelper {
             PoiCategory.Radar -> 0xFFDC3545.toInt()
             else -> 0xFF17A2B8.toInt()
         }
-    }
 
     /**
      * Layer-list drawables with built-in disc ([BrandHelper.BrandInfo.roundedIconResId] or [ic_poi_*_rounded]).

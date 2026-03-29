@@ -15,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -66,11 +67,13 @@ import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.community.isCommunityPoiId
 import fr.geoking.julius.ui.components.FilterFab
+import fr.geoking.julius.ui.components.MapLoader
 import fr.geoking.julius.ui.ColorHelper
 import fr.geoking.julius.ui.map.AddPoiSheet
 import fr.geoking.julius.ui.map.PoiDetailCard
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
 import fr.geoking.julius.ui.map.PoiMarkerHelper
+import fr.geoking.julius.ui.map.MarkerStyle
 import fr.geoking.julius.poi.PoiMerger
 import fr.geoking.julius.effectiveIrvePowerLevels
 import fr.geoking.julius.effectiveMapEnergyFilterIds
@@ -98,7 +101,7 @@ private fun vectorDrawableToBitmapDescriptor(
 /** Marker size in px (fixed, not scaling with zoom). */
 private fun markerSizePxForZoom(zoom: Float): Int {
     // Larger marker + label for readability on phone screens.
-    return 96
+    return 120
 }
 
 private data class LoadedPoiRegion(
@@ -138,6 +141,7 @@ fun MapScreen(
     trafficProviderFactory: TrafficProviderFactory? = null,
     settingsManager: fr.geoking.julius.SettingsManager,
     store: ConversationStore,
+    palette: fr.geoking.julius.ui.anim.AnimationPalette,
     onBack: () -> Unit,
     onPlanRoute: (() -> Unit)? = null,
     communityRepo: CommunityPoiRepository? = null,
@@ -163,6 +167,7 @@ fun MapScreen(
     var addPoiExistingCommunityId by remember { mutableStateOf<String?>(null) }
     var showFavoritesOnly by remember { mutableStateOf(false) }
     var favoriteIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var isLoading by remember { mutableStateOf(false) }
 
     var hasLocationPermission by remember {
         mutableStateOf(
@@ -330,6 +335,7 @@ fun MapScreen(
                 )
 
                 try {
+                    isLoading = true
                     val newPois = poiProvider.search(
                         PoiSearchRequest(
                             latitude = centerLat,
@@ -422,6 +428,8 @@ fun MapScreen(
                         (e as? fr.geoking.julius.shared.NetworkException)?.httpCode,
                         "Map ($selectedProviders): $msg"
                     )
+                } finally {
+                    isLoading = false
                 }
             }
     }
@@ -676,6 +684,18 @@ fun MapScreen(
                     .fillMaxSize()
                     .onSizeChanged { mapSizePx = it }
             ) {
+                if (isLoading) {
+                    MapLoader(
+                        palette = palette,
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .zIndex(1f)
+                    )
+                }
+
+                val configuration = LocalConfiguration.current
+                val mapPaddingBottom = if (selectedPoi != null) (configuration.screenHeightDp * 0.4f).dp else 0.dp
+
                 GoogleMap(
                     modifier = Modifier.fillMaxSize(),
                     cameraPositionState = cameraPositionState,
@@ -683,7 +703,8 @@ fun MapScreen(
                         isMyLocationEnabled = hasLocationPermission,
                         isTrafficEnabled = settings.mapTrafficEnabled
                     ),
-                    uiSettings = MapUiSettings(myLocationButtonEnabled = hasLocationPermission)
+                    uiSettings = MapUiSettings(myLocationButtonEnabled = hasLocationPermission),
+                    contentPadding = PaddingValues(bottom = mapPaddingBottom)
                 ) {
                     val mapContext = LocalContext.current
                     val zoom = cameraPositionState.position.zoom
@@ -708,19 +729,25 @@ fun MapScreen(
                         cachedPois
                     }
 
+                    val effectiveEnergies = settings.effectiveMapEnergyFilterIds()
+                    val effectivePowerLevels = settings.effectiveIrvePowerLevels()
+
                     val poisToShow =
                         if (showFavoritesOnly && favoriteIds.isNotEmpty()) poisInView.filter { it.id in favoriteIds } else poisInView
                     poisToShow.forEach { poi ->
-                        val markerBitmap = remember(poi, settings.selectedMapEnergyTypes, settings.useVehicleFilter, settings.vehicleEnergy, settings.vehicleGasTypes, sizePx) {
+                        val availability = availabilityByPoiId[poi.id]
+                        val isPoiSelected = selectedPoi?.id == poi.id
+                        val markerBitmap = remember(poi, effectiveEnergies, effectivePowerLevels, isPoiSelected, sizePx, availability) {
                             BitmapDescriptorFactory.fromBitmap(
                                 PoiMarkerHelper.getMarkerBitmap(
                                     context = mapContext,
                                     poi = poi,
-                                    selectedEnergyTypes = settings.selectedMapEnergyTypes,
-                                    useVehicleFilter = settings.useVehicleFilter,
-                                    vehicleEnergy = settings.vehicleEnergy,
-                                    vehicleGasTypes = settings.vehicleGasTypes,
-                                    sizePx = sizePx
+                                    effectiveEnergyTypes = effectiveEnergies,
+                                    effectivePowerLevels = effectivePowerLevels,
+                                    isSelected = isPoiSelected,
+                                    sizePx = sizePx,
+                                    availability = availability,
+                                    style = MarkerStyle.Bubble
                                 )
                             )
                         }
@@ -768,6 +795,7 @@ fun MapScreen(
     LaunchedEffect(selectedPoi?.id, scrollRequestPoiId) {
         val poi = selectedPoi ?: return@LaunchedEffect
         if (scrollRequestPoiId != null) return@LaunchedEffect
+        // Animation accounts for the contentPadding set in GoogleMap when selectedPoi != null
         cameraPositionState.animate(
             CameraUpdateFactory.newLatLng(
                 LatLng(poi.latitude, poi.longitude)
@@ -1022,6 +1050,7 @@ private fun MapScreenPreview() {
         availabilityProviderFactory = null,
         settingsManager = fakeSettingsManager,
         store = fakeStore,
+        palette = fr.geoking.julius.ui.anim.AnimationPalettes.paletteFor(0),
         onBack = {}
     )
 }
