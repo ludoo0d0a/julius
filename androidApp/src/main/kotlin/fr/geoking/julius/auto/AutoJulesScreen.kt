@@ -4,23 +4,22 @@ import android.util.Log
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.Action
-import androidx.car.app.model.CarIcon
 import androidx.car.app.model.Header
+import androidx.car.app.model.ItemList
 import androidx.car.app.model.MessageTemplate
-import androidx.car.app.model.Pane
-import androidx.car.app.model.PaneTemplate
 import androidx.car.app.model.Row
+import androidx.car.app.model.SearchTemplate
 import androidx.car.app.model.Template
-import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.lifecycleScope
-import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.shared.ConversationStore
-import fr.geoking.julius.shared.VoiceEvent
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
+/**
+ * Android Auto screen for Jules, using SearchTemplate to provide a text zone
+ * that supports both typing and voice input.
+ */
 class AutoJulesScreen(
     carContext: CarContext,
     private val store: ConversationStore,
@@ -28,35 +27,10 @@ class AutoJulesScreen(
     private val julesClient: JulesClient
 ) : Screen(carContext) {
 
-    private var isListening: Boolean = false
-    private var isSpeaking: Boolean = false
-    private var currentStatus: String = "Idle"
-    private var currentTranscript: String = ""
-
     private var lastCapturedPrompt: String? = null
     private var lastCreatedSessionTitle: String? = null
     private var lastError: String? = null
     private var loading: Boolean = false
-
-    init {
-        lifecycleScope.launch {
-            store.state.collectLatest { state ->
-                isListening = state.status == VoiceEvent.Listening
-                isSpeaking = state.status == VoiceEvent.Speaking
-                currentStatus = state.status.name
-                currentTranscript = state.currentTranscript
-
-                // Consider the latest stable transcript as the "prompt" to create.
-                if (state.status == VoiceEvent.Silence && state.currentTranscript.isNotBlank()) {
-                    lastCapturedPrompt = state.currentTranscript.trim()
-                    // We only disable auto-send while capturing a prompt on this screen.
-                    store.autoSendFinalTranscripts = true
-                }
-
-                invalidate()
-            }
-        }
-    }
 
     override fun onGetTemplate(): Template {
         return try {
@@ -77,42 +51,24 @@ class AutoJulesScreen(
                     .build()
             }
 
-            val actionIconRes = if (isSpeaking) R.drawable.ic_stop else R.drawable.ic_speaker
-            val actionIcon = CarIcon.Builder(IconCompat.createWithResource(carContext, actionIconRes)).build()
-
-            val pane = Pane.Builder()
-                .addRow(
-                    Row.Builder()
-                        .setTitle("Repository")
-                        .addText(repoName ?: repoId)
-                        .build()
-                )
-                .addRow(
-                    Row.Builder()
-                        .setTitle("Status")
-                        .addText(if (loading) "Creating conversation…" else currentStatus)
-                        .build()
-                )
-
-            val prompt = lastCapturedPrompt
-            if (!prompt.isNullOrBlank()) {
-                pane.addRow(
-                    Row.Builder()
-                        .setTitle("New prompt (from voice)")
-                        .addText(prompt.take(200) + if (prompt.length > 200) "…" else "")
-                        .build()
-                )
-            } else {
-                pane.addRow(
-                    Row.Builder()
-                        .setTitle("New prompt (from voice)")
-                        .addText("Tap Speak and describe what Jules should do.")
-                        .build()
-                )
+            if (loading) {
+                return MessageTemplate.Builder("Creating conversation…")
+                    .setLoading(true)
+                    .setHeader(Header.Builder().setTitle("Jules").setStartHeaderAction(Action.BACK).build())
+                    .build()
             }
 
+            val list = ItemList.Builder()
+
+            list.addItem(
+                Row.Builder()
+                    .setTitle("Repository")
+                    .addText(repoName ?: repoId)
+                    .build()
+            )
+
             if (!lastCreatedSessionTitle.isNullOrBlank()) {
-                pane.addRow(
+                list.addItem(
                     Row.Builder()
                         .setTitle("Last created")
                         .addText(lastCreatedSessionTitle!!)
@@ -121,7 +77,7 @@ class AutoJulesScreen(
             }
 
             if (!lastError.isNullOrBlank()) {
-                pane.addRow(
+                list.addItem(
                     Row.Builder()
                         .setTitle("Error")
                         .addText(lastError!!.take(200))
@@ -129,37 +85,22 @@ class AutoJulesScreen(
                 )
             }
 
-            pane.addAction(
-                Action.Builder()
-                    .setIcon(actionIcon)
-                    .setTitle(if (isListening || isSpeaking) "Stop" else "Speak")
-                    .setOnClickListener {
-                        when {
-                            isSpeaking -> store.stopSpeaking()
-                            isListening -> store.stopListening()
-                            else -> {
-                                lastError = null
-                                store.autoSendFinalTranscripts = false
-                                store.startListening()
-                            }
-                        }
-                    }
-                    .build()
-            )
+            SearchTemplate.Builder(object : SearchTemplate.SearchCallback {
+                override fun onSearchTextChanged(searchText: String) {
+                    lastCapturedPrompt = searchText
+                }
 
-            pane.addAction(
-                Action.Builder()
-                    .setTitle("Create")
-                    .setOnClickListener {
-                        val p = lastCapturedPrompt?.takeIf { it.isNotBlank() } ?: return@setOnClickListener
-                        if (loading) return@setOnClickListener
-                        createSession(apiKey = apiKey, repoId = repoId, prompt = p)
+                override fun onSearchSubmitted(searchText: String) {
+                    lastCapturedPrompt = searchText
+                    if (searchText.isNotBlank()) {
+                        createSession(apiKey, repoId, searchText)
                     }
-                    .build()
-            )
-
-            PaneTemplate.Builder(pane.build())
-                .setHeader(Header.Builder().setTitle("Jules").setStartHeaderAction(Action.BACK).build())
+                }
+            })
+                .setHeaderAction(Action.BACK)
+                .setSearchHint("What should Jules do?")
+                .setInitialSearchText(lastCapturedPrompt ?: "")
+                .setItemList(list.build())
                 .build()
         } catch (e: Exception) {
             Log.e(TAG, "onGetTemplate failed", e)
@@ -191,7 +132,6 @@ class AutoJulesScreen(
                 lastCapturedPrompt = null
             } catch (e: Exception) {
                 lastError = e.message ?: "Failed to create conversation"
-                // Keep prompt so user can retry.
             } finally {
                 loading = false
                 invalidate()
@@ -203,4 +143,3 @@ class AutoJulesScreen(
         private const val TAG = "AutoJulesScreen"
     }
 }
-
