@@ -13,6 +13,8 @@ import fr.geoking.julius.api.belib.StationAvailabilitySummary
 import fr.geoking.julius.ui.BrandHelper
 import fr.geoking.julius.ui.ColorHelper
 
+enum class MarkerStyle { Circle, Bubble }
+
 object PoiMarkerHelper {
 
     private val cache = LruCache<String, Bitmap>(100)
@@ -24,7 +26,8 @@ object PoiMarkerHelper {
         effectivePowerLevels: Set<Int>,
         isSelected: Boolean = false,
         sizePx: Int = 120,
-        availability: StationAvailabilitySummary? = null
+        availability: StationAvailabilitySummary? = null,
+        style: MarkerStyle = MarkerStyle.Circle
     ): Bitmap {
         val totalFilters = effectiveEnergyTypes.size + effectivePowerLevels.size
         val showLabel = totalFilters == 1
@@ -34,7 +37,7 @@ object PoiMarkerHelper {
         val category = poi.poiCategory ?: if (poi.isElectric) PoiCategory.Irve else PoiCategory.Gas
         val color = if (showLabel) getPoiColor(poi, category, effectiveEnergyTypes, effectivePowerLevels) else Color.LTGRAY
 
-        val cacheKey = "${poi.id}_${label}_${brandInfo?.iconResId}_${color}_${availability?.availableCount}_${availability?.totalCount}_${sizePx}_${isSelected}"
+        val cacheKey = "${poi.id}_${label}_${brandInfo?.iconResId}_${color}_${availability?.availableCount}_${availability?.totalCount}_${sizePx}_${isSelected}_${style}"
         synchronized(cache) {
             cache.get(cacheKey)?.let { return it }
         }
@@ -49,36 +52,52 @@ object PoiMarkerHelper {
         val padding = actualSize * 0.1f
         val contentSize = actualSize - 2 * padding
 
-        // Shape logic
-        val isFuel = poi.fuelPrices?.isNotEmpty() == true
-        val isElectric = poi.isElectric
-
         val centerX = actualSize / 2f
-        val centerY = actualSize / 2f
+        var drawCenterY = actualSize / 2f
+
+        // Shape logic
+        val shapePath = Path()
+        if (style == MarkerStyle.Bubble) {
+            val tailHeight = actualSize * 0.22f
+            val tailWidth = actualSize * 0.28f
+            val bodyRadius = (actualSize - tailHeight - padding) / 2f
+            val bodyCenterY = padding + bodyRadius
+            drawCenterY = bodyCenterY
+
+            // Main body circle
+            shapePath.addCircle(centerX, bodyCenterY, bodyRadius, Path.Direction.CW)
+
+            // Tail pointing to bottom center (exact coordinate)
+            shapePath.moveTo(centerX - tailWidth / 2f, bodyCenterY + bodyRadius - 1f)
+            shapePath.lineTo(centerX, actualSize.toFloat())
+            shapePath.lineTo(centerX + tailWidth / 2f, bodyCenterY + bodyRadius - 1f)
+            shapePath.close()
+        } else {
+            val isFuel = poi.fuelPrices?.isNotEmpty() == true
+            val isElectric = poi.isElectric
+            when {
+                isFuel && isElectric -> {
+                    // Triangle pointing down
+                    shapePath.moveTo(centerX, actualSize - padding)
+                    shapePath.lineTo(padding, padding)
+                    shapePath.lineTo(actualSize - padding, padding)
+                    shapePath.close()
+                }
+                isElectric -> {
+                    // Square
+                    shapePath.addRect(padding, padding, actualSize - padding, actualSize - padding, Path.Direction.CW)
+                }
+                else -> {
+                    // Circle
+                    shapePath.addCircle(centerX, drawCenterY, contentSize / 2f, Path.Direction.CW)
+                }
+            }
+        }
 
         // Draw Shadow
         paint.setShadowLayer(if (isSelected) 8f else 4f, 0f, 2f, 0x40000000)
         paint.color = Color.WHITE
         paint.style = Paint.Style.FILL
-
-        val shapePath = Path()
-        when {
-            isFuel && isElectric -> {
-                // Triangle pointing down
-                shapePath.moveTo(centerX, actualSize - padding)
-                shapePath.lineTo(padding, padding)
-                shapePath.lineTo(actualSize - padding, padding)
-                shapePath.close()
-            }
-            isElectric -> {
-                // Square
-                shapePath.addRect(padding, padding, actualSize - padding, actualSize - padding, Path.Direction.CW)
-            }
-            else -> {
-                // Circle
-                shapePath.addCircle(centerX, centerY, contentSize / 2f, Path.Direction.CW)
-            }
-        }
         canvas.drawPath(shapePath, paint)
         paint.clearShadowLayer()
 
@@ -105,7 +124,7 @@ object PoiMarkerHelper {
             val iconSize = (contentSize * 0.6f).toInt()
             val brandIcon = vectorToBitmap(context, brandResId, iconSize)
             if (brandIcon != null) {
-                canvas.drawBitmap(brandIcon, centerX - iconSize / 2f, centerY - iconSize / 2f, null)
+                canvas.drawBitmap(brandIcon, centerX - iconSize / 2f, drawCenterY - iconSize / 2f, null)
             }
         } else {
             // Fallback to category icon
@@ -113,7 +132,7 @@ object PoiMarkerHelper {
             val categoryIconRes = if (poi.isElectric) R.drawable.ic_poi_electric else R.drawable.ic_poi_gas
             val categoryIcon = vectorToBitmap(context, categoryIconRes, iconSize)
             if (categoryIcon != null) {
-                canvas.drawBitmap(categoryIcon, centerX - iconSize / 2f, centerY - iconSize / 2f, null)
+                canvas.drawBitmap(categoryIcon, centerX - iconSize / 2f, drawCenterY - iconSize / 2f, null)
             }
         }
 
@@ -129,11 +148,15 @@ object PoiMarkerHelper {
             val pillWidth = textWidth + 2 * pillPaddingH
             val pillHeight = paint.textSize + 2 * pillPaddingV
 
+            // Position pill at the top of the body
+            val pillCenterY = if (style == MarkerStyle.Bubble) padding else padding
+            // Actually padding is the top of the body in Bubble style too.
+
             val pillRect = RectF(
                 centerX - pillWidth / 2f,
-                padding - pillHeight / 2f,
+                pillCenterY - pillHeight / 2f,
                 centerX + pillWidth / 2f,
-                padding + pillHeight / 2f
+                pillCenterY + pillHeight / 2f
             )
 
             // Draw pill shadow

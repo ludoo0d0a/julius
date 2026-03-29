@@ -72,6 +72,7 @@ import fr.geoking.julius.ui.map.AddPoiSheet
 import fr.geoking.julius.ui.map.PoiDetailCard
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
 import fr.geoking.julius.ui.map.PoiMarkerHelper
+import fr.geoking.julius.ui.map.MarkerStyle
 import fr.geoking.julius.poi.PoiMerger
 import fr.geoking.julius.effectiveIrvePowerLevels
 import fr.geoking.julius.effectiveMapEnergyFilterIds
@@ -744,7 +745,8 @@ fun MapScreen(
                                     effectivePowerLevels = effectivePowerLevels,
                                     isSelected = isPoiSelected,
                                     sizePx = sizePx,
-                                    availability = availability
+                                    availability = availability,
+                                    style = MarkerStyle.Bubble
                                 )
                             )
                         }
@@ -754,6 +756,7 @@ fun MapScreen(
                             title = poi.name,
                             snippet = poi.address,
                             icon = markerBitmap,
+                            anchor = androidx.compose.ui.geometry.Offset(0.5f, 1.0f),
                             onClick = {
                                 selectedPoi = poi
                                 scrollRequestPoiId = poi.id
