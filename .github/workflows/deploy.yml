@@ -28,6 +28,16 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
+      - name: Display Version Information
+        run: |
+          VERSION_CODE=$(( (${{ github.run_number }} * 10) + ${{ github.run_attempt }} ))
+          VERSION_NAME="1.0.${{ github.run_number }}"
+          echo "Version Name: $VERSION_NAME"
+          echo "Version Code: $VERSION_CODE"
+          echo "### Build Info 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version Name:** $VERSION_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version Code:** $VERSION_CODE" >> $GITHUB_STEP_SUMMARY
+
       - name: Validate signing secrets
         run: |
           missing=""
