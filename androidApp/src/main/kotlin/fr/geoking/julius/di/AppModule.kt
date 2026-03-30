@@ -27,6 +27,7 @@ import fr.geoking.julius.shared.MessagePersistence
 import fr.geoking.julius.persistence.AppDatabase
 import fr.geoking.julius.persistence.RoomMessagePersistence
 import fr.geoking.julius.persistence.NoOpJulesDao
+import fr.geoking.julius.persistence.JulesDao
 import androidx.room.Room
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -289,15 +290,15 @@ val appModule = module {
     }
 
     single<JulesDao> { 
-        val db = get<AppDatabase?>()
-        if (db != null) {
-            try {
+        try {
+            val db = getOrNull<AppDatabase>()
+            if (db != null) {
                 db.julesDao()
-            } catch (e: Throwable) {
-                android.util.Log.e("AppModule", "Failed to get julesDao, using null-safe fallback", e)
+            } else {
                 NoOpJulesDao()
             }
-        } else {
+        } catch (e: Throwable) {
+            android.util.Log.e("AppModule", "Failed to get julesDao, using null-safe fallback", e)
             NoOpJulesDao()
         }
     }
@@ -308,7 +309,7 @@ val appModule = module {
         val settingsManager = get<SettingsManager>()
 
         val persistence = try {
-            val db = get<AppDatabase?>()
+            val db = getOrNull<AppDatabase>()
             if (db != null) {
                 RoomMessagePersistence(db.chatMessageDao())
             } else {
