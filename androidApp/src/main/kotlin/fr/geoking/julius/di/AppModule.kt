@@ -26,6 +26,7 @@ import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.MessagePersistence
 import fr.geoking.julius.persistence.AppDatabase
 import fr.geoking.julius.persistence.RoomMessagePersistence
+import fr.geoking.julius.persistence.NoOpJulesDao
 import androidx.room.Room
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -269,17 +270,37 @@ val appModule = module {
     single { VoskTranscriber(androidContext(), modelDirPath = null) }
     single<LocalTranscriber> { get<VoskTranscriber>() }
     
-    single<AppDatabase> {
-        Room.databaseBuilder(
-            androidContext(),
-            AppDatabase::class.java, "julius-db"
-        )
-            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
-            .fallbackToDestructiveMigration()
-            .build()
+    single<AppDatabase?> {
+        try {
+            android.util.Log.d("AppModule", "Building Room database...")
+            val db = Room.databaseBuilder(
+                androidContext(),
+                AppDatabase::class.java, "julius-db"
+            )
+                .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
+                .fallbackToDestructiveMigration()
+                .build()
+            android.util.Log.d("AppModule", "Room database built successfully")
+            db
+        } catch (e: Throwable) {
+            android.util.Log.e("AppModule", "Failed to build Room database. App will run without persistence.", e)
+            null
+        }
     }
 
-    single { get<AppDatabase>().julesDao() }
+    single<JulesDao> { 
+        val db = get<AppDatabase?>()
+        if (db != null) {
+            try {
+                db.julesDao()
+            } catch (e: Throwable) {
+                android.util.Log.e("AppModule", "Failed to get julesDao, using null-safe fallback", e)
+                NoOpJulesDao()
+            }
+        } else {
+            NoOpJulesDao()
+        }
+    }
 
     single { JulesRepository(get(), get(), get()) }
 
@@ -287,8 +308,13 @@ val appModule = module {
         val settingsManager = get<SettingsManager>()
 
         val persistence = try {
-            val db = get<AppDatabase>()
-            RoomMessagePersistence(db.chatMessageDao())
+            val db = get<AppDatabase?>()
+            if (db != null) {
+                RoomMessagePersistence(db.chatMessageDao())
+            } else {
+                android.util.Log.w("AppModule", "Database is null, skipping persistence")
+                null
+            }
         } catch (e: Throwable) {
             android.util.Log.e("AppModule", "Failed to initialize Room persistence", e)
             null
