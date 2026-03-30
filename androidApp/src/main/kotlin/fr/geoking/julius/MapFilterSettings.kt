@@ -66,10 +66,10 @@ object StationMapFilters {
         if (filterBrands.isNotEmpty()) {
             val brandIds = filterBrands.map { it.lowercase() }.toSet()
             result = result.filter { poi ->
-                val brand = poi.brand
+                val b = poi.brand
                 poi.isElectric ||
-                    brand == null || // Don't filter out unknown brands (e.g. from OpenVanCamp / OSM)
-                    brandIds.any { id -> brand.lowercase().contains(id) }
+                    b == null || // Don't filter out unknown brands (e.g. from OpenVanCamp / OSM)
+                    brandIds.any { id -> b.lowercase().contains(id) }
             }
         }
 

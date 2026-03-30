@@ -232,13 +232,6 @@ fun PoiDetailsFullscreenDialog(
                                             fontWeight = FontWeight.Medium
                                         )
                                     }
-                                    fp.updatedAt?.let { updated ->
-                                        Text(
-                                            text = "Updated $updated",
-                                            color = Color.White.copy(alpha = 0.5f),
-                                            fontSize = 11.sp
-                                        )
-                                    }
                                 }
                             }
                         }
