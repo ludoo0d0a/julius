@@ -275,6 +275,7 @@ val appModule = module {
             AppDatabase::class.java, "julius-db"
         )
             .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
+            .fallbackToDestructiveMigration()
             .build()
     }
 
