@@ -25,13 +25,19 @@ class RoomMessagePersistence(
         } else {
             dao.getAllMessages()
         }
-        return entities.map { entity ->
-            ChatMessage(
-                id = entity.id,
-                sender = Role.valueOf(entity.sender),
-                text = entity.text,
-                timestamp = entity.timestamp
-            )
+        return entities.mapNotNull { entity ->
+            try {
+                ChatMessage(
+                    id = entity.id,
+                    sender = Role.valueOf(entity.sender),
+                    text = entity.text,
+                    timestamp = entity.timestamp
+                )
+            } catch (e: IllegalArgumentException) {
+                // Skip malformed messages with unknown roles
+                android.util.Log.e("RoomMessagePersistence", "Unknown role in database: ${entity.sender}", e)
+                null
+            }
         }
     }
 
