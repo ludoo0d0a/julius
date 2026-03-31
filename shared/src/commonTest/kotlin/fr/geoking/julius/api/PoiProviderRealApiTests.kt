@@ -205,7 +205,22 @@ class PoiProviderRealApiTests {
             val provider = DataGouvCampingProvider(campingClient)
             val montpellierLat = 43.6107
             val montpellierLon = 3.8767
-            val pois = provider.search(PoiSearchRequest(montpellierLat, montpellierLon, categories = setOf(PoiCategory.CaravanSite)))
+
+            var lastException: Exception? = null
+            var pois: List<fr.geoking.julius.poi.Poi> = emptyList()
+            repeat(3) { attempt ->
+                try {
+                    pois = provider.search(PoiSearchRequest(montpellierLat, montpellierLon, categories = setOf(PoiCategory.CaravanSite)))
+                    return@repeat
+                } catch (e: Exception) {
+                    lastException = e
+                    println("⚠️ DataGouvCamping attempt ${attempt + 1} failed: ${e.message}. Retrying...")
+                    delay(5000)
+                }
+            }
+            val finalException = lastException
+            if (pois.isEmpty() && finalException != null) throw finalException
+
             println("DataGouvCamping returned ${pois.size} POIs")
             assertTrue(pois.isNotEmpty(), "DataGouvCamping should return some caravan sites in Herault")
         } finally {

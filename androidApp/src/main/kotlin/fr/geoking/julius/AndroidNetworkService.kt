@@ -128,7 +128,13 @@ class AndroidNetworkService(
 
         return when {
             capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> {
-                val rssi = wifiManager.connectionInfo.rssi
+                val rssi = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val wifiInfo = capabilities.transportInfo as? android.net.wifi.WifiInfo
+                    wifiInfo?.rssi ?: -127
+                } else {
+                    @Suppress("DEPRECATION")
+                    wifiManager.connectionInfo.rssi
+                }
                 @Suppress("DEPRECATION")
                 WifiManager.calculateSignalLevel(rssi, 5) // returns 0-4
             }

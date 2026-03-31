@@ -10,6 +10,7 @@ plugins {
 }
 
 kotlin {
+    @Suppress("DEPRECATION")
     androidLibrary {
         namespace = "fr.geoking.julius.shared"
         compileSdk = 36
