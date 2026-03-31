@@ -1123,6 +1123,37 @@ private fun AgentConfig(
                     url = "https://elevenlabs.io/app/settings/api-keys"
                 )
                 ConfigTextField("ElevenLabs Key", settings.elevenLabsKey) { onUpdate(settings.copy(elevenLabsKey = it)) }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Scribe v2 STT",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Use latest Scribe v2 model for speech-to-text",
+                            color = Lavender.copy(alpha = 0.7f),
+                            fontSize = 14.sp
+                        )
+                    }
+                    Switch(
+                        checked = settings.elevenLabsScribe2,
+                        onCheckedChange = { onUpdate(settings.copy(elevenLabsScribe2 = it)) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Lavender,
+                            checkedTrackColor = DeepPurple,
+                            uncheckedThumbColor = Color.Gray,
+                            uncheckedTrackColor = Color.DarkGray
+                        )
+                    )
+                }
                 ApiKeyHelpLink(
                     helpText = "Perplexity powers the chat model. Add an API key from your Perplexity account.",
                     url = "https://www.perplexity.ai/settings/api"
