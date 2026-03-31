@@ -75,8 +75,10 @@ import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
 import fr.geoking.julius.ui.map.PoiMarkerHelper
 import fr.geoking.julius.ui.map.MarkerStyle
 import fr.geoking.julius.poi.PoiMerger
+import fr.geoking.julius.StationMapFilters
 import fr.geoking.julius.effectiveIrvePowerLevels
 import fr.geoking.julius.effectiveMapEnergyFilterIds
+import fr.geoking.julius.effectiveProviders
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
@@ -222,32 +224,21 @@ fun MapScreen(
         }
     }
 
-    val poiQueryKey = remember(
-        selectedProviders,
-        settings.selectedMapEnergyTypes,
-        settings.mapPowerLevels,
-        settings.mapIrveOperators,
-        settings.mapBrands,
-        settings.selectedMapConnectorTypes,
+    val effectiveProviders = settings.effectiveProviders()
+    val poiFetchKey = remember(
+        effectiveProviders,
         settings.useVehicleFilter,
         settings.fuelCard,
         settings.vehicleType,
         settings.vehicleEnergy,
-        settings.vehicleGasTypes,
         settings.selectedOverpassAmenityTypes
     ) {
         buildString {
-            append(selectedProviders.sortedBy { it.name }.joinToString(",") { it.name })
-            append("|energy=").append(settings.selectedMapEnergyTypes.sorted().joinToString(","))
-            append("|power=").append(settings.mapPowerLevels.sorted().joinToString(","))
-            append("|irveOps=").append(settings.mapIrveOperators.sorted().joinToString(","))
-            append("|brands=").append(settings.mapBrands.sorted().joinToString(","))
-            append("|connectors=").append(settings.selectedMapConnectorTypes.sorted().joinToString(","))
+            append(effectiveProviders.sortedBy { it.name }.joinToString(",") { it.name })
             append("|vehicleFilter=").append(settings.useVehicleFilter)
             append("|fuelCard=").append(settings.fuelCard)
             append("|vehicleType=").append(settings.vehicleType)
             append("|vehicleEnergy=").append(settings.vehicleEnergy)
-            append("|vehicleGasTypes=").append(settings.vehicleGasTypes.sorted().joinToString(","))
             append("|overpassAmenities=").append(settings.selectedOverpassAmenityTypes.sorted().joinToString(","))
         }
     }
@@ -257,8 +248,8 @@ fun MapScreen(
     val poiSeenAtMs = remember { mutableStateMapOf<String, Long>() }
     var lastCacheKey by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(poiQueryKey, mapSizePx, retryCount) {
-        val currentCacheKey = "$poiQueryKey|size=${mapSizePx.width}x${mapSizePx.height}"
+    LaunchedEffect(poiFetchKey, mapSizePx, retryCount) {
+        val currentCacheKey = "$poiFetchKey|size=${mapSizePx.width}x${mapSizePx.height}"
         val cacheKeyChanged = lastCacheKey != currentCacheKey
         if (cacheKeyChanged) {
             loadedRegions.clear()
@@ -341,7 +332,8 @@ fun MapScreen(
                             latitude = centerLat,
                             longitude = centerLng,
                             viewport = viewport,
-                            categories = emptySet()
+                            categories = emptySet(),
+                            skipFilters = true
                         )
                     )
 
@@ -721,12 +713,23 @@ fun MapScreen(
                         ).coerceIn(1, 50)
                     } else 0
 
-                    val poisInView = if (displayRadiusKm > 0) {
-                        cachedPois.filter { poi ->
-                            approxDistanceKm(center.latitude, center.longitude, poi.latitude, poi.longitude) <= displayRadiusKm * 1.05
+                    val poisInViewRaw = remember(cachedPois, center, displayRadiusKm) {
+                        if (displayRadiusKm > 0) {
+                            cachedPois.filter { poi ->
+                                approxDistanceKm(center.latitude, center.longitude, poi.latitude, poi.longitude) <= displayRadiusKm * 1.05
+                            }
+                        } else {
+                            cachedPois
                         }
-                    } else {
-                        cachedPois
+                    }
+
+                    val poisInView = remember(poisInViewRaw, settings, effectiveProviders) {
+                        StationMapFilters.apply(
+                            settings = settings,
+                            pois = poisInViewRaw,
+                            providers = effectiveProviders,
+                            skipWhenOnlyOverpass = true
+                        )
                     }
 
                     val effectiveEnergies = settings.effectiveMapEnergyFilterIds()
@@ -815,12 +818,23 @@ fun MapScreen(
             ).coerceIn(1, 50)
         } else 0
 
-        val poisInView = if (displayRadiusKm > 0) {
-            cachedPois.filter { poi ->
-                approxDistanceKm(center.latitude, center.longitude, poi.latitude, poi.longitude) <= displayRadiusKm * 1.05
+        val poisInViewRaw = remember(cachedPois, center, displayRadiusKm) {
+            if (displayRadiusKm > 0) {
+                cachedPois.filter { poi ->
+                    approxDistanceKm(center.latitude, center.longitude, poi.latitude, poi.longitude) <= displayRadiusKm * 1.05
+                }
+            } else {
+                cachedPois
             }
-        } else {
-            cachedPois
+        }
+
+        val poisInView = remember(poisInViewRaw, settings, effectiveProviders) {
+            StationMapFilters.apply(
+                settings = settings,
+                pois = poisInViewRaw,
+                providers = effectiveProviders,
+                skipWhenOnlyOverpass = true
+            )
         }
 
         val base = if (showFavoritesOnly && favoriteIds.isNotEmpty()) poisInView.filter { it.id in favoriteIds } else poisInView
