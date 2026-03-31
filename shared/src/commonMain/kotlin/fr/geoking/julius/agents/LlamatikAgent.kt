@@ -1,6 +1,7 @@
 package fr.geoking.julius.agents
 
 import fr.geoking.julius.shared.NetworkException
+import fr.geoking.julius.shared.log
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -47,6 +48,7 @@ class LlamatikAgent(
     private fun initializeModelIfNeeded() {
         if (isModelInitialized) return
         val bridge = getBackend()
+        log.d { "Initializing Llamatik model. path=$modelPath" }
         try {
             val fullModelPath = bridge.getModelPath(modelPath)
             val ok = bridge.initGenerateModel(fullModelPath)
@@ -57,10 +59,13 @@ class LlamatikAgent(
             isModelInitialized = true
         } catch (e: NetworkException) {
             throw e
-        } catch (e: Exception) {
+        } catch (t: Throwable) {
+            val mem = bridge.getMemoryReport()
+            val msg = t.toString()
+            log.e(t) { "Llamatik initialization crash. $msg. $mem" }
             throw NetworkException(
                 null,
-                "Failed to load Llamatik model: ${e.message}. Make sure the model file exists at '$modelPath' in assets."
+                "Failed to load Llamatik model: $msg. $mem. Make sure the model file exists at '$modelPath'."
             )
         }
     }
@@ -83,8 +88,11 @@ class LlamatikAgent(
             )
         } catch (e: NetworkException) {
             throw e
-        } catch (e: Exception) {
-            throw NetworkException(null, "Error with Llamatik model: ${e.message}")
+        } catch (t: Throwable) {
+            val mem = bridge.getMemoryReport()
+            val msg = t.toString()
+            log.e(t) { "Llamatik process crash. $msg. $mem" }
+            throw NetworkException(null, "Error with Llamatik model: $msg. $mem")
         }
     }
 

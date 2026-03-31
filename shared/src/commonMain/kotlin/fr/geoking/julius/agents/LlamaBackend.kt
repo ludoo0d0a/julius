@@ -20,6 +20,9 @@ interface LlamaBackend {
      */
     fun onGenerateModelInitialized()
 
+    /** Returns a diagnostic string about the current memory status. */
+    fun getMemoryReport(): String = "RAM: status unknown"
+
     /** Releases native resources. */
     fun shutdown()
 }

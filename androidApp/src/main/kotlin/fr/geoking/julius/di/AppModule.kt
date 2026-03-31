@@ -134,8 +134,16 @@ class DynamicAgentWrapper(
         }
     }
 
-    override fun evaluateSetupIssue(input: AgentSetupInput): AgentSetupDescriptor? =
-        getOrCreateAgent(settingsManager.settings.value).evaluateSetupIssue(input)
+    override fun evaluateSetupIssue(input: AgentSetupInput): AgentSetupDescriptor? {
+        return try {
+            getOrCreateAgent(settingsManager.settings.value).evaluateSetupIssue(input)
+        } catch (t: Throwable) {
+            val mem = MemoryHelper.getMemoryReport(appContext)
+            val msg = t.toString()
+            android.util.Log.e("DynamicAgentWrapper", "evaluateSetupIssue error. $msg. $mem", t)
+            AgentSetupDescriptor.MissingLlamatikModel("Setup error: $msg. $mem")
+        }
+    }
 
     private fun cacheKey(settings: AppSettings): String = buildString {
         append(settings.selectedAgent.name)
@@ -166,7 +174,16 @@ class DynamicAgentWrapper(
     
     override suspend fun process(input: String): AgentResponse {
         val settings = settingsManager.settings.value
-        return getOrCreateAgent(settings).process(input)
+        return try {
+            getOrCreateAgent(settings).process(input)
+        } catch (e: fr.geoking.julius.shared.NetworkException) {
+            throw e
+        } catch (t: Throwable) {
+            val mem = MemoryHelper.getMemoryReport(appContext)
+            val msg = t.toString()
+            android.util.Log.e("DynamicAgentWrapper", "Agent process crash. $msg. $mem", t)
+            throw fr.geoking.julius.shared.NetworkException(null, "Agent error: $msg. $mem")
+        }
     }
 }
 
