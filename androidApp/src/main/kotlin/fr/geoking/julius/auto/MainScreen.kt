@@ -47,7 +47,7 @@ class MainScreen(
     private val store: ConversationStore,
     private val settingsManager: SettingsManager,
     private val julesClient: fr.geoking.julius.api.jules.JulesClient,
-    private val getMapDeps: () -> MapDeps,
+    private val getMapDeps: () -> MapDeps?,
     private val conversationalAgent: ConversationalAgent
 ) : Screen(carContext) {
 
@@ -115,32 +115,40 @@ class MainScreen(
                     val lastUserMsg = lastMsg.text.lowercase()
                     val keywords = listOf("display map", "map", "carte", "gas stations", "stations service")
                     if (keywords.any { lastUserMsg.contains(it) }) {
-                        val mapDeps = getMapDeps()
-                        val screen = if (settingsManager.settings.value.carMapMode == CarMapMode.Native) {
-                            NativeMapPoiScreen(
-                                carContext = carContext,
-                                poiProvider = mapDeps.poiProvider,
-                                availabilityProviderFactory = mapDeps.availabilityProviderFactory,
-                                settingsManager = settingsManager,
-                                communityRepo = mapDeps.communityRepo,
-                                favoritesRepo = mapDeps.favoritesRepo
-                            )
-                        } else {
-                            CustomMapPoiScreen(
-                                carContext = carContext,
-                                poiProvider = mapDeps.poiProvider,
-                                availabilityProviderFactory = mapDeps.availabilityProviderFactory,
-                                settingsManager = settingsManager,
-                                routePlanner = mapDeps.routePlanner,
-                                routingClient = mapDeps.routingClient,
-                                tollCalculator = mapDeps.tollCalculator,
-                                trafficProviderFactory = mapDeps.trafficProviderFactory,
-                                geocodingClient = mapDeps.geocodingClient,
-                                communityRepo = mapDeps.communityRepo,
-                                favoritesRepo = mapDeps.favoritesRepo
-                            )
+                        try {
+                            val mapDeps = getMapDeps()
+                            if (mapDeps != null) {
+                                val screen = if (settingsManager.settings.value.carMapMode == CarMapMode.Native) {
+                                    NativeMapPoiScreen(
+                                        carContext = carContext,
+                                        poiProvider = mapDeps.poiProvider,
+                                        availabilityProviderFactory = mapDeps.availabilityProviderFactory,
+                                        settingsManager = settingsManager,
+                                        communityRepo = mapDeps.communityRepo,
+                                        favoritesRepo = mapDeps.favoritesRepo
+                                    )
+                                } else {
+                                    CustomMapPoiScreen(
+                                        carContext = carContext,
+                                        poiProvider = mapDeps.poiProvider,
+                                        availabilityProviderFactory = mapDeps.availabilityProviderFactory,
+                                        settingsManager = settingsManager,
+                                        routePlanner = mapDeps.routePlanner,
+                                        routingClient = mapDeps.routingClient,
+                                        tollCalculator = mapDeps.tollCalculator,
+                                        trafficProviderFactory = mapDeps.trafficProviderFactory,
+                                        geocodingClient = mapDeps.geocodingClient,
+                                        communityRepo = mapDeps.communityRepo,
+                                        favoritesRepo = mapDeps.favoritesRepo
+                                    )
+                                }
+                                screenManager.push(screen)
+                            } else {
+                                Log.e(TAG, "Voice keyword trigger: mapDeps is null")
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Voice keyword trigger: failed to load mapDeps", e)
                         }
-                        screenManager.push(screen)
                     }
                 }
 
@@ -232,32 +240,44 @@ class MainScreen(
                     when (tabContentId) {
                         TAB_SETTINGS -> screenManager.push(AutoSettingsScreen(carContext, settingsManager, store, julesClient))
                         TAB_MAP -> {
-                            val mapDeps = getMapDeps()
-                            val screen = if (settingsManager.settings.value.carMapMode == CarMapMode.Native) {
-                                NativeMapPoiScreen(
-                                    carContext = carContext,
-                                    poiProvider = mapDeps.poiProvider,
-                                    availabilityProviderFactory = mapDeps.availabilityProviderFactory,
-                                    settingsManager = settingsManager,
-                                    communityRepo = mapDeps.communityRepo,
-                                    favoritesRepo = mapDeps.favoritesRepo
-                                )
-                            } else {
-                                CustomMapPoiScreen(
-                                    carContext = carContext,
-                                    poiProvider = mapDeps.poiProvider,
-                                    availabilityProviderFactory = mapDeps.availabilityProviderFactory,
-                                    settingsManager = settingsManager,
-                                    routePlanner = mapDeps.routePlanner,
-                                    routingClient = mapDeps.routingClient,
-                                    tollCalculator = mapDeps.tollCalculator,
-                                    trafficProviderFactory = mapDeps.trafficProviderFactory,
-                                    geocodingClient = mapDeps.geocodingClient,
-                                    communityRepo = mapDeps.communityRepo,
-                                    favoritesRepo = mapDeps.favoritesRepo
-                                )
+                            try {
+                                val mapDeps = getMapDeps()
+                                if (mapDeps != null) {
+                                    val screen = if (settingsManager.settings.value.carMapMode == CarMapMode.Native) {
+                                        NativeMapPoiScreen(
+                                            carContext = carContext,
+                                            poiProvider = mapDeps.poiProvider,
+                                            availabilityProviderFactory = mapDeps.availabilityProviderFactory,
+                                            settingsManager = settingsManager,
+                                            communityRepo = mapDeps.communityRepo,
+                                            favoritesRepo = mapDeps.favoritesRepo
+                                        )
+                                    } else {
+                                        CustomMapPoiScreen(
+                                            carContext = carContext,
+                                            poiProvider = mapDeps.poiProvider,
+                                            availabilityProviderFactory = mapDeps.availabilityProviderFactory,
+                                            settingsManager = settingsManager,
+                                            routePlanner = mapDeps.routePlanner,
+                                            routingClient = mapDeps.routingClient,
+                                            tollCalculator = mapDeps.tollCalculator,
+                                            trafficProviderFactory = mapDeps.trafficProviderFactory,
+                                            geocodingClient = mapDeps.geocodingClient,
+                                            communityRepo = mapDeps.communityRepo,
+                                            favoritesRepo = mapDeps.favoritesRepo
+                                        )
+                                    }
+                                    screenManager.push(screen)
+                                } else {
+                                    Log.e(TAG, "TAB_MAP selection: mapDeps is null")
+                                    activeTabId = tabContentId
+                                    invalidate()
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "TAB_MAP selection: failed to load mapDeps", e)
+                                activeTabId = tabContentId
+                                invalidate()
                             }
-                            screenManager.push(screen)
                         }
                         else -> {
                             activeTabId = tabContentId

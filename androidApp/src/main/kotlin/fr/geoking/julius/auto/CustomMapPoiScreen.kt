@@ -355,7 +355,7 @@ class CustomMapPoiScreen(
                 )
             }
 
-            val limitedPois = pois.take(10)
+            val limitedPois = pois.take(6)
             val currentSettings = settingsManager.settings.value
             val effectiveEnergies = currentSettings.effectiveMapEnergyFilterIds()
             val effectivePowerLevels = currentSettings.effectiveIrvePowerLevels()
