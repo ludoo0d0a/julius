@@ -17,6 +17,7 @@ enum class NetworkType {
 data class NetworkStatus(
     val countryCode: String? = null,
     val countryName: String? = null,
+    val telephonyCountryCode: String? = null,
     val networkType: NetworkType = NetworkType.UNKNOWN,
     val isRoaming: Boolean = false,
     val operatorName: String? = null,

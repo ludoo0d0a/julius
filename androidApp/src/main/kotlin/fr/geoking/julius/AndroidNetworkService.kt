@@ -88,7 +88,7 @@ class AndroidNetworkService(
             val signalLevel = getSignalLevel()
 
             // Try to get country from Telephony (MCC)
-            val telephonyCountry = telephonyManager.networkCountryIso?.uppercase(Locale.US)
+            val telephonyCountry = telephonyManager.networkCountryIso?.uppercase(Locale.US)?.takeIf { it.isNotBlank() }
 
             // Try to get country from Location (GPS) if permission granted
             var locationCountryCode: String? = null
@@ -109,6 +109,7 @@ class AndroidNetworkService(
             NetworkStatus(
                 countryCode = finalCountryCode,
                 countryName = locationCountryName, // Might be null if only telephony worked
+                telephonyCountryCode = telephonyCountry,
                 networkType = networkType,
                 isRoaming = isRoaming,
                 operatorName = operatorName,
