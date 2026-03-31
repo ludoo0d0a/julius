@@ -402,10 +402,11 @@ class MainScreen(
         listBuilder.addItem(
             Row.Builder()
                 .setTitle("Jules")
-                .addText("Create a coding session from voice")
+                .addText("Open Jules code assistant")
                 .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_jules)).build())
                 .setOnClickListener {
-                    screenManager.push(AutoJulesScreen(carContext, store, settingsManager, julesClient))
+                    val julesRepository = org.koin.core.context.GlobalContext.get().get<fr.geoking.julius.repository.JulesRepository>()
+                    screenManager.push(AutoJulesSourceScreen(carContext, store, settingsManager, julesClient, julesRepository))
                 }
                 .build()
         )
