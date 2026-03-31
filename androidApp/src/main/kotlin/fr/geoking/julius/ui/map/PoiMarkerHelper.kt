@@ -279,9 +279,11 @@ object PoiMarkerHelper {
         // Priority 2: IRVE
         if (category == PoiCategory.Irve || (isHybrid && hasAnyIrveFilter)) {
             val power = poi.powerKw
-            val matches = power != null && ((hasElectricInFilter && !hasPowerFilter) || (hasPowerFilter && MapPoiFilter.powerMatchesAnyLevel(power, effectivePowerLevels)))
-            if (matches && power != null) {
-                return ColorHelper.getPowerColor(power).toArgb()
+            if (power != null) {
+                val matches = (hasElectricInFilter && !hasPowerFilter) || (hasPowerFilter && MapPoiFilter.powerMatchesAnyLevel(power, effectivePowerLevels))
+                if (matches) {
+                    return ColorHelper.getPowerColor(power).toArgb()
+                }
             }
             return 0xFF28A745.toInt() // Default IRVE green
         }
