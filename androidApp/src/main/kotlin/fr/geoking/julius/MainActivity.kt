@@ -41,9 +41,6 @@ import fr.geoking.julius.ui.PhoneMainScreen
 import fr.geoking.julius.ui.RoutePlanningScreen
 import fr.geoking.julius.ui.HistoryScreen
 import fr.geoking.julius.ui.SettingsScreen
-import fr.geoking.julius.ui.DashboardScreen
-import fr.geoking.julius.ui.DashboardAction
-import fr.geoking.julius.ui.NetworkLocationInfoScreen
 import fr.geoking.julius.ui.SettingsScreenPage
 import fr.geoking.julius.agents.LlamatikModelHelper
 import fr.geoking.julius.ui.agentConfigSettingsPages
@@ -279,32 +276,14 @@ fun MainUI(
     val pendingNavFlow = pendingNavDestinationFlow ?: remember { MutableStateFlow<NavDestination?>(null) }
     val mapDeps by mapDepsState.collectAsState()
     val networkStatus by networkService.status.collectAsState()
-    var showDashboard by remember { mutableStateOf(true) }
-    var showAssistant by remember { mutableStateOf(false) }
-    var showJules by remember { mutableStateOf(false) }
-    var showMap by remember { mutableStateOf(false) }
-    var showRoutePlanning by remember { mutableStateOf(false) }
-    var showNetworkInfo by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
+    var showMap by remember { mutableStateOf(false) }
+    var showRoutePlanning by remember { mutableStateOf(false) }
     var initialNavDestination by remember { mutableStateOf<NavDestination?>(null) }
     var settingsInitialStack by remember { mutableStateOf<List<SettingsScreenPage>?>(null) }
 
     val context = LocalContext.current
-
-    LaunchedEffect(Unit) {
-        val screenNames = listOf(
-            "DashboardScreen",
-            "PhoneMainScreen (Assistant)",
-            "JulesScreen",
-            "MapScreen",
-            "RoutePlanningScreen",
-            "NetworkLocationInfoScreen",
-            "SettingsScreen",
-            "HistoryScreen"
-        )
-        android.util.Log.d("JuliusNavigation", "Active Screens: ${screenNames.joinToString(", ")}")
-    }
 
     LaunchedEffect(Unit) {
         pendingNavFlow.collect { nav ->
@@ -344,6 +323,7 @@ fun MainUI(
             showMap = true
         }
     }
+    var showJules by remember { mutableStateOf(false) }
     val settings by settingsManager.settings.collectAsState()
     val llamatikModelHelper = remember(context) { LlamatikModelHelper(context.applicationContext) }
     val setupIssue = remember(settings, llamatikModelHelper, conversationalAgent) {
@@ -386,12 +366,6 @@ fun MainUI(
                 }
                 showHistory -> {
                     HistoryScreen(state = state, store = store, onBack = { showHistory = false })
-                }
-                showNetworkInfo -> {
-                    NetworkLocationInfoScreen(
-                        networkService = networkService,
-                        onBack = { showNetworkInfo = false }
-                    )
                 }
                 showMap && showRoutePlanning && mapDeps != null -> {
                     RoutePlanningScreen(
@@ -436,7 +410,7 @@ fun MainUI(
                         voiceManager = voiceManager
                     )
                 }
-                showAssistant -> {
+                else -> {
                     PhoneMainScreen(
                         state = state,
                         settings = settings,
@@ -455,30 +429,6 @@ fun MainUI(
                         onOpenAgentSettings = {
                             settingsInitialStack = agentConfigSettingsPages()
                             showSettings = true
-                        }
-                    )
-                    BackHandler { showAssistant = false }
-                }
-                showDashboard -> {
-                    DashboardScreen(
-                        networkStatus = networkStatus,
-                        onAction = { action ->
-                            when (action) {
-                                DashboardAction.ASSISTANT -> showAssistant = true
-                                DashboardAction.JULES -> showJules = true
-                                DashboardAction.MAP -> {
-                                    settingsManager.setUseVehicleFilter(false)
-                                    showMap = true
-                                }
-                                DashboardAction.POI_MAP -> {
-                                    settingsManager.setUseVehicleFilter(true)
-                                    showMap = true
-                                }
-                                DashboardAction.ROUTE_PLANNING -> showRoutePlanning = true
-                                DashboardAction.NETWORK_LOCATION -> showNetworkInfo = true
-                                DashboardAction.SETTINGS -> showSettings = true
-                                DashboardAction.HISTORY -> showHistory = true
-                            }
                         }
                     )
                 }

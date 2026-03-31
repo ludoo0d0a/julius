@@ -30,6 +30,8 @@ class VoiceSession : Session(), KoinComponent {
     private val settingsManager: SettingsManager by inject()
     private val voiceManager: fr.geoking.julius.shared.VoiceManager by inject()
     private val julesClient: JulesClient by inject()
+    private val julesRepository: fr.geoking.julius.repository.JulesRepository by inject()
+    private val networkService: fr.geoking.julius.shared.NetworkService by inject()
     private val conversationalAgent: ConversationalAgent by inject()
 
     /** Map/POI deps are loaded only when user opens the Map tab. */
@@ -108,7 +110,16 @@ class VoiceSession : Session(), KoinComponent {
             )
         }
         return try {
-            MainScreen(carContext, store, settingsManager, julesClient, this::getMapDeps, conversationalAgent)
+            AutoDashboardScreen(
+                carContext = carContext,
+                store = store,
+                settingsManager = settingsManager,
+                julesClient = julesClient,
+                julesRepository = julesRepository,
+                networkService = networkService,
+                conversationalAgent = conversationalAgent,
+                getMapDeps = this::getMapDeps
+            )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create MainScreen", e)
             ErrorScreen(
