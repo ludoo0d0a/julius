@@ -208,7 +208,9 @@ data class PoiSearchRequest(
     val longitude: Double,
     val viewport: MapViewport? = null,
     /** Requested POI categories. Empty = provider default (e.g. Gas+Irve for fuel providers). */
-    val categories: Set<PoiCategory> = emptySet()
+    val categories: Set<PoiCategory> = emptySet(),
+    /** When true, the provider should skip in-memory filtering (e.g. brands) and return raw results. */
+    val skipFilters: Boolean = false
 )
 
 /**

@@ -40,6 +40,14 @@ fun AppSettings.effectiveIrveOperatorFilter(): Set<String> =
         mapIrveOperators
     }
 
+fun AppSettings.effectiveProviders(): Set<PoiProviderType> {
+    return if (useVehicleFilter && fuelCard == FuelCard.Routex && (vehicleEnergy == "gas" || vehicleEnergy == "hybrid")) {
+        setOf(PoiProviderType.Routex)
+    } else {
+        selectedPoiProviders
+    }
+}
+
 fun Set<PoiProviderType>.isOnlyOverpass(): Boolean =
     isNotEmpty() && all { it == PoiProviderType.Overpass }
 

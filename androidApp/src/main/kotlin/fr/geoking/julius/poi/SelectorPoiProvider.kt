@@ -2,6 +2,7 @@ package fr.geoking.julius.poi
 
 import android.util.Log
 import fr.geoking.julius.StationMapFilters
+import fr.geoking.julius.effectiveProviders
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.VehicleType
 import fr.geoking.julius.api.openvan.OpenVanCampClient
@@ -50,8 +51,8 @@ class SelectorPoiProvider(
     ) : PoiProvider {
         override fun supportedCategories(): Set<PoiCategory> = setOf(PoiCategory.Gas, PoiCategory.Irve)
         override suspend fun search(request: PoiSearchRequest): List<Poi> {
-            val gasResult = gasProvider.search(request.copy(categories = setOf(PoiCategory.Gas)))
-            val elecResult = elecProvider.search(request.copy(categories = setOf(PoiCategory.Irve)))
+            val gasResult = gasProvider.search(request.copy(categories = setOf(PoiCategory.Gas), skipFilters = request.skipFilters))
+            val elecResult = elecProvider.search(request.copy(categories = setOf(PoiCategory.Irve), skipFilters = request.skipFilters))
             return gasResult + elecResult
         }
         override suspend fun getGasStations(latitude: Double, longitude: Double, viewport: MapViewport?): List<Poi> {
@@ -67,11 +68,7 @@ class SelectorPoiProvider(
 
         val settings = settingsManager.settings.value
         val providers = try {
-            if (settings.useVehicleFilter && settings.fuelCard == fr.geoking.julius.FuelCard.Routex && (settings.vehicleEnergy == "gas" || settings.vehicleEnergy == "hybrid")) {
-                setOf(PoiProviderType.Routex)
-            } else {
-                settings.selectedPoiProviders
-            }
+            settings.effectiveProviders()
         } catch (e: Exception) {
             Log.e("SelectorPoiProvider", "Failed to resolve providers from settings", e)
             settings.selectedPoiProviders
@@ -122,7 +119,7 @@ class SelectorPoiProvider(
             setOf(PoiCategory.Gas, PoiCategory.Irve)
         }
 
-        val effectiveRequest = request.copy(categories = categories)
+        val effectiveRequest = request.copy(categories = categories, skipFilters = true)
 
         providers.forEach { providerType ->
             val activeProvider = getProvider(providerType)
@@ -148,13 +145,15 @@ class SelectorPoiProvider(
             centerLat = request.latitude,
             centerLon = request.longitude
         )
-        result = StationMapFilters.apply(
-            settings = settings,
-            pois = result,
-            providers = providers,
-            skipWhenOnlyOverpass = true,
-        )
-        Log.d("SelectorPoiProvider", "search providers=$providers categories=$categories -> ${result.size} pois")
+        if (!request.skipFilters) {
+            result = StationMapFilters.apply(
+                settings = settings,
+                pois = result,
+                providers = providers,
+                skipWhenOnlyOverpass = true,
+            )
+        }
+        Log.d("SelectorPoiProvider", "search providers=$providers categories=$categories skipFilters=${request.skipFilters} -> ${result.size} pois")
         return PoiSearchResult(pois = result, errors = errors)
     }
 
@@ -171,9 +170,10 @@ class SelectorPoiProvider(
         viewport: MapViewport?
     ): List<Poi> {
         val settings = settingsManager.settings.value
-        val providers = if (settings.useVehicleFilter && settings.fuelCard == fr.geoking.julius.FuelCard.Routex && (settings.vehicleEnergy == "gas" || settings.vehicleEnergy == "hybrid")) {
-            setOf(PoiProviderType.Routex)
-        } else {
+        val providers = try {
+            settings.effectiveProviders()
+        } catch (e: Exception) {
+            Log.e("SelectorPoiProvider", "Failed to resolve providers from settings", e)
             settings.selectedPoiProviders
         }
 
