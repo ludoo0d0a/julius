@@ -20,7 +20,14 @@ class BorderCrossingManager(
                     val roamingInfo = if (status.isRoaming) " (roaming)" else ""
                     val networkInfo = if (status.isConnected) " via ${status.networkType.name}$roamingInfo" else ""
 
-                    val message = "Welcome to $countryName! You are connected to ${status.operatorName}$networkInfo."
+                    val networkSwitchInfo = when {
+                        status.telephonyCountryCode == null -> ""
+                        status.telephonyCountryCode == currentCountry -> " Your network has successfully switched to $countryName."
+                        status.telephonyCountryCode == lastCountryCode -> " You are still using the network from ${lastCountryCode}."
+                        else -> " Your network is connected to ${status.telephonyCountryCode}."
+                    }
+
+                    val message = "Welcome to $countryName! You are connected to ${status.operatorName}$networkInfo.$networkSwitchInfo"
 
                     // Add message to UI and speak it (interruptible)
                     conversationStore.onUserFinishedSpeaking("CROSS_BORDER_EVENT_INTERNAL: $message")

@@ -439,8 +439,15 @@ class AndroidActionExecutor(
                 else -> if (status.isConnected) "unknown quality" else "no signal"
             }
 
+            val countryAlignment = if (status.telephonyCountryCode != null && status.countryCode != null &&
+                                      status.telephonyCountryCode != status.countryCode) {
+                " although your network is still from ${status.telephonyCountryCode}"
+            } else {
+                ""
+            }
+
             val msg = if (status.isConnected) {
-                "You are connected to the $type network of ${status.operatorName} in $country. The connection is $quality on your $roaming."
+                "You are connected to the $type network of ${status.operatorName} in $country$countryAlignment. The connection is $quality on your $roaming."
             } else {
                 "You are currently disconnected from the network in $country. Status: $quality."
             }
