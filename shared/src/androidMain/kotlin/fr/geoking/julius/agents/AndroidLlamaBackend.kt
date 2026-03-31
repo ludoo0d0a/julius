@@ -42,5 +42,7 @@ class AndroidLlamaBackend(private val context: Context) : LlamaBackend {
         )
     }
 
+    override fun getMemoryReport(): String = MemoryHelper.getMemoryReport(context)
+
     override fun shutdown() = LlamaBridge.shutdown()
 }

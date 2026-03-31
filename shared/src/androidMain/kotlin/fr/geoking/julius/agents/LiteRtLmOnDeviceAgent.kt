@@ -10,6 +10,7 @@ import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.SamplerConfig
 import fr.geoking.julius.shared.NetworkException
+import fr.geoking.julius.shared.log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -66,6 +67,9 @@ class LiteRtLmOnDeviceAgent(
         if (!f.isFile) throw NetworkException(null, "LiteRT-LM model not found: $path")
         val cacheDir = context.cacheDir.absolutePath
         val modelAbs = f.absolutePath
+
+        log.d { "LiteRT-LM initializing engine. path=$path" }
+
         var lastError: Throwable? = null
         for (cfg in engineConfigsForModel(modelAbs, cacheDir)) {
             val e = Engine(cfg)
@@ -78,10 +82,14 @@ class LiteRtLmOnDeviceAgent(
                     e.close()
                 } catch (_: Throwable) {
                 }
+                val mem = MemoryHelper.getMemoryReport(context)
+                log.w(t) { "LiteRT-LM initialization failed for backend ${cfg.backend}. $mem" }
                 lastError = t
             }
         }
-        throw NetworkException(null, "LiteRT-LM failed to load model: ${lastError?.message}")
+        val mem = MemoryHelper.getMemoryReport(context)
+        val detail = lastError?.toString() ?: "Unknown error"
+        throw NetworkException(null, "LiteRT-LM failed to load model: $detail. $mem")
     }
 
     override suspend fun process(input: String): AgentResponse = mutex.withLock {
@@ -103,8 +111,11 @@ class LiteRtLmOnDeviceAgent(
                 }
             } catch (e: NetworkException) {
                 throw e
-            } catch (e: Exception) {
-                throw NetworkException(null, "LiteRT-LM error: ${e.message}")
+            } catch (t: Throwable) {
+                val mem = MemoryHelper.getMemoryReport(context)
+                val msg = t.toString()
+                log.e(t) { "LiteRT-LM process crash. $msg. $mem" }
+                throw NetworkException(null, "LiteRT-LM error: $msg. $mem")
             }
         }
     }
