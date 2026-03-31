@@ -101,19 +101,23 @@ class MainActivity : ComponentActivity() {
 
     private fun ensureMapDeps() {
         if (mapDepsState.value != null) return
-        MapModuleLoader.ensureLoaded()
-        mapDepsState.value = MapDeps(
-            poiProvider = get(),
-            availabilityProviderFactory = get(),
-            communityRepo = get(),
-            favoritesRepo = get(),
-            trafficProviderFactory = get(),
-            weatherProviderFactory = get(),
-            routePlanner = get(),
-            routingClient = get(),
-            tollCalculator = get(),
-            geocodingClient = get()
-        )
+        try {
+            MapModuleLoader.ensureLoaded()
+            mapDepsState.value = MapDeps(
+                poiProvider = get(),
+                availabilityProviderFactory = get(),
+                communityRepo = get(),
+                favoritesRepo = get(),
+                trafficProviderFactory = get(),
+                weatherProviderFactory = get(),
+                routePlanner = get(),
+                routingClient = get(),
+                tollCalculator = get(),
+                geocodingClient = get()
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "ensureMapDeps: failed to load map dependencies", e)
+        }
     }
 
     private val updateResultLauncher = registerForActivityResult(

@@ -35,29 +35,38 @@ class VoiceSession : Session(), KoinComponent {
     /** Map/POI deps are loaded only when user opens the Map tab. */
     private var cachedMapDeps: MapDeps? = null
 
-    fun getMapDeps(): MapDeps {
+    fun getMapDeps(): MapDeps? {
         if (cachedMapDeps == null) {
-            MapModuleLoader.ensureLoaded()
-            cachedMapDeps = MapDeps(
-                poiProvider = get<PoiProvider>(),
-                availabilityProviderFactory = get<BorneAvailabilityProviderFactory>(),
-                communityRepo = get<CommunityPoiRepository>(),
-                favoritesRepo = get<FavoritesRepository>(),
-                trafficProviderFactory = get<TrafficProviderFactory>(),
-                weatherProviderFactory = get<WeatherProviderFactory>(),
-                routePlanner = get<RoutePlanner>(),
-                routingClient = get<RoutingClient>(),
-                tollCalculator = get<TollCalculator>(),
-                geocodingClient = get<GeocodingClient>()
-            )
+            try {
+                MapModuleLoader.ensureLoaded()
+                cachedMapDeps = MapDeps(
+                    poiProvider = get<PoiProvider>(),
+                    availabilityProviderFactory = get<BorneAvailabilityProviderFactory>(),
+                    communityRepo = get<CommunityPoiRepository>(),
+                    favoritesRepo = get<FavoritesRepository>(),
+                    trafficProviderFactory = get<TrafficProviderFactory>(),
+                    weatherProviderFactory = get<WeatherProviderFactory>(),
+                    routePlanner = get<RoutePlanner>(),
+                    routingClient = get<RoutingClient>(),
+                    tollCalculator = get<TollCalculator>(),
+                    geocodingClient = get<GeocodingClient>()
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load map dependencies", e)
+                return null
+            }
         }
-        return cachedMapDeps!!
+        return cachedMapDeps
     }
 
     override fun onNewIntent(intent: Intent) {
         val nav = fr.geoking.julius.IntentNavigationHelper.parseNavIntent(intent)
         if (nav != null) {
             val mapDeps = getMapDeps()
+            if (mapDeps == null) {
+                Log.e(TAG, "onNewIntent: mapDeps is null")
+                return
+            }
             val destQuery = nav.address ?: nav.latitude?.let { "${nav.latitude}, ${nav.longitude}" } ?: ""
             carContext.getCarService(androidx.car.app.ScreenManager::class.java).push(
                 AutoRoutePlanningScreen(
@@ -79,6 +88,13 @@ class VoiceSession : Session(), KoinComponent {
         val nav = fr.geoking.julius.IntentNavigationHelper.parseNavIntent(intent)
         if (nav != null) {
             val mapDeps = getMapDeps()
+            if (mapDeps == null) {
+                return ErrorScreen(
+                    carContext,
+                    errorMessage = "Failed to load map components.",
+                    errorDetail = "Dependencies could not be initialized."
+                )
+            }
             val destQuery = nav.address ?: nav.latitude?.let { "${nav.latitude}, ${nav.longitude}" } ?: ""
             return AutoRoutePlanningScreen(
                 carContext = carContext,
