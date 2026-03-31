@@ -99,7 +99,8 @@ class AutoSettingsScreen(
                 .setTitle("Jules")
                 .addText("Open Jules code assistant")
                 .setOnClickListener {
-                    screenManager.push(AutoJulesScreen(carContext, store, settingsManager, julesClient))
+                    val julesRepository = org.koin.core.context.GlobalContext.get().get<fr.geoking.julius.repository.JulesRepository>()
+                    screenManager.push(AutoJulesSourceScreen(carContext, store, settingsManager, julesClient, julesRepository))
                 }
                 .build()
         )
