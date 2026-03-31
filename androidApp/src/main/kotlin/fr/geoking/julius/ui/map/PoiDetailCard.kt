@@ -77,7 +77,7 @@ fun PoiDetailCard(
 
     Card(
         modifier = modifier
-            .heightIn(min = 180.dp),
+            .height(200.dp),
         colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFF475569) else Color(0xFF334155)),
         shape = MaterialTheme.shapes.large
     ) {
@@ -91,7 +91,7 @@ fun PoiDetailCard(
                 ) { onShowDetails() },
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Row(
                     verticalAlignment = Alignment.Top,
                     modifier = Modifier.fillMaxWidth()
@@ -236,7 +236,7 @@ fun PoiDetailCard(
                                 val prices = poi.fuelPrices.orEmpty()
                                 if (prices.isNotEmpty()) {
                                     val sorted = prices.sortedBy { it.fuelName.lowercase() }
-                                    sorted.forEach { fp ->
+                                    sorted.take(3).forEach { fp ->
                                         val fuelId = MapPoiFilter.fuelNameToId(fp.fuelName)
                                         val matchColor = fuelId?.let { ColorHelper.getFuelColor(it) }
                                         Row(
