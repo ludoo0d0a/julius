@@ -150,6 +150,7 @@ data class AppSettings(
     val openAiKey: String = "",
     val openAiModel: OpenAiModel = OpenAiModel.GPT_4O,
     val elevenLabsKey: String = "",
+    val elevenLabsScribe2: Boolean = true,
     val perplexityKey: String = "",
     val geminiKey: String = "",
     val geminiModel: GeminiModel = GeminiModel.GEMINI_2_0_FLASH,
@@ -208,6 +209,7 @@ open class SettingsManager(context: Context) {
     private fun loadSettings(): AppSettings {
         val openAiKey = prefs.getString("openai_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.OPENAI_KEY
         val elevenLabsKey = prefs.getString("elevenlabs_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.ELEVENLABS_KEY
+        val elevenLabsScribe2 = prefs.getBoolean("elevenlabs_scribe2", true)
         val perplexityKey = prefs.getString("perplexity_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.PERPLEXITY_KEY
         val geminiKey = prefs.getString("gemini_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.GEMINI_KEY
         val deepgramKey = prefs.getString("deepgram_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.DEEPGRAM_KEY
@@ -378,6 +380,7 @@ open class SettingsManager(context: Context) {
                 OpenAiModel.valueOf(prefs.getString("openai_model", OpenAiModel.GPT_4O.name) ?: OpenAiModel.GPT_4O.name)
             } catch (e: IllegalArgumentException) { OpenAiModel.GPT_4O },
             elevenLabsKey = elevenLabsKey,
+            elevenLabsScribe2 = elevenLabsScribe2,
             perplexityKey = perplexityKey,
             geminiKey = geminiKey,
             geminiModel = try {
@@ -725,6 +728,7 @@ open class SettingsManager(context: Context) {
             .putString("openai_key", settings.openAiKey)
             .putString("openai_model", settings.openAiModel.name)
             .putString("elevenlabs_key", settings.elevenLabsKey)
+            .putBoolean("elevenlabs_scribe2", settings.elevenLabsScribe2)
             .putString("perplexity_key", settings.perplexityKey)
             .putString("gemini_key", settings.geminiKey)
             .putString("gemini_model", settings.geminiModel.name)
@@ -774,6 +778,7 @@ open class SettingsManager(context: Context) {
         openAiKey: String,
         openAiModel: OpenAiModel = _settings.value.openAiModel,
         elevenLabsKey: String,
+        elevenLabsScribe2: Boolean = _settings.value.elevenLabsScribe2,
         perplexityKey: String,
         geminiKey: String,
         geminiModel: GeminiModel = _settings.value.geminiModel,
@@ -832,6 +837,7 @@ open class SettingsManager(context: Context) {
             openAiKey = openAiKey,
             openAiModel = openAiModel,
             elevenLabsKey = elevenLabsKey,
+            elevenLabsScribe2 = elevenLabsScribe2,
             perplexityKey = perplexityKey,
             geminiKey = geminiKey,
             geminiModel = geminiModel,

@@ -2,12 +2,17 @@ package fr.geoking.julius.agents
 
 import fr.geoking.julius.shared.NetworkException
 import io.ktor.client.HttpClient
+import io.ktor.client.request.forms.formData
+import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.Headers
+import kotlinx.serialization.json.Json
+import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -19,11 +24,15 @@ class ElevenLabsAgent(
     private val elevenLabsKey: String,
     private val voiceId: String = "JBFqnCBsd6RMkjVDRZzb", // Example: George
     private val model: String,
+    private val scribe2: Boolean = true,
     private val baseUrl: String = "https://api.elevenlabs.io/v1"
 ) : ConversationalAgent {
 
     private val mutex = Mutex()
     private val perplexityAgent = PerplexityAgent(client, perplexityKey, model)
+    private val json = Json { ignoreUnknownKeys = true }
+
+    @Serializable private data class TranscriptionRes(val text: String)
 
     @Serializable private data class TtsReq(
         val text: String,
@@ -31,6 +40,37 @@ class ElevenLabsAgent(
         val voice_settings: VoiceSettings = VoiceSettings()
     )
     @Serializable private data class VoiceSettings(val stability: Double = 0.5, val similarity_boost: Double = 0.75)
+
+    override val isSttSupported: Boolean get() = true
+
+    override suspend fun transcribe(audioData: ByteArray): String? = mutex.withLock {
+        if (elevenLabsKey.isBlank()) return null
+
+        try {
+            val response = client.submitFormWithBinaryData(
+                url = "$baseUrl/speech-to-text",
+                formData = formData {
+                    append("file", audioData, Headers.build {
+                        append(HttpHeaders.ContentDisposition, "form-data; name=\"file\"; filename=\"audio.pcm\"")
+                        append(HttpHeaders.ContentType, "application/octet-stream")
+                    })
+                    append("model_id", if (scribe2) "scribe_v2" else "scribe_v1")
+                    append("file_format", "pcm_s16le_16")
+                }
+            ) {
+                header("xi-api-key", elevenLabsKey)
+            }
+
+            if (response.status.value == 200) {
+                return json.decodeFromString<TranscriptionRes>(response.bodyAsText()).text
+            } else {
+                fr.geoking.julius.shared.log.e { "ElevenLabs STT error: ${response.status} ${response.bodyAsText()}" }
+            }
+        } catch (e: Exception) {
+            fr.geoking.julius.shared.log.e { "ElevenLabs STT exception: ${e.message}" }
+        }
+        return null
+    }
 
     override suspend fun process(input: String): AgentResponse = mutex.withLock {
         if (elevenLabsKey.isBlank()) {

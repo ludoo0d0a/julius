@@ -89,7 +89,13 @@ class DynamicAgentWrapper(
             if (settings.perplexityKey.isBlank() || settings.elevenLabsKey.isBlank()) {
                 android.util.Log.w("DynamicAgentWrapper", "ElevenLabs selected but missing keys (perplexity: ${settings.perplexityKey.isNotBlank()}, elevenlabs: ${settings.elevenLabsKey.isNotBlank()})")
             }
-            ElevenLabsAgent(client, perplexityKey = settings.perplexityKey, elevenLabsKey = settings.elevenLabsKey, model = settings.selectedModel.modelName)
+            ElevenLabsAgent(
+                client,
+                perplexityKey = settings.perplexityKey,
+                elevenLabsKey = settings.elevenLabsKey,
+                model = settings.selectedModel.modelName,
+                scribe2 = settings.elevenLabsScribe2
+            )
         }
         AgentType.Deepgram -> {
             android.util.Log.d("DynamicAgentWrapper", "Creating Deepgram agent (this should not happen if ElevenLabs is selected)")
@@ -154,6 +160,7 @@ class DynamicAgentWrapper(
         append("|").append(settings.openAiKey.take(8))
         append("|").append(settings.perplexityKey.take(8))
         append("|").append(settings.elevenLabsKey.take(8))
+        append("|").append(settings.elevenLabsScribe2)
         append("|").append(settings.geminiKey.take(8))
         append("|").append(settings.deepgramKey.take(8))
         append("|").append(settings.firebaseAiKey.take(8))
