@@ -22,30 +22,47 @@ class JulesRepository(
 ) {
     fun getSessions(apiKey: String, sourceName: String, githubToken: String): Flow<List<JulesSessionEntity>> = flow {
         // 1. Emit from cache
-        val cached = julesDao.getSessionsBySource(sourceName)
-        emit(cached)
+        try {
+            val cached = julesDao.getSessionsBySource(sourceName)
+            emit(cached)
+        } catch (e: Exception) {
+            emit(emptyList())
+        }
 
         // 2. Fetch from network
         try {
             val resp = julesClient.listSessions(apiKey, pageSize = 50)
             val sessions = resp.sessions.orEmpty().filter { it.sourceContext?.source == sourceName }
 
-            val entities = sessions.map { session ->
+            val entities = mutableListOf<JulesSessionEntity>()
+            for (session in sessions) {
+                val sessionId = session.id.takeIf { it.isNotBlank() } ?: session.name
+                if (sessionId.isBlank()) continue
+
                 val pr = session.outputs?.firstOrNull()?.pullRequest
-                val existing = julesDao.getSession(session.id)
-                JulesSessionEntity(
-                    id = session.id,
+                val existing = try { julesDao.getSession(sessionId) } catch (e: Exception) { null }
+
+                entities.add(JulesSessionEntity(
+                    id = sessionId,
                     title = session.title,
                     prompt = session.prompt,
                     sourceName = sourceName,
                     prUrl = pr?.url,
                     prTitle = pr?.title,
-                    prState = existing?.prState, // Preserve existing status if available
+                    prState = existing?.prState,
                     isArchived = existing?.isArchived ?: false,
                     lastUpdated = System.currentTimeMillis()
-                )
+                ))
             }
-            julesDao.insertSessions(entities)
+
+            try {
+                julesDao.insertSessions(entities)
+            } catch (e: Exception) {
+                // Continue even if DB insert fails
+            }
+
+            // Always emit what we fetched from network
+            emit(entities)
 
             // Update PR statuses in parallel
             coroutineScope {
@@ -54,7 +71,11 @@ class JulesRepository(
                 }.awaitAll()
             }
 
-            emit(julesDao.getSessionsBySource(sourceName))
+            try {
+                emit(julesDao.getSessionsBySource(sourceName))
+            } catch (e: Exception) {
+                // Ignore
+            }
         } catch (e: Exception) {
             // Ignore network errors for caching strategy
         }
@@ -82,12 +103,16 @@ class JulesRepository(
 
     fun getActivities(apiKey: String, sessionId: String): Flow<List<JulesChatItem>> = flow {
         // 1. Emit from cache
-        val cached = julesDao.getActivitiesBySession(sessionId)
-        if (cached.isNotEmpty()) {
-            emit(cached.map {
-                if (it.originator == "user") JulesChatItem.UserMessage(it.id, it.timestamp, it.text)
-                else JulesChatItem.AgentMessage(it.id, it.timestamp, it.text)
-            })
+        try {
+            val cached = julesDao.getActivitiesBySession(sessionId)
+            if (cached.isNotEmpty()) {
+                emit(cached.map {
+                    if (it.originator == "user") JulesChatItem.UserMessage(it.id, it.timestamp, it.text)
+                    else JulesChatItem.AgentMessage(it.id, it.timestamp, it.text)
+                })
+            }
+        } catch (e: Exception) {
+            // Ignore cache error
         }
 
         // 2. Fetch from network
@@ -96,13 +121,31 @@ class JulesRepository(
             val items = julesClient.activitiesToChatItems(resp.activities)
 
             val entities = items.map { item ->
-                val (id, ts, text, originator) = when (item) {
-                    is JulesChatItem.UserMessage -> listOf(item.id, item.createTime, item.text, "user")
-                    is JulesChatItem.AgentMessage -> listOf(item.id, item.createTime, item.text, "agent")
+                val id: String
+                val ts: String
+                val text: String
+                val originator: String
+
+                when (item) {
+                    is JulesChatItem.UserMessage -> {
+                        id = item.id
+                        ts = item.createTime
+                        text = item.text
+                        originator = "user"
+                    }
+                    is JulesChatItem.AgentMessage -> {
+                        id = item.id
+                        ts = item.createTime
+                        text = item.text
+                        originator = "agent"
+                    }
                 }
+
                 val sortTs = try { OffsetDateTime.parse(ts).toInstant().toEpochMilli() } catch (e: Exception) { 0L }
+                val finalId = id.takeIf { it.isNotBlank() } ?: "act_${sessionId}_${sortTs}_${text.hashCode()}"
+
                 JulesActivityEntity(
-                    id = id,
+                    id = finalId,
                     sessionId = sessionId,
                     originator = originator,
                     text = text,
@@ -110,12 +153,17 @@ class JulesRepository(
                     sortTimestamp = sortTs
                 )
             }
-            julesDao.clearActivitiesBySession(sessionId)
-            julesDao.insertActivities(entities)
+
+            try {
+                julesDao.clearActivitiesBySession(sessionId)
+                julesDao.insertActivities(entities)
+            } catch (e: Exception) {
+                // Ignore DB error
+            }
 
             emit(items)
         } catch (e: Exception) {
-            // Ignore
+            // Ignore network/processing error
         }
     }
 
