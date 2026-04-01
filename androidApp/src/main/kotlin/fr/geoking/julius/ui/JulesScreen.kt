@@ -102,6 +102,7 @@ fun JulesScreen(
     var sources by remember { mutableStateOf<List<JulesClient.JulesSource>>(emptyList()) }
     var sessions by remember { mutableStateOf<List<JulesSessionEntity>>(emptyList()) }
     var currentSession by remember { mutableStateOf<JulesSessionEntity?>(null) }
+    var quota by remember { mutableStateOf<fr.geoking.julius.repository.JulesQuota?>(null) }
     val chatItems = remember { mutableStateListOf<JulesChatItem>() }
     var loading by remember { mutableStateOf(false) }
     var loadingSessions by remember { mutableStateOf(false) }
@@ -154,6 +155,7 @@ fun JulesScreen(
         scope.launch {
             loadingSessions = true
             clearError()
+            quota = julesRepository.getUsageQuota(apiKey)
             julesRepository.getSessions(apiKey, sourceName, githubToken).collectLatest { list ->
                 sessions = list
                 loadingSessions = false
@@ -342,7 +344,8 @@ fun JulesScreen(
                                             prTitle = session.outputs?.firstOrNull()?.pullRequest?.title,
                                             prState = null,
                                             isArchived = false,
-                                            lastUpdated = System.currentTimeMillis()
+                                            lastUpdated = System.currentTimeMillis(),
+                                            createTime = session.createTime
                                         )
                                         newSessionPrompt = ""
                                         currentSession = entity
@@ -350,6 +353,7 @@ fun JulesScreen(
                                     } catch (e: Exception) {
                                         error = when {
                                             e is NetworkException && e.httpCode == 401 -> "Invalid API key."
+                                            e is NetworkException && e.httpCode == 429 -> "Daily session limit reached (5 sessions/day during beta)."
                                             e is NetworkException && e.httpCode != null -> "API error ${e.httpCode}: ${e.message}"
                                             else -> "Failed to create conversation: ${e.message ?: "Unknown error"}"
                                         }
@@ -392,7 +396,8 @@ fun JulesScreen(
                                     loadSessions()
                                     loading = false
                                 }
-                            }
+                                    },
+                                    quota = quota
                         )
                     }
 
@@ -682,7 +687,8 @@ private fun RepoAndSessionsContent(
     onMergePr: (JulesSessionEntity) -> Unit,
     onClosePr: (JulesSessionEntity) -> Unit,
     onGetPrDetails: (JulesSessionEntity, (GitHubClient.GitHubPullRequestDetail?) -> Unit) -> Unit,
-    onArchive: (JulesSessionEntity) -> Unit
+    onArchive: (JulesSessionEntity) -> Unit,
+    quota: fr.geoking.julius.repository.JulesQuota? = null
 ) {
     var showPrDetails by remember { mutableStateOf<GitHubClient.GitHubPullRequestDetail?>(null) }
     Column(
@@ -744,13 +750,29 @@ private fun RepoAndSessionsContent(
                                             showNewForm = false
                                         }
                                     },
-                                    enabled = newSessionPrompt.isNotBlank() && !loading
+                                    enabled = newSessionPrompt.isNotBlank() && !loading && (quota == null || quota.used < quota.limit)
                                 ) { Text("Create") }
                             }
                         }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                 } else {
+                    quota?.let {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Daily usage: ${it.used}/${it.limit} sessions",
+                                color = if (it.used >= it.limit) Color.Red else Color.White.copy(alpha = 0.6f),
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+
                     FilledTonalButton(
                         onClick = { showNewForm = true },
                         modifier = Modifier.fillMaxWidth(),
