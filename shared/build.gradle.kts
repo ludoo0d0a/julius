@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidKotlinMultiplatformLibrary)
     alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.composeCompiler)
+    id("org.jetbrains.compose")
     `maven-publish`
 }
 
@@ -16,10 +18,6 @@ kotlin {
         compileSdk = 36
         minSdk = 26
         
-        compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
-            freeCompilerArgs.add("-Xexpect-actual-classes")
-        }
     }
     
     // JVM target for running tests on desktop (MacBook Intel x64)
@@ -54,7 +52,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            compileOnly(libs.compose.runtime)
+            compileOnly(compose.runtime)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
