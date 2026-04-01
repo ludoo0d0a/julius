@@ -215,7 +215,7 @@ dependencies {
     // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    annotationProcessor(libs.androidx.room.ksp)
+    ksp(libs.androidx.room.ksp)
 
     // Vosk offline STT (car mic path)
     implementation("com.alphacephei:vosk-android:0.3.75")

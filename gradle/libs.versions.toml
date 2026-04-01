@@ -1,6 +1,6 @@
 [versions]
 agp = "9.1.0"
-kotlin = "2.3.0"
+kotlin = "2.1.0"
 compose = "1.10.4"
 compose-material3 = "1.4.0"
 compose-material-icons = "1.7.8"
@@ -83,5 +83,5 @@ kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-ksp = { id = "com.google.devtools.ksp", version = "2.3.6" }
+ksp = { id = "com.google.devtools.ksp", version = "2.1.0-1.0.29" }
 hotswan-compiler = { id = "com.github.skydoves.compose.hotswan.compiler", version = "1.1.0" }
