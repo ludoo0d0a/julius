@@ -19,7 +19,7 @@ configure<ApplicationExtension> {
     defaultConfig {
         applicationId = "fr.geoking.julius"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 35
         val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()
         val ciRunAttempt = System.getenv("GITHUB_RUN_ATTEMPT")?.toIntOrNull() ?: 1
         val localProps = rootProject.file("local.properties").takeIf { it.exists() }?.let { file ->
@@ -121,6 +121,7 @@ configure<ApplicationExtension> {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+
     packaging {
         resources {
             excludes += "META-INF/INDEX.LIST"
@@ -131,6 +132,7 @@ configure<ApplicationExtension> {
     lint {
         baseline = file("lint-baseline.xml")
     }
+
 }
 
 // Fichier de désobscurcissement (mapping R8) associé à l’App Bundle.
@@ -229,8 +231,3 @@ dependencies {
     testImplementation("org.robolectric:robolectric:4.14.1")
 }
 
-kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-    }
-}
