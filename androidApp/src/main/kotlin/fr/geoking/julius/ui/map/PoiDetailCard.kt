@@ -125,7 +125,7 @@ fun PoiDetailCard(
                                         containerColor = Color(0xFF0F172A),
                                         labelColor = Color.White
                                     ),
-                                    interactionSource = MutableInteractionSource()
+                                    interactionSource = remember { MutableInteractionSource() }
                                 )
                                 Text(
                                     text = sources.joinToString(" + "),

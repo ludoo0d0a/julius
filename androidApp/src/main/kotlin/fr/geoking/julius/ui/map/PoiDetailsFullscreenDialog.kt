@@ -113,7 +113,7 @@ fun PoiDetailsFullscreenDialog(
                                     containerColor = Color(0xFF0F172A),
                                     labelColor = Color.White
                                 ),
-                                interactionSource = MutableInteractionSource()
+                                interactionSource = remember { MutableInteractionSource() }
                             )
                             Text(
                                 text = sources.joinToString(" + "),
@@ -262,7 +262,7 @@ fun PoiDetailsFullscreenDialog(
                                         onClick = {},
                                         label = { Text(BrandHelper.connectorTypeLabel(id), fontSize = 12.sp) },
                                         colors = AssistChipDefaults.assistChipColors(containerColor = Color(0xFF475569)),
-                                        interactionSource = MutableInteractionSource()
+                                        interactionSource = remember { MutableInteractionSource() }
                                     )
                                 }
                             }

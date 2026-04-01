@@ -1,4 +1,4 @@
-package fr.geoking.julius
+package fr.geoking.julius.feature.location
 
 import android.annotation.SuppressLint
 import android.content.Context

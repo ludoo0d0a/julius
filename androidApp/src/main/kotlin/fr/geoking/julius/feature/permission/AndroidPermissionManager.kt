@@ -1,11 +1,10 @@
-package fr.geoking.julius
+package fr.geoking.julius.feature.permission
 
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import fr.geoking.julius.shared.PermissionManager
 import kotlinx.coroutines.CompletableDeferred
-import java.util.concurrent.atomic.AtomicInteger
 
 class AndroidPermissionManager(
     private val context: Context

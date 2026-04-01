@@ -1,13 +1,13 @@
 package fr.geoking.julius.di
 
 import android.content.Context
-import fr.geoking.julius.AndroidVoiceManager
+import fr.geoking.julius.voice.AndroidVoiceManager
 import fr.geoking.julius.AndroidActionExecutor
 import fr.geoking.julius.AndroidNetworkService
 import fr.geoking.julius.AndroidWeatherLookup
 import fr.geoking.julius.AppSettings
 import fr.geoking.julius.AndroidPermissionManager
-import fr.geoking.julius.GoogleAuthManager
+import fr.geoking.julius.feature.auth.GoogleAuthManager
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.agents.*

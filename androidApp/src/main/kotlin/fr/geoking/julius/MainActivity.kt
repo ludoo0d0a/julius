@@ -132,7 +132,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         android.util.Log.d("MainActivity", "onCreate start")
 
-        val appError = VoiceApplication.initError
+        val appError = JuliusApplication.initError
         if (appError != null) {
             android.util.Log.e("MainActivity", "Showing startup error (Koin failed)", appError)
             setContent { StartupErrorContent(appError) }
@@ -509,7 +509,7 @@ fun MainUIPreview() {
     val mockSettingsManager = rememberMockSettingsManager()
 
     val context = LocalContext.current
-    val mockAuthManager = remember { GoogleAuthManager(context, mockSettingsManager, { mockStore }) }
+    val mockAuthManager = GoogleAuthManager(context, mockSettingsManager, { mockStore })
 
     val mapDepsFlow = remember { MutableStateFlow<MapDeps?>(null) }
     MainUI(

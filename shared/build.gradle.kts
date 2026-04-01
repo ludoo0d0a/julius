@@ -75,6 +75,7 @@ kotlin {
             implementation(libs.ktor.client.darwin)
         }
         commonTest.dependencies {
+            implementation(compose.runtime)
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.core)
             implementation("io.ktor:ktor-client-mock:${libs.versions.ktor.get()}")

@@ -20,6 +20,7 @@ import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.toll.TollCalculator
+import fr.geoking.julius.voice.AndroidVoiceManager
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.koin.core.component.get
@@ -86,7 +87,7 @@ class VoiceSession : Session(), KoinComponent {
     }
 
     override fun onCreateScreen(intent: Intent): Screen {
-        (voiceManager as? fr.geoking.julius.AndroidVoiceManager)?.setCarContext(carContext)
+        (voiceManager as? AndroidVoiceManager)?.setCarContext(carContext)
         val nav = fr.geoking.julius.IntentNavigationHelper.parseNavIntent(intent)
         if (nav != null) {
             val mapDeps = getMapDeps()

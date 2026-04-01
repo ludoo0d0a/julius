@@ -1,4 +1,4 @@
-package fr.geoking.julius.voice
+package fr.geoking.julius.feature.voice
 
 import android.content.Context
 import android.util.Log

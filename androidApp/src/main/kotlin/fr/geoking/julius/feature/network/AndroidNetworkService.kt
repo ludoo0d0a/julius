@@ -1,5 +1,6 @@
-package fr.geoking.julius
+package fr.geoking.julius.feature.network
 
+import android.annotation.SuppressLint
 import android.Manifest
 import android.content.Context
 import android.location.Address
@@ -159,18 +160,23 @@ class AndroidNetworkService(
             capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> NetworkType.WIFI
             capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> {
                 if (permissionManager.hasPermission(Manifest.permission.READ_PHONE_STATE)) {
-                    val telephonyNetworkType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        telephonyManager.dataNetworkType
-                    } else {
-                        @Suppress("DEPRECATION")
-                        telephonyManager.networkType
-                    }
+                    val telephonyNetworkType = readTelephonyNetworkTypeWithPhonePermission()
                     mapTelephonyNetworkType(telephonyNetworkType)
                 } else {
                     NetworkType.UNKNOWN
                 }
             }
             else -> NetworkType.UNKNOWN
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun readTelephonyNetworkTypeWithPhonePermission(): Int {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            telephonyManager.dataNetworkType
+        } else {
+            @Suppress("DEPRECATION")
+            telephonyManager.networkType
         }
     }
 

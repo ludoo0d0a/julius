@@ -1,50 +1,48 @@
-package fr.geoking.julius
+package fr.geoking.julius.feature.voice
 
+import android.annotation.SuppressLint
 import android.content.Context
-import android.content.Intent
-import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaPlayer
-import android.util.Log
 import android.net.Uri
-import android.os.Bundle
 import android.os.Handler
 import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import android.util.Log
 import androidx.car.app.CarContext
 import androidx.car.app.media.CarAudioRecord
-import androidx.media3.common.MediaMetadata
-import androidx.media3.common.PlaybackException
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.SimpleBasePlayer
-import androidx.media3.common.SimpleBasePlayer.MediaItemData
-import androidx.media3.common.SimpleBasePlayer.State
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.SpeakingInterruptMode
 import fr.geoking.julius.shared.VoiceEvent
 import fr.geoking.julius.shared.VoiceManager
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
-import kotlin.OptIn
 import java.util.Locale
+import kotlin.text.iterator
 
 @OptIn(DelicateCoroutinesApi::class)
 @UnstableApi
@@ -55,7 +53,7 @@ class AndroidVoiceManager(
 
     private var carContext: CarContext? = null
     private var isRecording = false
-    private var wakeWordDetectionJob: kotlinx.coroutines.Job? = null
+    private var wakeWordDetectionJob: Job? = null
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
@@ -103,20 +101,20 @@ class AndroidVoiceManager(
 
         override fun getState(): State {
             val playbackState = when (_events.value) {
-                VoiceEvent.Listening, VoiceEvent.PassiveListening, VoiceEvent.Speaking, VoiceEvent.Processing -> Player.STATE_READY
-                VoiceEvent.Silence -> Player.STATE_IDLE
+                VoiceEvent.Listening, VoiceEvent.PassiveListening, VoiceEvent.Speaking, VoiceEvent.Processing -> STATE_READY
+                VoiceEvent.Silence -> STATE_IDLE
             }
             val playWhenReady = _events.value != VoiceEvent.Silence
 
             return State.Builder()
                 .setAvailableCommands(
                     Player.Commands.Builder()
-                        .add(Player.COMMAND_PLAY_PAUSE)
-                        .add(Player.COMMAND_STOP)
+                        .add(COMMAND_PLAY_PAUSE)
+                        .add(COMMAND_STOP)
                         .build()
                 )
                 .setPlaybackState(playbackState)
-                .setPlayWhenReady(playWhenReady, Player.PLAYBACK_SUPPRESSION_REASON_NONE)
+                .setPlayWhenReady(playWhenReady, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
                 .setPlaylist(
                     listOf(
                         MediaItemData.Builder("julius_voice")
@@ -259,7 +257,10 @@ class AndroidVoiceManager(
                         }
                     }
 
-                    @Deprecated("Overrides deprecated UtteranceProgressListener.onError", ReplaceWith("onDone(utteranceId)"))
+                    @Deprecated(
+                        "Overrides deprecated UtteranceProgressListener.onError",
+                        ReplaceWith("onDone(utteranceId)")
+                    )
                     override fun onError(utteranceId: String?) {
                         onDone(utteranceId)
                     }
@@ -307,9 +308,10 @@ class AndroidVoiceManager(
 
         GlobalScope.launch(Dispatchers.IO) {
             try {
+                @SuppressLint("MissingPermission")
                 val carAudioRecord = CarAudioRecord.create(carContext)
                 carAudioRecord.startRecording()
-                val baos = java.io.ByteArrayOutputStream()
+                val baos = ByteArrayOutputStream()
                 val buffer = ByteArray(CarAudioRecord.AUDIO_CONTENT_BUFFER_SIZE)
 
                 Log.d(TAG, "Car recording started")
@@ -396,7 +398,7 @@ class AndroidVoiceManager(
             mainHandler.post { speechRecognizer?.cancel() }
         }
     }
-    
+
     override fun speak(text: String, languageTag: String?, isInterruptible: Boolean) {
         // With interrupt mode OFF, cancel recognition so TTS is not cut by leftover STT.
         if (settingsManager.settings.value.speakingInterruptMode == SpeakingInterruptMode.OFF || !isInterruptible) {
@@ -426,7 +428,7 @@ class AndroidVoiceManager(
             val fos = FileOutputStream(tempFile)
             fos.write(bytes)
             fos.close()
-            
+
             mediaPlayer?.reset()
             mediaPlayer?.setDataSource(tempFile.absolutePath)
             mediaPlayer?.prepare()
@@ -477,14 +479,14 @@ class AndroidVoiceManager(
 
     private fun resolveLocale(languageTag: String?): Locale {
         if (languageTag.isNullOrBlank()) return Locale.getDefault()
-        val locale = Locale.forLanguageTag(languageTag)
-        return if (locale == Locale.ROOT) Locale.getDefault() else locale
+        val locale = java.util.Locale.forLanguageTag(languageTag)
+        return if (locale == java.util.Locale.ROOT) java.util.Locale.getDefault() else locale
     }
 
-    private fun applyLocale(locale: Locale): Boolean {
+    private fun applyLocale(locale: java.util.Locale): Boolean {
         val ttsInstance = tts ?: return false
         val availability = ttsInstance.isLanguageAvailable(locale)
-        return if (availability >= TextToSpeech.LANG_AVAILABLE) {
+        return if (availability >= android.speech.tts.TextToSpeech.LANG_AVAILABLE) {
             ttsInstance.language = locale
             currentLanguageTag = locale.toLanguageTag()
             true
@@ -495,10 +497,10 @@ class AndroidVoiceManager(
 
     private fun startListeningInternal(stopOutputs: Boolean, bargeIn: Boolean) {
         val intent = buildRecognizerIntent()
-        Log.d(TAG, "startListeningInternal stopOutputs=$stopOutputs bargeIn=$bargeIn")
+        android.util.Log.d(TAG, "startListeningInternal stopOutputs=$stopOutputs bargeIn=$bargeIn")
         mainHandler.post {
             val recognizer = getOrCreateRecognizer() ?: run {
-                Log.e(TAG, "getOrCreateRecognizer() returned null, cannot start")
+                android.util.Log.e(TAG, "getOrCreateRecognizer() returned null, cannot start")
                 return@post
             }
 
@@ -528,10 +530,10 @@ class AndroidVoiceManager(
                 _transcribedText.value = ""
             }
 
-            Log.d(TAG, "SpeechRecognizer.startListening() called")
+            android.util.Log.d(TAG, "SpeechRecognizer.startListening() called")
             recognizer.startListening(intent)
             if (!bargeIn) {
-                _events.value = VoiceEvent.Listening
+                _events.value = fr.geoking.julius.shared.VoiceEvent.Listening
                 player.notifyStateChanged()
             }
         }
@@ -554,16 +556,16 @@ class AndroidVoiceManager(
 
     private fun startBargeInWhileSpeakingIfNeeded() {
         when (settingsManager.settings.value.speakingInterruptMode) {
-            SpeakingInterruptMode.OFF -> return
-            SpeakingInterruptMode.WAKE_WORD, SpeakingInterruptMode.ANY_SPEECH -> Unit
+            fr.geoking.julius.SpeakingInterruptMode.OFF -> return
+            fr.geoking.julius.SpeakingInterruptMode.WAKE_WORD, fr.geoking.julius.SpeakingInterruptMode.ANY_SPEECH -> Unit
         }
-        if (_events.value != VoiceEvent.Speaking) return
+        if (_events.value != fr.geoking.julius.shared.VoiceEvent.Speaking) return
         if (isRecording) return
         if (heyJuliusActivationInProgress) return
         if (isRecognizerActive && isBargeInActive) return
 
         isHeyJuliusKeywordBargeIn =
-            settingsManager.settings.value.speakingInterruptMode == SpeakingInterruptMode.WAKE_WORD
+            settingsManager.settings.value.speakingInterruptMode == fr.geoking.julius.SpeakingInterruptMode.WAKE_WORD
         startBargeInListening()
     }
 
@@ -575,7 +577,7 @@ class AndroidVoiceManager(
             }
         }
         return cleaned
-            .lowercase(Locale.ROOT)
+            .lowercase(java.util.Locale.ROOT)
             .trim()
             .replace(Regex("\\s+"), " ")
     }
@@ -593,7 +595,7 @@ class AndroidVoiceManager(
     }
 
     private fun activateStopKeyword() {
-        Log.d(TAG, "\"stop\" detected: stop outputs + cancel recognition")
+        android.util.Log.d(TAG, "\"stop\" detected: stop outputs + cancel recognition")
         tts?.stop()
         try {
             if (mediaPlayer?.isPlaying == true) {
@@ -614,7 +616,7 @@ class AndroidVoiceManager(
 
         _partialText.value = ""
         _transcribedText.value = ""
-        _events.value = VoiceEvent.Silence
+        _events.value = fr.geoking.julius.shared.VoiceEvent.Silence
         player.notifyStateChanged()
         abandonAudioFocus()
     }
@@ -622,10 +624,10 @@ class AndroidVoiceManager(
     private fun activateHeyJulius() {
         if (heyJuliusActivationInProgress) return
         heyJuliusActivationInProgress = true
-        Log.d(TAG, "Hey Julius detected: interrupt + startListening")
+        android.util.Log.d(TAG, "Hey Julius detected: interrupt + startListening")
 
         // Stop audio output, but keep audio focus so we can immediately listen.
-        if (_events.value == VoiceEvent.Speaking) {
+        if (_events.value == fr.geoking.julius.shared.VoiceEvent.Speaking) {
             tts?.stop()
             try {
                 if (mediaPlayer?.isPlaying == true) {
@@ -654,7 +656,7 @@ class AndroidVoiceManager(
     }
 
     private fun observeSettings() {
-        GlobalScope.launch(Dispatchers.Main) {
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) {
             settingsManager.settings.collect { settings ->
                 if (settings.wakeWordEnabled) {
                     startWakeWordDetection()
@@ -667,14 +669,14 @@ class AndroidVoiceManager(
 
     private fun startWakeWordDetection() {
         if (wakeWordDetectionJob != null) return
-        Log.d(TAG, "Starting wake word detection")
-        wakeWordDetectionJob = GlobalScope.launch(Dispatchers.Main) {
+        android.util.Log.d(TAG, "Starting wake word detection")
+        wakeWordDetectionJob = kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) {
             while (isActive) {
-                if (_events.value == VoiceEvent.Silence && !isRecording && !isRecognizerActive && !isBargeInActive) {
-                    Log.d(TAG, "Idle: starting passive listening for wake word")
+                if (_events.value == fr.geoking.julius.shared.VoiceEvent.Silence && !isRecording && !isRecognizerActive && !isBargeInActive) {
+                    android.util.Log.d(TAG, "Idle: starting passive listening for wake word")
                     isHeyJuliusKeywordBargeIn = true
                     startListeningInternal(stopOutputs = false, bargeIn = true)
-                    _events.value = VoiceEvent.PassiveListening
+                    _events.value = fr.geoking.julius.shared.VoiceEvent.PassiveListening
                     player.notifyStateChanged()
                 }
                 kotlinx.coroutines.delay(1000)
@@ -683,7 +685,7 @@ class AndroidVoiceManager(
     }
 
     private fun stopWakeWordDetection() {
-        Log.d(TAG, "Stopping wake word detection")
+        android.util.Log.d(TAG, "Stopping wake word detection")
         wakeWordDetectionJob?.cancel()
         wakeWordDetectionJob = null
     }
@@ -691,27 +693,27 @@ class AndroidVoiceManager(
     private fun requestAudioFocus() {
         if (!settingsManager.settings.value.muteMediaOnCar) return
 
-        Log.d(TAG, "Requesting Audio Focus")
-        val playbackAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+        android.util.Log.d(TAG, "Requesting Audio Focus")
+        val playbackAttributes = android.media.AudioAttributes.Builder()
+            .setUsage(android.media.AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
             .build()
 
-        audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+        audioFocusRequest = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
             .setAudioAttributes(playbackAttributes)
             .setAcceptsDelayedFocusGain(true)
             .setOnAudioFocusChangeListener { focusChange ->
-                Log.d(TAG, "Audio Focus change: $focusChange")
+                android.util.Log.d(TAG, "Audio Focus change: $focusChange")
             }
             .build()
 
         val result = audioManager.requestAudioFocus(audioFocusRequest!!)
-        Log.d(TAG, "Audio Focus request result: $result")
+        android.util.Log.d(TAG, "Audio Focus request result: $result")
     }
 
     private fun abandonAudioFocus() {
         if (audioFocusRequest != null) {
-            Log.d(TAG, "Abandoning Audio Focus")
+            android.util.Log.d(TAG, "Abandoning Audio Focus")
             audioManager.abandonAudioFocusRequest(audioFocusRequest!!)
             audioFocusRequest = null
         }
@@ -722,7 +724,7 @@ class AndroidVoiceManager(
         bargeInRestartScheduled = true
         mainHandler.postDelayed({
             bargeInRestartScheduled = false
-            if (_events.value == VoiceEvent.Speaking || (_events.value == VoiceEvent.PassiveListening && settingsManager.settings.value.wakeWordEnabled)) {
+            if (_events.value == fr.geoking.julius.shared.VoiceEvent.Speaking || (_events.value == fr.geoking.julius.shared.VoiceEvent.PassiveListening && settingsManager.settings.value.wakeWordEnabled)) {
                 startBargeInListening()
             } else {
                 isBargeInActive = false
@@ -730,20 +732,21 @@ class AndroidVoiceManager(
         }, BARGE_IN_RESTART_DELAY_MS)
     }
 
-    private fun getOrCreateRecognizer(): SpeechRecognizer? {
+    private fun getOrCreateRecognizer(): android.speech.SpeechRecognizer? {
         if (speechRecognizer == null) {
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
+            speechRecognizer = android.speech.SpeechRecognizer.createSpeechRecognizer(context)
             speechRecognizer?.setRecognitionListener(this)
         }
         return speechRecognizer
     }
 
-    private fun buildRecognizerIntent(): Intent {
-        return Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+    private fun buildRecognizerIntent(): android.content.Intent {
+        return _root_ide_package_.android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .apply {
+            putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(android.speech.RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             // Prefer offline recognition if available to satisfy "local if you can" requirement
-            putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+            putExtra(android.speech.RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
         }
     }
 
@@ -751,19 +754,19 @@ class AndroidVoiceManager(
         isRecognizerActive = false
         isBargeInActive = false
         val finalResult = text.trim()
-        Log.d(TAG, "finalizeListening: finalResult=\"$finalResult\"")
+        android.util.Log.d(TAG, "finalizeListening: finalResult=\"$finalResult\"")
 
         _partialText.value = ""
 
         if (finalResult.isNotBlank()) {
             // Signal processing if we have text
-            _events.value = VoiceEvent.Processing
+            _events.value = fr.geoking.julius.shared.VoiceEvent.Processing
             player.notifyStateChanged()
             // Setting this triggers ConversationStore.onUserFinishedSpeaking
             _transcribedText.value = finalResult
         } else {
-            if (_events.value != VoiceEvent.Silence) {
-                _events.value = VoiceEvent.Silence
+            if (_events.value != fr.geoking.julius.shared.VoiceEvent.Silence) {
+                _events.value = fr.geoking.julius.shared.VoiceEvent.Silence
                 player.notifyStateChanged()
                 abandonAudioFocus()
             }
@@ -771,18 +774,18 @@ class AndroidVoiceManager(
     }
 
     // RecognitionListener
-    override fun onReadyForSpeech(params: Bundle?) {
-        Log.d(TAG, "onReadyForSpeech: mic ready, listening for speech")
+    override fun onReadyForSpeech(params: android.os.Bundle?) {
+        android.util.Log.d(TAG, "onReadyForSpeech: mic ready, listening for speech")
         // Keep Speaking or PassiveListening state when listening for barge-in
-        if (isBargeInActive && (_events.value == VoiceEvent.Speaking || _events.value == VoiceEvent.PassiveListening)) {
+        if (isBargeInActive && (_events.value == fr.geoking.julius.shared.VoiceEvent.Speaking || _events.value == fr.geoking.julius.shared.VoiceEvent.PassiveListening)) {
             // Keep current state
         } else {
-            _events.value = VoiceEvent.Listening
+            _events.value = fr.geoking.julius.shared.VoiceEvent.Listening
             player.notifyStateChanged()
         }
     }
     override fun onBeginningOfSpeech() {
-        if (isBargeInActive && _events.value == VoiceEvent.Speaking) {
+        if (isBargeInActive && _events.value == fr.geoking.julius.shared.VoiceEvent.Speaking) {
             // In keyword-only mode, don't stop speech until keyword is confirmed in onResults/onPartialResults
             if (!isHeyJuliusKeywordBargeIn) {
                 tts?.stop()
@@ -796,47 +799,47 @@ class AndroidVoiceManager(
                 isBargeInActive = false
             }
         }
-        _events.value = VoiceEvent.Listening
+        _events.value = fr.geoking.julius.shared.VoiceEvent.Listening
         player.notifyStateChanged()
-        Log.d(TAG, "onBeginningOfSpeech: speech detected")
+        android.util.Log.d(TAG, "onBeginningOfSpeech: speech detected")
     }
     override fun onRmsChanged(rmsdB: Float) {
         rmsCallCount++
         if (rmsCallCount <= 3 || rmsCallCount % RMS_LOG_INTERVAL == 0) {
-            Log.d(TAG, "onRmsChanged: rmsdB=$rmsdB (call #$rmsCallCount)")
+            android.util.Log.d(TAG, "onRmsChanged: rmsdB=$rmsdB (call #$rmsCallCount)")
         }
     }
     override fun onBufferReceived(buffer: ByteArray?) {
         bufferCallCount++
         val len = buffer?.size ?: 0
         if (bufferCallCount <= 3 || bufferCallCount % BUFFER_LOG_INTERVAL == 0) {
-            Log.d(TAG, "onBufferReceived: bytes=$len (call #$bufferCallCount)")
+            android.util.Log.d(TAG, "onBufferReceived: bytes=$len (call #$bufferCallCount)")
         }
     }
     override fun onEndOfSpeech() {
-        Log.d(TAG, "onEndOfSpeech: waiting for final result")
-        if (!(isBargeInActive && _events.value == VoiceEvent.Speaking)) {
-            _events.value = VoiceEvent.Processing
+        android.util.Log.d(TAG, "onEndOfSpeech: waiting for final result")
+        if (!(isBargeInActive && _events.value == fr.geoking.julius.shared.VoiceEvent.Speaking)) {
+            _events.value = fr.geoking.julius.shared.VoiceEvent.Processing
             player.notifyStateChanged()
         }
     }
     override fun onError(error: Int) {
         val errorStr = when (error) {
-            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "ERROR_NETWORK_TIMEOUT"
-            SpeechRecognizer.ERROR_NETWORK -> "ERROR_NETWORK"
-            SpeechRecognizer.ERROR_AUDIO -> "ERROR_AUDIO"
-            SpeechRecognizer.ERROR_CLIENT -> "ERROR_CLIENT"
-            SpeechRecognizer.ERROR_NO_MATCH -> "ERROR_NO_MATCH"
-            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "ERROR_RECOGNIZER_BUSY"
-            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "ERROR_INSUFFICIENT_PERMISSIONS"
-            SpeechRecognizer.ERROR_SERVER -> "ERROR_SERVER"
-            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "ERROR_SPEECH_TIMEOUT"
+            android.speech.SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "ERROR_NETWORK_TIMEOUT"
+            android.speech.SpeechRecognizer.ERROR_NETWORK -> "ERROR_NETWORK"
+            android.speech.SpeechRecognizer.ERROR_AUDIO -> "ERROR_AUDIO"
+            android.speech.SpeechRecognizer.ERROR_CLIENT -> "ERROR_CLIENT"
+            android.speech.SpeechRecognizer.ERROR_NO_MATCH -> "ERROR_NO_MATCH"
+            android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "ERROR_RECOGNIZER_BUSY"
+            android.speech.SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "ERROR_INSUFFICIENT_PERMISSIONS"
+            android.speech.SpeechRecognizer.ERROR_SERVER -> "ERROR_SERVER"
+            android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "ERROR_SPEECH_TIMEOUT"
             else -> "ERROR_OTHER($error)"
         }
-        Log.w(TAG, "onError: code=$error $errorStr")
+        android.util.Log.w(TAG, "onError: code=$error $errorStr")
         isRecognizerActive = false
 
-        if (isBargeInActive && (_events.value == VoiceEvent.Speaking || _events.value == VoiceEvent.PassiveListening)) {
+        if (isBargeInActive && (_events.value == fr.geoking.julius.shared.VoiceEvent.Speaking || _events.value == fr.geoking.julius.shared.VoiceEvent.PassiveListening)) {
             scheduleBargeInRestart()
             return
         }
@@ -844,14 +847,14 @@ class AndroidVoiceManager(
         isBargeInActive = false
         finalizeListening()
     }
-    override fun onResults(results: Bundle?) {
+    override fun onResults(results: android.os.Bundle?) {
         isRecognizerActive = false
 
-        val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+        val matches = results?.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION)
         val text = matches?.firstOrNull() ?: ""
-        Log.d(TAG, "onResults: \"$text\"")
+        android.util.Log.d(TAG, "onResults: \"$text\"")
 
-        if (isBargeInActive && (_events.value == VoiceEvent.Speaking || _events.value == VoiceEvent.PassiveListening)) {
+        if (isBargeInActive && (_events.value == fr.geoking.julius.shared.VoiceEvent.Speaking || _events.value == fr.geoking.julius.shared.VoiceEvent.PassiveListening)) {
             if (isHeyJuliusKeywordBargeIn && text.isNotBlank() && isHeyJulius(text)) {
                 activateHeyJulius()
                 return
@@ -867,7 +870,7 @@ class AndroidVoiceManager(
                 return
             }
 
-            if (_events.value == VoiceEvent.Speaking && text.isNotBlank()) {
+            if (_events.value == fr.geoking.julius.shared.VoiceEvent.Speaking && text.isNotBlank()) {
                 // If we detected speech during normal barge-in, stop TTS and process it
                 tts?.stop()
                 try {
@@ -887,14 +890,14 @@ class AndroidVoiceManager(
 
         finalizeListening(text)
     }
-    override fun onPartialResults(partialResults: Bundle?) {
-        val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+    override fun onPartialResults(partialResults: android.os.Bundle?) {
+        val matches = partialResults?.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION)
         val text = matches?.firstOrNull() ?: ""
 
         if (text.isNotBlank()) {
-            Log.d(TAG, "onPartialResults: partial=\"$text\"")
+            android.util.Log.d(TAG, "onPartialResults: partial=\"$text\"")
 
-            if (isBargeInActive && (_events.value == VoiceEvent.Speaking || _events.value == VoiceEvent.PassiveListening)) {
+            if (isBargeInActive && (_events.value == fr.geoking.julius.shared.VoiceEvent.Speaking || _events.value == fr.geoking.julius.shared.VoiceEvent.PassiveListening)) {
                 if (isHeyJuliusKeywordBargeIn) {
                     if (isHeyJulius(text)) {
                         activateHeyJulius()
@@ -905,7 +908,7 @@ class AndroidVoiceManager(
                     return
                 } else {
                     // In normal barge-in, as soon as we have a partial result, we stop TTS
-                    if (_events.value == VoiceEvent.Speaking) {
+                    if (_events.value == fr.geoking.julius.shared.VoiceEvent.Speaking) {
                         tts?.stop()
                         try {
                             if (mediaPlayer?.isPlaying == true) {
@@ -916,7 +919,7 @@ class AndroidVoiceManager(
                         }
                     }
                     isBargeInActive = false
-                    _events.value = VoiceEvent.Listening
+                    _events.value = fr.geoking.julius.shared.VoiceEvent.Listening
                     player.notifyStateChanged()
                 }
             }
@@ -924,7 +927,7 @@ class AndroidVoiceManager(
             _partialText.value = text
         }
     }
-    override fun onEvent(eventType: Int, params: Bundle?) {
-        Log.d(TAG, "onEvent: eventType=$eventType")
+    override fun onEvent(eventType: Int, params: android.os.Bundle?) {
+        android.util.Log.d(TAG, "onEvent: eventType=$eventType")
     }
 }

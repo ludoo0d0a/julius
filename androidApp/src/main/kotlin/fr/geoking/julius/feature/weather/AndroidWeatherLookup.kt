@@ -1,5 +1,6 @@
-package fr.geoking.julius
+package fr.geoking.julius.feature.weather
 
+import android.annotation.SuppressLint
 import android.Manifest
 import android.content.Context
 import android.location.LocationManager
@@ -33,6 +34,7 @@ class AndroidWeatherLookup(
                 )
             }
             val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            @SuppressLint("MissingPermission")
             val location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
                 ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
             if (location == null) {

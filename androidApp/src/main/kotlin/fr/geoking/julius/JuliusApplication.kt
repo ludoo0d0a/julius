@@ -5,20 +5,20 @@ import fr.geoking.julius.di.appModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 
-class VoiceApplication : Application() {
+class JuliusApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        android.util.Log.d("VoiceApplication", "onCreate start")
+        android.util.Log.d("JuliusApplication", "onCreate start")
         try {
             startKoin {
-                androidContext(this@VoiceApplication)
+                androidContext(this@JuliusApplication)
                 modules(appModule)
             }
-            android.util.Log.d("VoiceApplication", "Koin started OK")
+            android.util.Log.d("JuliusApplication", "Koin started OK")
         } catch (e: Throwable) {
             initError = e
-            android.util.Log.e("VoiceApplication", "Koin/DI init failed", e)
+            android.util.Log.e("JuliusApplication", "Koin/DI init failed", e)
         }
     }
 

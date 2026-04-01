@@ -1,4 +1,4 @@
-package fr.geoking.julius
+package fr.geoking.julius.intent
 
 import android.content.Intent
 import android.net.Uri

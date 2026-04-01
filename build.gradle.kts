@@ -7,7 +7,7 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.composeCompiler) apply false
     alias(libs.plugins.kotlinSerialization) apply false
-    id("org.jetbrains.compose") version "1.7.1" apply false
+    id("org.jetbrains.compose") version "1.10.3" apply false
     alias(libs.plugins.hotswan.compiler) apply false
 }
 

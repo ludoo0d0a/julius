@@ -43,7 +43,7 @@ import fr.geoking.julius.OpenAiModel
 import fr.geoking.julius.GeminiModel
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.SpeakingInterruptMode
-import fr.geoking.julius.GoogleAuthManager
+import fr.geoking.julius.feature.auth.GoogleAuthManager
 import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.TextAnimation
 import fr.geoking.julius.BuildConfig
@@ -1855,7 +1855,7 @@ fun SettingsScreenPreview() {
             initialSpeechLanguageTag = null
         )
     }
-    val mockAuthManager = remember { GoogleAuthManager(context, mockSettingsManager, { store }) }
+    val mockAuthManager = GoogleAuthManager(context, mockSettingsManager, { store })
 
     SettingsScreen(
         settingsManager = mockSettingsManager,
