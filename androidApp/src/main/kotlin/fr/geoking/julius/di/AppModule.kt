@@ -305,13 +305,18 @@ val appModule = module {
                 .fallbackToDestructiveMigration()
                 .build()
         } catch (e: Throwable) {
-            android.util.Log.e("AppModule", "Failed to build persistent Room database. Falling back to in-memory.", e)
-            Room.inMemoryDatabaseBuilder(
-                androidContext(),
-                AppDatabase::class.java
-            )
-                .fallbackToDestructiveMigration()
-                .build()
+            android.util.Log.e("AppModule", "Failed to build persistent Room database. Falling back to in-memory. Error: ${e.stackTraceToString()}", e)
+            try {
+                Room.inMemoryDatabaseBuilder(
+                    androidContext(),
+                    AppDatabase::class.java
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
+            } catch (inner: Throwable) {
+                android.util.Log.e("AppModule", "Critical: Failed to build in-memory database as well. Error: ${inner.stackTraceToString()}", inner)
+                throw inner
+            }
         }
     }
 
