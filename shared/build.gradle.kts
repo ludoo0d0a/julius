@@ -122,7 +122,16 @@ tasks.register<JavaExec>("desktopRunDebug") {
     systemProperties(props)
 }
 
-// Configure Android test tasks
+// Classes matching *RealApiTests* hit live HTTP APIs (keys, quota, network). Exclude from default
+// KMP test runs so CI and `./gradlew :shared:desktopTest` stay reliable. Opt in with
+// RUN_REAL_API_TESTS=1 or RUN_REAL_API_TESTS=true, or -PrunRealApiTests=true.
+val runRealApiTests: Boolean =
+    System.getenv("RUN_REAL_API_TESTS")?.let { v ->
+        v.equals("1", ignoreCase = true) || v.equals("true", ignoreCase = true)
+    } == true ||
+        (findProperty("runRealApiTests") as? String)?.equals("true", ignoreCase = true) == true
+
+// Configure Android test tasks and optional real-API exclusions for KMP host tests
 tasks.withType<Test>().configureEach {
     if (name.contains("UnitTest", ignoreCase = true)) {
         useJUnitPlatform()
@@ -131,5 +140,10 @@ tasks.withType<Test>().configureEach {
             showStandardStreams = true
             exceptionFormat = TestExceptionFormat.FULL
         }
+    }
+    val isKmpHostTest =
+        name == "desktopTest" || (name.startsWith("ios") && name.endsWith("Test"))
+    if (isKmpHostTest && !runRealApiTests) {
+        filter.excludeTestsMatching("*RealApiTests*")
     }
 }
