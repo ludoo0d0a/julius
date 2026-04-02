@@ -18,6 +18,9 @@ import kotlinx.serialization.json.Json
  *   COMPLETIONS_ME_MODEL, APIFREELLM_KEY, OPENCODE_ZEN_KEY, OPENCODE_ZEN_MODEL, etc.)
  *
  * Each agent test: checks key (skip if missing), builds agent with key/model, sends a question, asserts non-empty answer.
+ *
+ * **Gradle:** classes named `*RealApiTests` are excluded from `desktopTest` / iOS test tasks unless you set
+ * `RUN_REAL_API_TESTS=1` (or `true`) or `-PrunRealApiTests=true`, so default runs do not depend on live APIs.
  */
 open class RealApiTestBase {
     protected fun createHttpClient(): HttpClient {
