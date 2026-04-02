@@ -20,7 +20,7 @@ import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.toll.TollCalculator
-import fr.geoking.julius.voice.AndroidVoiceManager
+import fr.geoking.julius.feature.voice.AndroidVoiceManager
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.koin.core.component.get
