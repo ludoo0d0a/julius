@@ -91,14 +91,22 @@ class JulesRepository(
                 detail.state == "closed" -> "closed"
                 else -> "open"
             }
-            julesDao.updateSessionPrState(session.id, state)
+            try {
+                julesDao.updateSessionPrState(session.id, state)
+            } catch (e: Exception) {
+                android.util.Log.e("JulesRepository", "Failed to update PR state in DB", e)
+            }
         } catch (e: Exception) {
             // Ignore
         }
     }
 
     suspend fun archiveSession(sessionId: String) {
-        julesDao.archiveSession(sessionId)
+        try {
+            julesDao.archiveSession(sessionId)
+        } catch (e: Exception) {
+            android.util.Log.e("JulesRepository", "Failed to archive session", e)
+        }
     }
 
     fun getActivities(apiKey: String, sessionId: String): Flow<List<JulesChatItem>> = flow {
