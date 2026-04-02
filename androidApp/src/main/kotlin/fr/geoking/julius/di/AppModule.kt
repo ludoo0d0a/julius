@@ -295,26 +295,28 @@ val appModule = module {
     single<LocalTranscriber> { get<VoskTranscriber>() }
     
     single<AppDatabase> {
+        fun buildAndValidate(builder: androidx.room.RoomDatabase.Builder<AppDatabase>): AppDatabase {
+            val db = builder.fallbackToDestructiveMigration().build()
+            // Force database open and schema validation early to catch crashes at startup
+            db.openHelper.writableDatabase.query("SELECT 1").close()
+            return db
+        }
+
         try {
-            android.util.Log.d("AppModule", "Building Room database...")
-            Room.databaseBuilder(
-                androidContext(),
-                AppDatabase::class.java, "julius-db"
+            android.util.Log.d("AppModule", "Building persistent Room database...")
+            buildAndValidate(
+                Room.databaseBuilder(androidContext(), AppDatabase::class.java, "julius-db")
+                    .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
             )
-                .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
-                .fallbackToDestructiveMigration()
-                .build()
         } catch (e: Throwable) {
-            android.util.Log.e("AppModule", "Failed to build persistent Room database. Falling back to in-memory. Error: ${e.stackTraceToString()}", e)
+            android.util.Log.e("AppModule", "Persistent DB failed. Falling back to in-memory. Error: ${e.stackTraceToString()}", e)
             try {
-                Room.inMemoryDatabaseBuilder(
-                    androidContext(),
-                    AppDatabase::class.java
+                android.util.Log.d("AppModule", "Building in-memory Room database...")
+                buildAndValidate(
+                    Room.inMemoryDatabaseBuilder(androidContext(), AppDatabase::class.java)
                 )
-                    .fallbackToDestructiveMigration()
-                    .build()
             } catch (inner: Throwable) {
-                android.util.Log.e("AppModule", "Critical: Failed to build in-memory database as well. Error: ${inner.stackTraceToString()}", inner)
+                android.util.Log.e("AppModule", "In-memory DB also failed. Error: ${inner.stackTraceToString()}", inner)
                 throw inner
             }
         }
