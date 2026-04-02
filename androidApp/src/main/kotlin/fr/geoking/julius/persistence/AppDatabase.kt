@@ -38,7 +38,7 @@ abstract class AppDatabase : RoomDatabase() {
                         `prUrl` TEXT,
                         `prTitle` TEXT,
                         `prState` TEXT,
-                        `isArchived` INTEGER NOT NULL,
+                        `isArchived` INTEGER NOT NULL DEFAULT 0,
                         `lastUpdated` INTEGER NOT NULL,
                         PRIMARY KEY(`id`)
                     )

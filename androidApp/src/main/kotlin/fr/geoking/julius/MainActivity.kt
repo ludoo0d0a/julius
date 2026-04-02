@@ -146,7 +146,11 @@ class MainActivity : ComponentActivity() {
         val appError = JuliusApplication.initError
         if (appError != null) {
             android.util.Log.e("MainActivity", "Showing startup error (Koin failed)", appError)
-            setContent { StartupErrorContent(appError) }
+            try {
+                setContent { StartupErrorContent(appError) }
+            } catch (ce: Throwable) {
+                android.util.Log.e("MainActivity", "setContent failed for StartupErrorContent", ce)
+            }
             return
         }
 
@@ -162,7 +166,7 @@ class MainActivity : ComponentActivity() {
             val voiceManager: VoiceManager = get()
             val conversationalAgent: ConversationalAgent = get()
             val networkService: NetworkService = get()
-            // Map/route deps are resolved lazily when user opens map (see mapDepsState / ensureMapDeps)
+            android.util.Log.d("MainActivity", "Dependencies resolved successfully.")
 
             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             (permissionManager as? AndroidPermissionManager)?.setOnPermissionRequest { permission, deferred ->
@@ -181,9 +185,14 @@ class MainActivity : ComponentActivity() {
                 conversationalAgent = conversationalAgent,
                 networkService = networkService
             )
+            android.util.Log.d("MainActivity", "setContent called successfully.")
         } catch (e: Throwable) {
             android.util.Log.e("MainActivity", "Startup failed", e)
-            setContent { StartupErrorContent(e) }
+            try {
+                setContent { StartupErrorContent(e) }
+            } catch (ce: Throwable) {
+                android.util.Log.e("MainActivity", "setContent failed for StartupErrorContent (fallback)", ce)
+            }
         }
     }
 
@@ -197,22 +206,31 @@ class MainActivity : ComponentActivity() {
         conversationalAgent: ConversationalAgent,
         networkService: NetworkService
     ) {
-        setContent {
-            MainActivityComposeRoot(
-                store = store,
-                settingsManager = settingsManager,
-                authManager = authManager,
-                mapDepsState = mapDepsState,
-                onRequestMapDeps = { ensureMapDeps() },
-                julesClient = julesClient,
-                julesRepository = julesRepository,
-                voiceManager = voiceManager,
-                conversationalAgent = conversationalAgent,
-                networkService = networkService,
-                inAppUpdateHelper = inAppUpdateHelper,
-                updateResultLauncher = updateResultLauncher,
-                pendingNavDestination = pendingNavDestination
-            )
+        try {
+            setContent {
+                MainActivityComposeRoot(
+                    store = store,
+                    settingsManager = settingsManager,
+                    authManager = authManager,
+                    mapDepsState = mapDepsState,
+                    onRequestMapDeps = { ensureMapDeps() },
+                    julesClient = julesClient,
+                    julesRepository = julesRepository,
+                    voiceManager = voiceManager,
+                    conversationalAgent = conversationalAgent,
+                    networkService = networkService,
+                    inAppUpdateHelper = inAppUpdateHelper,
+                    updateResultLauncher = updateResultLauncher,
+                    pendingNavDestination = pendingNavDestination
+                )
+            }
+        } catch (e: Throwable) {
+            android.util.Log.e("MainActivity", "installMainComposeContent: setContent crashed", e)
+            try {
+                setContent { StartupErrorContent(e) }
+            } catch (ce: Throwable) {
+                android.util.Log.e("MainActivity", "installMainComposeContent: fallback setContent crashed", ce)
+            }
         }
     }
 

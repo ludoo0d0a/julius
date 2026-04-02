@@ -1,5 +1,6 @@
 package fr.geoking.julius.persistence
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -12,6 +13,7 @@ data class JulesSessionEntity(
     val prUrl: String?,
     val prTitle: String?,
     val prState: String?, // open, closed, merged
+    @ColumnInfo(defaultValue = "0")
     val isArchived: Boolean = false,
     val lastUpdated: Long
 )

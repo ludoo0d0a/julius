@@ -9,21 +9,30 @@ class RoomMessagePersistence(
 ) : MessagePersistence {
 
     override suspend fun saveMessage(msg: ChatMessage) {
-        dao.insert(
-            ChatMessageEntity(
-                id = msg.id,
-                sender = msg.sender.name,
-                text = msg.text,
-                timestamp = msg.timestamp
+        try {
+            dao.insert(
+                ChatMessageEntity(
+                    id = msg.id,
+                    sender = msg.sender.name,
+                    text = msg.text,
+                    timestamp = msg.timestamp
+                )
             )
-        )
+        } catch (e: Exception) {
+            android.util.Log.e("RoomMessagePersistence", "Failed to save message", e)
+        }
     }
 
     override suspend fun loadMessages(limit: Int?): List<ChatMessage> {
-        val entities = if (limit != null) {
-            dao.getLastMessages(limit).reversed()
-        } else {
-            dao.getAllMessages()
+        val entities = try {
+            if (limit != null) {
+                dao.getLastMessages(limit).reversed()
+            } else {
+                dao.getAllMessages()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("RoomMessagePersistence", "Failed to load messages", e)
+            emptyList()
         }
         return entities.mapNotNull { entity ->
             try {
@@ -42,10 +51,18 @@ class RoomMessagePersistence(
     }
 
     override suspend fun clearMessages() {
-        dao.clearAll()
+        try {
+            dao.clearAll()
+        } catch (e: Exception) {
+            android.util.Log.e("RoomMessagePersistence", "Failed to clear messages", e)
+        }
     }
 
     override suspend fun cleanupOldMessages(threshold: Long) {
-        dao.deleteOlderThan(threshold)
+        try {
+            dao.deleteOlderThan(threshold)
+        } catch (e: Exception) {
+            android.util.Log.e("RoomMessagePersistence", "Failed to cleanup old messages", e)
+        }
     }
 }
