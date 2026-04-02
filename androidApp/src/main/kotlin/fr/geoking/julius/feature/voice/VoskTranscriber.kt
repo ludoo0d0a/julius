@@ -2,7 +2,7 @@ package fr.geoking.julius.feature.voice
 
 import android.content.Context
 import android.util.Log
-import fr.geoking.julius.shared.LocalTranscriber
+import fr.geoking.julius.shared.voice.LocalTranscriber
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject

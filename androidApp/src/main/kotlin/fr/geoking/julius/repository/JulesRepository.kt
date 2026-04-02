@@ -196,4 +196,14 @@ class JulesRepository(
             Result.failure(e)
         }
     }
+
+    /** Daily session quota for the Jules UI. Null when the API does not expose usage. */
+    suspend fun getUsageQuota(apiKey: String): JulesQuota? {
+        if (apiKey.isBlank()) return null
+        // Jules public API has no documented quota endpoint; UI hides the quota row when null.
+        return null
+    }
 }
+
+/** Used/limit for optional daily session display in [JulesScreen]. */
+data class JulesQuota(val used: Int, val limit: Int)

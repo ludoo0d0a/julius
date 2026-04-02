@@ -8,7 +8,7 @@ import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.repository.JulesRepository
-import fr.geoking.julius.shared.ConversationStore
+import fr.geoking.julius.shared.conversation.ConversationStore
 import kotlinx.coroutines.launch
 
 /**

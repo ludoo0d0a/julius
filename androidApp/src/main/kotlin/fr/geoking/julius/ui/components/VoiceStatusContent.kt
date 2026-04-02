@@ -26,8 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.TextAnimation
-import fr.geoking.julius.shared.DetailedError
-import fr.geoking.julius.shared.VoiceEvent
+import fr.geoking.julius.shared.conversation.DetailedError
+import fr.geoking.julius.shared.voice.VoiceEvent
 import fr.geoking.julius.ui.AgentSetupIssue
 
 private val AgentLabelFontSize = 11.sp

@@ -1,4 +1,4 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.shared.action
 
 /**
  * Describes what Julius can do on the device (tools, parsed voice actions, map/car utilities).

@@ -15,6 +15,7 @@ import fr.geoking.julius.api.openvan.OpenVanCampProvider
 import fr.geoking.julius.api.overpass.OverpassClient
 import fr.geoking.julius.api.overpass.OverpassProvider
 import fr.geoking.julius.api.routex.RoutexProvider
+import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiCategory
 import fr.geoking.julius.poi.PoiSearchRequest
 import io.ktor.client.HttpClient
@@ -77,7 +78,7 @@ class PoiProviderRealApiTests {
             val overpassClient = OverpassClient(client)
             val provider = OpenVanCampProvider(openVan, overpassClient, radiusKm = 5, limit = 50)
 
-            var pois: List<fr.geoking.julius.poi.Poi> = emptyList()
+            var pois: List<Poi> = emptyList()
             var lastException: Exception? = null
 
             repeat(3) { attempt ->
@@ -235,7 +236,7 @@ class PoiProviderRealApiTests {
             val montpellierLon = 3.8767
 
             var lastException: Exception? = null
-            var pois: List<fr.geoking.julius.poi.Poi> = emptyList()
+            var pois: List<Poi> = emptyList()
             repeat(3) { attempt ->
                 try {
                     pois = provider.search(PoiSearchRequest(montpellierLat, montpellierLon, categories = setOf(PoiCategory.CaravanSite)))

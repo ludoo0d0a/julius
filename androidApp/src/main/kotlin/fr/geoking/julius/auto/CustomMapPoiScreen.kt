@@ -23,8 +23,12 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import fr.geoking.julius.poi.PoiProviderType
 import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.lifecycleScope
+import fr.geoking.julius.AppSettings
+import fr.geoking.julius.FuelCard
 import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.StationMapFilters
+import fr.geoking.julius.VehicleType
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiSearchRequest
 import fr.geoking.julius.poi.PoiProviderError
@@ -40,6 +44,7 @@ import fr.geoking.julius.api.traffic.TrafficProviderFactory
 import fr.geoking.julius.effectiveIrvePowerLevels
 import fr.geoking.julius.effectiveMapEnergyFilterIds
 import fr.geoking.julius.effectiveProviders
+import fr.geoking.julius.feature.location.LocationHelper
 import fr.geoking.julius.toll.TollCalculator
 import kotlinx.coroutines.flow.collectLatest
 import fr.geoking.julius.api.belib.matchAvailabilityToPois
@@ -113,8 +118,8 @@ class CustomMapPoiScreen(
     private data class PoiFetchSettings(
         val providers: Set<PoiProviderType>,
         val useVehicleFilter: Boolean,
-        val fuelCard: fr.geoking.julius.FuelCard,
-        val vehicleType: fr.geoking.julius.VehicleType,
+        val fuelCard: FuelCard,
+        val vehicleType: VehicleType,
         val vehicleEnergy: String,
         val amenities: Set<String>
     )
@@ -129,9 +134,9 @@ class CustomMapPoiScreen(
         val vehiclePowerLevels: Set<Int>
     )
 
-    private fun getFilteredPois(currentSettings: fr.geoking.julius.AppSettings): List<Poi> {
+    private fun getFilteredPois(currentSettings: AppSettings): List<Poi> {
         val effectiveProviders = currentSettings.effectiveProviders()
-        return fr.geoking.julius.StationMapFilters.apply(
+        return StationMapFilters.apply(
             settings = currentSettings,
             pois = pois,
             providers = effectiveProviders,
@@ -149,7 +154,7 @@ class CustomMapPoiScreen(
 
             if (carContext.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
                 carContext.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                val location = fr.geoking.julius.LocationHelper.getCurrentLocation(carContext)
+                val location = LocationHelper.getCurrentLocation(carContext)
                 if (location != null) {
                     lat = location.latitude
                     lon = location.longitude
@@ -362,7 +367,7 @@ class CustomMapPoiScreen(
                         .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_jules)).build())
                         .setOnClickListener {
                             lifecycleScope.launch {
-                                val loc = fr.geoking.julius.LocationHelper.getCurrentLocation(carContext)
+                                val loc = LocationHelper.getCurrentLocation(carContext)
                                 val clat = loc?.latitude ?: searchLat
                                 val clon = loc?.longitude ?: searchLon
                                 screenManager.push(AddPoiAutoScreen(carContext, communityRepo, clat, clon) { loadPois() })

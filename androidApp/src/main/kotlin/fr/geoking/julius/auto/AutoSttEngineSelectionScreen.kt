@@ -9,7 +9,7 @@ import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
 import fr.geoking.julius.SettingsManager
-import fr.geoking.julius.shared.SttEnginePreference
+import fr.geoking.julius.shared.voice.SttEnginePreference
 
 class AutoSttEngineSelectionScreen(
     carContext: CarContext,

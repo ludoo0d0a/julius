@@ -1,4 +1,4 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.shared.action
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

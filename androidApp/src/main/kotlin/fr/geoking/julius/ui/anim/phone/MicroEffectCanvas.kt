@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.tooling.preview.Preview
-import fr.geoking.julius.shared.VoiceEvent
+import fr.geoking.julius.shared.voice.VoiceEvent
 import fr.geoking.julius.ui.anim.AnimationPalette
 import fr.geoking.julius.ui.anim.AnimationPalettes
 import kotlin.math.PI

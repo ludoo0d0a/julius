@@ -47,6 +47,10 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 import fr.geoking.julius.R
+import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.agents.AgentResponse
+import fr.geoking.julius.agents.ConversationalAgent
+import fr.geoking.julius.feature.location.LocationHelper
 import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiProvider
@@ -62,7 +66,10 @@ import fr.geoking.julius.api.traffic.TrafficInfo
 import fr.geoking.julius.api.traffic.TrafficProviderFactory
 import fr.geoking.julius.api.traffic.TrafficRequest
 import fr.geoking.julius.api.traffic.TrafficSeverity
-import fr.geoking.julius.shared.ConversationStore
+import fr.geoking.julius.shared.conversation.ConversationStore
+import fr.geoking.julius.shared.network.NetworkException
+import fr.geoking.julius.shared.voice.VoiceEvent
+import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.community.isCommunityPoiId
@@ -85,6 +92,8 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import fr.geoking.julius.api.routex.radiusKmFromMapViewport
+import fr.geoking.julius.ui.anim.AnimationPalette
+import fr.geoking.julius.ui.anim.AnimationPalettes
 
 /** Converts a vector drawable to a BitmapDescriptor for map markers (fromResource only supports bitmaps). Scales with zoom when sizePx varies. */
 private fun vectorDrawableToBitmapDescriptor(
@@ -141,9 +150,9 @@ fun MapScreen(
     poiProvider: PoiProvider,
     availabilityProviderFactory: BorneAvailabilityProviderFactory?,
     trafficProviderFactory: TrafficProviderFactory? = null,
-    settingsManager: fr.geoking.julius.SettingsManager,
+    settingsManager: SettingsManager,
     store: ConversationStore,
-    palette: fr.geoking.julius.ui.anim.AnimationPalette,
+    palette: AnimationPalette,
     onBack: () -> Unit,
     onPlanRoute: (() -> Unit)? = null,
     communityRepo: CommunityPoiRepository? = null,
@@ -198,7 +207,7 @@ fun MapScreen(
 
     LaunchedEffect(hasLocationPermission) {
         if (hasLocationPermission && !didInitialCenter) {
-            val location = fr.geoking.julius.LocationHelper.getCurrentLocation(context)
+            val location = LocationHelper.getCurrentLocation(context)
             if (location != null) {
                 cameraPositionState.position = CameraPosition.fromLatLngZoom(
                     LatLng(location.latitude, location.longitude),
@@ -417,7 +426,7 @@ fun MapScreen(
                     mapErrorMessage = msg
                     isErrorPaused = true
                     store.recordError(
-                        (e as? fr.geoking.julius.shared.NetworkException)?.httpCode,
+                        (e as? NetworkException)?.httpCode,
                         "Map ($selectedProviders): $msg"
                     )
                 } finally {
@@ -1028,12 +1037,12 @@ private fun MapScreenPreview() {
     val fakeStore = remember {
         ConversationStore(
             scope = scope,
-            agent = object : fr.geoking.julius.agents.ConversationalAgent {
+            agent = object : ConversationalAgent {
                 override suspend fun process(input: String) =
-                    fr.geoking.julius.agents.AgentResponse("Preview", null, null)
+                    AgentResponse("Preview", null, null)
             },
-            voiceManager = object : fr.geoking.julius.shared.VoiceManager {
-                override val events = MutableStateFlow(fr.geoking.julius.shared.VoiceEvent.Silence)
+            voiceManager = object : VoiceManager {
+                override val events = MutableStateFlow(VoiceEvent.Silence)
                 override val transcribedText = MutableStateFlow("")
                 override val partialText = MutableStateFlow("")
                 override fun startListening() {}
@@ -1048,7 +1057,7 @@ private fun MapScreenPreview() {
         )
     }
     val fakeSettingsManager = remember {
-        fr.geoking.julius.SettingsManager(context).apply {
+        SettingsManager(context).apply {
             setPoiProviderTypes(setOf(PoiProviderType.Routex))
         }
     }
@@ -1065,7 +1074,7 @@ private fun MapScreenPreview() {
         availabilityProviderFactory = null,
         settingsManager = fakeSettingsManager,
         store = fakeStore,
-        palette = fr.geoking.julius.ui.anim.AnimationPalettes.paletteFor(0),
+        palette = AnimationPalettes.paletteFor(0),
         onBack = {}
     )
 }

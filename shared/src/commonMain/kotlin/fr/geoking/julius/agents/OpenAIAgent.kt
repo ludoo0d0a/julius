@@ -1,6 +1,6 @@
 package fr.geoking.julius.agents
 
-import fr.geoking.julius.shared.NetworkException
+import fr.geoking.julius.shared.network.NetworkException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
@@ -23,8 +23,8 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
-import fr.geoking.julius.shared.ActionType
-import fr.geoking.julius.shared.DeviceAction
+import fr.geoking.julius.shared.action.ActionType
+import fr.geoking.julius.shared.action.DeviceAction
 
 class OpenAIAgent(
     private val client: HttpClient,

@@ -25,14 +25,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
+import fr.geoking.julius.AppSettings
+import fr.geoking.julius.agents.AgentResponse
 import fr.geoking.julius.agents.ConversationalAgent
-import fr.geoking.julius.shared.ConversationStore
-import fr.geoking.julius.shared.ConversationState
-import fr.geoking.julius.shared.VoiceEvent
-import fr.geoking.julius.shared.PermissionManager
-import fr.geoking.julius.shared.NetworkService
-import fr.geoking.julius.shared.NetworkStatus
-import fr.geoking.julius.shared.VoiceManager
+import fr.geoking.julius.shared.conversation.ConversationStore
+import fr.geoking.julius.shared.conversation.ConversationState
+import fr.geoking.julius.shared.voice.VoiceEvent
+import fr.geoking.julius.shared.platform.PermissionManager
+import fr.geoking.julius.shared.network.NetworkService
+import fr.geoking.julius.shared.network.NetworkStatus
+import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.di.MapDeps
 import fr.geoking.julius.di.MapModuleLoader
 import fr.geoking.julius.ui.JulesScreen
@@ -47,11 +49,20 @@ import fr.geoking.julius.ui.agentConfigSettingsPages
 import fr.geoking.julius.ui.evaluateAgentSetup
 import fr.geoking.julius.api.github.GitHubClient
 import fr.geoking.julius.api.jules.JulesClient
+import fr.geoking.julius.persistence.JulesActivityEntity
+import fr.geoking.julius.persistence.JulesDao
+import fr.geoking.julius.persistence.JulesSessionEntity
+import fr.geoking.julius.poi.MockPoiProvider
+import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.ui.UpdateAvailableDialog
 import fr.geoking.julius.ui.anim.AnimationPalettes
 import com.google.android.play.core.appupdate.AppUpdateInfo
 import fr.geoking.julius.update.InAppUpdateHelper
+import fr.geoking.julius.feature.auth.GoogleAuthManager
+import fr.geoking.julius.feature.permission.AndroidPermissionManager
+import fr.geoking.julius.intent.IntentNavigationHelper
+import fr.geoking.julius.intent.NavDestination
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -307,7 +318,7 @@ fun MainUI(
                 } else if (currentSettings.vehicleBrand.isNotEmpty() && (currentSettings.vehicleEnergy == "gas" || currentSettings.vehicleEnergy == "hybrid")) {
                     settingsManager.setUseVehicleFilter(true)
                 } else {
-                    settingsManager.setPoiProviderTypes(setOf(fr.geoking.julius.poi.PoiProviderType.Routex))
+                    settingsManager.setPoiProviderTypes(setOf(PoiProviderType.Routex))
                     settingsManager.setUseVehicleFilter(false)
                 }
             } else if (path == "/electric_stations") {
@@ -316,7 +327,7 @@ fun MainUI(
                 } else if (currentSettings.vehicleBrand.isNotEmpty() && (currentSettings.vehicleEnergy == "electric" || currentSettings.vehicleEnergy == "hybrid")) {
                     settingsManager.setUseVehicleFilter(true)
                 } else {
-                    settingsManager.setPoiProviderTypes(setOf(fr.geoking.julius.poi.PoiProviderType.DataGouvElec))
+                    settingsManager.setPoiProviderTypes(setOf(PoiProviderType.DataGouvElec))
                     settingsManager.setUseVehicleFilter(false)
                 }
             }
@@ -524,14 +535,14 @@ fun MainUIPreview() {
             JulesRepository(
                 JulesClient(HttpClient(OkHttp) {}),
                 GitHubClient(HttpClient(OkHttp) {}),
-                object : fr.geoking.julius.persistence.JulesDao {
-                    override suspend fun insertSessions(sessions: List<fr.geoking.julius.persistence.JulesSessionEntity>) {}
-                    override suspend fun getSessionsBySource(sourceName: String): List<fr.geoking.julius.persistence.JulesSessionEntity> = emptyList()
-                    override suspend fun getSession(sessionId: String): fr.geoking.julius.persistence.JulesSessionEntity? = null
+                object : JulesDao {
+                    override suspend fun insertSessions(sessions: List<JulesSessionEntity>) {}
+                    override suspend fun getSessionsBySource(sourceName: String): List<JulesSessionEntity> = emptyList()
+                    override suspend fun getSession(sessionId: String): JulesSessionEntity? = null
                     override suspend fun archiveSession(sessionId: String) {}
                     override suspend fun updateSessionPrState(sessionId: String, state: String) {}
-                    override suspend fun insertActivities(activities: List<fr.geoking.julius.persistence.JulesActivityEntity>) {}
-                    override suspend fun getActivitiesBySession(sessionId: String): List<fr.geoking.julius.persistence.JulesActivityEntity> = emptyList()
+                    override suspend fun insertActivities(activities: List<JulesActivityEntity>) {}
+                    override suspend fun getActivitiesBySession(sessionId: String): List<JulesActivityEntity> = emptyList()
                     override suspend fun clearActivitiesBySession(sessionId: String) {}
                 }
             )
@@ -540,7 +551,7 @@ fun MainUIPreview() {
         conversationalAgent = remember {
             object : ConversationalAgent {
                 override suspend fun process(input: String) =
-                    fr.geoking.julius.agents.AgentResponse("Mock response", null, null)
+                    AgentResponse("Mock response", null, null)
             }
         },
         networkService = remember {
@@ -556,11 +567,11 @@ fun MainUIPreview() {
 private fun MapScreenPreview() {
     val mockSettingsManager = rememberMockSettingsManager()
     MapScreen(
-        poiProvider = remember { fr.geoking.julius.poi.MockPoiProvider() },
+        poiProvider = remember { MockPoiProvider() },
         availabilityProviderFactory = null,
         settingsManager = mockSettingsManager,
         store = rememberMockStore(),
-        palette = fr.geoking.julius.ui.anim.AnimationPalettes.paletteFor(0),
+        palette = AnimationPalettes.paletteFor(0),
         onBack = {}
     )
 }
@@ -569,10 +580,10 @@ private fun MapScreenPreview() {
 private fun rememberMockStore(): ConversationStore = remember {
     object : ConversationStore(
         scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main),
-        agent = object : fr.geoking.julius.agents.ConversationalAgent {
-            override suspend fun process(input: String) = fr.geoking.julius.agents.AgentResponse("Mock response", null, null)
+        agent = object : ConversationalAgent {
+            override suspend fun process(input: String) = AgentResponse("Mock response", null, null)
         },
-        voiceManager = object : fr.geoking.julius.shared.VoiceManager {
+        voiceManager = object : VoiceManager {
             private val _events = kotlinx.coroutines.flow.MutableStateFlow(VoiceEvent.Silence)
             private val _transcribedText = kotlinx.coroutines.flow.MutableStateFlow("")
             private val _partialText = kotlinx.coroutines.flow.MutableStateFlow("")
@@ -597,7 +608,7 @@ private fun rememberMockSettingsManager(): SettingsManager {
         object : SettingsManager(context) {
             private val mockSettings = kotlinx.coroutines.flow.MutableStateFlow(AppSettings())
             override val settings = mockSettings
-            override fun setPoiProviderTypes(types: Set<fr.geoking.julius.poi.PoiProviderType>) {
+            override fun setPoiProviderTypes(types: Set<PoiProviderType>) {
                 mockSettings.value = mockSettings.value.copy(selectedPoiProviders = types)
             }
             override fun saveSettings(settings: AppSettings) {}

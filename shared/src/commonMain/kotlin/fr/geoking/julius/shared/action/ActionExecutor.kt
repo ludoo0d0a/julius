@@ -1,4 +1,4 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.shared.action
 
 interface ActionExecutor {
     suspend fun executeAction(action: DeviceAction): ActionResult

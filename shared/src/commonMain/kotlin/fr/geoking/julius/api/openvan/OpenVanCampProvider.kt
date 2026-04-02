@@ -7,7 +7,7 @@ import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiCategory
 import fr.geoking.julius.poi.PoiProvider
-import fr.geoking.julius.shared.log
+import fr.geoking.julius.shared.logging.log
 
 /**
  * [PoiProvider] for Luxembourg: OpenStreetMap [amenity=fuel](https://wiki.openstreetmap.org/wiki/Tag:amenity%3Dfuel)

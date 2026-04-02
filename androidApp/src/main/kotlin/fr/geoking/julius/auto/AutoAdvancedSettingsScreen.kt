@@ -5,7 +5,7 @@ import androidx.car.app.Screen
 import androidx.car.app.model.*
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.SpeakingInterruptMode
-import fr.geoking.julius.shared.SttEnginePreference
+import fr.geoking.julius.shared.voice.SttEnginePreference
 
 class AutoAdvancedSettingsScreen(
     carContext: CarContext,

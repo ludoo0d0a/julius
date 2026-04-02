@@ -1,9 +1,23 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.shared.conversation
 
 import androidx.compose.runtime.Stable
-import fr.geoking.julius.agents.ConversationalAgent
 import fr.geoking.julius.agents.AgentResponse
+import fr.geoking.julius.agents.ConversationalAgent
 import fr.geoking.julius.agents.ToolCall
+import fr.geoking.julius.shared.action.ActionExecutor
+import fr.geoking.julius.shared.action.ActionParser
+import fr.geoking.julius.shared.action.ActionType
+import fr.geoking.julius.shared.action.AssistantCapabilities
+import fr.geoking.julius.shared.action.DeviceAction
+import fr.geoking.julius.shared.logging.log
+import fr.geoking.julius.shared.platform.getCurrentTimeMillis
+import fr.geoking.julius.shared.network.NetworkException
+import fr.geoking.julius.shared.voice.LocalTranscriber
+import fr.geoking.julius.shared.voice.NoLocalTranscriber
+import fr.geoking.julius.shared.voice.SpeechLanguageResolver
+import fr.geoking.julius.shared.voice.SttEnginePreference
+import fr.geoking.julius.shared.voice.VoiceEvent
+import fr.geoking.julius.shared.voice.VoiceManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers

@@ -1,4 +1,4 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.shared.platform
 
 import platform.Foundation.NSDate
 import platform.Foundation.timeIntervalSince1970

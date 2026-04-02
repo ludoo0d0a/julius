@@ -14,7 +14,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertTrue
-import fr.geoking.julius.shared.getCurrentTimeMillis
+import fr.geoking.julius.shared.platform.getCurrentTimeMillis
 
 class ApiFreeLLMAgentRateLimitTest {
 

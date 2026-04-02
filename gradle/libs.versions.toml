@@ -1,29 +1,33 @@
 [versions]
 agp = "8.13.2"
-kotlin = "2.3.10"
-compose = "1.10.5"
+kotlin = "2.3.20"
+compose = "1.10.6"
 compose-material3 = "1.4.0"
 compose-material-icons = "1.7.8"
-androidx-activityCompose = "1.9.3"
-androidx-lifecycle = "2.8.7"
+androidx-activityCompose = "1.13.0"
+androidx-lifecycle = "2.10.0"
 androidx-car-app = "1.7.0"
-ktor = "3.0.1"
-coroutines = "1.9.0"
-koin = "4.0.0"
+kotlinTestJunit = "2.3.10"
+ktor = "3.4.2"
+coroutines = "1.10.2"
+koin = "4.2.0"
 kermit = "2.1.0"
 llamatik-library = "0.18.0"
-junit-jupiter = "5.11.3"
-media3 = "1.4.1"
-guava = "33.3.1-android"
-maps-compose = "6.1.2"
+junit-jupiter = "6.0.3"
+media3 = "1.10.0"
+guava = "33.5.0-android"
+maps-compose = "8.2.2"
 httpclient-android = "4.3.5.1"
 play-app-update = "2.1.0"
 play-services-location = "21.3.0"
-androidx-credentials = "1.5.0-rc01"
-googleid = "1.1.1"
-androidx-room = "2.6.1"
+androidx-credentials = "1.5.0"
+googleid = "1.2.0"
+androidx-room = "2.8.4"
 coil = "3.4.0"
-litertlm-android = "0.9.0"
+litertlm-android = "0.10.0"
+coreKtx = "1.18.0"
+robolectric = "4.16.1"
+voskAndroid = "0.3.75"
 
 [libraries]
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
@@ -44,6 +48,7 @@ compose-material-icons-extended = { module = "androidx.compose.material:material
 androidx-car-app = { module = "androidx.car.app:app", version.ref = "androidx-car-app" }
 androidx-car-app-projected = { module = "androidx.car.app:app-projected", version.ref = "androidx-car-app" }
 
+kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlinTestJunit" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
@@ -74,12 +79,15 @@ androidx-room-ksp = { module = "androidx.room:room-compiler", version.ref = "and
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 litertlm-android = { module = "com.google.ai.edge.litertlm:litertlm-android", version.ref = "litertlm-android" }
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+vosk-android = { module = "com.alphacephei:vosk-android", version.ref = "voskAndroid" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
 androidKotlinMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
-kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlinAndroid = { id = "org.jetbrains.kotlin.android", version = "2.3.20" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

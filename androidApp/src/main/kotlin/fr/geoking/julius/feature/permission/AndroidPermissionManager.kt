@@ -3,7 +3,7 @@ package fr.geoking.julius.feature.permission
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
-import fr.geoking.julius.shared.PermissionManager
+import fr.geoking.julius.shared.platform.PermissionManager
 import kotlinx.coroutines.CompletableDeferred
 
 class AndroidPermissionManager(

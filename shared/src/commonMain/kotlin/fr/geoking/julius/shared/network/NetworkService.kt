@@ -1,4 +1,4 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.shared.network
 
 import kotlinx.coroutines.flow.StateFlow
 

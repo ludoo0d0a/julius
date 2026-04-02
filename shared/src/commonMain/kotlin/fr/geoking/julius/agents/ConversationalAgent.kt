@@ -1,6 +1,6 @@
 package fr.geoking.julius.agents
 
-import fr.geoking.julius.shared.DeviceAction
+import fr.geoking.julius.shared.action.DeviceAction
 
 interface ConversationalAgent {
     val rateLimitDelayMs: Long get() = 0L

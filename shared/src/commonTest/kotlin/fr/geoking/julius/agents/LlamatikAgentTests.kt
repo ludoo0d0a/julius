@@ -1,6 +1,6 @@
 package fr.geoking.julius.agents
 
-import fr.geoking.julius.shared.NetworkException
+import fr.geoking.julius.shared.network.NetworkException
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals

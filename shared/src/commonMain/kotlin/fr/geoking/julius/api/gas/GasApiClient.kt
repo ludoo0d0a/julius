@@ -1,7 +1,7 @@
 package fr.geoking.julius.api.gas
 
 import fr.geoking.julius.api.datagouv.DataGouvPrice
-import fr.geoking.julius.shared.NetworkException
+import fr.geoking.julius.shared.network.NetworkException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody

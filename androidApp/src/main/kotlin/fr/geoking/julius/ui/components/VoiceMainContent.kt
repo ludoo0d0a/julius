@@ -19,10 +19,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import fr.geoking.julius.AppSettings
 import fr.geoking.julius.ui.AgentSetupIssue
-import fr.geoking.julius.shared.ConversationStore
-import fr.geoking.julius.shared.ConversationState
-import fr.geoking.julius.shared.VoiceEvent
-import fr.geoking.julius.shared.NetworkStatus
+import fr.geoking.julius.shared.conversation.ConversationStore
+import fr.geoking.julius.shared.conversation.ConversationState
+import fr.geoking.julius.shared.voice.VoiceEvent
+import fr.geoking.julius.shared.network.NetworkStatus
 import fr.geoking.julius.ui.anim.AnimationPalette
 import fr.geoking.julius.ui.anim.phone.TrayLightEffectCanvas
 import fr.geoking.julius.ui.components.JulesButton

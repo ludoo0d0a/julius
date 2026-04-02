@@ -1,8 +1,8 @@
 package fr.geoking.julius.agents
 
-import fr.geoking.julius.shared.ActionParser
-import fr.geoking.julius.shared.ActionType
-import fr.geoking.julius.shared.DeviceAction
+import fr.geoking.julius.shared.action.ActionParser
+import fr.geoking.julius.shared.action.ActionType
+import fr.geoking.julius.shared.action.DeviceAction
 import kotlin.random.Random
 
 /**

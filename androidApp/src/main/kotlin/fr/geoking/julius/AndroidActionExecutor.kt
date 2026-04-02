@@ -14,13 +14,14 @@ import android.os.BatteryManager
 import android.os.Build
 import android.provider.AlarmClock
 import android.provider.MediaStore
-import fr.geoking.julius.shared.ActionExecutor
-import fr.geoking.julius.shared.ActionResult
-import fr.geoking.julius.shared.ActionType
-import fr.geoking.julius.shared.DeviceAction
-import fr.geoking.julius.shared.NetworkService
-import fr.geoking.julius.shared.PermissionManager
-import fr.geoking.julius.shared.WeatherLookup
+import fr.geoking.julius.shared.action.ActionExecutor
+import fr.geoking.julius.shared.action.ActionResult
+import fr.geoking.julius.shared.action.ActionType
+import fr.geoking.julius.shared.action.DeviceAction
+import fr.geoking.julius.shared.network.NetworkService
+import fr.geoking.julius.shared.network.NetworkType
+import fr.geoking.julius.shared.platform.PermissionManager
+import fr.geoking.julius.shared.weather.WeatherLookup
 
 class AndroidActionExecutor(
     private val context: Context,
@@ -419,13 +420,13 @@ class AndroidActionExecutor(
             val status = networkService.getCurrentStatus()
             val country = status.countryName ?: status.countryCode ?: "Unknown"
             val type = when (status.networkType) {
-                fr.geoking.julius.shared.NetworkType.WIFI -> "WiFi"
-                fr.geoking.julius.shared.NetworkType.FIVE_G -> "5G"
-                fr.geoking.julius.shared.NetworkType.FOUR_G -> "4G"
-                fr.geoking.julius.shared.NetworkType.THREE_G -> "3G"
-                fr.geoking.julius.shared.NetworkType.TWO_G -> "2G"
-                fr.geoking.julius.shared.NetworkType.EDGE -> "Edge"
-                fr.geoking.julius.shared.NetworkType.GPRS -> "GPRS"
+                NetworkType.WIFI -> "WiFi"
+                NetworkType.FIVE_G -> "5G"
+                NetworkType.FOUR_G -> "4G"
+                NetworkType.THREE_G -> "3G"
+                NetworkType.TWO_G -> "2G"
+                NetworkType.EDGE -> "Edge"
+                NetworkType.GPRS -> "GPRS"
                 else -> "Mobile"
             }
             val connected = if (status.isConnected) "Connected" else "Disconnected"

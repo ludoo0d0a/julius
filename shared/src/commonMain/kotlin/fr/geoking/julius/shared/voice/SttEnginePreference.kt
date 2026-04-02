@@ -1,4 +1,4 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.shared.voice
 
 /**
  * Controls how speech-to-text is chosen for the car mic path (transcriber callback).

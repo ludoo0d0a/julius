@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.communityPoiId
+import fr.geoking.julius.feature.location.LocationHelper
 import fr.geoking.julius.poi.Poi
 import kotlinx.coroutines.launch
 
@@ -128,8 +129,8 @@ fun AddPoiSheet(
                         return@TextButton
                     }
                     scope.launch {
-                        val lat = initialLat ?: fr.geoking.julius.LocationHelper.getCurrentLocation(context)?.latitude
-                        val lng = initialLng ?: fr.geoking.julius.LocationHelper.getCurrentLocation(context)?.longitude
+                        val lat = initialLat ?: LocationHelper.getCurrentLocation(context)?.latitude
+                        val lng = initialLng ?: LocationHelper.getCurrentLocation(context)?.longitude
                         if (lat != null && lng != null && name.isNotBlank()) {
                             val id = existingCommunityId ?: communityPoiId()
                             val poi = Poi(

@@ -19,8 +19,8 @@ import fr.geoking.julius.agents.ConversationalAgent
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.di.MapDeps
 import fr.geoking.julius.repository.JulesRepository
-import fr.geoking.julius.shared.ConversationStore
-import fr.geoking.julius.shared.NetworkService
+import fr.geoking.julius.shared.conversation.ConversationStore
+import fr.geoking.julius.shared.network.NetworkService
 
 class AutoDashboardScreen(
     carContext: CarContext,

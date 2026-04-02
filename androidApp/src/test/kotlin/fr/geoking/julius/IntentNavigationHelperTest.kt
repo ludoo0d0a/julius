@@ -2,6 +2,7 @@ package fr.geoking.julius
 
 import android.content.Intent
 import android.net.Uri
+import fr.geoking.julius.intent.IntentNavigationHelper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

@@ -9,8 +9,8 @@ import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.SamplerConfig
-import fr.geoking.julius.shared.NetworkException
-import fr.geoking.julius.shared.log
+import fr.geoking.julius.shared.network.NetworkException
+import fr.geoking.julius.shared.logging.log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock

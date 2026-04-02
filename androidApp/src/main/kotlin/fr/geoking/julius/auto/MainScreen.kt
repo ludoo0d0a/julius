@@ -27,12 +27,12 @@ import fr.geoking.julius.agents.ConversationalAgent
 import fr.geoking.julius.ui.AgentSetupIssue
 import fr.geoking.julius.agents.LlamatikModelHelper
 import fr.geoking.julius.ui.evaluateAgentSetup
-import fr.geoking.julius.shared.ConversationStore
-import fr.geoking.julius.shared.DetailedError
+import fr.geoking.julius.shared.conversation.ConversationStore
+import fr.geoking.julius.shared.conversation.DetailedError
 import fr.geoking.julius.di.MapDeps
-import fr.geoking.julius.shared.Role
-import fr.geoking.julius.shared.toHistoryScreenState
-import fr.geoking.julius.shared.VoiceEvent
+import fr.geoking.julius.shared.conversation.Role
+import fr.geoking.julius.shared.conversation.toHistoryScreenState
+import fr.geoking.julius.shared.voice.VoiceEvent
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

@@ -24,7 +24,9 @@ import fr.geoking.julius.api.routing.RoutePlanner
 import fr.geoking.julius.api.routing.RoutingClient
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiProvider
-import fr.geoking.julius.shared.NetworkException
+import fr.geoking.julius.feature.location.LocationHelper
+import fr.geoking.julius.intent.NavDestination
+import fr.geoking.julius.shared.network.NetworkException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -42,7 +44,7 @@ class AutoRoutePlanningScreen(
     private val settingsManager: SettingsManager,
     private val initialOriginQuery: String? = null,
     private val initialDestinationQuery: String? = null,
-    private val initialDestination: fr.geoking.julius.NavDestination? = null
+    private val initialDestination: NavDestination? = null
 ) : Screen(carContext) {
 
     private enum class Step { ORIGIN, DESTINATION, RESULTS }
@@ -257,7 +259,7 @@ class AutoRoutePlanningScreen(
             invalidate()
             try {
                 val originLatLon = if (originQuery.isBlank()) {
-                    val loc = fr.geoking.julius.LocationHelper.getCurrentLocation(carContext)
+                    val loc = LocationHelper.getCurrentLocation(carContext)
                     if (loc == null) throw Exception("Could not determine current location")
                     loc.latitude to loc.longitude
                 } else {

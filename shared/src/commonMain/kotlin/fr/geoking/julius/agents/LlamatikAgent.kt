@@ -1,7 +1,7 @@
 package fr.geoking.julius.agents
 
-import fr.geoking.julius.shared.NetworkException
-import fr.geoking.julius.shared.log
+import fr.geoking.julius.shared.network.NetworkException
+import fr.geoking.julius.shared.logging.log
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 

@@ -16,11 +16,11 @@ import androidx.car.app.model.Row
 import androidx.car.app.model.Template
 import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.lifecycleScope
-import fr.geoking.julius.LocationHelper
+import fr.geoking.julius.feature.location.LocationHelper
 import fr.geoking.julius.R
-import fr.geoking.julius.shared.NetworkService
-import fr.geoking.julius.shared.NetworkStatus
-import fr.geoking.julius.shared.NetworkType
+import fr.geoking.julius.shared.network.NetworkService
+import fr.geoking.julius.shared.network.NetworkStatus
+import fr.geoking.julius.shared.network.NetworkType
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.Locale

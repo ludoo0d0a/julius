@@ -10,7 +10,7 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.SettingsManager
-import fr.geoking.julius.shared.ConversationStore
+import fr.geoking.julius.shared.conversation.ConversationStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

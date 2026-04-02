@@ -48,7 +48,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import fr.geoking.julius.LocationHelper
+import fr.geoking.julius.feature.location.LocationHelper
+import fr.geoking.julius.intent.NavDestination
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.VehicleType
 import fr.geoking.julius.poi.Poi
@@ -73,7 +74,7 @@ fun RoutePlanningScreen(
     geocodingClient: GeocodingClient,
     settingsManager: SettingsManager,
     onBack: () -> Unit,
-    initialDestination: fr.geoking.julius.NavDestination? = null
+    initialDestination: NavDestination? = null
 ) {
     BackHandler(onBack = onBack)
     val context = LocalContext.current

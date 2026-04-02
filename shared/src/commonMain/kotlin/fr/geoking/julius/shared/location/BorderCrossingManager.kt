@@ -1,5 +1,7 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.shared.location
 
+import fr.geoking.julius.shared.conversation.ConversationStore
+import fr.geoking.julius.shared.network.NetworkService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch

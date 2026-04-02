@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import fr.geoking.julius.AppSettings
 import fr.geoking.julius.AppTheme
-import fr.geoking.julius.shared.VoiceEvent
+import fr.geoking.julius.shared.voice.VoiceEvent
 import fr.geoking.julius.ui.anim.AnimationPalette
 import fr.geoking.julius.ui.anim.AnimationPalettes
 import fr.geoking.julius.ui.anim.phone.FractalEffectCanvas

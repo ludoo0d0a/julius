@@ -7,9 +7,9 @@ import android.location.LocationManager
 import fr.geoking.julius.api.weather.OpenMeteoGeocodingClient
 import fr.geoking.julius.api.weather.WeatherProviderFactory
 import fr.geoking.julius.di.MapModuleLoader
-import fr.geoking.julius.shared.ActionResult
-import fr.geoking.julius.shared.PermissionManager
-import fr.geoking.julius.shared.WeatherLookup
+import fr.geoking.julius.shared.action.ActionResult
+import fr.geoking.julius.shared.platform.PermissionManager
+import fr.geoking.julius.shared.weather.WeatherLookup
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import java.util.Locale

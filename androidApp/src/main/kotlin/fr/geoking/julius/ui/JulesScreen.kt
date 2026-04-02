@@ -71,8 +71,10 @@ import fr.geoking.julius.api.github.GitHubClient
 import fr.geoking.julius.api.jules.JulesChatItem
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.persistence.JulesSessionEntity
+import fr.geoking.julius.repository.JulesQuota
 import fr.geoking.julius.repository.JulesRepository
-import fr.geoking.julius.shared.NetworkException
+import fr.geoking.julius.shared.network.NetworkException
+import fr.geoking.julius.shared.voice.VoiceManager
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -91,7 +93,7 @@ fun JulesScreen(
     julesClient: JulesClient,
     julesRepository: JulesRepository,
     settingsManager: SettingsManager,
-    voiceManager: fr.geoking.julius.shared.VoiceManager
+    voiceManager: VoiceManager
 ) {
     BackHandler { onBack() }
 
@@ -102,7 +104,7 @@ fun JulesScreen(
     var sources by remember { mutableStateOf<List<JulesClient.JulesSource>>(emptyList()) }
     var sessions by remember { mutableStateOf<List<JulesSessionEntity>>(emptyList()) }
     var currentSession by remember { mutableStateOf<JulesSessionEntity?>(null) }
-    var quota by remember { mutableStateOf<fr.geoking.julius.repository.JulesQuota?>(null) }
+    var quota by remember { mutableStateOf<JulesQuota?>(null) }
     val chatItems = remember { mutableStateListOf<JulesChatItem>() }
     var loading by remember { mutableStateOf(false) }
     var loadingSessions by remember { mutableStateOf(false) }
@@ -344,8 +346,7 @@ fun JulesScreen(
                                             prTitle = session.outputs?.firstOrNull()?.pullRequest?.title,
                                             prState = null,
                                             isArchived = false,
-                                            lastUpdated = System.currentTimeMillis(),
-                                            createTime = session.createTime
+                                            lastUpdated = System.currentTimeMillis()
                                         )
                                         newSessionPrompt = ""
                                         currentSession = entity
@@ -530,7 +531,7 @@ private fun InConversationContent(
     listState: androidx.compose.foundation.lazy.LazyListState,
     inputText: String,
     onInputChange: (String) -> Unit,
-    voiceManager: fr.geoking.julius.shared.VoiceManager,
+    voiceManager: VoiceManager,
     onSend: () -> Unit,
     onBackToList: () -> Unit,
     loading: Boolean
@@ -688,7 +689,7 @@ private fun RepoAndSessionsContent(
     onClosePr: (JulesSessionEntity) -> Unit,
     onGetPrDetails: (JulesSessionEntity, (GitHubClient.GitHubPullRequestDetail?) -> Unit) -> Unit,
     onArchive: (JulesSessionEntity) -> Unit,
-    quota: fr.geoking.julius.repository.JulesQuota? = null
+    quota: JulesQuota? = null
 ) {
     var showPrDetails by remember { mutableStateOf<GitHubClient.GitHubPullRequestDetail?>(null) }
     Column(

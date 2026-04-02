@@ -35,6 +35,9 @@ import fr.geoking.julius.agents.LlamatikModelVariant
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.enabledAgentTypes
 import fr.geoking.julius.AppSettings
+import fr.geoking.julius.FuelCard
+import fr.geoking.julius.agents.AgentResponse
+import fr.geoking.julius.agents.ConversationalAgent
 import fr.geoking.julius.AppTheme
 import fr.geoking.julius.FractalColorIntensity
 import fr.geoking.julius.FractalQuality
@@ -47,8 +50,11 @@ import fr.geoking.julius.feature.auth.GoogleAuthManager
 import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.TextAnimation
 import fr.geoking.julius.BuildConfig
-import fr.geoking.julius.shared.DetailedError
-import fr.geoking.julius.shared.SttEnginePreference
+import fr.geoking.julius.shared.conversation.ConversationStore
+import fr.geoking.julius.shared.conversation.DetailedError
+import fr.geoking.julius.shared.voice.VoiceEvent
+import fr.geoking.julius.shared.voice.VoiceManager
+import fr.geoking.julius.shared.voice.SttEnginePreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -1584,7 +1590,7 @@ private fun VehicleConfig(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                fr.geoking.julius.ui.MAP_ENERGY_OPTIONS.filter { it.first != "electric" }.forEach { (id, label) ->
+                MAP_ENERGY_OPTIONS.filter { it.first != "electric" }.forEach { (id, label) ->
                     FilterChip(
                         selected = settings.vehicleGasTypes.contains(id),
                         onClick = {
@@ -1604,7 +1610,7 @@ private fun VehicleConfig(
 
             Spacer(modifier = Modifier.height(24.dp))
             Text("Fuel Card", color = Lavender, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
-            fr.geoking.julius.FuelCard.entries.forEach { card ->
+            FuelCard.entries.forEach { card ->
                 SelectionItem(
                     label = card.name,
                     isSelected = settings.fuelCard == card,
@@ -1620,7 +1626,7 @@ private fun VehicleConfig(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                fr.geoking.julius.ui.MAP_IRVE_POWER_OPTIONS.forEach { (id, label) ->
+                MAP_IRVE_POWER_OPTIONS.forEach { (id, label) ->
                     FilterChip(
                         selected = settings.vehiclePowerLevels.contains(id),
                         onClick = {
@@ -1835,13 +1841,13 @@ fun SettingsScreenPreview() {
     }
     val scope = rememberCoroutineScope()
     val store = remember {
-        fr.geoking.julius.shared.ConversationStore(
+        ConversationStore(
             scope = scope,
-            agent = object : fr.geoking.julius.agents.ConversationalAgent {
-                override suspend fun process(input: String) = fr.geoking.julius.agents.AgentResponse("Mock", null, null)
+            agent = object : ConversationalAgent {
+                override suspend fun process(input: String) = AgentResponse("Mock", null, null)
             },
-            voiceManager = object : fr.geoking.julius.shared.VoiceManager {
-                override val events = MutableStateFlow(fr.geoking.julius.shared.VoiceEvent.Silence)
+            voiceManager = object : VoiceManager {
+                override val events = MutableStateFlow(VoiceEvent.Silence)
                 override val transcribedText = MutableStateFlow("")
                 override val partialText = MutableStateFlow("")
                 override fun startListening() {}

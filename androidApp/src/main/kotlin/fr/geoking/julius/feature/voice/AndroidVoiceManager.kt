@@ -26,8 +26,8 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.SpeakingInterruptMode
-import fr.geoking.julius.shared.VoiceEvent
-import fr.geoking.julius.shared.VoiceManager
+import fr.geoking.julius.shared.voice.VoiceEvent
+import fr.geoking.julius.shared.voice.VoiceManager
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -533,7 +533,7 @@ class AndroidVoiceManager(
             android.util.Log.d(TAG, "SpeechRecognizer.startListening() called")
             recognizer.startListening(intent)
             if (!bargeIn) {
-                _events.value = fr.geoking.julius.shared.VoiceEvent.Listening
+                _events.value = VoiceEvent.Listening
                 player.notifyStateChanged()
             }
         }
@@ -556,16 +556,16 @@ class AndroidVoiceManager(
 
     private fun startBargeInWhileSpeakingIfNeeded() {
         when (settingsManager.settings.value.speakingInterruptMode) {
-            fr.geoking.julius.SpeakingInterruptMode.OFF -> return
-            fr.geoking.julius.SpeakingInterruptMode.WAKE_WORD, fr.geoking.julius.SpeakingInterruptMode.ANY_SPEECH -> Unit
+            SpeakingInterruptMode.OFF -> return
+            SpeakingInterruptMode.WAKE_WORD, SpeakingInterruptMode.ANY_SPEECH -> Unit
         }
-        if (_events.value != fr.geoking.julius.shared.VoiceEvent.Speaking) return
+        if (_events.value != VoiceEvent.Speaking) return
         if (isRecording) return
         if (heyJuliusActivationInProgress) return
         if (isRecognizerActive && isBargeInActive) return
 
         isHeyJuliusKeywordBargeIn =
-            settingsManager.settings.value.speakingInterruptMode == fr.geoking.julius.SpeakingInterruptMode.WAKE_WORD
+            settingsManager.settings.value.speakingInterruptMode == SpeakingInterruptMode.WAKE_WORD
         startBargeInListening()
     }
 
@@ -616,7 +616,7 @@ class AndroidVoiceManager(
 
         _partialText.value = ""
         _transcribedText.value = ""
-        _events.value = fr.geoking.julius.shared.VoiceEvent.Silence
+        _events.value = VoiceEvent.Silence
         player.notifyStateChanged()
         abandonAudioFocus()
     }
@@ -627,7 +627,7 @@ class AndroidVoiceManager(
         android.util.Log.d(TAG, "Hey Julius detected: interrupt + startListening")
 
         // Stop audio output, but keep audio focus so we can immediately listen.
-        if (_events.value == fr.geoking.julius.shared.VoiceEvent.Speaking) {
+        if (_events.value == VoiceEvent.Speaking) {
             tts?.stop()
             try {
                 if (mediaPlayer?.isPlaying == true) {
@@ -672,11 +672,11 @@ class AndroidVoiceManager(
         android.util.Log.d(TAG, "Starting wake word detection")
         wakeWordDetectionJob = kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) {
             while (isActive) {
-                if (_events.value == fr.geoking.julius.shared.VoiceEvent.Silence && !isRecording && !isRecognizerActive && !isBargeInActive) {
+                if (_events.value == VoiceEvent.Silence && !isRecording && !isRecognizerActive && !isBargeInActive) {
                     android.util.Log.d(TAG, "Idle: starting passive listening for wake word")
                     isHeyJuliusKeywordBargeIn = true
                     startListeningInternal(stopOutputs = false, bargeIn = true)
-                    _events.value = fr.geoking.julius.shared.VoiceEvent.PassiveListening
+                    _events.value = VoiceEvent.PassiveListening
                     player.notifyStateChanged()
                 }
                 kotlinx.coroutines.delay(1000)
@@ -724,7 +724,7 @@ class AndroidVoiceManager(
         bargeInRestartScheduled = true
         mainHandler.postDelayed({
             bargeInRestartScheduled = false
-            if (_events.value == fr.geoking.julius.shared.VoiceEvent.Speaking || (_events.value == fr.geoking.julius.shared.VoiceEvent.PassiveListening && settingsManager.settings.value.wakeWordEnabled)) {
+            if (_events.value == VoiceEvent.Speaking || (_events.value == VoiceEvent.PassiveListening && settingsManager.settings.value.wakeWordEnabled)) {
                 startBargeInListening()
             } else {
                 isBargeInActive = false
@@ -741,7 +741,7 @@ class AndroidVoiceManager(
     }
 
     private fun buildRecognizerIntent(): android.content.Intent {
-        return _root_ide_package_.android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+        return android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
             .apply {
             putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(android.speech.RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
@@ -760,13 +760,13 @@ class AndroidVoiceManager(
 
         if (finalResult.isNotBlank()) {
             // Signal processing if we have text
-            _events.value = fr.geoking.julius.shared.VoiceEvent.Processing
+            _events.value = VoiceEvent.Processing
             player.notifyStateChanged()
             // Setting this triggers ConversationStore.onUserFinishedSpeaking
             _transcribedText.value = finalResult
         } else {
-            if (_events.value != fr.geoking.julius.shared.VoiceEvent.Silence) {
-                _events.value = fr.geoking.julius.shared.VoiceEvent.Silence
+            if (_events.value != VoiceEvent.Silence) {
+                _events.value = VoiceEvent.Silence
                 player.notifyStateChanged()
                 abandonAudioFocus()
             }
@@ -777,15 +777,15 @@ class AndroidVoiceManager(
     override fun onReadyForSpeech(params: android.os.Bundle?) {
         android.util.Log.d(TAG, "onReadyForSpeech: mic ready, listening for speech")
         // Keep Speaking or PassiveListening state when listening for barge-in
-        if (isBargeInActive && (_events.value == fr.geoking.julius.shared.VoiceEvent.Speaking || _events.value == fr.geoking.julius.shared.VoiceEvent.PassiveListening)) {
+        if (isBargeInActive && (_events.value == VoiceEvent.Speaking || _events.value == VoiceEvent.PassiveListening)) {
             // Keep current state
         } else {
-            _events.value = fr.geoking.julius.shared.VoiceEvent.Listening
+            _events.value = VoiceEvent.Listening
             player.notifyStateChanged()
         }
     }
     override fun onBeginningOfSpeech() {
-        if (isBargeInActive && _events.value == fr.geoking.julius.shared.VoiceEvent.Speaking) {
+        if (isBargeInActive && _events.value == VoiceEvent.Speaking) {
             // In keyword-only mode, don't stop speech until keyword is confirmed in onResults/onPartialResults
             if (!isHeyJuliusKeywordBargeIn) {
                 tts?.stop()
@@ -799,7 +799,7 @@ class AndroidVoiceManager(
                 isBargeInActive = false
             }
         }
-        _events.value = fr.geoking.julius.shared.VoiceEvent.Listening
+        _events.value = VoiceEvent.Listening
         player.notifyStateChanged()
         android.util.Log.d(TAG, "onBeginningOfSpeech: speech detected")
     }
@@ -818,8 +818,8 @@ class AndroidVoiceManager(
     }
     override fun onEndOfSpeech() {
         android.util.Log.d(TAG, "onEndOfSpeech: waiting for final result")
-        if (!(isBargeInActive && _events.value == fr.geoking.julius.shared.VoiceEvent.Speaking)) {
-            _events.value = fr.geoking.julius.shared.VoiceEvent.Processing
+        if (!(isBargeInActive && _events.value == VoiceEvent.Speaking)) {
+            _events.value = VoiceEvent.Processing
             player.notifyStateChanged()
         }
     }
@@ -839,7 +839,7 @@ class AndroidVoiceManager(
         android.util.Log.w(TAG, "onError: code=$error $errorStr")
         isRecognizerActive = false
 
-        if (isBargeInActive && (_events.value == fr.geoking.julius.shared.VoiceEvent.Speaking || _events.value == fr.geoking.julius.shared.VoiceEvent.PassiveListening)) {
+        if (isBargeInActive && (_events.value == VoiceEvent.Speaking || _events.value == VoiceEvent.PassiveListening)) {
             scheduleBargeInRestart()
             return
         }
@@ -854,7 +854,7 @@ class AndroidVoiceManager(
         val text = matches?.firstOrNull() ?: ""
         android.util.Log.d(TAG, "onResults: \"$text\"")
 
-        if (isBargeInActive && (_events.value == fr.geoking.julius.shared.VoiceEvent.Speaking || _events.value == fr.geoking.julius.shared.VoiceEvent.PassiveListening)) {
+        if (isBargeInActive && (_events.value == VoiceEvent.Speaking || _events.value == VoiceEvent.PassiveListening)) {
             if (isHeyJuliusKeywordBargeIn && text.isNotBlank() && isHeyJulius(text)) {
                 activateHeyJulius()
                 return
@@ -870,7 +870,7 @@ class AndroidVoiceManager(
                 return
             }
 
-            if (_events.value == fr.geoking.julius.shared.VoiceEvent.Speaking && text.isNotBlank()) {
+            if (_events.value == VoiceEvent.Speaking && text.isNotBlank()) {
                 // If we detected speech during normal barge-in, stop TTS and process it
                 tts?.stop()
                 try {
@@ -897,7 +897,7 @@ class AndroidVoiceManager(
         if (text.isNotBlank()) {
             android.util.Log.d(TAG, "onPartialResults: partial=\"$text\"")
 
-            if (isBargeInActive && (_events.value == fr.geoking.julius.shared.VoiceEvent.Speaking || _events.value == fr.geoking.julius.shared.VoiceEvent.PassiveListening)) {
+            if (isBargeInActive && (_events.value == VoiceEvent.Speaking || _events.value == VoiceEvent.PassiveListening)) {
                 if (isHeyJuliusKeywordBargeIn) {
                     if (isHeyJulius(text)) {
                         activateHeyJulius()
@@ -908,7 +908,7 @@ class AndroidVoiceManager(
                     return
                 } else {
                     // In normal barge-in, as soon as we have a partial result, we stop TTS
-                    if (_events.value == fr.geoking.julius.shared.VoiceEvent.Speaking) {
+                    if (_events.value == VoiceEvent.Speaking) {
                         tts?.stop()
                         try {
                             if (mediaPlayer?.isPlaying == true) {
@@ -919,7 +919,7 @@ class AndroidVoiceManager(
                         }
                     }
                     isBargeInActive = false
-                    _events.value = fr.geoking.julius.shared.VoiceEvent.Listening
+                    _events.value = VoiceEvent.Listening
                     player.notifyStateChanged()
                 }
             }

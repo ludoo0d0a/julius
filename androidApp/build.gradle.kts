@@ -1,4 +1,5 @@
 import com.android.build.api.dsl.ApplicationExtension
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -10,6 +11,7 @@ plugins {
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hotswan.compiler)
+    alias(libs.plugins.kotlinAndroid)
 }
 
 configure<ApplicationExtension> {
@@ -176,6 +178,7 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.compose.material.icons.core)
     implementation(libs.compose.material.icons.extended)
+    implementation(libs.androidx.core.ktx)
     debugImplementation(libs.compose.ui.tooling)
 
     // Android Auto
@@ -220,14 +223,21 @@ dependencies {
     ksp(libs.androidx.room.ksp)
 
     // Vosk offline STT (car mic path)
-    implementation("com.alphacephei:vosk-android:0.3.75")
+    implementation(libs.vosk.android)
 
     // Coil for loading API logos in About
     implementation("io.coil-kt.coil3:coil-compose:${libs.versions.coil.get()}")
     implementation("io.coil-kt.coil3:coil-network-okhttp:${libs.versions.coil.get()}")
 
     testImplementation(libs.kotlin.test)
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:${libs.versions.kotlin.get()}")
-    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation(libs.kotlin.test.junit)
+    testImplementation(libs.robolectric)
+}
+android {
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+    }
 }
 

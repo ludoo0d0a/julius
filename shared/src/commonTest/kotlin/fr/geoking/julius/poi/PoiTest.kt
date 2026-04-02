@@ -1,8 +1,5 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.poi
 
-import fr.geoking.julius.poi.MockPoiProvider
-import fr.geoking.julius.poi.PoiProviderType
-import fr.geoking.julius.poi.sanitizeUserPoiProviderSelection
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals

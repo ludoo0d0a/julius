@@ -25,9 +25,9 @@ import fr.geoking.julius.AppSettings
 import fr.geoking.julius.nextSelectableAgent
 import fr.geoking.julius.AppTheme
 import fr.geoking.julius.SettingsManager
-import fr.geoking.julius.shared.ConversationStore
-import fr.geoking.julius.shared.ConversationState
-import fr.geoking.julius.shared.NetworkStatus
+import fr.geoking.julius.shared.conversation.ConversationStore
+import fr.geoking.julius.shared.conversation.ConversationState
+import fr.geoking.julius.shared.network.NetworkStatus
 import fr.geoking.julius.ui.AgentSetupIssue
 import fr.geoking.julius.ui.anim.AnimationPalette
 import fr.geoking.julius.ui.anim.AnimationPalettes

@@ -1,6 +1,6 @@
 package fr.geoking.julius.agents
 
-import fr.geoking.julius.shared.ActionType
+import fr.geoking.julius.shared.action.ActionType
 
 /**
  * Single source of truth for extended / device tool names used by OpenAI, Gemini, and local agents.
@@ -34,7 +34,7 @@ object ExtendedToolActionRegistry {
 
     /**
      * Appended to on-device LLM system prompts when extended actions are enabled.
-     * Wording aligns with [fr.geoking.julius.shared.ActionParser] so replies can trigger the same device-action pipeline as cloud agents.
+     * Wording aligns with [fr.geoking.julius.shared.action.ActionParser] so replies can trigger the same device-action pipeline as cloud agents.
      */
     fun localModelExtendedActionsSystemAddendum(): String = """
 Extended device capabilities (same as cloud Julius tools). When the user wants one of these, acknowledge briefly and include recognizable phrases in your reply so the app can run the action:

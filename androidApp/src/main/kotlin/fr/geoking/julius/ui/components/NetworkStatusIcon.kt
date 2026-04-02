@@ -25,8 +25,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import fr.geoking.julius.shared.NetworkStatus
-import fr.geoking.julius.shared.NetworkType
+import fr.geoking.julius.shared.network.NetworkStatus
+import fr.geoking.julius.shared.network.NetworkType
 
 @Composable
 fun NetworkStatusIcon(

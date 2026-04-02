@@ -20,7 +20,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import fr.geoking.julius.R
-import fr.geoking.julius.shared.VoiceEvent
+import fr.geoking.julius.shared.voice.VoiceEvent
 import fr.geoking.julius.ui.anim.AnimationPalettes
 
 /**

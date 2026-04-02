@@ -1,7 +1,7 @@
 package fr.geoking.julius.api.routex
 
-import fr.geoking.julius.shared.NetworkException
-import fr.geoking.julius.shared.log
+import fr.geoking.julius.shared.network.NetworkException
+import fr.geoking.julius.shared.logging.log
 import io.ktor.client.HttpClient
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody

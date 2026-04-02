@@ -1,4 +1,6 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.shared.weather
+
+import fr.geoking.julius.shared.action.ActionResult
 
 /**
  * Resolves a place (or current device position) and fetches live weather for [ActionType.GET_WEATHER].

@@ -1,4 +1,4 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.shared.action
 
 /**
  * Helper class to parse natural language commands and extract device actions.

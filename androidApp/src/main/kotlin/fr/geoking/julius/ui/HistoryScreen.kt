@@ -36,10 +36,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import fr.geoking.julius.shared.ConversationStore
-import fr.geoking.julius.shared.ConversationState
-import fr.geoking.julius.shared.HistoryItem
-import fr.geoking.julius.shared.toHistoryScreenState
+import fr.geoking.julius.shared.conversation.ConversationStore
+import fr.geoking.julius.shared.conversation.ConversationState
+import fr.geoking.julius.shared.conversation.HistoryItem
+import fr.geoking.julius.shared.conversation.toHistoryScreenState
 
 private val Lavender = Color(0xFFD1D5FF)
 private val DeepPurple = Color(0xFF21004C)

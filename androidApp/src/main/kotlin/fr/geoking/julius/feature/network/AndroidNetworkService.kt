@@ -12,10 +12,11 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.telephony.TelephonyManager
 import android.util.Log
-import fr.geoking.julius.shared.NetworkService
-import fr.geoking.julius.shared.NetworkStatus
-import fr.geoking.julius.shared.NetworkType
-import fr.geoking.julius.shared.PermissionManager
+import fr.geoking.julius.feature.location.LocationHelper
+import fr.geoking.julius.shared.network.NetworkService
+import fr.geoking.julius.shared.network.NetworkStatus
+import fr.geoking.julius.shared.network.NetworkType
+import fr.geoking.julius.shared.platform.PermissionManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

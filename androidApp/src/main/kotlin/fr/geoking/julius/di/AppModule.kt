@@ -1,29 +1,30 @@
 package fr.geoking.julius.di
 
 import android.content.Context
-import fr.geoking.julius.voice.AndroidVoiceManager
+import fr.geoking.julius.feature.voice.AndroidVoiceManager
 import fr.geoking.julius.AndroidActionExecutor
-import fr.geoking.julius.AndroidNetworkService
-import fr.geoking.julius.AndroidWeatherLookup
+import fr.geoking.julius.feature.network.AndroidNetworkService
+import fr.geoking.julius.feature.weather.AndroidWeatherLookup
 import fr.geoking.julius.AppSettings
-import fr.geoking.julius.AndroidPermissionManager
+import fr.geoking.julius.feature.permission.AndroidPermissionManager
 import fr.geoking.julius.feature.auth.GoogleAuthManager
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.agents.*
-import fr.geoking.julius.shared.BorderCrossingManager
-import fr.geoking.julius.shared.ConversationStore
-import fr.geoking.julius.shared.LocalTranscriber
-import fr.geoking.julius.shared.NetworkService
-import fr.geoking.julius.shared.VoiceManager
-import fr.geoking.julius.voice.VoskTranscriber
-import fr.geoking.julius.shared.ActionExecutor
-import fr.geoking.julius.shared.PermissionManager
-import fr.geoking.julius.shared.WeatherLookup
+import fr.geoking.julius.shared.location.BorderCrossingManager
+import fr.geoking.julius.shared.conversation.ConversationStore
+import fr.geoking.julius.shared.voice.LocalTranscriber
+import fr.geoking.julius.shared.network.NetworkService
+import fr.geoking.julius.shared.voice.VoiceManager
+import fr.geoking.julius.feature.voice.VoskTranscriber
+import fr.geoking.julius.shared.action.ActionExecutor
+import fr.geoking.julius.shared.platform.PermissionManager
+import fr.geoking.julius.shared.weather.WeatherLookup
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.api.github.GitHubClient
 import fr.geoking.julius.repository.JulesRepository
-import fr.geoking.julius.shared.MessagePersistence
+import fr.geoking.julius.shared.conversation.MessagePersistence
+import fr.geoking.julius.shared.network.NetworkException
 import fr.geoking.julius.persistence.AppDatabase
 import fr.geoking.julius.persistence.RoomMessagePersistence
 import fr.geoking.julius.persistence.JulesDao
@@ -182,13 +183,13 @@ class DynamicAgentWrapper(
         val settings = settingsManager.settings.value
         return try {
             getOrCreateAgent(settings).process(input)
-        } catch (e: fr.geoking.julius.shared.NetworkException) {
+        } catch (e: NetworkException) {
             throw e
         } catch (t: Throwable) {
             val mem = MemoryHelper.getMemoryReport(appContext)
             val msg = t.toString()
             android.util.Log.e("DynamicAgentWrapper", "Agent process crash. $msg. $mem", t)
-            throw fr.geoking.julius.shared.NetworkException(null, "Agent error: $msg. $mem")
+            throw NetworkException(null, "Agent error: $msg. $mem")
         }
     }
 }

@@ -2,9 +2,10 @@ package fr.geoking.julius
 
 import android.content.Context
 import android.content.SharedPreferences
+import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.poi.sanitizeUserPoiProviderSelection
 import fr.geoking.julius.VehicleType
-import fr.geoking.julius.shared.SttEnginePreference
+import fr.geoking.julius.shared.voice.SttEnginePreference
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -119,7 +120,8 @@ data class AppSettings(
     val vehiclePowerLevels: Set<Int> = DEFAULT_MAP_POWER_LEVELS,
     val fuelCard: FuelCard = FuelCard.None,
     val useVehicleFilter: Boolean = false,
-    val selectedPoiProviders: Set<fr.geoking.julius.poi.PoiProviderType> = setOf(fr.geoking.julius.poi.PoiProviderType.Routex),
+    val selectedPoiProviders: Set<PoiProviderType> = setOf(
+        PoiProviderType.Routex),
     /** Selected energy types to show on map (e.g. sp95, sp98, gazole, e85, electric). Empty = show all. */
     val selectedMapEnergyTypes: Set<String> = DEFAULT_MAP_ENERGY_TYPES,
     /** Type d'enseigne: "all", "major", "gms", "independant". Filter applied when provider supplies data. */

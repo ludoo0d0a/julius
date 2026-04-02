@@ -1,6 +1,7 @@
 package fr.geoking.julius.agents
 
-import fr.geoking.julius.shared.NetworkException
+import fr.geoking.julius.shared.logging.log
+import fr.geoking.julius.shared.network.NetworkException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
@@ -64,10 +65,10 @@ class ElevenLabsAgent(
             if (response.status.value == 200) {
                 return json.decodeFromString<TranscriptionRes>(response.bodyAsText()).text
             } else {
-                fr.geoking.julius.shared.log.e { "ElevenLabs STT error: ${response.status} ${response.bodyAsText()}" }
+                log.e { "ElevenLabs STT error: ${response.status} ${response.bodyAsText()}" }
             }
         } catch (e: Exception) {
-            fr.geoking.julius.shared.log.e { "ElevenLabs STT exception: ${e.message}" }
+            log.e { "ElevenLabs STT exception: ${e.message}" }
         }
         return null
     }

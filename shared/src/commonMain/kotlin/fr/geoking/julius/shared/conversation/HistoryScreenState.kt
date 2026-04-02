@@ -1,4 +1,4 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.shared.conversation
 
 /**
  * Platform-agnostic state for the conversation history screen.

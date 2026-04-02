@@ -1,4 +1,4 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.shared.voice
 
 object SpeechLanguageResolver {
     private data class LanguageAliases(val tag: String, val aliases: Set<String>)

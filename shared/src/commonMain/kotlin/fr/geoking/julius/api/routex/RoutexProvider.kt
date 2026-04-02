@@ -4,7 +4,7 @@ import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiCategory
 import fr.geoking.julius.poi.PoiProvider
-import fr.geoking.julius.shared.log
+import fr.geoking.julius.shared.logging.log
 import io.ktor.client.HttpClient
 
 /**

@@ -1,7 +1,7 @@
 package fr.geoking.julius.agents
 
-import fr.geoking.julius.shared.NetworkException
-import fr.geoking.julius.shared.getCurrentTimeMillis
+import fr.geoking.julius.shared.network.NetworkException
+import fr.geoking.julius.shared.platform.getCurrentTimeMillis
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
 import io.ktor.client.request.post

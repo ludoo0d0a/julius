@@ -1,4 +1,4 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.shared.voice
 
 /**
  * Local (on-device) speech-to-text for the car mic path.

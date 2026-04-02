@@ -6,8 +6,8 @@ import androidx.car.app.model.*
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.api.jules.JulesClient
-import fr.geoking.julius.shared.ConversationStore
-import fr.geoking.julius.shared.SttEnginePreference
+import fr.geoking.julius.shared.conversation.ConversationStore
+import fr.geoking.julius.shared.voice.SttEnginePreference
 
 class AutoSettingsScreen(
     carContext: CarContext,

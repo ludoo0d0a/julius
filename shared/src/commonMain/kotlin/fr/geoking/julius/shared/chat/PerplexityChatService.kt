@@ -1,5 +1,6 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.shared.chat
 
+import fr.geoking.julius.shared.logging.log
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
 import io.ktor.client.request.post

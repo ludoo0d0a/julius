@@ -1,4 +1,4 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.shared.conversation
 
 interface MessagePersistence {
     suspend fun saveMessage(msg: ChatMessage)

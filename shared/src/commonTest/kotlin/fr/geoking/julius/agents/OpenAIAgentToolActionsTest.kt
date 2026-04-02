@@ -1,6 +1,6 @@
 package fr.geoking.julius.agents
 
-import fr.geoking.julius.shared.ActionType
+import fr.geoking.julius.shared.action.ActionType
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond

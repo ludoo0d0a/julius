@@ -1,6 +1,6 @@
 package fr.geoking.julius.agents
 
-import fr.geoking.julius.shared.NetworkException
+import fr.geoking.julius.shared.network.NetworkException
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
@@ -21,8 +21,8 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import fr.geoking.julius.shared.ActionType
-import fr.geoking.julius.shared.DeviceAction
+import fr.geoking.julius.shared.action.ActionType
+import fr.geoking.julius.shared.action.DeviceAction
 
 /**
  * Pure HTTP-based GeminiAgent implementation using REST API.

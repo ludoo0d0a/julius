@@ -1,8 +1,8 @@
 package fr.geoking.julius.persistence
 
-import fr.geoking.julius.shared.ChatMessage
-import fr.geoking.julius.shared.MessagePersistence
-import fr.geoking.julius.shared.Role
+import fr.geoking.julius.shared.conversation.ChatMessage
+import fr.geoking.julius.shared.conversation.MessagePersistence
+import fr.geoking.julius.shared.conversation.Role
 
 class RoomMessagePersistence(
     private val dao: ChatMessageDao

@@ -16,6 +16,8 @@ import androidx.car.app.model.PlaceListMapTemplate
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.community.CommunityPoiRepository
+import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiSearchRequest
 import fr.geoking.julius.poi.PoiProvider
@@ -24,6 +26,7 @@ import fr.geoking.julius.api.belib.StationAvailabilitySummary
 import fr.geoking.julius.api.belib.matchAvailabilityToPois
 import fr.geoking.julius.effectiveIrvePowerLevels
 import fr.geoking.julius.effectiveMapEnergyFilterIds
+import fr.geoking.julius.feature.location.LocationHelper
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -34,8 +37,8 @@ class NativeMapPoiScreen(
     private val poiProvider: PoiProvider,
     private val availabilityProviderFactory: BorneAvailabilityProviderFactory,
     private val settingsManager: SettingsManager,
-    private val communityRepo: fr.geoking.julius.community.CommunityPoiRepository? = null,
-    private val favoritesRepo: fr.geoking.julius.community.FavoritesRepository? = null
+    private val communityRepo: CommunityPoiRepository? = null,
+    private val favoritesRepo: FavoritesRepository? = null
 ) : Screen(carContext), DefaultLifecycleObserver {
 
     private var pois: List<Poi> = emptyList()
@@ -69,7 +72,7 @@ class NativeMapPoiScreen(
 
             if (carContext.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
                 carContext.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                val location = fr.geoking.julius.LocationHelper.getCurrentLocation(carContext)
+                val location = LocationHelper.getCurrentLocation(carContext)
                 if (location != null) {
                     lat = location.latitude
                     lon = location.longitude

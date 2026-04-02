@@ -1,4 +1,4 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.shared.platform
 
 interface PermissionManager {
     fun hasPermission(permission: String): Boolean

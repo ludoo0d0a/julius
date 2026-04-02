@@ -1,4 +1,4 @@
-package fr.geoking.julius.shared
+package fr.geoking.julius.shared.voice
 
 import kotlinx.coroutines.flow.Flow
 

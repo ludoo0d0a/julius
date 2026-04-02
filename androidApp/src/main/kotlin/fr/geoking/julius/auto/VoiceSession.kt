@@ -9,7 +9,7 @@ import fr.geoking.julius.di.MapDeps
 import fr.geoking.julius.di.MapModuleLoader
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.agents.ConversationalAgent
-import fr.geoking.julius.shared.ConversationStore
+import fr.geoking.julius.shared.conversation.ConversationStore
 import fr.geoking.julius.api.belib.BorneAvailabilityProviderFactory
 import fr.geoking.julius.api.routing.RoutePlanner
 import fr.geoking.julius.api.routing.RoutingClient
@@ -20,7 +20,11 @@ import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.toll.TollCalculator
-import fr.geoking.julius.voice.AndroidVoiceManager
+import fr.geoking.julius.feature.voice.AndroidVoiceManager
+import fr.geoking.julius.intent.IntentNavigationHelper
+import fr.geoking.julius.repository.JulesRepository
+import fr.geoking.julius.shared.network.NetworkService
+import fr.geoking.julius.shared.voice.VoiceManager
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.koin.core.component.get
@@ -29,10 +33,10 @@ class VoiceSession : Session(), KoinComponent {
 
     private val store: ConversationStore by inject()
     private val settingsManager: SettingsManager by inject()
-    private val voiceManager: fr.geoking.julius.shared.VoiceManager by inject()
+    private val voiceManager: VoiceManager by inject()
     private val julesClient: JulesClient by inject()
-    private val julesRepository: fr.geoking.julius.repository.JulesRepository by inject()
-    private val networkService: fr.geoking.julius.shared.NetworkService by inject()
+    private val julesRepository: JulesRepository by inject()
+    private val networkService: NetworkService by inject()
     private val conversationalAgent: ConversationalAgent by inject()
 
     /** Map/POI deps are loaded only when user opens the Map tab. */
@@ -63,7 +67,7 @@ class VoiceSession : Session(), KoinComponent {
     }
 
     override fun onNewIntent(intent: Intent) {
-        val nav = fr.geoking.julius.IntentNavigationHelper.parseNavIntent(intent)
+        val nav = IntentNavigationHelper.parseNavIntent(intent)
         if (nav != null) {
             val mapDeps = getMapDeps()
             if (mapDeps == null) {
@@ -88,7 +92,7 @@ class VoiceSession : Session(), KoinComponent {
 
     override fun onCreateScreen(intent: Intent): Screen {
         (voiceManager as? AndroidVoiceManager)?.setCarContext(carContext)
-        val nav = fr.geoking.julius.IntentNavigationHelper.parseNavIntent(intent)
+        val nav = IntentNavigationHelper.parseNavIntent(intent)
         if (nav != null) {
             val mapDeps = getMapDeps()
             if (mapDeps == null) {

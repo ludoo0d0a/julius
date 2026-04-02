@@ -1,7 +1,7 @@
 package fr.geoking.julius.api.openvan
 
 import fr.geoking.julius.poi.FuelPrice
-import fr.geoking.julius.shared.NetworkException
+import fr.geoking.julius.shared.network.NetworkException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
