@@ -741,7 +741,7 @@ class AndroidVoiceManager(
     }
 
     private fun buildRecognizerIntent(): android.content.Intent {
-        return _root_ide_package_.android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+        return android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
             .apply {
             putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(android.speech.RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)

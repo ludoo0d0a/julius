@@ -1,7 +1,7 @@
 package fr.geoking.julius.di
 
 import android.content.Context
-import fr.geoking.julius.voice.AndroidVoiceManager
+import fr.geoking.julius.feature.voice.AndroidVoiceManager
 import fr.geoking.julius.AndroidActionExecutor
 import fr.geoking.julius.AndroidNetworkService
 import fr.geoking.julius.AndroidWeatherLookup
@@ -16,7 +16,7 @@ import fr.geoking.julius.shared.ConversationStore
 import fr.geoking.julius.shared.LocalTranscriber
 import fr.geoking.julius.shared.NetworkService
 import fr.geoking.julius.shared.VoiceManager
-import fr.geoking.julius.voice.VoskTranscriber
+import fr.geoking.julius.feature.voice.VoskTranscriber
 import fr.geoking.julius.shared.ActionExecutor
 import fr.geoking.julius.shared.PermissionManager
 import fr.geoking.julius.shared.WeatherLookup
