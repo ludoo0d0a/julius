@@ -12,6 +12,9 @@ import fr.geoking.julius.api.datagouv.DataGouvCampingProvider
 import fr.geoking.julius.api.datagouv.DataGouvElecProvider
 import fr.geoking.julius.api.datagouv.DataGouvProvider
 import fr.geoking.julius.api.datagouv.DataGouvPrixCarburantProvider
+import fr.geoking.julius.api.minetur.SpainMineturProvider
+import fr.geoking.julius.api.tankerkoenig.GermanyTankerkoenigProvider
+import fr.geoking.julius.api.econtrol.AustriaEControlProvider
 import fr.geoking.julius.api.gas.GasApiClient
 import fr.geoking.julius.api.gas.GasApiProvider
 import fr.geoking.julius.api.openvan.OpenVanCampClient
@@ -105,6 +108,15 @@ val mapModule = module {
     single<PoiProvider>(named("openvancamp")) {
         OpenVanCampProvider(openVanClient = get(), overpassClient = get(), radiusKm = 10, limit = 100)
     }
+    single<PoiProvider>(named("spainminetur")) {
+        SpainMineturProvider(get(), radiusKm = 10, limit = 50)
+    }
+    single<PoiProvider>(named("germanytankerkoenig")) {
+        GermanyTankerkoenigProvider(get(), radiusKm = 10, limit = 50)
+    }
+    single<PoiProvider>(named("austriaecontrol")) {
+        AustriaEControlProvider(get(), limit = 50)
+    }
     single { DataGouvCampingClient(get()) }
     single<PoiProvider>(named("datagouvcamping")) {
         DataGouvCampingProvider(get(), radiusKm = 15, limit = 50)
@@ -119,6 +131,9 @@ val mapModule = module {
             openChargeMap = get(named("openchargemap")),
             chargy = get(named("chargy")),
             openVanCamp = get(named("openvancamp")),
+            spainMinetur = get(named("spainminetur")),
+            germanyTankerkoenig = get(named("germanytankerkoenig")),
+            austriaEControl = get(named("austriaecontrol")),
             openVanCampClient = get(),
             overpass = get(named("overpass")),
             dataGouvCamping = get(named("datagouvcamping")),
