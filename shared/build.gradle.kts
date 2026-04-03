@@ -19,6 +19,9 @@ kotlin {
         namespace = "fr.geoking.julius.shared"
         compileSdk = 36
         minSdk = 26
+
+        // Creates androidHostTest (unit tests on JVM); required for commonTest expect/actual helpers.
+        withHostTest {}
     }
 
     if (kmpHostTargetsEnabled) {
@@ -53,7 +56,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            compileOnly(compose.runtime)
+            compileOnly(libs.compose.runtime)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
@@ -85,14 +88,14 @@ kotlin {
             }
         }
 
-        val androidUnitTest by getting {
+        getByName("androidHostTest") {
             dependencies {
                 implementation(libs.ktor.client.okhttp)
             }
         }
 
         commonTest.dependencies {
-            implementation(compose.runtime)
+            implementation(libs.compose.runtime)
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.core)
             implementation("io.ktor:ktor-client-mock:${libs.versions.ktor.get()}")
@@ -154,7 +157,7 @@ tasks.withType<Test>().configureEach {
         val isSharedKmpHostTest =
             name == "desktopTest" ||
                 (name.startsWith("ios") && name.endsWith("Test")) ||
-                (project.name == "shared" && name.startsWith("test", ignoreCase = true) && name.endsWith("UnitTest"))
+                (project.name == "shared" && name.contains("HostTest", ignoreCase = true))
         if (isSharedKmpHostTest) {
             filter.excludeTestsMatching("*RealApiTests*")
         }
