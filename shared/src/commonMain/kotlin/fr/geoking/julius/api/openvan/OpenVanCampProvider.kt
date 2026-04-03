@@ -3,6 +3,7 @@ package fr.geoking.julius.api.openvan
 import fr.geoking.julius.api.overpass.OverpassClient
 import fr.geoking.julius.api.routex.radiusKmFromMapViewport
 import fr.geoking.julius.parking.ParkingRegion
+import fr.geoking.julius.poi.FuelPriceRegistry
 import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiCategory
@@ -10,12 +11,10 @@ import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.shared.logging.log
 
 /**
- * [PoiProvider] for Luxembourg: OpenStreetMap [amenity=fuel](https://wiki.openstreetmap.org/wiki/Tag:amenity%3Dfuel)
- * stations combined with national weekly retail averages from [OpenVanCampClient] (OpenVan.camp, CC BY 4.0).
+ * [PoiProvider] that fetches fuel stations from OpenStreetMap and enriches them with
+ * national weekly retail averages from [OpenVanCampClient] (OpenVan.camp, CC BY 4.0).
  *
- * Outside Luxembourg (by search center), returns an empty list. Use together with Routex or other sources
- * via multi-select; [fr.geoking.julius.poi.SelectorPoiProvider] enriches fuel POIs inside Luxembourg that
- * have no per-station prices when this provider is selected.
+ * Enrichment only occurs in countries with regulated uniform fuel prices (see [FuelPriceRegistry.UNIFORM_PRICE_COUNTRIES]).
  */
 class OpenVanCampProvider(
     private val openVanClient: OpenVanCampClient,
@@ -31,9 +30,11 @@ class OpenVanCampProvider(
         longitude: Double,
         viewport: MapViewport?
     ): List<Poi> {
-        val inLux = searchCenterMayIncludeLuxembourg(latitude, longitude)
-        log.d { "[OpenVanCampProvider] getGasStations lat=$latitude lon=$longitude inLux=$inLux" }
-        if (!inLux) return emptyList()
+        val region = ParkingRegion.containing(latitude, longitude)
+        val iso = region?.countryCode
+        val isUniform = FuelPriceRegistry.isUniformPriceCountry(iso)
+
+        log.d { "[OpenVanCampProvider] getGasStations lat=$latitude lon=$longitude iso=$iso uniform=$isUniform" }
 
         val effectiveRadiusKm = viewport
             ?.let {
@@ -41,10 +42,14 @@ class OpenVanCampProvider(
             }
             ?: radiusKm
 
-        val fuelPrices = try {
-            openVanClient.getLuxembourgFuelPrices()?.takeIf { it.isNotEmpty() }
-        } catch (e: Exception) {
-            log.w(e) { "[OpenVanCampProvider] Failed to fetch prices" }
+        val fuelPrices = if (iso != null && isUniform) {
+            try {
+                openVanClient.getReferenceFuelPrices(iso)?.takeIf { it.isNotEmpty() }
+            } catch (e: Exception) {
+                log.w(e) { "[OpenVanCampProvider] Failed to fetch prices for $iso" }
+                null
+            }
+        } else {
             null
         }
 
@@ -52,7 +57,7 @@ class OpenVanCampProvider(
             overpassClient.queryNodesAndWaysWithTagFilters(
                 latitude = latitude,
                 longitude = longitude,
-                    radiusKm = effectiveRadiusKm,
+                radiusKm = effectiveRadiusKm,
                 tagFilters = listOf("amenity" to setOf("fuel")),
                 limit = limit
             )
@@ -72,7 +77,7 @@ class OpenVanCampProvider(
                 brand = el.brand()?.takeIf { it.isNotBlank() },
                 poiCategory = PoiCategory.Gas,
                 fuelPrices = fuelPrices,
-                source = if (fuelPrices != null) "OpenStreetMap + OpenVan.camp" else "OpenStreetMap"
+                source = if (fuelPrices != null) "OpenStreetMap + OpenVan.camp ($iso official price)" else "OpenStreetMap"
             )
         }
     }

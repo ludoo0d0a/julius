@@ -37,10 +37,17 @@ class OpenVanCampClient(
     }
 
     /**
+     * Reference [FuelPrice] list for the given country, using names aligned with [fr.geoking.julius.poi.MapPoiFilter].
+     */
+    suspend fun getReferenceFuelPrices(isoCode: String): List<FuelPrice>? =
+        getCountryEntry(isoCode)?.toFuelPrices()
+
+    /**
      * Reference [FuelPrice] list for Luxembourg (ISO LU), using names aligned with [fr.geoking.julius.poi.MapPoiFilter].
      */
+    @Deprecated("Use getReferenceFuelPrices instead", ReplaceWith("getReferenceFuelPrices(\"LU\")"))
     suspend fun getLuxembourgFuelPrices(): List<FuelPrice>? =
-        getCountryEntry("LU")?.toFuelPrices()
+        getReferenceFuelPrices("LU")
 
     companion object {
         const val DEFAULT_BASE_URL = "https://openvan.camp"

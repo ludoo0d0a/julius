@@ -80,6 +80,8 @@ enum class PoiProviderType(
     Chargy(providesElectric = true),
     /** Luxembourg OSM fuel + OpenVan.camp weekly reference prices (CC BY 4.0). */
     OpenVanCamp(providesFuel = true),
+    /** Spanish government fuel prices (Minetur). */
+    SpainMinetur(providesFuel = true),
     Overpass,
     Hybrid(providesFuel = true, providesElectric = true),
 }

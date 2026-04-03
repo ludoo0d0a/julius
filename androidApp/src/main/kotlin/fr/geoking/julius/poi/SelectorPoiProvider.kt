@@ -24,6 +24,7 @@ class SelectorPoiProvider(
     private val openChargeMap: PoiProvider,
     private val chargy: PoiProvider,
     private val openVanCamp: PoiProvider,
+    private val spainMinetur: PoiProvider,
     private val openVanCampClient: OpenVanCampClient,
     private val overpass: PoiProvider,
     private val dataGouvCamping: PoiProvider?,
@@ -41,6 +42,7 @@ class SelectorPoiProvider(
         PoiProviderType.OpenChargeMap -> openChargeMap
         PoiProviderType.Chargy -> chargy
         PoiProviderType.OpenVanCamp -> openVanCamp
+        PoiProviderType.SpainMinetur -> spainMinetur
         PoiProviderType.Overpass -> overpass
         PoiProviderType.Hybrid -> hybridProvider
     }
@@ -121,7 +123,15 @@ class SelectorPoiProvider(
 
         val effectiveRequest = request.copy(categories = categories, skipFilters = true)
 
-        providers.forEach { providerType ->
+        // Inject country-specific providers from registry if the user has a matching general provider selected
+        val augmentedProviders = providers.toMutableSet()
+        val region = ParkingRegion.containing(request.latitude, request.longitude)
+        val iso = region?.countryCode
+        if (iso != null && (PoiProviderType.Routex in providers || PoiProviderType.DataGouv in providers || PoiProviderType.OpenVanCamp in providers)) {
+            FuelPriceRegistry.COUNTRY_SPECIFIC_PROVIDERS[iso]?.let { augmentedProviders.addAll(it) }
+        }
+
+        augmentedProviders.forEach { providerType ->
             val activeProvider = getProvider(providerType)
             val searchResult = activeProvider.searchResult(effectiveRequest)
             allPois.addAll(searchResult.pois)
@@ -139,7 +149,7 @@ class SelectorPoiProvider(
         }
 
         var result = PoiMerger.mergePois(allPois)
-        result = enrichLuxembourgOpenVanReferencePrices(
+        result = enrichUniformReferencePrices(
             pois = result,
             providers = providers,
             centerLat = request.latitude,
@@ -180,13 +190,22 @@ class SelectorPoiProvider(
         if (providers.isEmpty()) return emptyList()
 
         val allPois = mutableListOf<Poi>()
-        providers.forEach { providerType ->
+
+        // Inject country-specific providers from registry
+        val augmentedProviders = providers.toMutableSet()
+        val region = ParkingRegion.containing(latitude, longitude)
+        val iso = region?.countryCode
+        if (iso != null && (PoiProviderType.Routex in providers || PoiProviderType.DataGouv in providers || PoiProviderType.OpenVanCamp in providers)) {
+            FuelPriceRegistry.COUNTRY_SPECIFIC_PROVIDERS[iso]?.let { augmentedProviders.addAll(it) }
+        }
+
+        augmentedProviders.forEach { providerType ->
             val activeProvider = getProvider(providerType)
             allPois.addAll(activeProvider.getGasStations(latitude, longitude, viewport))
         }
 
         var result = PoiMerger.mergePois(allPois)
-        result = enrichLuxembourgOpenVanReferencePrices(
+        result = enrichUniformReferencePrices(
             pois = result,
             providers = providers,
             centerLat = latitude,
@@ -203,34 +222,42 @@ class SelectorPoiProvider(
     }
 
     /**
-     * When OpenVan.camp is enabled, attach Luxembourg weekly reference prices to gas POIs inside the
-     * country that do not already have per-station prices (e.g. Routex locations).
+     * When OpenVan.camp is enabled, attach reference fuel prices (weekly averages) to gas POIs
+     * in countries known for having uniform regulated prices (e.g. Luxembourg).
      */
-    private suspend fun enrichLuxembourgOpenVanReferencePrices(
+    private suspend fun enrichUniformReferencePrices(
         pois: List<Poi>,
         providers: Set<PoiProviderType>,
         centerLat: Double,
         centerLon: Double
     ): List<Poi> {
         if (PoiProviderType.OpenVanCamp !in providers) return pois
-        if (!OpenVanCampProvider.searchCenterMayIncludeLuxembourg(centerLat, centerLon)) return pois
+
+        // Determine target country from search center
+        val region = ParkingRegion.containing(centerLat, centerLon) ?: return pois
+        val iso = region.countryCode
+
+        if (!FuelPriceRegistry.isUniformPriceCountry(iso)) return pois
+
         val prices = try {
-            openVanCampClient.getLuxembourgFuelPrices()?.takeIf { it.isNotEmpty() } ?: return pois
+            openVanCampClient.getReferenceFuelPrices(iso)?.takeIf { it.isNotEmpty() } ?: return pois
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             return pois
         }
+
         return pois.map { p ->
             if (p.isElectric) return@map p
             val cat = p.poiCategory ?: PoiCategory.Gas
             if (cat != PoiCategory.Gas) return@map p
-            if (!ParkingRegion.Luxembourg.contains(p.latitude, p.longitude)) return@map p
+            if (!region.contains(p.latitude, p.longitude)) return@map p
             if (!p.fuelPrices.isNullOrEmpty()) return@map p
+
             p.copy(
                 fuelPrices = prices,
                 source = when (val s = p.source) {
-                    null -> "OpenVan.camp (LU weekly avg.)"
-                    else -> "$s + OpenVan.camp (LU weekly avg.)"
+                    null -> "OpenVan.camp ($iso official price)"
+                    else -> "$s + OpenVan.camp ($iso official price)"
                 }
             )
         }
