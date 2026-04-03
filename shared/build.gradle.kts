@@ -136,7 +136,8 @@ if (kmpHostTargetsEnabled) {
 }
 
 // Classes matching *RealApiTests* hit live HTTP APIs (keys, quota, network). Exclude from default
-// KMP test runs so CI stays reliable. Opt in with RUN_REAL_API_TESTS=1 or -PrunRealApiTests=true.
+// shared test runs (androidHostTest / desktop / iOS) so CI stays reliable. Opt in with
+// RUN_REAL_API_TESTS=1 or -PrunRealApiTests=true.
 val runRealApiTests: Boolean =
     System.getenv("RUN_REAL_API_TESTS")?.let { v ->
         v.equals("1", ignoreCase = true) || v.equals("true", ignoreCase = true)
