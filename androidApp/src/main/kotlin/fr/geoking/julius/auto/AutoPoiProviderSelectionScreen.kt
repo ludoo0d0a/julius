@@ -21,6 +21,9 @@ class AutoPoiProviderSelectionScreen(
         PoiProviderType.OpenChargeMap to "Open Charge Map",
         PoiProviderType.Chargy to "Chargy (Luxembourg)",
         PoiProviderType.OpenVanCamp to "OpenVan.camp (LU fuel + OSM)",
+        PoiProviderType.SpainMinetur to "Spain Minetur (official)",
+        PoiProviderType.GermanyTankerkoenig to "Tankerkönig (Germany)",
+        PoiProviderType.AustriaEControl to "E-Control (Austria)",
         PoiProviderType.Overpass to "Overpass",
         PoiProviderType.Hybrid to "Hybrid (Gas + EV)"
     ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }

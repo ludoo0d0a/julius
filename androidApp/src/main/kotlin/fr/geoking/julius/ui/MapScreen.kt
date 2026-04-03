@@ -594,6 +594,9 @@ fun MapScreen(
                                         PoiProviderType.OpenChargeMap -> "Source: Open Charge Map"
                                         PoiProviderType.Chargy -> "Source: Chargy (real-time)"
                                         PoiProviderType.OpenVanCamp -> "Source: OpenVan.camp (Luxembourg)"
+                                        PoiProviderType.SpainMinetur -> "Source: Spain Minetur (official)"
+                                        PoiProviderType.GermanyTankerkoenig -> "Source: Tankerkönig (Germany)"
+                                        PoiProviderType.AustriaEControl -> "Source: E-Control (Austria)"
                                         PoiProviderType.Overpass -> "Source: OSM + data.gouv (camping, picnic…)"
                                         PoiProviderType.Hybrid -> "Source: Hybrid (Gas + EV)"
                                     }
