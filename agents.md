@@ -131,7 +131,7 @@ Julius supports multiple AI agents, each with different capabilities, pricing mo
 
 ### 2. Gemini Agent (`GeminiAgent`)
 
-**Model Used:** Gemini 1.5 Flash
+**Model Used:** Gemma 4 31B (default), Gemini 2.0 Flash, Gemini 1.5 Flash
 
 **How it works:**
 - Uses Gemini 1.5 Flash for generating responses
@@ -292,10 +292,11 @@ Julius supports multiple AI agents, each with different capabilities, pricing mo
 - ❌ **Battery impact** - CPU-intensive inference drains battery faster
 
 **Recommended Models:**
-- **TinyLlama (Q4_0):** ~650MB - Fastest, lower quality, good for older devices
+- **Gemma 4 E4B (Q5_K_M):** ~3.1GB - Latest state-of-the-art reasoning for mobile
+- **Gemma 4 E2B (Q4_K_M):** ~1.5GB - 3x faster than E4B, optimized for speed
 - **Phi-2 (Q4_0):** ~1.6GB - Good balance of quality and speed
-- **Gemma 2B (Q4_0):** ~1.4GB - Optimized for mobile, Google's recommendation
-- **Llama-3.1-8B (Q4_0):** ~4.5GB - Better quality, requires 8GB+ RAM
+- **Gemma 2B (Q4_0):** ~1.4GB - Optimized for mobile
+- **TinyLlama (Q4_0):** ~650MB - Fastest, lower quality, good for older devices
 
 **Pricing:**
 - **Model download:** Free (download GGUF models from Hugging Face or similar)

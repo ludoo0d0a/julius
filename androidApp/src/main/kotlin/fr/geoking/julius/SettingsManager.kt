@@ -87,6 +87,8 @@ enum class OpenAiModel(val modelName: String, val displayName: String) {
 }
 
 enum class GeminiModel(val modelName: String, val displayName: String) {
+    GEMMA_4_31B("gemma-4-31b-it", "Gemma 4 31B"),
+    GEMMA_4_26B("gemma-4-26b-it", "Gemma 4 26B"),
     GEMINI_2_0_FLASH("gemini-2.0-flash", "Gemini 2.0 Flash"),
     GEMINI_1_5_FLASH("gemini-1.5-flash", "Gemini 1.5 Flash"),
     GEMINI_1_5_PRO("gemini-1.5-pro", "Gemini 1.5 Pro")
@@ -155,7 +157,7 @@ data class AppSettings(
     val elevenLabsScribe2: Boolean = true,
     val perplexityKey: String = "",
     val geminiKey: String = "",
-    val geminiModel: GeminiModel = GeminiModel.GEMINI_2_0_FLASH,
+    val geminiModel: GeminiModel = GeminiModel.GEMMA_4_31B,
     val deepgramKey: String = "",
     val firebaseAiKey: String = "",
     val firebaseAiModel: String = "gemini-1.5-flash-latest",
@@ -190,7 +192,7 @@ data class AppSettings(
     /** Path to Llamatik GGUF model: asset-relative (e.g. "models/phi-2.Q4_0.gguf") or absolute path after download. */
     val llamatikModelPath: String = "models/phi-2.Q4_0.gguf",
     /** Selected Llamatik model variant for download UI; must match [fr.geoking.julius.agents.LlamatikModelVariant].name (e.g. Phi2Gguf). */
-    val selectedLlamatikModelVariant: String = "Phi2Gguf",
+    val selectedLlamatikModelVariant: String = "Gemma4_E4B_Gguf",
     val lastJulesRepoId: String = "",
     val lastJulesRepoName: String = "",
     val googleUserName: String? = null,
@@ -386,8 +388,8 @@ open class SettingsManager(context: Context) {
             perplexityKey = perplexityKey,
             geminiKey = geminiKey,
             geminiModel = try {
-                GeminiModel.valueOf(prefs.getString("gemini_model", GeminiModel.GEMINI_2_0_FLASH.name) ?: GeminiModel.GEMINI_2_0_FLASH.name)
-            } catch (e: IllegalArgumentException) { GeminiModel.GEMINI_2_0_FLASH },
+                GeminiModel.valueOf(prefs.getString("gemini_model", GeminiModel.GEMMA_4_31B.name) ?: GeminiModel.GEMMA_4_31B.name)
+            } catch (e: IllegalArgumentException) { GeminiModel.GEMMA_4_31B },
             deepgramKey = deepgramKey,
             firebaseAiKey = firebaseAiKey,
             firebaseAiModel = firebaseAiModel,
@@ -466,7 +468,7 @@ open class SettingsManager(context: Context) {
                 TextAnimation.Fade
             },
             llamatikModelPath = prefs.getString("llamatik_model_path", "models/phi-2.Q4_0.gguf") ?: "models/phi-2.Q4_0.gguf",
-            selectedLlamatikModelVariant = prefs.getString("selected_llamatik_model_variant", "Phi2Gguf") ?: "Phi2Gguf",
+            selectedLlamatikModelVariant = prefs.getString("selected_llamatik_model_variant", "Gemma4_E4B_Gguf") ?: "Gemma4_E4B_Gguf",
             tollDataPath = prefs.getString("toll_data_path", null),
             mobiliteitLuxembourgKey = mobiliteitLuxembourgKey,
             lastJulesRepoId = lastJulesRepoId,

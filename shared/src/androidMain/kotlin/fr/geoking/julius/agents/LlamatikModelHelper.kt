@@ -21,6 +21,20 @@ enum class LlamatikModelVariant(
     val downloadUrl: String
 ) {
     // GGUF Models (Llamatik, llama.cpp, PocketPal)
+    Gemma4_E4B_Gguf(
+        "Llamatik",
+        displayName = "Gemma 4 E4B IT (Q5_K_M)",
+        sizeDescription = "~3.1 GB, GGUF",
+        fileName = "gemma-4-E4B-it-Q5_K_M.gguf",
+        downloadUrl = "https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q5_K_M.gguf"
+    ),
+    Gemma4_E2B_Gguf(
+        "Llamatik",
+        displayName = "Gemma 4 E2B IT (Q4_K_M)",
+        sizeDescription = "~1.5 GB, GGUF",
+        fileName = "gemma-4-E2B-it-Q4_K_M.gguf",
+        downloadUrl = "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf"
+    ),
     Phi2Gguf(
         "Llamatik",
         displayName = "Phi-2 (Q4_0)",
