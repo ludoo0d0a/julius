@@ -137,7 +137,19 @@ class AutoDashboardScreen(
                 .build()
         )
 
-        // 7. Settings
+        // 7. Template lab (maps & templates)
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("Template lab")
+                .addText("POI / navigation templates & maps")
+                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_settings)).build())
+                .setOnClickListener {
+                    screenManager.push(AutoTemplateLabScreen(carContext, settingsManager, getMapDeps))
+                }
+                .build()
+        )
+
+        // 8. Settings
         listBuilder.addItem(
             Row.Builder()
                 .setTitle("Settings")

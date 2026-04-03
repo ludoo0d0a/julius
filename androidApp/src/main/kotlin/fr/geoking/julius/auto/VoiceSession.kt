@@ -20,6 +20,7 @@ import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.toll.TollCalculator
+import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.feature.voice.AndroidVoiceManager
 import fr.geoking.julius.intent.IntentNavigationHelper
 import fr.geoking.julius.repository.JulesRepository
@@ -115,16 +116,25 @@ class VoiceSession : Session(), KoinComponent {
             )
         }
         return try {
-            AutoDashboardScreen(
-                carContext = carContext,
-                store = store,
-                settingsManager = settingsManager,
-                julesClient = julesClient,
-                julesRepository = julesRepository,
-                networkService = networkService,
-                conversationalAgent = conversationalAgent,
-                getMapDeps = this::getMapDeps
-            )
+            if (BuildConfig.IS_PLAYSTORE_DISTRIBUTION) {
+                AutoPlaystoreDashboardScreen(
+                    carContext = carContext,
+                    settingsManager = settingsManager,
+                    networkService = networkService,
+                    getMapDeps = this::getMapDeps
+                )
+            } else {
+                AutoDashboardScreen(
+                    carContext = carContext,
+                    store = store,
+                    settingsManager = settingsManager,
+                    julesClient = julesClient,
+                    julesRepository = julesRepository,
+                    networkService = networkService,
+                    conversationalAgent = conversationalAgent,
+                    getMapDeps = this::getMapDeps
+                )
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create MainScreen", e)
             ErrorScreen(

@@ -1,0 +1,4 @@
+{
+  "summary": "User said \"go\"; verified playstore flavor already uses POI in androidApp/src/playstore/AndroidManifest.xml (VoiceAppService category androidx.car.app.category.POI). Ran ./gradlew :androidApp:assemblePlaystoreDebug — BUILD SUCCESSFUL; merged manifest shows CarAppService + POI.",
+  "current_status": "Julius has full vs playstore product flavors; playstore merges POI AA category, drops RECORD_AUDIO, map-only phone + AutoPlaystoreDashboardScreen; full keeps NAVIGATION and assistant flow. Project builds for playstoreDebug."
+}

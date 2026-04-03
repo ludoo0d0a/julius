@@ -94,6 +94,21 @@ configure<ApplicationExtension> {
 
         // Required for Google Play Services Maps (references legacy Apache HTTP classes removed from Android 9+)
         useLibrary("org.apache.http.legacy")
+
+        buildConfigField("boolean", "IS_PLAYSTORE_DISTRIBUTION", "false")
+    }
+
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("full") {
+            dimension = "distribution"
+            isDefault = true
+            buildConfigField("boolean", "IS_PLAYSTORE_DISTRIBUTION", "false")
+        }
+        create("playstore") {
+            dimension = "distribution"
+            buildConfigField("boolean", "IS_PLAYSTORE_DISTRIBUTION", "true")
+        }
     }
 
     buildTypes {
@@ -101,10 +116,13 @@ configure<ApplicationExtension> {
             isDebuggable = true
             isMinifyEnabled = false
             isShrinkResources = false
+            // Android Auto: home lists every screen for DHU / car testing; release uses a shorter hub.
+            buildConfigField("boolean", "AUTO_DASHBOARD_DEV_MODE", "true")
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            buildConfigField("boolean", "AUTO_DASHBOARD_DEV_MODE", "false")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

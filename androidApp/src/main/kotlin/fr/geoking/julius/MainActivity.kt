@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import fr.geoking.julius.AppSettings
+import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.agents.AgentResponse
 import fr.geoking.julius.agents.ConversationalAgent
 import fr.geoking.julius.shared.conversation.ConversationStore
@@ -169,10 +170,12 @@ class MainActivity : ComponentActivity() {
             val networkService: NetworkService = get()
             android.util.Log.d("MainActivity", "Dependencies resolved successfully.")
 
-            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-            (permissionManager as? AndroidPermissionManager)?.setOnPermissionRequest { permission, deferred ->
-                permissionDeferred = deferred
-                permissionLauncher.launch(permission)
+            if (!BuildConfig.IS_PLAYSTORE_DISTRIBUTION) {
+                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                (permissionManager as? AndroidPermissionManager)?.setOnPermissionRequest { permission, deferred ->
+                    permissionDeferred = deferred
+                    permissionLauncher.launch(permission)
+                }
             }
 
             android.util.Log.d("MainActivity", "Calling setContent...")
@@ -184,7 +187,8 @@ class MainActivity : ComponentActivity() {
                 julesRepository = julesRepository,
                 voiceManager = voiceManager,
                 conversationalAgent = conversationalAgent,
-                networkService = networkService
+                networkService = networkService,
+                isPlaystoreDistribution = BuildConfig.IS_PLAYSTORE_DISTRIBUTION
             )
             android.util.Log.d("MainActivity", "setContent called successfully.")
         } catch (e: Throwable) {
@@ -205,7 +209,8 @@ class MainActivity : ComponentActivity() {
         julesRepository: JulesRepository,
         voiceManager: VoiceManager,
         conversationalAgent: ConversationalAgent,
-        networkService: NetworkService
+        networkService: NetworkService,
+        isPlaystoreDistribution: Boolean
     ) {
         try {
             setContent {
@@ -222,7 +227,8 @@ class MainActivity : ComponentActivity() {
                     networkService = networkService,
                     inAppUpdateHelper = inAppUpdateHelper,
                     updateResultLauncher = updateResultLauncher,
-                    pendingNavDestination = pendingNavDestination
+                    pendingNavDestination = pendingNavDestination,
+                    isPlaystoreDistribution = isPlaystoreDistribution
                 )
             }
         } catch (e: Throwable) {
@@ -255,7 +261,8 @@ private fun MainActivityComposeRoot(
     networkService: NetworkService,
     inAppUpdateHelper: InAppUpdateHelper,
     updateResultLauncher: ActivityResultLauncher<IntentSenderRequest>,
-    pendingNavDestination: MutableStateFlow<NavDestination?>
+    pendingNavDestination: MutableStateFlow<NavDestination?>,
+    isPlaystoreDistribution: Boolean
 ) {
     android.util.Log.d("MainActivity", "Compose setContent block running")
     val state by store.state.collectAsState()
@@ -289,7 +296,8 @@ private fun MainActivityComposeRoot(
         networkService = networkService,
         inAppUpdateHelper = inAppUpdateHelper,
         onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) },
-        pendingNavDestinationFlow = pendingNavDestination
+        pendingNavDestinationFlow = pendingNavDestination,
+        isPlaystoreDistribution = isPlaystoreDistribution
     )
 }
 
@@ -308,14 +316,15 @@ fun MainUI(
     networkService: NetworkService,
     inAppUpdateHelper: InAppUpdateHelper? = null,
     onStartUpdate: (AppUpdateInfo) -> Unit = {},
-    pendingNavDestinationFlow: kotlinx.coroutines.flow.MutableStateFlow<NavDestination?>? = null
+    pendingNavDestinationFlow: kotlinx.coroutines.flow.MutableStateFlow<NavDestination?>? = null,
+    isPlaystoreDistribution: Boolean = false
 ) {
     val pendingNavFlow = pendingNavDestinationFlow ?: remember { MutableStateFlow<NavDestination?>(null) }
     val mapDeps by mapDepsState.collectAsState()
     val networkStatus by networkService.status.collectAsState()
     var showSettings by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
-    var showMap by remember { mutableStateOf(false) }
+    var showMap by remember(isPlaystoreDistribution) { mutableStateOf(isPlaystoreDistribution) }
     var showRoutePlanning by remember { mutableStateOf(false) }
     var initialNavDestination by remember { mutableStateOf<NavDestination?>(null) }
     var settingsInitialStack by remember { mutableStateOf<List<SettingsScreenPage>?>(null) }
@@ -391,7 +400,40 @@ fun MainUI(
     MaterialTheme(colorScheme = darkColorScheme(background = Color(0xFF0F172A))) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when {
-                showSettings -> {
+                isPlaystoreDistribution && showMap && showRoutePlanning && mapDeps != null -> {
+                    RoutePlanningScreen(
+                        routePlanner = mapDeps!!.routePlanner,
+                        routingClient = mapDeps!!.routingClient,
+                        tollCalculator = mapDeps!!.tollCalculator,
+                        trafficProviderFactory = mapDeps!!.trafficProviderFactory,
+                        poiProvider = mapDeps!!.poiProvider,
+                        geocodingClient = mapDeps!!.geocodingClient,
+                        settingsManager = settingsManager,
+                        onBack = { showRoutePlanning = false; initialNavDestination = null },
+                        initialDestination = initialNavDestination
+                    )
+                }
+                isPlaystoreDistribution && showMap && mapDeps != null -> {
+                    BackHandler { /* map-only app: keep user on map */ }
+                    MapScreen(
+                        poiProvider = mapDeps!!.poiProvider,
+                        availabilityProviderFactory = mapDeps!!.availabilityProviderFactory,
+                        trafficProviderFactory = mapDeps!!.trafficProviderFactory,
+                        settingsManager = settingsManager,
+                        store = store,
+                        palette = palette,
+                        onBack = { /* no-op: main surface is map */ },
+                        onPlanRoute = { showRoutePlanning = true },
+                        communityRepo = mapDeps!!.communityRepo,
+                        favoritesRepo = mapDeps!!.favoritesRepo
+                    )
+                }
+                isPlaystoreDistribution && mapDeps == null -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+                showSettings && !isPlaystoreDistribution -> {
                     SettingsScreen(
                         settingsManager = settingsManager,
                         authManager = authManager,
@@ -401,7 +443,7 @@ fun MainUI(
                         onInitialRouteConsumed = { settingsInitialStack = null }
                     )
                 }
-                showHistory -> {
+                showHistory && !isPlaystoreDistribution -> {
                     HistoryScreen(state = state, store = store, onBack = { showHistory = false })
                 }
                 showMap && showRoutePlanning && mapDeps != null -> {
@@ -438,7 +480,7 @@ fun MainUI(
                         }
                     }
                 }
-                showJules -> {
+                showJules && !isPlaystoreDistribution -> {
                     JulesScreen(
                         onBack = { showJules = false },
                         julesClient = julesClient,

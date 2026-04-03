@@ -32,3 +32,4 @@ androidApp/release/*
 *.aab
 
 julius-app.keystore.base64.txt
+.autopilot.json
