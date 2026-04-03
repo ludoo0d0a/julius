@@ -9,7 +9,6 @@ plugins {
     alias(libs.plugins.kotlinSerialization) apply false
     alias(libs.plugins.google.services) apply false
     id("org.jetbrains.compose") version "1.10.3" apply false
-    alias(libs.plugins.hotswan.compiler) apply false
 }
 
 
