@@ -52,6 +52,7 @@ import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.persistence.JulesActivityEntity
 import fr.geoking.julius.persistence.JulesDao
 import fr.geoking.julius.persistence.JulesSessionEntity
+import com.google.firebase.auth.FirebaseAuth
 import fr.geoking.julius.poi.MockPoiProvider
 import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.repository.JulesRepository
@@ -265,6 +266,13 @@ private fun MainActivityComposeRoot(
     }
     LaunchedEffect(settings.googleUserName) {
         store.userName = settings.googleUserName
+    }
+
+    // Sync settings on app start if logged in
+    LaunchedEffect(Unit) {
+        if (settings.isLoggedIn) {
+            settingsManager.triggerPullAndMerge()
+        }
     }
 
     MainUI(
@@ -538,7 +546,7 @@ fun MainUIPreview() {
     val mockSettingsManager = rememberMockSettingsManager()
 
     val context = LocalContext.current
-    val mockAuthManager = GoogleAuthManager(context, mockSettingsManager, { mockStore })
+        val mockAuthManager = GoogleAuthManager(context, mockSettingsManager, { mockStore }, FirebaseAuth.getInstance())
 
     val mapDepsFlow = remember { MutableStateFlow<MapDeps?>(null) }
     MainUI(

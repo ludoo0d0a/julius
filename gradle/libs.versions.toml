@@ -28,6 +28,7 @@ litertlm-android = "0.10.0"
 coreKtx = "1.18.0"
 robolectric = "4.16.1"
 voskAndroid = "0.3.75"
+firebase-bom = "33.10.0"
 
 [libraries]
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
@@ -79,6 +80,9 @@ androidx-room-ksp = { module = "androidx.room:room-compiler", version.ref = "and
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 litertlm-android = { module = "com.google.ai.edge.litertlm:litertlm-android", version.ref = "litertlm-android" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
+firebase-auth = { module = "com.google.firebase:firebase-auth" }
+firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 vosk-android = { module = "com.alphacephei:vosk-android", version.ref = "voskAndroid" }
@@ -93,3 +97,4 @@ kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", versio
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version = "2.3.6" }
 hotswan-compiler = { id = "com.github.skydoves.compose.hotswan.compiler", version = "1.1.0" }
+google-services = { id = "com.google.gms.google-services", version = "4.4.2" }

@@ -12,6 +12,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hotswan.compiler)
     alias(libs.plugins.kotlinAndroid)
+    alias(libs.plugins.google.services)
 }
 
 configure<ApplicationExtension> {
@@ -224,6 +225,11 @@ dependencies {
 
     // Vosk offline STT (car mic path)
     implementation(libs.vosk.android)
+
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
 
     // Coil for loading API logos in About
     implementation("io.coil-kt.coil3:coil-compose:${libs.versions.coil.get()}")

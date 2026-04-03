@@ -266,7 +266,8 @@ fun SettingsScreen(
                     SettingsScreenPage.GoogleAccount -> GoogleAccount(
                         settings = current,
                         settingsManager = settingsManager,
-                        authManager = authManager
+                        authManager = authManager,
+                        firebaseAuth = com.google.firebase.auth.FirebaseAuth.getInstance()
                     )
                 }
             }
@@ -1473,7 +1474,8 @@ private fun FractalConfig(
 private fun GoogleAccount(
     settings: AppSettings,
     settingsManager: SettingsManager,
-    authManager: GoogleAuthManager
+    authManager: GoogleAuthManager,
+    firebaseAuth: com.google.firebase.auth.FirebaseAuth
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -1484,9 +1486,10 @@ private fun GoogleAccount(
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (settings.googleUserName != null) {
+        val firebaseUser = remember { firebaseAuth.currentUser }
+        if (settings.googleUserName != null || firebaseUser != null) {
             Text(
-                "Connected as ${settings.googleUserName}",
+                "Connected as ${settings.googleUserName ?: firebaseUser?.displayName ?: "User"}",
                 color = Color.White,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
@@ -1861,7 +1864,7 @@ fun SettingsScreenPreview() {
             initialSpeechLanguageTag = null
         )
     }
-    val mockAuthManager = GoogleAuthManager(context, mockSettingsManager, { store })
+    val mockAuthManager = GoogleAuthManager(context, mockSettingsManager, { store }, com.google.firebase.auth.FirebaseAuth.getInstance())
 
     SettingsScreen(
         settingsManager = mockSettingsManager,

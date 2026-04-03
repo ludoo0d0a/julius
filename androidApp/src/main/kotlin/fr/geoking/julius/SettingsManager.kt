@@ -9,6 +9,11 @@ import fr.geoking.julius.shared.voice.SttEnginePreference
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import fr.geoking.julius.feature.settings.FirestoreSettingsSync
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * @param enabled If false, hidden from agent pickers and next-agent cycling; [DynamicAgentWrapper] may still resolve
@@ -201,12 +206,25 @@ data class AppSettings(
     val mobiliteitLuxembourgKey: String = ""
 )
 
-open class SettingsManager(context: Context) {
+open class SettingsManager(
+    context: Context,
+    private val firestoreSync: FirestoreSettingsSync? = null
+) {
     private val prefs: SharedPreferences = context.getSharedPreferences("voice_ai_prefs", Context.MODE_PRIVATE)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     
     // Simple state flow to observe changes
     private val _settings = MutableStateFlow(loadSettings())
     open val settings: StateFlow<AppSettings> = _settings.asStateFlow()
+
+    fun triggerPullAndMerge() {
+        scope.launch {
+            val remoteMerged = firestoreSync?.downloadAndMerge(_settings.value)
+            if (remoteMerged != null && remoteMerged != _settings.value) {
+                saveSettingsInternal(remoteMerged, upload = false)
+            }
+        }
+    }
 
     private fun loadSettings(): AppSettings {
         val openAiKey = prefs.getString("openai_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.OPENAI_KEY
@@ -693,7 +711,7 @@ open class SettingsManager(context: Context) {
         saveSettingsInternal(finalSettings)
     }
 
-    private fun saveSettingsInternal(settings: AppSettings) {
+    private fun saveSettingsInternal(settings: AppSettings, upload: Boolean = true) {
         val settings = if (!settings.selectedAgent.enabled) {
             android.util.Log.w(
                 "SettingsManager",
@@ -774,6 +792,12 @@ open class SettingsManager(context: Context) {
 
         // Update StateFlow immediately with the new values to ensure UI and agent switching update right away
         _settings.value = settings
+
+        if (upload && settings.isLoggedIn) {
+            scope.launch {
+                firestoreSync?.uploadSettings(settings)
+            }
+        }
     }
 
     open fun saveSettings(

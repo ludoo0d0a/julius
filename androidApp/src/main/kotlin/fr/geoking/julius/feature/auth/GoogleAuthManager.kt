@@ -8,19 +8,23 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
 import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.shared.conversation.ConversationStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 private const val TAG = "GoogleAuth"
 
 class GoogleAuthManager(
     private val appContext: Context,
     private val settingsManager: SettingsManager,
-    private val conversationStore: () -> ConversationStore
+    private val conversationStore: () -> ConversationStore,
+    private val firebaseAuth: FirebaseAuth
 ) {
     private val credentialManager = CredentialManager.create(appContext)
     private val scope = CoroutineScope(Dispatchers.Main)
@@ -50,17 +54,33 @@ class GoogleAuthManager(
                 val credential = result.credential
 
                 if (credential is GoogleIdTokenCredential) {
-                    val settings = settingsManager.settings.value
-                    val firstName = credential.givenName ?: credential.displayName ?: "User"
-                    Log.d(TAG, "signIn: success user=$firstName")
+                    Log.d(TAG, "signIn: got ID token, signing into Firebase...")
+                    val firebaseCredential = GoogleAuthProvider.getCredential(credential.idToken, null)
 
-                    settingsManager.saveSettings(settings.copy(
-                        googleUserName = firstName,
-                        isLoggedIn = true
-                    ))
+                    try {
+                        firebaseAuth.signInWithCredential(firebaseCredential).await()
+                        val firebaseUser = firebaseAuth.currentUser
 
-                    conversationStore().userName = firstName
-                    onResult(true, null)
+                        val settings = settingsManager.settings.value
+                        val firstName = credential.givenName ?: credential.displayName ?: firebaseUser?.displayName ?: "User"
+                        Log.d(TAG, "signIn: Firebase success user=$firstName")
+
+                        settingsManager.saveSettings(settings.copy(
+                            googleUserName = firstName,
+                            isLoggedIn = true
+                        ))
+
+                        // After login, sync settings from Firestore
+                        settingsManager.triggerPullAndMerge()
+
+                        conversationStore().userName = firstName
+                        onResult(true, null)
+                    } catch (e: Exception) {
+                        val msg = "Firebase Auth failed: ${e.message}"
+                        Log.e(TAG, "signIn: $msg", e)
+                        conversationStore().recordError(null, msg)
+                        onResult(false, msg)
+                    }
                 } else {
                     val msg = "Unexpected credential type: ${credential.javaClass.simpleName}"
                     Log.e(TAG, "signIn: $msg")
@@ -91,6 +111,7 @@ class GoogleAuthManager(
     fun signOut(onResult: (Boolean) -> Unit) {
         scope.launch {
             try {
+                firebaseAuth.signOut()
                 credentialManager.clearCredentialState(ClearCredentialStateRequest())
                 val settings = settingsManager.settings.value
                 settingsManager.saveSettings(settings.copy(
