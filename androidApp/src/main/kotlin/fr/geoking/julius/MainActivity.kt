@@ -40,7 +40,11 @@ import fr.geoking.julius.di.MapDeps
 import fr.geoking.julius.di.MapModuleLoader
 import fr.geoking.julius.ui.JulesScreen
 import fr.geoking.julius.ui.MapScreen
+import fr.geoking.julius.ui.MapSettingsScreen
 import fr.geoking.julius.ui.PhoneMainScreen
+import fr.geoking.julius.ui.PhoneNetworkLocationScreen
+import fr.geoking.julius.ui.PhonePlaystoreHomeScreen
+import fr.geoking.julius.ui.PlaystoreLightTheme
 import fr.geoking.julius.ui.RoutePlanningScreen
 import fr.geoking.julius.ui.HistoryScreen
 import fr.geoking.julius.ui.SettingsScreen
@@ -324,7 +328,10 @@ fun MainUI(
     val networkStatus by networkService.status.collectAsState()
     var showSettings by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
-    var showMap by remember(isPlaystoreDistribution) { mutableStateOf(isPlaystoreDistribution) }
+    /** Play Store flavor uses a dashboard home first; full flavor starts on the voice screen. */
+    var showMap by remember { mutableStateOf(false) }
+    var showPlaystoreNetworkInfo by remember { mutableStateOf(false) }
+    var showPlaystoreMapSettings by remember { mutableStateOf(false) }
     var showRoutePlanning by remember { mutableStateOf(false) }
     var initialNavDestination by remember { mutableStateOf<NavDestination?>(null) }
     var settingsInitialStack by remember { mutableStateOf<List<SettingsScreenPage>?>(null) }
@@ -376,8 +383,8 @@ fun MainUI(
         evaluateAgentSetup(settings, llamatikModelHelper, conversationalAgent)
     }
 
-    LaunchedEffect(showMap, showRoutePlanning) {
-        if (showMap || showRoutePlanning) onRequestMapDeps()
+    LaunchedEffect(showMap, showRoutePlanning, isPlaystoreDistribution) {
+        if (showMap || showRoutePlanning || isPlaystoreDistribution) onRequestMapDeps()
     }
     val paletteIndex by AnimationPalettes.index.collectAsState()
     val palette = remember(paletteIndex) { AnimationPalettes.paletteFor(paletteIndex) }
@@ -400,6 +407,22 @@ fun MainUI(
     MaterialTheme(colorScheme = darkColorScheme(background = Color(0xFF0F172A))) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when {
+                isPlaystoreDistribution && showPlaystoreNetworkInfo -> {
+                    BackHandler { showPlaystoreNetworkInfo = false }
+                    PhoneNetworkLocationScreen(
+                        networkService = networkService,
+                        onBack = { showPlaystoreNetworkInfo = false }
+                    )
+                }
+                isPlaystoreDistribution && showPlaystoreMapSettings -> {
+                    BackHandler { showPlaystoreMapSettings = false }
+                    PlaystoreLightTheme {
+                        MapSettingsScreen(
+                            settingsManager = settingsManager,
+                            onDismiss = { showPlaystoreMapSettings = false }
+                        )
+                    }
+                }
                 isPlaystoreDistribution && showMap && showRoutePlanning && mapDeps != null -> {
                     RoutePlanningScreen(
                         routePlanner = mapDeps!!.routePlanner,
@@ -413,8 +436,13 @@ fun MainUI(
                         initialDestination = initialNavDestination
                     )
                 }
+                isPlaystoreDistribution && showMap && mapDeps == null -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
                 isPlaystoreDistribution && showMap && mapDeps != null -> {
-                    BackHandler { /* map-only app: keep user on map */ }
+                    BackHandler { showMap = false }
                     MapScreen(
                         poiProvider = mapDeps!!.poiProvider,
                         availabilityProviderFactory = mapDeps!!.availabilityProviderFactory,
@@ -422,16 +450,24 @@ fun MainUI(
                         settingsManager = settingsManager,
                         store = store,
                         palette = palette,
-                        onBack = { /* no-op: main surface is map */ },
+                        onBack = { showMap = false },
                         onPlanRoute = { showRoutePlanning = true },
                         communityRepo = mapDeps!!.communityRepo,
                         favoritesRepo = mapDeps!!.favoritesRepo
                     )
                 }
-                isPlaystoreDistribution && mapDeps == null -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
+                isPlaystoreDistribution && !showMap -> {
+                    PhonePlaystoreHomeScreen(
+                        settingsManager = settingsManager,
+                        mapDepsReady = mapDeps != null,
+                        onOpenMap = { showMap = true },
+                        onOpenRoutes = {
+                            showRoutePlanning = true
+                            showMap = true
+                        },
+                        onOpenNetworkDiagnostics = { showPlaystoreNetworkInfo = true },
+                        onOpenMapSettings = { showPlaystoreMapSettings = true }
+                    )
                 }
                 showSettings && !isPlaystoreDistribution -> {
                     SettingsScreen(
