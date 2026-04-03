@@ -1,6 +1,8 @@
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
-import org.gradle.api.tasks.testing.TestDescriptor
-import org.gradle.api.tasks.testing.TestResult
+
+/** When false (default), only the Android target is compiled — skips JVM desktop and all iOS targets for faster builds. */
+val kmpHostTargetsEnabled =
+    findProperty("julius.kmp.hostTargetsEnabled")?.toString()?.equals("true", ignoreCase = true) == true
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -17,36 +19,35 @@ kotlin {
         namespace = "fr.geoking.julius.shared"
         compileSdk = 36
         minSdk = 26
-        
     }
-    
-    // JVM target for running tests on desktop (MacBook Intel x64)
-    jvm("desktop") {
-        compilerOptions {
-            freeCompilerArgs.add("-Xexpect-actual-classes")
-        }
-        testRuns["test"].executionTask.configure {
-            useJUnitPlatform()
-            // Show all test results (not just failures)
-            testLogging {
-                events("passed", "failed", "skipped")
-                showStandardStreams = true
-                exceptionFormat = TestExceptionFormat.FULL
+
+    if (kmpHostTargetsEnabled) {
+        // JVM target for running tests on desktop
+        jvm("desktop") {
+            compilerOptions {
+                freeCompilerArgs.add("-Xexpect-actual-classes")
+            }
+            testRuns["test"].executionTask.configure {
+                useJUnitPlatform()
+                testLogging {
+                    events("passed", "failed", "skipped")
+                    showStandardStreams = true
+                    exceptionFormat = TestExceptionFormat.FULL
+                }
             }
         }
-    }
-    
-    // Simple iOS target configuration for KMP
-    listOf(
-        iosX64(),
-        iosArm64(),
-        iosSimulatorArm64()
-    ).forEach {
-        it.compilerOptions {
-            freeCompilerArgs.add("-Xexpect-actual-classes")
-        }
-        it.binaries.framework {
-            baseName = "Shared"
+
+        listOf(
+            iosX64(),
+            iosArm64(),
+            iosSimulatorArm64()
+        ).forEach {
+            it.compilerOptions {
+                freeCompilerArgs.add("-Xexpect-actual-classes")
+            }
+            it.binaries.framework {
+                baseName = "Shared"
+            }
         }
     }
 
@@ -66,25 +67,35 @@ kotlin {
             implementation(libs.kotlinx.coroutines.android)
             implementation(libs.litertlm.android)
         }
-        val desktopMain by getting {
+
+        if (kmpHostTargetsEnabled) {
+            val desktopMain by getting {
+                dependencies {
+                    implementation(libs.ktor.client.okhttp)
+                }
+            }
+            iosMain.dependencies {
+                implementation(libs.ktor.client.darwin)
+            }
+            val desktopTest by getting {
+                dependencies {
+                    implementation(libs.junit.jupiter.api)
+                    runtimeOnly(libs.junit.jupiter.engine)
+                }
+            }
+        }
+
+        val androidUnitTest by getting {
             dependencies {
                 implementation(libs.ktor.client.okhttp)
             }
         }
-        iosMain.dependencies {
-            implementation(libs.ktor.client.darwin)
-        }
+
         commonTest.dependencies {
             implementation(compose.runtime)
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.core)
             implementation("io.ktor:ktor-client-mock:${libs.versions.ktor.get()}")
-        }
-        val desktopTest by getting {
-            dependencies {
-                implementation(libs.junit.jupiter.api)
-                runtimeOnly(libs.junit.jupiter.engine)
-            }
         }
     }
 }
@@ -100,31 +111,29 @@ publishing {
     }
 }
 
-// Debug task to run GeminiDebug.main() - useful for debugging GeminiAgent.listModels() and process()
-tasks.register<JavaExec>("desktopRunDebug") {
-    group = "application"
-    description = "Runs GeminiDebug.main() for debugging GeminiAgent.listModels() and process()"
-    
-    val desktopTarget = kotlin.targets.getByName("desktop")
-    val mainCompilation = desktopTarget.compilations.getByName("main")
-    
-    classpath = mainCompilation.runtimeDependencyFiles ?: files()
-    classpath += mainCompilation.output.allOutputs
-    
-    // Set main class
-    mainClass.set("fr.geoking.julius.debug.GeminiDebugKt")
-    
-    // Set working directory to project root so it can find local.properties
-    workingDir = rootProject.projectDir
-    
-    // Forward system properties and environment variables
-    val props = System.getProperties().entries.associate { it.key.toString() to it.value }
-    systemProperties(props)
+if (kmpHostTargetsEnabled) {
+    // Debug task to run GeminiDebug.main() - useful for debugging GeminiAgent.listModels() and process()
+    tasks.register<JavaExec>("desktopRunDebug") {
+        group = "application"
+        description = "Runs GeminiDebug.main() for debugging GeminiAgent.listModels() and process()"
+
+        val desktopTarget = kotlin.targets.getByName("desktop")
+        val mainCompilation = desktopTarget.compilations.getByName("main")
+
+        classpath = mainCompilation.runtimeDependencyFiles ?: files()
+        classpath += mainCompilation.output.allOutputs
+
+        mainClass.set("fr.geoking.julius.debug.GeminiDebugKt")
+
+        workingDir = rootProject.projectDir
+
+        val props = System.getProperties().entries.associate { it.key.toString() to it.value }
+        systemProperties(props)
+    }
 }
 
 // Classes matching *RealApiTests* hit live HTTP APIs (keys, quota, network). Exclude from default
-// KMP test runs so CI and `./gradlew :shared:desktopTest` stay reliable. Opt in with
-// RUN_REAL_API_TESTS=1 or RUN_REAL_API_TESTS=true, or -PrunRealApiTests=true.
+// KMP test runs so CI stays reliable. Opt in with RUN_REAL_API_TESTS=1 or -PrunRealApiTests=true.
 val runRealApiTests: Boolean =
     System.getenv("RUN_REAL_API_TESTS")?.let { v ->
         v.equals("1", ignoreCase = true) || v.equals("true", ignoreCase = true)
@@ -141,9 +150,13 @@ tasks.withType<Test>().configureEach {
             exceptionFormat = TestExceptionFormat.FULL
         }
     }
-    val isKmpHostTest =
-        name == "desktopTest" || (name.startsWith("ios") && name.endsWith("Test"))
-    if (isKmpHostTest && !runRealApiTests) {
-        filter.excludeTestsMatching("*RealApiTests*")
+    if (!runRealApiTests) {
+        val isSharedKmpHostTest =
+            name == "desktopTest" ||
+                (name.startsWith("ios") && name.endsWith("Test")) ||
+                (project.name == "shared" && name.startsWith("test", ignoreCase = true) && name.endsWith("UnitTest"))
+        if (isSharedKmpHostTest) {
+            filter.excludeTestsMatching("*RealApiTests*")
+        }
     }
 }

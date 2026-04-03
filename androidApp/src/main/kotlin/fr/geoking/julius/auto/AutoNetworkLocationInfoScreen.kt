@@ -7,7 +7,6 @@ import android.util.Log
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.Action
-import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.CarIcon
 import androidx.car.app.model.Header
 import androidx.car.app.model.ItemList
@@ -120,24 +119,20 @@ class AutoNetworkLocationInfoScreen(
         locationRow.setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
         listBuilder.addItem(locationRow.build())
 
-        val actionStrip = ActionStrip.Builder()
-            .addAction(
-                Action.Builder()
-                    .setTitle("Refresh")
-                    .setOnClickListener { loadLocation() }
-                    .build()
-            )
-            .build()
-
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
             .setHeader(
                 Header.Builder()
                     .setTitle("Network & Location Info")
                     .setStartHeaderAction(Action.BACK)
+                    .addEndHeaderAction(
+                        Action.Builder()
+                            .setTitle("Refresh")
+                            .setOnClickListener { loadLocation() }
+                            .build()
+                    )
                     .build()
             )
-            .setActionStrip(actionStrip)
             .build()
     }
 

@@ -303,7 +303,7 @@ val appModule = module {
     
     single<AppDatabase> {
         fun buildAndValidate(builder: androidx.room.RoomDatabase.Builder<AppDatabase>): AppDatabase {
-            val db = builder.fallbackToDestructiveMigration().build()
+            val db = builder.fallbackToDestructiveMigration(dropAllTables = true).build()
             // Force database open and schema validation early to catch crashes at startup
             db.openHelper.writableDatabase.query("SELECT 1").close()
             return db

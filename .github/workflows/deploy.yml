@@ -82,7 +82,7 @@ jobs:
           GOOGLE_MAPS_KEY: ${{ secrets.GOOGLE_MAPS_KEY }}
           GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
         run: |
-          ./gradlew :androidApp:bundleRelease \
+          ./gradlew :androidApp:bundlePlaystoreRelease \
             -Pandroid.injected.signing.store.file=${{ github.workspace }}/release.keystore \
             -Pandroid.injected.signing.store.password=${{ secrets.KEY_STORE_PASSWORD }} \
             -Pandroid.injected.signing.key.alias=${{ secrets.ALIAS }} \
@@ -98,7 +98,7 @@ jobs:
         with:
           serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
           packageName: fr.geoking.julius
-          releaseFiles: androidApp/build/outputs/bundle/release/*.aab
+          releaseFiles: androidApp/build/outputs/bundle/playstoreRelease/*.aab
           track: internal
           status: completed
           whatsNewDirectory: .github/play-release-notes

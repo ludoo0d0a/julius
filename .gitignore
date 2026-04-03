@@ -17,6 +17,7 @@ build
 captures
 lint
 /out
+/tmp
 *.hprof
 *.keystore
 *.jks
