@@ -203,7 +203,10 @@ fun MapSettingsScreen(
                         PoiProviderType.Etalab to "Prix carburant (instantané)",
                         PoiProviderType.GasApi to "GasApi",
                         PoiProviderType.DataGouv to "data.gouv (Fuel)",
-                        PoiProviderType.OpenVanCamp to "OpenVan.camp (LU)"
+                        PoiProviderType.OpenVanCamp to "OpenVan.camp (LU)",
+                        PoiProviderType.SpainMinetur to "Spain Minetur",
+                        PoiProviderType.GermanyTankerkoenig to "Tankerkönig",
+                        PoiProviderType.AustriaEControl to "E-Control"
                     ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }
                     fuelProviders.forEach { (type, label) ->
                         FilterChip(
