@@ -22,6 +22,8 @@ object FuelPriceRegistry {
     val COUNTRY_SPECIFIC_PROVIDERS = mapOf(
         "FR" to listOf(PoiProviderType.DataGouv),
          "ES" to listOf(PoiProviderType.SpainMinetur),
+         "DE" to listOf(PoiProviderType.GermanyTankerkoenig),
+         "AT" to listOf(PoiProviderType.AustriaEControl),
     )
 
     /**

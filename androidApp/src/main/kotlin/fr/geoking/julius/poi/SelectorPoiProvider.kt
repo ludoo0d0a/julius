@@ -25,6 +25,8 @@ class SelectorPoiProvider(
     private val chargy: PoiProvider,
     private val openVanCamp: PoiProvider,
     private val spainMinetur: PoiProvider,
+    private val germanyTankerkoenig: PoiProvider,
+    private val austriaEControl: PoiProvider,
     private val openVanCampClient: OpenVanCampClient,
     private val overpass: PoiProvider,
     private val dataGouvCamping: PoiProvider?,
@@ -43,6 +45,8 @@ class SelectorPoiProvider(
         PoiProviderType.Chargy -> chargy
         PoiProviderType.OpenVanCamp -> openVanCamp
         PoiProviderType.SpainMinetur -> spainMinetur
+        PoiProviderType.GermanyTankerkoenig -> germanyTankerkoenig
+        PoiProviderType.AustriaEControl -> austriaEControl
         PoiProviderType.Overpass -> overpass
         PoiProviderType.Hybrid -> hybridProvider
     }

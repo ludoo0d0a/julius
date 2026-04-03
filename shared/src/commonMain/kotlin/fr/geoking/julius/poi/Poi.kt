@@ -82,6 +82,10 @@ enum class PoiProviderType(
     OpenVanCamp(providesFuel = true),
     /** Spanish government fuel prices (Minetur). */
     SpainMinetur(providesFuel = true),
+    /** German fuel prices via Tankerkönig (MTS-K). */
+    GermanyTankerkoenig(providesFuel = true),
+    /** Austrian fuel prices via E-Control. */
+    AustriaEControl(providesFuel = true),
     Overpass,
     Hybrid(providesFuel = true, providesElectric = true),
 }
