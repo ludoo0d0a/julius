@@ -56,6 +56,7 @@ import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.poi.PoiSearchRequest
+import fr.geoking.julius.poi.PoiSearchResult
 import fr.geoking.julius.poi.PoiCategory
 import fr.geoking.julius.poi.anyProvidesElectric
 import fr.geoking.julius.poi.anyProvidesFuel
@@ -398,20 +399,55 @@ fun MapScreen(
 
                 try {
                     isLoading = true
-                    val newPois = poiProvider.search(
-                        PoiSearchRequest(
-                            latitude = centerLat,
-                            longitude = centerLng,
-                            viewport = viewport,
-                            categories = emptySet(),
-                            skipFilters = true
-                        )
-                    )
+                    var lastResult: PoiSearchResult? = null
+                    var retryAttempt = 0
+                    val maxRetries = 3
+                    var finalPois: List<Poi>? = null
 
-                    cachedPois = PoiMerger.mergeInto(cachedPois, newPois)
+                    while (retryAttempt < maxRetries && finalPois == null) {
+                        val searchResult = poiProvider.searchResult(
+                            PoiSearchRequest(
+                                latitude = centerLat,
+                                longitude = centerLng,
+                                viewport = viewport,
+                                categories = emptySet(),
+                                skipFilters = true
+                            )
+                        )
+                        lastResult = searchResult
+
+                        if (searchResult.errors.isEmpty()) {
+                            finalPois = searchResult.pois
+                        } else {
+                            val code = searchResult.errors.firstOrNull()?.httpCode
+                            if (code != null && code in 400..499 && code != 429 && code != 408) {
+                                // Client error (not rate limit or timeout): don't retry
+                                break
+                            }
+
+                            retryAttempt++
+                            if (retryAttempt < maxRetries) {
+                                val delayMs = (200L * (1 shl retryAttempt)) + (0..100).random()
+                                kotlinx.coroutines.delay(delayMs)
+                            }
+                        }
+                    }
+
+                    if (finalPois == null) {
+                        val firstError = lastResult?.errors?.firstOrNull()
+                        val msg = firstError?.message ?: "Unknown error"
+                        val code = firstError?.httpCode
+
+                        mapErrorMessage = msg
+                        isErrorPaused = true
+                        store.recordError(code, "Map ($selectedProviders): $msg")
+                        return@collectLatest
+                    }
+
+                    cachedPois = PoiMerger.mergeInto(cachedPois, finalPois)
                     // Update "seen" timestamps for TTL tracking.
                     val mergedNow = System.currentTimeMillis()
-                    newPois.forEach { poiSeenAtMs[it.id] = mergedNow }
+                    finalPois.forEach { poiSeenAtMs[it.id] = mergedNow }
                     // POIs that were merged into existing entries may have kept the existing ID (and that is OK).
                     cachedPois.forEach { p ->
                         // Ensure stable entries remain "warm" when reloaded.
