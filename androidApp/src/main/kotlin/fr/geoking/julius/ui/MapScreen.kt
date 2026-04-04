@@ -151,6 +151,7 @@ fun MapScreen(
     availabilityProviderFactory: BorneAvailabilityProviderFactory?,
     trafficProviderFactory: TrafficProviderFactory? = null,
     settingsManager: SettingsManager,
+    authManager: fr.geoking.julius.feature.auth.GoogleAuthManager,
     store: ConversationStore,
     palette: AnimationPalette,
     onBack: () -> Unit,
@@ -497,9 +498,12 @@ fun MapScreen(
     }
 
     if (showMapSettings) {
-        MapSettingsScreen(
+        SettingsScreen(
             settingsManager = settingsManager,
-            onDismiss = { showMapSettings = false }
+            authManager = authManager,
+            errorLog = store.state.value.errorLog,
+            onDismiss = { showMapSettings = false },
+            initialScreenStack = listOf(SettingsScreenPage.Main, SettingsScreenPage.MapConfig)
         )
         return
     }
@@ -1078,6 +1082,7 @@ private fun MapScreenPreview() {
         poiProvider = fakePoiProvider,
         availabilityProviderFactory = null,
         settingsManager = fakeSettingsManager,
+        authManager = fr.geoking.julius.feature.auth.GoogleAuthManager(context, fakeSettingsManager, { fakeStore }, com.google.firebase.auth.FirebaseAuth.getInstance()),
         store = fakeStore,
         palette = AnimationPalettes.paletteFor(0),
         onBack = {}

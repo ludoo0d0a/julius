@@ -20,7 +20,7 @@ import io.ktor.client.HttpClient
 class DataGouvElecProvider(
     private val client: HttpClient,
     private val radiusKm: Int = 10,
-    private val limit: Int = 100
+    private val limit: Int = 500
 ) : PoiProvider {
 
     private val dataGouvElecClient = DataGouvElecClient(client)

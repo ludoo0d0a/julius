@@ -53,16 +53,28 @@ class GoogleAuthManager(
                 val result = credentialManager.getCredential(context, request)
                 val credential = result.credential
 
-                if (credential is GoogleIdTokenCredential) {
+                // More robust check: handle GoogleIdTokenCredential directly or via custom credential type
+                val googleIdTokenCredential = try {
+                    if (credential is GoogleIdTokenCredential) {
+                        credential
+                    } else {
+                        // Fallback: try to create from CustomCredential if the type check failed due to R8/obfuscation
+                        GoogleIdTokenCredential.createFrom(credential.data)
+                    }
+                } catch (e: Exception) {
+                    null
+                }
+
+                if (googleIdTokenCredential != null) {
                     Log.d(TAG, "signIn: got ID token, signing into Firebase...")
-                    val firebaseCredential = GoogleAuthProvider.getCredential(credential.idToken, null)
+                    val firebaseCredential = GoogleAuthProvider.getCredential(googleIdTokenCredential.idToken, null)
 
                     try {
                         firebaseAuth.signInWithCredential(firebaseCredential).await()
                         val firebaseUser = firebaseAuth.currentUser
 
                         val settings = settingsManager.settings.value
-                        val firstName = credential.givenName ?: credential.displayName ?: firebaseUser?.displayName ?: "User"
+                        val firstName = googleIdTokenCredential.givenName ?: googleIdTokenCredential.displayName ?: firebaseUser?.displayName ?: "User"
                         Log.d(TAG, "signIn: Firebase success user=$firstName")
 
                         settingsManager.saveSettings(settings.copy(

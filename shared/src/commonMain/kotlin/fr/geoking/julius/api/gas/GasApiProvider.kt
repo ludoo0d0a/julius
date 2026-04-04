@@ -18,7 +18,7 @@ import io.ktor.client.HttpClient
 class GasApiProvider(
     private val client: HttpClient,
     private val radiusKm: Int = 10,
-    private val limit: Int = 20
+    private val limit: Int = 100
 ) : PoiProvider {
 
     private val gasApiClient = GasApiClient(client)
