@@ -75,21 +75,21 @@ val mapModule = module {
         RoutexProvider(get(), radiusKm = 5)
     }
     single<PoiProvider>(named("datagouvprixcarburant")) {
-        DataGouvPrixCarburantProvider(get(), radiusKm = 10, limit = 100)
+        DataGouvPrixCarburantProvider(get(), radiusKm = 10, limit = 500)
     }
     single<PoiProvider>(named("gasapi")) {
-        GasApiProvider(get(), radiusKm = 10, limit = 20)
+        GasApiProvider(get(), radiusKm = 10, limit = 100)
     }
     single<PoiProvider>(named("datagouv")) {
         DataGouvProvider(
             client = get(),
             radiusKm = 10,
-            limit = 100,
+            limit = 500,
             gasApiClient = GasApiClient(get())
         )
     }
     single<PoiProvider>(named("datagouvelec")) {
-        DataGouvElecProvider(get(), radiusKm = 10, limit = 100)
+        DataGouvElecProvider(get(), radiusKm = 10, limit = 500)
     }
     single<OpenChargeMapClient> {
         OpenChargeMapClient(get(), apiKey = get<fr.geoking.julius.SettingsManager>().settings.value.openChargeMapKey.ifBlank { null })

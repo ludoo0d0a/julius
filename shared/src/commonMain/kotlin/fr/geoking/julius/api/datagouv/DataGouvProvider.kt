@@ -24,7 +24,7 @@ import io.ktor.client.HttpClient
 class DataGouvProvider(
     private val client: HttpClient,
     private val radiusKm: Int = 10,
-    private val limit: Int = 100,
+    private val limit: Int = 500,
     private val gasApiClient: GasApiClient? = null
 ) : PoiProvider {
 
