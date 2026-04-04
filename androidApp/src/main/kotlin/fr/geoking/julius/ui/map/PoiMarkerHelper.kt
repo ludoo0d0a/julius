@@ -199,7 +199,7 @@ object PoiMarkerHelper {
         return "${k}kW"
     }
 
-    private fun getPoiLabel(
+    internal fun getPoiLabel(
         poi: Poi,
         effectiveEnergyTypes: Set<String>,
         effectivePowerLevels: Set<Int>
@@ -213,32 +213,22 @@ object PoiMarkerHelper {
         val isHybrid = poi.isElectric && !poi.fuelPrices.isNullOrEmpty()
         val hasAnyIrveFilter = hasElectricInFilter || hasPowerFilter
 
-        // Priority 1: Fuel (if fuel filter is active, or if no filters are active on a hybrid station)
-        if (category == PoiCategory.Gas || isHybrid) {
+        // Priority 1: Fuel
+        if (hasFuelFilter && (category == PoiCategory.Gas || isHybrid)) {
             val prices = poi.fuelPrices
             if (!prices.isNullOrEmpty()) {
-                val matchingPrices = if (hasFuelFilter) {
-                    prices.filter { !it.outOfStock && MapPoiFilter.fuelNameToId(it.fuelName) in fuelIds }
-                } else if (!hasAnyIrveFilter) {
-                    // No fuel filter AND no IRVE filter (default view): show cheapest overall
-                    prices.filter { !it.outOfStock }
-                } else {
-                    // IRVE filter active but no fuel filter: don't show price for hybrid yet
-                    emptyList()
-                }
-
+                val matchingPrices = prices.filter { !it.outOfStock && MapPoiFilter.fuelNameToId(it.fuelName) in fuelIds }
                 val bestPrice = matchingPrices.minByOrNull { it.price }?.price
                 if (bestPrice != null) return "€%.2f".format(bestPrice)
             }
         }
 
         // Priority 2: IRVE
-        if (category == PoiCategory.Irve || (isHybrid && hasAnyIrveFilter)) {
+        if (hasAnyIrveFilter && (category == PoiCategory.Irve || isHybrid)) {
             val power = poi.powerKw
             if (power != null) {
                 val matches = (hasElectricInFilter && !hasPowerFilter) || (hasPowerFilter && MapPoiFilter.powerMatchesAnyLevel(power, effectivePowerLevels))
-                val noFiltersAtAll = !hasFuelFilter && !hasAnyIrveFilter
-                if (matches || (noFiltersAtAll && !isHybrid)) {
+                if (matches) {
                     return formatIrvePowerLabel(power)
                 }
             }
