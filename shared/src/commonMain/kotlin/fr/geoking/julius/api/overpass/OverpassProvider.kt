@@ -16,7 +16,7 @@ import fr.geoking.julius.poi.RestaurantDetails
 class OverpassProvider(
     private val client: OverpassClient,
     private val radiusKm: Int = 5,
-    private val limit: Int = 100
+    private val limit: Int = 200
 ) : PoiProvider {
 
     override fun supportedCategories(): Set<PoiCategory> = setOf(
