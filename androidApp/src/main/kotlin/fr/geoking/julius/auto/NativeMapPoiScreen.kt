@@ -113,6 +113,21 @@ class NativeMapPoiScreen(
             )
             .build()
 
+        val anchorPlace = Place.Builder(CarLocation.create(searchLat, searchLon))
+            .setMarker(PlaceMarker.Builder().build())
+            .build()
+
+        // PlaceListMapTemplate: loading and item list are mutually exclusive (see Builder.build()).
+        if (isLoading) {
+            return PlaceListMapTemplate.Builder()
+                .setTitle("Nearby POIs")
+                .setHeaderAction(Action.BACK)
+                .setActionStrip(actionStrip)
+                .setLoading(true)
+                .setAnchor(anchorPlace)
+                .build()
+        }
+
         val itemListBuilder = ItemList.Builder()
             .setNoItemsMessage("No POIs found")
 
@@ -141,15 +156,11 @@ class NativeMapPoiScreen(
             )
         }
 
-        val anchorPlace = Place.Builder(CarLocation.create(searchLat, searchLon))
-            .setMarker(PlaceMarker.Builder().build())
-            .build()
-
         return PlaceListMapTemplate.Builder()
             .setTitle("Nearby POIs")
             .setHeaderAction(Action.BACK)
             .setActionStrip(actionStrip)
-            .setLoading(isLoading)
+            .setLoading(false)
             .setItemList(itemListBuilder.build())
             .setAnchor(anchorPlace)
             .build()

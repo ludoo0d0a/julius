@@ -38,6 +38,37 @@ class AutoTemplateLabScreen(
         isElectric = true
     )
 
+    /** Map module load can fail (logged as VoiceSession); explain instead of a no-op tap. */
+    private fun withMapDeps(block: (MapDeps) -> Unit) {
+        val mapDeps = getMapDeps()
+        if (mapDeps == null) {
+            screenManager.push(
+                object : Screen(carContext) {
+                    override fun onGetTemplate(): Template =
+                        MessageTemplate.Builder(
+                            "Map dependencies failed to load. Check log tag VoiceSession. " +
+                                "Opening the map on the phone once usually loads the map module; then retry."
+                        )
+                            .setHeader(
+                                Header.Builder()
+                                    .setTitle("Map unavailable")
+                                    .setStartHeaderAction(Action.BACK)
+                                    .build()
+                            )
+                            .addAction(
+                                Action.Builder()
+                                    .setTitle("OK")
+                                    .setOnClickListener { screenManager.pop() }
+                                    .build()
+                            )
+                            .build()
+                }
+            )
+            return
+        }
+        block(mapDeps)
+    }
+
     override fun onGetTemplate(): Template {
         val listBuilder = ItemList.Builder()
 
@@ -86,17 +117,18 @@ class AutoTemplateLabScreen(
                 .setTitle("Native map POI")
                 .addText("MapWithContent / place list map")
                 .setOnClickListener {
-                    val mapDeps = getMapDeps() ?: return@setOnClickListener
-                    screenManager.push(
-                        NativeMapPoiScreen(
-                            carContext = carContext,
-                            poiProvider = mapDeps.poiProvider,
-                            availabilityProviderFactory = mapDeps.availabilityProviderFactory,
-                            settingsManager = settingsManager,
-                            communityRepo = mapDeps.communityRepo,
-                            favoritesRepo = mapDeps.favoritesRepo
+                    withMapDeps { mapDeps ->
+                        screenManager.push(
+                            NativeMapPoiScreen(
+                                carContext = carContext,
+                                poiProvider = mapDeps.poiProvider,
+                                availabilityProviderFactory = mapDeps.availabilityProviderFactory,
+                                settingsManager = settingsManager,
+                                communityRepo = mapDeps.communityRepo,
+                                favoritesRepo = mapDeps.favoritesRepo
+                            )
                         )
-                    )
+                    }
                 }
                 .build()
         )
@@ -106,22 +138,23 @@ class AutoTemplateLabScreen(
                 .setTitle("Custom map (pan)")
                 .addText("Surface / custom tiles")
                 .setOnClickListener {
-                    val mapDeps = getMapDeps() ?: return@setOnClickListener
-                    screenManager.push(
-                        CustomMapPoiScreen(
-                            carContext = carContext,
-                            poiProvider = mapDeps.poiProvider,
-                            availabilityProviderFactory = mapDeps.availabilityProviderFactory,
-                            settingsManager = settingsManager,
-                            routePlanner = mapDeps.routePlanner,
-                            routingClient = mapDeps.routingClient,
-                            tollCalculator = mapDeps.tollCalculator,
-                            trafficProviderFactory = mapDeps.trafficProviderFactory,
-                            geocodingClient = mapDeps.geocodingClient,
-                            communityRepo = mapDeps.communityRepo,
-                            favoritesRepo = mapDeps.favoritesRepo
+                    withMapDeps { mapDeps ->
+                        screenManager.push(
+                            CustomMapPoiScreen(
+                                carContext = carContext,
+                                poiProvider = mapDeps.poiProvider,
+                                availabilityProviderFactory = mapDeps.availabilityProviderFactory,
+                                settingsManager = settingsManager,
+                                routePlanner = mapDeps.routePlanner,
+                                routingClient = mapDeps.routingClient,
+                                tollCalculator = mapDeps.tollCalculator,
+                                trafficProviderFactory = mapDeps.trafficProviderFactory,
+                                geocodingClient = mapDeps.geocodingClient,
+                                communityRepo = mapDeps.communityRepo,
+                                favoritesRepo = mapDeps.favoritesRepo
+                            )
                         )
-                    )
+                    }
                 }
                 .build()
         )
@@ -131,17 +164,18 @@ class AutoTemplateLabScreen(
                 .setTitle("Route planning")
                 .addText("Same as dashboard Routes")
                 .setOnClickListener {
-                    val mapDeps = getMapDeps() ?: return@setOnClickListener
-                    screenManager.push(
-                        AutoRoutePlanningScreen(
-                            carContext = carContext,
-                            routePlanner = mapDeps.routePlanner,
-                            routingClient = mapDeps.routingClient,
-                            poiProvider = mapDeps.poiProvider,
-                            geocodingClient = mapDeps.geocodingClient,
-                            settingsManager = settingsManager
+                    withMapDeps { mapDeps ->
+                        screenManager.push(
+                            AutoRoutePlanningScreen(
+                                carContext = carContext,
+                                routePlanner = mapDeps.routePlanner,
+                                routingClient = mapDeps.routingClient,
+                                poiProvider = mapDeps.poiProvider,
+                                geocodingClient = mapDeps.geocodingClient,
+                                settingsManager = settingsManager
+                            )
                         )
-                    )
+                    }
                 }
                 .build()
         )
