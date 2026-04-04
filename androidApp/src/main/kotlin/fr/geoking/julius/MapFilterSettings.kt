@@ -18,7 +18,8 @@ fun AppSettings.effectiveMapEnergyFilterIds(): Set<String> =
 fun AppSettings.effectiveFuelBrandFilterIds(): Set<String> =
     if (useVehicleFilter) {
         if (fuelCard == FuelCard.Routex && (vehicleEnergy == "gas" || vehicleEnergy == "hybrid")) {
-            setOf("esso", "eni", "total", "shell", "aral", "totalenergies")
+            // Official Routex alliance partners and common partners
+            setOf("esso", "eni", "total", "shell", "aral", "totalenergies", "bp", "omv", "circle k", "texaco", "g&v", "avia")
         } else {
             emptySet()
         }
@@ -42,7 +43,10 @@ fun AppSettings.effectiveIrveOperatorFilter(): Set<String> =
 
 fun AppSettings.effectiveProviders(): Set<PoiProviderType> {
     return if (useVehicleFilter && fuelCard == FuelCard.Routex && (vehicleEnergy == "gas" || vehicleEnergy == "hybrid")) {
-        setOf(PoiProviderType.Routex)
+        // For Routex, we must include Routex provider, but we don't want to hide other
+        // selected non-fuel providers (like IRVE or Overpass) that the user might need.
+        val nonFuelProviders = selectedPoiProviders.filter { !it.providesFuel }.toSet()
+        nonFuelProviders + PoiProviderType.Routex
     } else {
         selectedPoiProviders
     }
@@ -75,7 +79,11 @@ object StationMapFilters {
             val brandIds = filterBrands.map { it.lowercase() }.toSet()
             result = result.filter { poi ->
                 val b = poi.brand
-                poi.isElectric ||
+                // Hybrid stations (both gas and electric) should still be checked against the brand filter
+                // if it's active, while pure electric stations are exempted.
+                val isPureElectric = poi.isElectric && poi.fuelPrices.isNullOrEmpty()
+
+                isPureElectric ||
                     b == null || // Don't filter out unknown brands (e.g. from OpenVanCamp / OSM)
                     brandIds.any { id -> b.lowercase().contains(id) }
             }
