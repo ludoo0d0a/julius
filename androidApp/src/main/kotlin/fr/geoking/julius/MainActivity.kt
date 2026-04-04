@@ -40,7 +40,6 @@ import fr.geoking.julius.di.MapDeps
 import fr.geoking.julius.di.MapModuleLoader
 import fr.geoking.julius.ui.JulesScreen
 import fr.geoking.julius.ui.MapScreen
-import fr.geoking.julius.ui.MapSettingsScreen
 import fr.geoking.julius.ui.PhoneMainScreen
 import fr.geoking.julius.ui.PhoneNetworkLocationScreen
 import fr.geoking.julius.ui.PhonePlaystoreHomeScreen
@@ -331,7 +330,7 @@ fun MainUI(
     /** Play Store flavor uses a dashboard home first; full flavor starts on the voice screen. */
     var showMap by remember { mutableStateOf(false) }
     var showPlaystoreNetworkInfo by remember { mutableStateOf(false) }
-    var showPlaystoreMapSettings by remember { mutableStateOf(false) }
+    var showPlaystoreSettings by remember { mutableStateOf(false) }
     var showRoutePlanning by remember { mutableStateOf(false) }
     var initialNavDestination by remember { mutableStateOf<NavDestination?>(null) }
     var settingsInitialStack by remember { mutableStateOf<List<SettingsScreenPage>?>(null) }
@@ -414,14 +413,14 @@ fun MainUI(
                         onBack = { showPlaystoreNetworkInfo = false }
                     )
                 }
-                isPlaystoreDistribution && showPlaystoreMapSettings -> {
-                    BackHandler { showPlaystoreMapSettings = false }
-                    PlaystoreLightTheme {
-                        MapSettingsScreen(
-                            settingsManager = settingsManager,
-                            onDismiss = { showPlaystoreMapSettings = false }
-                        )
-                    }
+                isPlaystoreDistribution && showPlaystoreSettings -> {
+                    BackHandler { showPlaystoreSettings = false }
+                    SettingsScreen(
+                        settingsManager = settingsManager,
+                        authManager = authManager,
+                        errorLog = state.errorLog,
+                        onDismiss = { showPlaystoreSettings = false }
+                    )
                 }
                 isPlaystoreDistribution && showMap && showRoutePlanning && mapDeps != null -> {
                     RoutePlanningScreen(
@@ -448,6 +447,7 @@ fun MainUI(
                         availabilityProviderFactory = mapDeps!!.availabilityProviderFactory,
                         trafficProviderFactory = mapDeps!!.trafficProviderFactory,
                         settingsManager = settingsManager,
+                        authManager = authManager,
                         store = store,
                         palette = palette,
                         onBack = { showMap = false },
@@ -466,7 +466,7 @@ fun MainUI(
                             showMap = true
                         },
                         onOpenNetworkDiagnostics = { showPlaystoreNetworkInfo = true },
-                        onOpenMapSettings = { showPlaystoreMapSettings = true }
+                        onOpenSettings = { showPlaystoreSettings = true }
                     )
                 }
                 showSettings && !isPlaystoreDistribution -> {
@@ -503,6 +503,7 @@ fun MainUI(
                             availabilityProviderFactory = mapDeps!!.availabilityProviderFactory,
                             trafficProviderFactory = mapDeps!!.trafficProviderFactory,
                             settingsManager = settingsManager,
+                            authManager = authManager,
                             store = store,
                             palette = palette,
                             onBack = { showMap = false },
@@ -670,11 +671,14 @@ fun MainUIPreview() {
 @Composable
 private fun MapScreenPreview() {
     val mockSettingsManager = rememberMockSettingsManager()
+    val mockStore = rememberMockStore()
+    val context = LocalContext.current
     MapScreen(
         poiProvider = remember { MockPoiProvider() },
         availabilityProviderFactory = null,
         settingsManager = mockSettingsManager,
-        store = rememberMockStore(),
+        authManager = GoogleAuthManager(context, mockSettingsManager, { mockStore }, FirebaseAuth.getInstance()),
+        store = mockStore,
         palette = AnimationPalettes.paletteFor(0),
         onBack = {}
     )

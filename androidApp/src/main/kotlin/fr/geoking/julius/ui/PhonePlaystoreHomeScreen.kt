@@ -87,7 +87,7 @@ fun PhonePlaystoreHomeScreen(
     onOpenMap: () -> Unit,
     onOpenRoutes: () -> Unit,
     onOpenNetworkDiagnostics: () -> Unit,
-    onOpenMapSettings: () -> Unit
+    onOpenSettings: () -> Unit
 ) {
     val rows = listOf(
         DashboardRow(
@@ -122,10 +122,10 @@ fun PhonePlaystoreHomeScreen(
             onClick = onOpenNetworkDiagnostics
         ),
         DashboardRow(
-            title = "Map settings",
-            subtitle = "Data sources, traffic, vehicle",
+            title = "Settings",
+            subtitle = "AI, theme, map, vehicle",
             icon = Icons.Default.Settings,
-            onClick = onOpenMapSettings
+            onClick = onOpenSettings
         )
     )
 
