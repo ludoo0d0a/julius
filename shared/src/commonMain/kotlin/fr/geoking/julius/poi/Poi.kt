@@ -233,6 +233,7 @@ data class PoiSearchResult(
 data class PoiProviderError(
     val providerName: String,
     val message: String,
+    val httpCode: Int? = null,
     val isCritical: Boolean = false
 )
 
@@ -300,7 +301,16 @@ interface PoiProvider {
             PoiSearchResult(pois = pois)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            PoiSearchResult(errors = listOf(PoiProviderError(providerName = this::class.simpleName ?: "Unknown Provider", message = e.message ?: "Unknown error")))
+            val code = (e as? fr.geoking.julius.shared.network.NetworkException)?.httpCode
+            PoiSearchResult(
+                errors = listOf(
+                    PoiProviderError(
+                        providerName = this::class.simpleName ?: "Unknown Provider",
+                        message = e.message ?: "Unknown error",
+                        httpCode = code
+                    )
+                )
+            )
         }
     }
 

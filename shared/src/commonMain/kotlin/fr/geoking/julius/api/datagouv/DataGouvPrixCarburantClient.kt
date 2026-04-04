@@ -53,9 +53,10 @@ class DataGouvPrixCarburantClient(
         radiusKm: Int = 10,
         limit: Int = 100
     ): List<DataGouvPrixCarburantStation> {
+        val effectiveLimit = limit.coerceIn(1, 100)
         val where = "within_distance(geom, geom'POINT($longitude $latitude)', ${radiusKm}km)"
         val encodedWhere = where.encodeURLParameter()
-        val url = "$baseUrl/records?where=$encodedWhere&limit=$limit"
+        val url = "$baseUrl/records?where=$encodedWhere&limit=$effectiveLimit"
 
         val response = client.get(url)
         val body = response.bodyAsText()
