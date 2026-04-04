@@ -256,4 +256,54 @@ class PoiProviderRealApiTests {
             client.close()
         }
     }
+
+    @Test
+    fun testTotalStationPresenceAtSaintJulienLesMetz() = runBlocking {
+        val client = createHttpClient()
+        try {
+            val saintJulienLat = 49.127
+            val saintJulienLon = 6.189
+            val providers = listOf(
+                DataGouvPrixCarburantProvider(client),
+                DataGouvProvider(client)
+            )
+
+            println("Checking presence of 'Relais Des 4 Chemins' at Saint-Julien-lès-Metz...")
+
+            var foundInAny = false
+            for (provider in providers) {
+                val providerName = provider::class.simpleName
+                val pois = provider.getGasStations(saintJulienLat, saintJulienLon)
+                println("Provider $providerName returned ${pois.size} stations")
+
+                // Target the specific station at "Rue de l'Abattoir" or matching "Relais Des 4 Chemins"
+                val matches = pois.filter { poi ->
+                    (poi.name.contains("Relais Des 4 Chemins", ignoreCase = true) ||
+                     poi.address.contains("Abattoir", ignoreCase = true)) &&
+                    (poi.brand?.contains("Total", ignoreCase = true) == true ||
+                     poi.name.contains("Total", ignoreCase = true) ||
+                     poi.name.contains("Route", ignoreCase = true) ||
+                     poi.name.contains("Station", ignoreCase = true))
+                }
+
+                if (matches.isNotEmpty()) {
+                    foundInAny = true
+                    println("✅ Found ${matches.size} match(es) in $providerName:")
+                    matches.forEach { match ->
+                        println("   - ID: ${match.id}")
+                        println("     Name: ${match.name}")
+                        println("     Brand: ${match.brand}")
+                        println("     Address: ${match.address}")
+                        println("     Fuels: ${match.fuelPrices?.joinToString { "${it.fuelName}: ${it.price}" } ?: "None"}")
+                    }
+                } else {
+                    println("❌ No match found in $providerName")
+                }
+            }
+
+            assertTrue(foundInAny, "Station 'Relais Des 4 Chemins' (Total) at 'Rue de l'Abattoir' should be present in at least one DataGouv provider")
+        } finally {
+            client.close()
+        }
+    }
 }
