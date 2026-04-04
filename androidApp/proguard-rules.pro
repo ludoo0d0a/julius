@@ -101,3 +101,10 @@
 # ---------------------------------------------------------------------------
 -keep class com.google.ai.edge.litertlm.** { *; }
 -dontwarn com.google.ai.edge.litertlm.**
+
+# ---------------------------------------------------------------------------
+# Google Auth / Credentials
+# -------------------------------- =------------------------------------------
+-keep class com.google.android.libraries.identity.googleid.** { *; }
+-keep class androidx.credentials.** { *; }
+-dontwarn androidx.credentials.**
