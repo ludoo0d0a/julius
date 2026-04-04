@@ -62,30 +62,6 @@ class AutoMapSettingsScreen(
                 .build()
         )
 
-        listBuilder.addItem(
-            Row.Builder()
-                .setTitle("General Filters")
-                .addText("Energy, Brands, Enseigne, Services")
-                .setOnClickListener {
-                    screenManager.push(AutoGeneralFiltersScreen(carContext, settingsManager))
-                }
-                .build()
-        )
-
-        val isAdvancedActive =
-            settings.selectedPoiProviders.anyProvidesElectric() ||
-                settings.selectedPoiProviders.contains(PoiProviderType.Overpass)
-        if (isAdvancedActive) {
-            listBuilder.addItem(
-                Row.Builder()
-                    .setTitle("Advanced Filters")
-                    .addText("EV details or POI types")
-                    .setOnClickListener {
-                        screenManager.push(AutoAdvancedFiltersScreen(carContext, settingsManager))
-                    }
-                    .build()
-            )
-        }
 
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())

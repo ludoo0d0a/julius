@@ -503,7 +503,7 @@ fun MapScreen(
             authManager = authManager,
             errorLog = store.state.value.errorLog,
             onDismiss = { showMapSettings = false },
-            initialScreenStack = listOf(SettingsScreenPage.Main, SettingsScreenPage.MapConfig)
+            initialScreenStack = listOf(SettingsScreenPage.MapConfig)
         )
         return
     }
