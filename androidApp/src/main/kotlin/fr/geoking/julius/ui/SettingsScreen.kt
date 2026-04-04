@@ -48,6 +48,8 @@ import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.SpeakingInterruptMode
 import fr.geoking.julius.feature.auth.GoogleAuthManager
 import fr.geoking.julius.poi.PoiProviderType
+import fr.geoking.julius.poi.anyProvidesElectric
+import fr.geoking.julius.poi.isUserSelectablePoiDataSource
 import fr.geoking.julius.TextAnimation
 import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.shared.conversation.ConversationStore
@@ -79,6 +81,7 @@ enum class SettingsScreenPage {
     TollData,
     ErrorLog,
     VehicleConfig,
+    MapConfig,
     About
 }
 
@@ -186,6 +189,7 @@ fun SettingsScreen(
                     SettingsScreenPage.About -> "About"
                     SettingsScreenPage.GoogleAccount -> "Google Account"
                     SettingsScreenPage.VehicleConfig -> "Vehicle"
+                    SettingsScreenPage.MapConfig -> "Map Settings"
                 },
                 onBack = {
                     if (screenStack.size > 1) {
@@ -269,6 +273,200 @@ fun SettingsScreen(
                         authManager = authManager,
                         firebaseAuth = com.google.firebase.auth.FirebaseAuth.getInstance()
                     )
+                    SettingsScreenPage.MapConfig -> MapConfig(
+                        settings = current,
+                        onUpdate = { save(settingsManager, it) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MapConfig(
+    settings: AppSettings,
+    onUpdate: (AppSettings) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        // Data Sources
+        Column {
+            Text("Data Sources", color = Lavender, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
+
+            Text("Electric", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+            FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    PoiProviderType.DataGouvElec to "data.gouv (IRVE)",
+                    PoiProviderType.Chargy to "Chargy",
+                    PoiProviderType.OpenChargeMap to "OpenChargeMap"
+                ).forEach { (type, label) ->
+                    FilterChip(
+                        selected = settings.selectedPoiProviders.contains(type),
+                        onClick = {
+                            val next = if (settings.selectedPoiProviders.contains(type)) settings.selectedPoiProviders - type else settings.selectedPoiProviders + type
+                            onUpdate(settings.copy(selectedPoiProviders = next))
+                        },
+                        label = { Text(label) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Lavender,
+                            selectedLabelColor = DeepPurple,
+                            labelColor = Color.White,
+                            containerColor = Color.White.copy(alpha = 0.1f)
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("Fuel", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+            FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    PoiProviderType.Routex to "Routex",
+                    PoiProviderType.Etalab to "Prix carburant (instantané)",
+                    PoiProviderType.GasApi to "GasApi",
+                    PoiProviderType.DataGouv to "data.gouv (Fuel)",
+                    PoiProviderType.OpenVanCamp to "OpenVan.camp (LU)",
+                    PoiProviderType.SpainMinetur to "Spain Minetur",
+                    PoiProviderType.GermanyTankerkoenig to "Tankerkönig",
+                    PoiProviderType.AustriaEControl to "E-Control"
+                ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }.forEach { (type, label) ->
+                    FilterChip(
+                        selected = settings.selectedPoiProviders.contains(type),
+                        onClick = {
+                            val next = if (settings.selectedPoiProviders.contains(type)) settings.selectedPoiProviders - type else settings.selectedPoiProviders + type
+                            onUpdate(settings.copy(selectedPoiProviders = next))
+                        },
+                        label = { Text(label) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Lavender,
+                            selectedLabelColor = DeepPurple,
+                            labelColor = Color.White,
+                            containerColor = Color.White.copy(alpha = 0.1f)
+                        )
+                    )
+                }
+            }
+        }
+
+        // Traffic
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Show Traffic", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+                Text("Google traffic layer", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp)
+            }
+            Switch(
+                checked = settings.mapTrafficEnabled,
+                onCheckedChange = { onUpdate(settings.copy(mapTrafficEnabled = it)) },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Lavender,
+                    checkedTrackColor = DeepPurple,
+                    uncheckedThumbColor = Color.Gray,
+                    uncheckedTrackColor = Color.DarkGray
+                )
+            )
+        }
+
+        // General Filters
+        Column {
+            Text("General Filters", color = Lavender, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
+
+            Text("Energy Types", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+            FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MAP_ENERGY_OPTIONS.filter { it.first != "electric" }.forEach { (id, label) ->
+                    FilterChip(
+                        selected = settings.selectedMapEnergyTypes.contains(id),
+                        onClick = {
+                            val next = if (settings.selectedMapEnergyTypes.contains(id)) settings.selectedMapEnergyTypes - id else settings.selectedMapEnergyTypes + id
+                            onUpdate(settings.copy(selectedMapEnergyTypes = next))
+                        },
+                        label = { Text(label) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Lavender,
+                            selectedLabelColor = DeepPurple,
+                            labelColor = Color.White,
+                            containerColor = Color.White.copy(alpha = 0.1f)
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("Brands", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+            FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                BrandHelper.getGasBrands().forEach { (id, label) ->
+                    FilterChip(
+                        selected = settings.mapBrands.contains(id),
+                        onClick = {
+                            val next = if (settings.mapBrands.contains(id)) settings.mapBrands - id else settings.mapBrands + id
+                            onUpdate(settings.copy(mapBrands = next))
+                        },
+                        label = { Text(label) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Lavender,
+                            selectedLabelColor = DeepPurple,
+                            labelColor = Color.White,
+                            containerColor = Color.White.copy(alpha = 0.1f)
+                        )
+                    )
+                }
+            }
+        }
+
+        // EV Specific
+        if (settings.selectedPoiProviders.anyProvidesElectric()) {
+            Column {
+                Text("EV Filters", color = Lavender, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
+
+                Text("Operators", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+                FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    BrandHelper.getElectricBrands().forEach { (id, label) ->
+                        FilterChip(
+                            selected = settings.mapIrveOperators.contains(id),
+                            onClick = {
+                                val next = if (settings.mapIrveOperators.contains(id)) settings.mapIrveOperators - id else settings.mapIrveOperators + id
+                                onUpdate(settings.copy(mapIrveOperators = next))
+                            },
+                            label = { Text(label) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Lavender,
+                                selectedLabelColor = DeepPurple,
+                                labelColor = Color.White,
+                                containerColor = Color.White.copy(alpha = 0.1f)
+                            )
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("Power Range", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+                FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MAP_IRVE_POWER_OPTIONS.forEach { (id, label) ->
+                        FilterChip(
+                            selected = settings.mapPowerLevels.contains(id),
+                            onClick = {
+                                val next = if (settings.mapPowerLevels.contains(id)) settings.mapPowerLevels - id else settings.mapPowerLevels + id
+                                onUpdate(settings.copy(mapPowerLevels = next))
+                            },
+                            label = { Text(label) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Lavender,
+                                selectedLabelColor = DeepPurple,
+                                labelColor = Color.White,
+                                containerColor = Color.White.copy(alpha = 0.1f)
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -406,6 +604,11 @@ private fun MainMenu(
             label = "Vehicle",
             value = if (settings.vehicleBrand.isNotEmpty()) "${settings.vehicleBrand} ${settings.vehicleModel}" else "Not configured",
             onClick = { onNavigate(SettingsScreenPage.VehicleConfig) }
+        )
+        SettingsItem(
+            label = "Map",
+            value = "Data sources, traffic, filters",
+            onClick = { onNavigate(SettingsScreenPage.MapConfig) }
         )
         SettingsItem(
             label = "STT engine (car)",
