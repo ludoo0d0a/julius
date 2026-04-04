@@ -299,15 +299,20 @@ fun MapScreen(
                 }
 
                 val sel = selectedPoi!!
-                val listWithSelected = if (currentPois.any { it.id == sel.id }) {
-                    currentPois
-                } else {
-                    listOf(sel) + currentPois
+                val others = currentPois.filter { it.id != sel.id }.toMutableList()
+                val sorted = mutableListOf(sel)
+
+                var current = sel
+                while (others.isNotEmpty()) {
+                    val next = others.minBy { p ->
+                        approxDistanceKm(current.latitude, current.longitude, p.latitude, p.longitude)
+                    }
+                    sorted.add(next)
+                    others.remove(next)
+                    current = next
                 }
 
-                frozenPoisForSheet = listWithSelected.sortedBy { p: Poi ->
-                    approxDistanceKm(sel.latitude, sel.longitude, p.latitude, p.longitude)
-                }
+                frozenPoisForSheet = sorted
             }
         } else {
             frozenPoisForSheet = emptyList()
