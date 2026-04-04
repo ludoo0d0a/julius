@@ -199,7 +199,7 @@ class CustomMapPoiScreen(
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("CustomMapPoiScreen", "getGasStations failed", e)
                 pois = emptyList()
-                errors = listOf(PoiProviderError("System", e.message ?: "Unknown error", true))
+                errors = listOf(PoiProviderError("System", e.message ?: "Unknown error", isCritical = true))
                 availabilityByPoiId = emptyMap()
             }
             isLoading = false
