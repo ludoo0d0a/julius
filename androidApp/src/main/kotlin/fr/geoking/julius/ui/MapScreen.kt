@@ -179,6 +179,7 @@ fun MapScreen(
     var showFavoritesOnly by remember { mutableStateOf(false) }
     var favoriteIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var isLoading by remember { mutableStateOf(false) }
+    var frozenPoisForSheet by remember { mutableStateOf<List<Poi>>(emptyList()) }
 
     var hasLocationPermission by remember {
         mutableStateOf(
@@ -234,6 +235,7 @@ fun MapScreen(
     }
 
     val effectiveProviders = settings.effectiveProviders()
+
     val poiFetchKey = remember(
         effectiveProviders,
         settings.useVehicleFilter,
@@ -256,6 +258,65 @@ fun MapScreen(
     // POI cache metadata: used for TTL + bounded cache size.
     val poiSeenAtMs = remember { mutableStateMapOf<String, Long>() }
     var lastCacheKey by remember { mutableStateOf<String?>(null) }
+
+    val poisInView = remember(cachedPois, cameraPositionState.position.target, cameraPositionState.position.zoom, mapSizePx, settings, effectiveProviders) {
+        val center = cameraPositionState.position.target
+        val zoom = cameraPositionState.position.zoom
+        val displayRadiusKm = if (mapSizePx.width > 0 && mapSizePx.height > 0) {
+            radiusKmFromMapViewport(
+                center.latitude,
+                center.longitude,
+                zoom,
+                mapSizePx.width,
+                mapSizePx.height
+            ).coerceIn(1, 50)
+        } else 0
+
+        val raw = if (displayRadiusKm > 0) {
+            cachedPois.filter { poi ->
+                approxDistanceKm(center.latitude, center.longitude, poi.latitude, poi.longitude) <= displayRadiusKm * 1.05
+            }
+        } else {
+            cachedPois
+        }
+
+        StationMapFilters.apply(
+            settings = settings,
+            pois = raw,
+            providers = effectiveProviders,
+            skipWhenOnlyOverpass = true
+        )
+    }
+
+    LaunchedEffect(selectedPoi, poisInView) {
+        if (selectedPoi != null) {
+            if (frozenPoisForSheet.isEmpty()) {
+                val currentPois = if (showFavoritesOnly && favoriteIds.isNotEmpty()) {
+                    poisInView.filter { it.id in favoriteIds }
+                } else {
+                    poisInView
+                }
+
+                val sel = selectedPoi!!
+                val others = currentPois.filter { it.id != sel.id }.toMutableList()
+                val sorted = mutableListOf(sel)
+
+                var current = sel
+                while (others.isNotEmpty()) {
+                    val next = others.minBy { p ->
+                        approxDistanceKm(current.latitude, current.longitude, p.latitude, p.longitude)
+                    }
+                    sorted.add(next)
+                    others.remove(next)
+                    current = next
+                }
+
+                frozenPoisForSheet = sorted
+            }
+        } else {
+            frozenPoisForSheet = emptyList()
+        }
+    }
 
     LaunchedEffect(poiFetchKey, mapSizePx, retryCount) {
         val currentCacheKey = "$poiFetchKey|size=${mapSizePx.width}x${mapSizePx.height}"
@@ -280,7 +341,7 @@ fun MapScreen(
         snapshotFlow { cameraPositionState.position }
             .debounce(350)
             .collectLatest { position ->
-                if (isErrorPaused) return@collectLatest
+                if (isErrorPaused || selectedPoi != null) return@collectLatest
 
                 val centerLat = position.target.latitude
                 val centerLng = position.target.longitude
@@ -714,41 +775,16 @@ fun MapScreen(
                     val zoom = cameraPositionState.position.zoom
                     val sizePx = remember(zoom) { markerSizePxForZoom(zoom) }
 
-                    val center = cameraPositionState.position.target
-                    val displayRadiusKm = if (mapSizePx.width > 0 && mapSizePx.height > 0) {
-                        radiusKmFromMapViewport(
-                            center.latitude,
-                            center.longitude,
-                            zoom,
-                            mapSizePx.width,
-                            mapSizePx.height
-                        ).coerceIn(1, 50)
-                    } else 0
-
-                    val poisInViewRaw = remember(cachedPois, center, displayRadiusKm) {
-                        if (displayRadiusKm > 0) {
-                            cachedPois.filter { poi ->
-                                approxDistanceKm(center.latitude, center.longitude, poi.latitude, poi.longitude) <= displayRadiusKm * 1.05
-                            }
-                        } else {
-                            cachedPois
-                        }
-                    }
-
-                    val poisInView = remember(poisInViewRaw, settings, effectiveProviders) {
-                        StationMapFilters.apply(
-                            settings = settings,
-                            pois = poisInViewRaw,
-                            providers = effectiveProviders,
-                            skipWhenOnlyOverpass = true
-                        )
-                    }
-
                     val effectiveEnergies = settings.effectiveMapEnergyFilterIds()
                     val effectivePowerLevels = settings.effectiveIrvePowerLevels()
 
-                    val poisToShow =
-                        if (showFavoritesOnly && favoriteIds.isNotEmpty()) poisInView.filter { it.id in favoriteIds } else poisInView
+                    val poisToShow = if (frozenPoisForSheet.isNotEmpty()) {
+                        frozenPoisForSheet
+                    } else if (showFavoritesOnly && favoriteIds.isNotEmpty()) {
+                        poisInView.filter { it.id in favoriteIds }
+                    } else {
+                        poisInView
+                    }
                     poisToShow.forEach { poi ->
                         val availability = availabilityByPoiId[poi.id]
                         val isPoiSelected = selectedPoi?.id == poi.id
@@ -819,41 +855,7 @@ fun MapScreen(
     }
 
     if (selectedPoi != null) {
-        val center = cameraPositionState.position.target
-        val displayRadiusKm = if (mapSizePx.width > 0 && mapSizePx.height > 0) {
-            radiusKmFromMapViewport(
-                center.latitude,
-                center.longitude,
-                cameraPositionState.position.zoom,
-                mapSizePx.width,
-                mapSizePx.height
-            ).coerceIn(1, 50)
-        } else 0
-
-        val poisInViewRaw = remember(cachedPois, center, displayRadiusKm) {
-            if (displayRadiusKm > 0) {
-                cachedPois.filter { poi ->
-                    approxDistanceKm(center.latitude, center.longitude, poi.latitude, poi.longitude) <= displayRadiusKm * 1.05
-                }
-            } else {
-                cachedPois
-            }
-        }
-
-        val poisInView = remember(poisInViewRaw, settings, effectiveProviders) {
-            StationMapFilters.apply(
-                settings = settings,
-                pois = poisInViewRaw,
-                providers = effectiveProviders,
-                skipWhenOnlyOverpass = true
-            )
-        }
-
-        val base = if (showFavoritesOnly && favoriteIds.isNotEmpty()) poisInView.filter { it.id in favoriteIds } else poisInView
-        val listToShow = remember(base, selectedPoi?.id) {
-            val sel = selectedPoi ?: return@remember base
-            if (base.any { it.id == sel.id }) base else listOf(sel) + base
-        }
+        val listToShow = frozenPoisForSheet.takeIf { it.isNotEmpty() } ?: listOf(selectedPoi!!)
         val currentListToShow by rememberUpdatedState(listToShow)
 
         // If the user tapped a map marker, scroll the bottom sheet so the corresponding card is shown.
