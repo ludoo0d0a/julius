@@ -10,17 +10,17 @@ import org.junit.Test
 class PoiMarkerHelperTest {
 
     @Test
-    fun `getPoiLabel returns null for Gas station when no fuel filters are selected`() {
+    fun `getPoiLabel returns cheapest price for Gas station when no fuel filters are selected`() {
         val poi = Poi(
             id = "1",
             name = "Station 1",
             address = "Address 1",
             latitude = 0.0,
             longitude = 0.0,
-            fuelPrices = listOf(FuelPrice("E5", 1.50))
+            fuelPrices = listOf(FuelPrice("Gazole", 1.80), FuelPrice("SP98", 1.95))
         )
         val label = PoiMarkerHelper.getPoiLabel(poi, emptySet(), emptySet())
-        assertNull("Label should be null when no fuel filter is selected", label)
+        assertEquals("€1.80", label)
     }
 
     @Test
@@ -95,7 +95,7 @@ class PoiMarkerHelperTest {
             fuelPrices = listOf(FuelPrice("sp95", 1.50))
         )
 
-        // No filters -> null
+        // No filters -> null (hybrid stations only show labels when a filter is active to avoid Gas/IRVE ambiguity)
         assertNull(PoiMarkerHelper.getPoiLabel(hybridPoi, emptySet(), emptySet()))
 
         // Only fuel filter -> fuel price
