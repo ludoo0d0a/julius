@@ -37,12 +37,22 @@ import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpRequestRetry
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.HttpRequestTimeoutException
+import io.ktor.client.plugins.api.createClientPlugin
+import io.ktor.client.plugins.observer.ResponseObserver
+import io.ktor.client.plugins.observer.ResponseObserverConfig
+import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.request
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.util.AttributeKey
+import io.ktor.util.toMap
+import fr.geoking.julius.shared.logging.DebugLogStore
+import fr.geoking.julius.shared.logging.NetworkLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
@@ -51,6 +61,7 @@ import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.Locale
+import java.util.UUID
 import kotlin.random.Random
 
 // Wrapper to switch agents at runtime without Koin reload
@@ -199,7 +210,60 @@ class DynamicAgentWrapper(
 
 val appModule = module {
     single<HttpClient> {
+        val settingsManager = get<SettingsManager>()
         HttpClient(OkHttp) {
+            val requestBodyKey = AttributeKey<String>("DebugRequestBody")
+
+            install(ResponseObserver) {
+                onResponse { response ->
+                    if (settingsManager.settings.value.debugLoggingEnabled) {
+                        val request = response.request
+                        val reqBody = request.attributes.getOrNull(requestBodyKey)
+
+                        // Capture logs in a background task to avoid blocking.
+                        // Note: bodyAsText() on duplicated body from ResponseObserver is safe.
+                        // Using GlobalScope for this side-effect logging task as it's short-lived and doesn't need to be cancelled with any specific UI.
+                        @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
+                        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+                            val respBody = try {
+                                response.bodyAsText()
+                            } catch (e: Exception) {
+                                "[Unreadable body: ${e.message}]"
+                            }
+
+                            DebugLogStore.addLog(
+                                NetworkLog(
+                                    id = UUID.randomUUID().toString(),
+                                    url = request.url.toString(),
+                                    method = request.method.value,
+                                    requestHeaders = request.headers.toMap(),
+                                    requestBody = reqBody,
+                                    responseHeaders = response.headers.toMap(),
+                                    responseBody = respBody,
+                                    statusCode = response.status.value,
+                                    durationMs = response.responseTime.timestamp - response.requestTime.timestamp,
+                                    timestamp = System.currentTimeMillis()
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            install(createClientPlugin("NetworkDebugLog") {
+                on(io.ktor.client.plugins.api.Send) { request ->
+                    if (settingsManager.settings.value.debugLoggingEnabled) {
+                        val content = request.body
+                        if (content is io.ktor.http.content.TextContent) {
+                            request.attributes.put(requestBodyKey, content.text)
+                        } else if (content is io.ktor.client.utils.EmptyContent) {
+                            request.attributes.put(requestBodyKey, "")
+                        }
+                    }
+                    proceed(request)
+                }
+            })
+
             install(HttpRequestRetry) {
                 // Keep this conservative: we mostly want to smooth out flaky networks/timeouts
                 // without turning transient issues into long hangs or repeated side effects.

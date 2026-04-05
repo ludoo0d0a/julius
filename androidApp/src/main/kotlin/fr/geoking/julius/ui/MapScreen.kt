@@ -82,6 +82,7 @@ import fr.geoking.julius.ui.map.PoiDetailCard
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
 import fr.geoking.julius.ui.map.PoiMarkerHelper
 import fr.geoking.julius.ui.map.MarkerStyle
+import fr.geoking.julius.ui.map.DebugLogOverlay
 import fr.geoking.julius.poi.PoiMerger
 import fr.geoking.julius.StationMapFilters
 import fr.geoking.julius.effectiveIrvePowerLevels
@@ -875,6 +876,15 @@ fun MapScreen(
                             onClick = { true }
                         )
                     }
+                }
+
+                if (settings.debugLoggingEnabled) {
+                    DebugLogOverlay(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 80.dp) // Below the top bar
+                            .zIndex(2f)
+                    )
                 }
             }
         }

@@ -145,6 +145,8 @@ data class AppSettings(
     val selectedMapConnectorTypes: Set<String> = emptySet(),
     /** Show Google traffic layer on the map (green / yellow / red). */
     val mapTrafficEnabled: Boolean = false,
+    /** Whether to log network requests/responses for debugging on the map screen. */
+    val debugLoggingEnabled: Boolean = false,
     /** EV range in km for route planning. */
     val evRangeKm: Int = DEFAULT_EV_RANGE_KM,
     /** Optional consumption in kWh/100 km; null = use range only. */
@@ -306,6 +308,7 @@ open class SettingsManager(
             mapConnectorTypesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
         } else emptySet()
         val mapTrafficEnabled = prefs.getBoolean("map_traffic_enabled", false)
+        val debugLoggingEnabled = prefs.getBoolean("debug_logging_enabled", false)
         val evRangeKm = prefs.getInt("ev_range_km", DEFAULT_EV_RANGE_KM).coerceIn(50, 1000)
         val evConsumptionKwhPer100km = if (prefs.contains("ev_consumption_kwh_100")) {
             prefs.getFloat("ev_consumption_kwh_100", 18f).takeIf { it > 0f }
@@ -391,6 +394,7 @@ open class SettingsManager(
             mapBrands = mapBrands,
             selectedMapConnectorTypes = selectedMapConnectorTypes,
             mapTrafficEnabled = mapTrafficEnabled,
+            debugLoggingEnabled = debugLoggingEnabled,
             evRangeKm = evRangeKm,
             evConsumptionKwhPer100km = evConsumptionKwhPer100km,
             openChargeMapKey = openChargeMapKey,
@@ -611,6 +615,11 @@ open class SettingsManager(
         _settings.value = _settings.value.copy(mapTrafficEnabled = value)
     }
 
+    open fun setDebugLoggingEnabled(value: Boolean) {
+        prefs.edit().putBoolean("debug_logging_enabled", value).apply()
+        _settings.value = _settings.value.copy(debugLoggingEnabled = value)
+    }
+
     open fun setOverpassAmenityTypes(types: Set<String>) {
         val value = types.ifEmpty { setOf("toilets", "drinking_water") }
         prefs.edit().putString("overpass_amenity_types", value.joinToString(",")).apply()
@@ -740,6 +749,7 @@ open class SettingsManager(
             .putString("map_brands", settings.mapBrands.joinToString(","))
             .putString("map_connector_types", settings.selectedMapConnectorTypes.joinToString(","))
             .putBoolean("map_traffic_enabled", settings.mapTrafficEnabled)
+            .putBoolean("debug_logging_enabled", settings.debugLoggingEnabled)
             .putInt("ev_range_km", settings.evRangeKm.coerceIn(50, 1000))
             .apply { settings.evConsumptionKwhPer100km?.let { putFloat("ev_consumption_kwh_100", it) } ?: remove("ev_consumption_kwh_100") }
             .putString("openchargemap_key", settings.openChargeMapKey)
@@ -856,6 +866,7 @@ open class SettingsManager(
             mapBrands = _settings.value.mapBrands,
             selectedMapConnectorTypes = _settings.value.selectedMapConnectorTypes,
             mapTrafficEnabled = _settings.value.mapTrafficEnabled,
+            debugLoggingEnabled = _settings.value.debugLoggingEnabled,
             evRangeKm = _settings.value.evRangeKm,
             evConsumptionKwhPer100km = _settings.value.evConsumptionKwhPer100km,
             openChargeMapKey = _settings.value.openChargeMapKey,

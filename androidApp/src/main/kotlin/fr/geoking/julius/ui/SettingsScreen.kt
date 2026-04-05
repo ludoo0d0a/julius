@@ -377,6 +377,27 @@ private fun MapConfig(
             )
         }
 
+        // Debug Logging
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Debug Logging", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+                Text("Capture network logs on map", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp)
+            }
+            Switch(
+                checked = settings.debugLoggingEnabled,
+                onCheckedChange = { onUpdate(settings.copy(debugLoggingEnabled = it)) },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Lavender,
+                    checkedTrackColor = DeepPurple,
+                    uncheckedThumbColor = Color.Gray,
+                    uncheckedTrackColor = Color.DarkGray
+                )
+            )
+        }
     }
 }
 
