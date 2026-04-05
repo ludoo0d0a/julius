@@ -71,8 +71,40 @@ object StationMapFilters {
 
         var result = pois
 
-        // Do not filter out stations from the map based on energy, power, operator or connector filters.
-        // Instead, we show all stations and adjust their markers (label/color) based on these filters.
+        // Filter by energy type
+        val energyFilters = settings.effectiveMapEnergyFilterIds()
+        if (energyFilters.isNotEmpty()) {
+            result = result.filter { MapPoiFilter.matchesEnergyFilter(it, energyFilters) }
+        }
+
+        // Filter by power range (IRVE)
+        val powerFilters = settings.effectiveIrvePowerLevels()
+        if (powerFilters.isNotEmpty()) {
+            result = result.filter { poi ->
+                val power = poi.powerKw
+                !poi.isElectric || power == null || MapPoiFilter.powerMatchesAnyLevel(power, powerFilters)
+            }
+        }
+
+        // Filter by operator (IRVE)
+        val operatorFilters = settings.effectiveIrveOperatorFilter()
+        if (operatorFilters.isNotEmpty()) {
+            val operatorIds = operatorFilters.map { it.lowercase() }.toSet()
+            result = result.filter { poi ->
+                val op = poi.operator
+                !poi.isElectric || op == null || operatorIds.any { id -> op.lowercase().contains(id) }
+            }
+        }
+
+        // Filter by connector type (IRVE)
+        val connectorFilters = settings.selectedMapConnectorTypes
+        if (connectorFilters.isNotEmpty()) {
+            result = result.filter { poi ->
+                val types = poi.irveDetails?.connectorTypes
+                !poi.isElectric || types == null || types.any { it in connectorFilters }
+            }
+        }
+
         // Brand filter remains active as it's often used to find specific networks or for fuel card compatibility.
         val filterBrands = settings.effectiveFuelBrandFilterIds()
         if (filterBrands.isNotEmpty()) {
