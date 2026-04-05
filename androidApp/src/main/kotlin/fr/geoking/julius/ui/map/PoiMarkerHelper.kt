@@ -214,15 +214,11 @@ object PoiMarkerHelper {
         val hasAnyIrveFilter = hasElectricInFilter || hasPowerFilter
 
         // Priority 1: Fuel
-        if ((category == PoiCategory.Gas || isHybrid) && !poi.fuelPrices.isNullOrEmpty()) {
-            val prices = poi.fuelPrices!!
-            if (hasFuelFilter) {
+        if (hasFuelFilter && (category == PoiCategory.Gas || isHybrid)) {
+            val prices = poi.fuelPrices
+            if (!prices.isNullOrEmpty()) {
                 val matchingPrices = prices.filter { !it.outOfStock && MapPoiFilter.fuelNameToId(it.fuelName) in fuelIds }
                 val bestPrice = matchingPrices.minByOrNull { it.price }?.price
-                if (bestPrice != null) return "€%.2f".format(bestPrice)
-            } else if (category == PoiCategory.Gas) {
-                // If no fuel filter is active but it's a gas station, show the cheapest available fuel as default label
-                val bestPrice = prices.filter { !it.outOfStock }.minByOrNull { it.price }?.price
                 if (bestPrice != null) return "€%.2f".format(bestPrice)
             }
         }
