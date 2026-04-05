@@ -24,7 +24,8 @@ fun MapLibreView(
     styleUrl: String = "https://tiles.openfreemap.org/styles/dark",
     cameraPosition: CameraPosition? = null,
     onMapReady: (MapLibreMap) -> Unit = {},
-    onMapClick: (LatLng) -> Unit = {}
+    onMapClick: (LatLng) -> Unit = {},
+    update: (MapLibreMap) -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -68,7 +69,12 @@ fun MapLibreView(
 
     AndroidView(
         factory = { mapView },
-        modifier = modifier
+        modifier = modifier,
+        update = {
+            mapView.getMapAsync { map ->
+                update(map)
+            }
+        }
     )
 
     // Update style if it changes

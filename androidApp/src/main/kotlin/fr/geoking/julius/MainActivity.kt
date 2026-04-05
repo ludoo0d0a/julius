@@ -509,8 +509,16 @@ fun MainUI(
                     if (settings.phoneMapEngine == MapEngine.MapLibre) {
                         VectorMapScreen(
                             poiProvider = mapDeps!!.poiProvider,
+                            availabilityProviderFactory = mapDeps!!.availabilityProviderFactory,
+                            trafficProviderFactory = mapDeps!!.trafficProviderFactory,
                             settingsManager = settingsManager,
-                            onBack = { showMap = false }
+                            authManager = authManager,
+                            store = store,
+                            palette = palette,
+                            onBack = { showMap = false },
+                            onPlanRoute = { showRoutePlanning = true },
+                            communityRepo = mapDeps!!.communityRepo,
+                            favoritesRepo = mapDeps!!.favoritesRepo
                         )
                     } else {
                         MapScreen(
@@ -592,8 +600,16 @@ fun MainUI(
                         if (settings.phoneMapEngine == MapEngine.MapLibre) {
                             VectorMapScreen(
                                 poiProvider = mapDeps!!.poiProvider,
+                                availabilityProviderFactory = mapDeps!!.availabilityProviderFactory,
+                                trafficProviderFactory = mapDeps!!.trafficProviderFactory,
                                 settingsManager = settingsManager,
-                                onBack = { showMap = false }
+                                authManager = authManager,
+                                store = store,
+                                palette = palette,
+                                onBack = { showMap = false },
+                                onPlanRoute = { showRoutePlanning = true },
+                                communityRepo = mapDeps!!.communityRepo,
+                                favoritesRepo = mapDeps!!.favoritesRepo
                             )
                         } else {
                             MapScreen(
