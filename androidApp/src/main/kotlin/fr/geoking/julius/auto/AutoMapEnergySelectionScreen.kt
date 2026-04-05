@@ -23,8 +23,7 @@ class AutoMapEnergySelectionScreen(
                     .addText(if (isSelected) "Enabled" else "Disabled")
                     .setToggle(
                         Toggle.Builder { checked ->
-                            val current = settingsManager.settings.value.selectedMapEnergyTypes
-                            val next = if (checked) current + id else current - id
+                            val next = if (checked) setOf(id) else emptySet()
                             settingsManager.setMapEnergyTypes(next)
                             invalidate()
                         }.setChecked(isSelected).build()

@@ -271,7 +271,7 @@ private fun FuelFilters(settingsManager: SettingsManager) {
             FilterChip(
                 selected = isSelected,
                 onClick = {
-                    val newEnergies = if (isSelected) settings.selectedMapEnergyTypes - id else settings.selectedMapEnergyTypes + id
+                    val newEnergies = if (isSelected) emptySet() else setOf(id)
                     settingsManager.setMapEnergyTypes(newEnergies)
                 },
                 label = { Text(label) },
