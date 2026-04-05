@@ -1,6 +1,8 @@
 package fr.geoking.julius
 
 import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
@@ -148,6 +150,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         android.util.Log.d("MainActivity", "onCreate start")
 
+        val hasLocationPermission = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
         val appError = JuliusApplication.initError
         if (appError != null) {
             android.util.Log.e("MainActivity", "Showing startup error (Koin failed)", appError)
@@ -285,6 +292,14 @@ private fun MainActivityComposeRoot(
         }
     }
 
+    val context = LocalContext.current
+    val hasLocationPermission = remember(context) {
+        androidx.core.content.ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.ACCESS_FINE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    }
+
     MainUI(
         state = state,
         store = store,
@@ -300,7 +315,8 @@ private fun MainActivityComposeRoot(
         inAppUpdateHelper = inAppUpdateHelper,
         onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) },
         pendingNavDestinationFlow = pendingNavDestination,
-        isPlaystoreDistribution = isPlaystoreDistribution
+        isPlaystoreDistribution = isPlaystoreDistribution,
+        hasLocationPermission = hasLocationPermission
     )
 }
 
@@ -320,7 +336,8 @@ fun MainUI(
     inAppUpdateHelper: InAppUpdateHelper? = null,
     onStartUpdate: (AppUpdateInfo) -> Unit = {},
     pendingNavDestinationFlow: kotlinx.coroutines.flow.MutableStateFlow<NavDestination?>? = null,
-    isPlaystoreDistribution: Boolean = false
+    isPlaystoreDistribution: Boolean = false,
+    hasLocationPermission: Boolean = false
 ) {
     val pendingNavFlow = pendingNavDestinationFlow ?: remember { MutableStateFlow<NavDestination?>(null) }
     val mapDeps by mapDepsState.collectAsState()
@@ -459,6 +476,8 @@ fun MainUI(
                 isPlaystoreDistribution && !showMap -> {
                     PhonePlaystoreHomeScreen(
                         settingsManager = settingsManager,
+                        poiProvider = mapDeps?.poiProvider,
+                        hasLocationPermission = hasLocationPermission,
                         mapDepsReady = mapDeps != null,
                         onOpenMap = { showMap = true },
                         onOpenRoutes = {

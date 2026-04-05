@@ -4,10 +4,12 @@ import android.location.Address
 import android.location.Geocoder
 import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -19,6 +21,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SignalCellular4Bar
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,16 +40,25 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.effectiveMapEnergyFilterIds
+import fr.geoking.julius.effectiveProviders
 import fr.geoking.julius.feature.location.LocationHelper
+import fr.geoking.julius.poi.MapPoiFilter
+import fr.geoking.julius.poi.Poi
+import fr.geoking.julius.poi.PoiProvider
+import fr.geoking.julius.poi.PoiSearchRequest
 import fr.geoking.julius.shared.network.NetworkService
 import fr.geoking.julius.shared.network.NetworkStatus
 import fr.geoking.julius.shared.network.NetworkType
+import fr.geoking.julius.ui.components.CheapestStationsCard
+import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -83,12 +95,68 @@ private data class DashboardRow(
 @Composable
 fun PhonePlaystoreHomeScreen(
     settingsManager: SettingsManager,
+    poiProvider: PoiProvider?,
+    hasLocationPermission: Boolean,
     mapDepsReady: Boolean,
     onOpenMap: () -> Unit,
     onOpenRoutes: () -> Unit,
     onOpenNetworkDiagnostics: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
+    val context = LocalContext.current
+    val settings by settingsManager.settings.collectAsState()
+    var nearbyPois by remember { mutableStateOf<List<Poi>>(emptyList()) }
+    var isLoadingPois by remember { mutableStateOf(false) }
+    var userLat by remember { mutableStateOf<Double?>(null) }
+    var userLon by remember { mutableStateOf<Double?>(null) }
+    var poiForDetails by remember { mutableStateOf<Poi?>(null) }
+
+    val energyFilterIds = settings.effectiveMapEnergyFilterIds()
+    val providers = settings.effectiveProviders()
+
+    LaunchedEffect(poiProvider, hasLocationPermission, energyFilterIds, providers) {
+        if (poiProvider == null || !hasLocationPermission) return@LaunchedEffect
+
+        isLoadingPois = true
+        val location = LocationHelper.getCurrentLocation(context)
+        if (location != null) {
+            userLat = location.latitude
+            userLon = location.longitude
+
+            try {
+                val results = poiProvider.search(
+                    PoiSearchRequest(
+                        latitude = location.latitude,
+                        longitude = location.longitude,
+                        categories = emptySet(),
+                        skipFilters = true
+                    )
+                )
+
+                val fuelIds = energyFilterIds - "electric"
+
+                nearbyPois = results
+                    .filter { MapPoiFilter.matchesEnergyFilter(it, energyFilterIds) }
+                    .sortedWith { a, b ->
+                        val priceA = a.fuelPrices?.filter { MapPoiFilter.fuelNameToId(it.fuelName) in fuelIds }?.minByOrNull { it.price }?.price ?: Double.MAX_VALUE
+                        val priceB = b.fuelPrices?.filter { MapPoiFilter.fuelNameToId(it.fuelName) in fuelIds }?.minByOrNull { it.price }?.price ?: Double.MAX_VALUE
+
+                        if (priceA != priceB && (priceA != Double.MAX_VALUE || priceB != Double.MAX_VALUE)) {
+                            priceA.compareTo(priceB)
+                        } else {
+                            val distA = approxDistanceKm(location.latitude, location.longitude, a.latitude, a.longitude)
+                            val distB = approxDistanceKm(location.latitude, location.longitude, b.latitude, b.longitude)
+                            distA.compareTo(distB)
+                        }
+                    }
+                    .take(3)
+            } catch (e: Exception) {
+                android.util.Log.e("PhonePlaystoreHomeScreen", "Failed to fetch nearby POIs", e)
+            }
+        }
+        isLoadingPois = false
+    }
+
     val rows = listOf(
         DashboardRow(
             title = "Map",
@@ -149,6 +217,24 @@ fun PhonePlaystoreHomeScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                if (isLoadingPois) {
+                    item {
+                        Box(Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                        }
+                    }
+                } else if (nearbyPois.isNotEmpty()) {
+                    item {
+                        CheapestStationsCard(
+                            stations = nearbyPois,
+                            userLatitude = userLat,
+                            userLongitude = userLon,
+                            selectedEnergyIds = energyFilterIds,
+                            onClick = { poiForDetails = it }
+                        )
+                    }
+                }
+
                 items(rows.size, key = { rows[it].title + rows[it].subtitle }) { index ->
                     val row = rows[index]
                     Card(
@@ -174,6 +260,20 @@ fun PhonePlaystoreHomeScreen(
             }
         }
     }
+
+    poiForDetails?.let { poi ->
+        PoiDetailsFullscreenDialog(
+            poi = poi,
+            onDismiss = { poiForDetails = null }
+        )
+    }
+}
+
+private fun approxDistanceKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+    val dLatKm = (lat2 - lat1) * 111.0
+    val avgLatRad = ((lat1 + lat2) / 2.0) * Math.PI / 180.0
+    val dLonKm = (lon2 - lon1) * 111.0 * Math.cos(avgLatRad)
+    return Math.sqrt(dLatKm * dLatKm + dLonKm * dLonKm)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
