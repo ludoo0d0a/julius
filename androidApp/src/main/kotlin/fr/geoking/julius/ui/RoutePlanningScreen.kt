@@ -74,10 +74,12 @@ fun RoutePlanningScreen(
     geocodingClient: GeocodingClient,
     settingsManager: SettingsManager,
     onBack: () -> Unit,
+    onShowOnMap: ((fr.geoking.julius.api.routing.RouteResult, List<Poi>) -> Unit)? = null,
     initialDestination: NavDestination? = null
 ) {
     BackHandler(onBack = onBack)
     val context = LocalContext.current
+    var currentRoute by remember { mutableStateOf<fr.geoking.julius.api.routing.RouteResult?>(null) }
     var originQuery by remember { mutableStateOf("") }
     var destQuery by remember(initialDestination) {
         mutableStateOf(
@@ -159,19 +161,30 @@ fun RoutePlanningScreen(
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(24.dp))
-            Button(
-                onClick = {
-                    loading = true
-                    error = null
-                    stations = emptyList()
-                    tollEstimate = null
-                    routeTraffic = null
-                    calculateTrigger++
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !loading && destQuery.isNotBlank() && (useCurrentLocationAsOrigin || originQuery.isNotBlank())
-            ) {
-                Text(if (loading) "Calculating…" else "Calculate route")
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = {
+                        loading = true
+                        error = null
+                        stations = emptyList()
+                        tollEstimate = null
+                        routeTraffic = null
+                        calculateTrigger++
+                    },
+                    modifier = Modifier.weight(1f),
+                    enabled = !loading && destQuery.isNotBlank() && (useCurrentLocationAsOrigin || originQuery.isNotBlank())
+                ) {
+                    Text(if (loading) "Calculating…" else "Calculate route")
+                }
+
+                if (currentRoute != null && onShowOnMap != null) {
+                    Button(
+                        onClick = { onShowOnMap(currentRoute!!, stations) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Show on Map")
+                    }
+                }
             }
 
             error?.let { err ->
@@ -295,6 +308,7 @@ fun RoutePlanningScreen(
 
             val settings = settingsManager.settings.value
             val route = routingClient.getRoute(oLat, oLon, dLat, dLon)
+            currentRoute = route
             if (route != null) {
                 tollEstimate = tollCalculator.estimateToll(route.points, settings.vehicleType)
                 val trafficProviders = trafficProviderFactory?.getProvidersForRoute(route.points).orEmpty()

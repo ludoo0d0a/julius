@@ -42,11 +42,14 @@ import fr.geoking.julius.di.MapDeps
 import fr.geoking.julius.di.MapModuleLoader
 import fr.geoking.julius.ui.JulesScreen
 import fr.geoking.julius.ui.MapScreen
+import fr.geoking.julius.ui.map.maplibre.VectorMapScreen
+import fr.geoking.julius.ui.map.maplibre.DirectionsMapScreen
 import fr.geoking.julius.ui.PhoneMainScreen
 import fr.geoking.julius.ui.PhoneNetworkLocationScreen
 import fr.geoking.julius.ui.PhonePlaystoreHomeScreen
 import fr.geoking.julius.ui.PlaystoreLightTheme
 import fr.geoking.julius.ui.RoutePlanningScreen
+import fr.geoking.julius.api.routing.RouteResult
 import fr.geoking.julius.ui.HistoryScreen
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.ui.SettingsScreenPage
@@ -60,6 +63,7 @@ import fr.geoking.julius.persistence.JulesDao
 import fr.geoking.julius.persistence.JulesSessionEntity
 import com.google.firebase.auth.FirebaseAuth
 import fr.geoking.julius.poi.MockPoiProvider
+import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.ui.UpdateAvailableDialog
@@ -348,7 +352,11 @@ fun MainUI(
     var showMap by remember { mutableStateOf(false) }
     var showPlaystoreNetworkInfo by remember { mutableStateOf(false) }
     var showPlaystoreSettings by remember { mutableStateOf(false) }
+    var playstoreSettingsInitialStack by remember { mutableStateOf<List<SettingsScreenPage>?>(null) }
     var showRoutePlanning by remember { mutableStateOf(false) }
+    var showDirectionsMap by remember { mutableStateOf(false) }
+    var routeForDirections by remember { mutableStateOf<RouteResult?>(null) }
+    var stationsForDirections by remember { mutableStateOf<List<Poi>>(emptyList()) }
     var initialNavDestination by remember { mutableStateOf<NavDestination?>(null) }
     var settingsInitialStack by remember { mutableStateOf<List<SettingsScreenPage>?>(null) }
 
@@ -436,7 +444,9 @@ fun MainUI(
                         settingsManager = settingsManager,
                         authManager = authManager,
                         errorLog = state.errorLog,
-                        onDismiss = { showPlaystoreSettings = false }
+                        onDismiss = { showPlaystoreSettings = false },
+                        initialScreenStack = playstoreSettingsInitialStack,
+                        onInitialRouteConsumed = { playstoreSettingsInitialStack = null }
                     )
                 }
                 isPlaystoreDistribution && showMap && showRoutePlanning && mapDeps != null -> {
@@ -449,6 +459,11 @@ fun MainUI(
                         geocodingClient = mapDeps!!.geocodingClient,
                         settingsManager = settingsManager,
                         onBack = { showRoutePlanning = false; initialNavDestination = null },
+                        onShowOnMap = { route, pois ->
+                            routeForDirections = route
+                            stationsForDirections = pois
+                            showDirectionsMap = true
+                        },
                         initialDestination = initialNavDestination
                     )
                 }
@@ -457,21 +472,38 @@ fun MainUI(
                         CircularProgressIndicator()
                     }
                 }
+                isPlaystoreDistribution && showDirectionsMap && mapDeps != null -> {
+                    BackHandler { showDirectionsMap = false }
+                    DirectionsMapScreen(
+                        route = routeForDirections,
+                        pois = stationsForDirections,
+                        settingsManager = settingsManager,
+                        onBack = { showDirectionsMap = false }
+                    )
+                }
                 isPlaystoreDistribution && showMap && mapDeps != null -> {
                     BackHandler { showMap = false }
-                    MapScreen(
-                        poiProvider = mapDeps!!.poiProvider,
-                        availabilityProviderFactory = mapDeps!!.availabilityProviderFactory,
-                        trafficProviderFactory = mapDeps!!.trafficProviderFactory,
-                        settingsManager = settingsManager,
-                        authManager = authManager,
-                        store = store,
-                        palette = palette,
-                        onBack = { showMap = false },
-                        onPlanRoute = { showRoutePlanning = true },
-                        communityRepo = mapDeps!!.communityRepo,
-                        favoritesRepo = mapDeps!!.favoritesRepo
-                    )
+                    if (settings.phoneMapEngine == MapEngine.MapLibre) {
+                        VectorMapScreen(
+                            poiProvider = mapDeps!!.poiProvider,
+                            settingsManager = settingsManager,
+                            onBack = { showMap = false }
+                        )
+                    } else {
+                        MapScreen(
+                            poiProvider = mapDeps!!.poiProvider,
+                            availabilityProviderFactory = mapDeps!!.availabilityProviderFactory,
+                            trafficProviderFactory = mapDeps!!.trafficProviderFactory,
+                            settingsManager = settingsManager,
+                            authManager = authManager,
+                            store = store,
+                            palette = palette,
+                            onBack = { showMap = false },
+                            onPlanRoute = { showRoutePlanning = true },
+                            communityRepo = mapDeps!!.communityRepo,
+                            favoritesRepo = mapDeps!!.favoritesRepo
+                        )
+                    }
                 }
                 isPlaystoreDistribution && !showMap -> {
                     PhonePlaystoreHomeScreen(
@@ -485,7 +517,10 @@ fun MainUI(
                             showMap = true
                         },
                         onOpenNetworkDiagnostics = { showPlaystoreNetworkInfo = true },
-                        onOpenSettings = { showPlaystoreSettings = true }
+                        onOpenSettings = { stack ->
+                            playstoreSettingsInitialStack = stack
+                            showPlaystoreSettings = true
+                        }
                     )
                 }
                 showSettings && !isPlaystoreDistribution -> {
@@ -501,6 +536,15 @@ fun MainUI(
                 showHistory && !isPlaystoreDistribution -> {
                     HistoryScreen(state = state, store = store, onBack = { showHistory = false })
                 }
+                showDirectionsMap && mapDeps != null -> {
+                    BackHandler { showDirectionsMap = false }
+                    DirectionsMapScreen(
+                        route = routeForDirections,
+                        pois = stationsForDirections,
+                        settingsManager = settingsManager,
+                        onBack = { showDirectionsMap = false }
+                    )
+                }
                 showMap && showRoutePlanning && mapDeps != null -> {
                     RoutePlanningScreen(
                         routePlanner = mapDeps!!.routePlanner,
@@ -511,25 +555,38 @@ fun MainUI(
                         geocodingClient = mapDeps!!.geocodingClient,
                         settingsManager = settingsManager,
                         onBack = { showRoutePlanning = false; initialNavDestination = null },
+                        onShowOnMap = { route, pois ->
+                            routeForDirections = route
+                            stationsForDirections = pois
+                            showDirectionsMap = true
+                        },
                         initialDestination = initialNavDestination
                     )
                 }
                 showMap -> {
                     BackHandler { showMap = false }
                     if (mapDeps != null) {
-                        MapScreen(
-                            poiProvider = mapDeps!!.poiProvider,
-                            availabilityProviderFactory = mapDeps!!.availabilityProviderFactory,
-                            trafficProviderFactory = mapDeps!!.trafficProviderFactory,
-                            settingsManager = settingsManager,
-                            authManager = authManager,
-                            store = store,
-                            palette = palette,
-                            onBack = { showMap = false },
-                            onPlanRoute = { showRoutePlanning = true },
-                            communityRepo = mapDeps!!.communityRepo,
-                            favoritesRepo = mapDeps!!.favoritesRepo
-                        )
+                        if (settings.phoneMapEngine == MapEngine.MapLibre) {
+                            VectorMapScreen(
+                                poiProvider = mapDeps!!.poiProvider,
+                                settingsManager = settingsManager,
+                                onBack = { showMap = false }
+                            )
+                        } else {
+                            MapScreen(
+                                poiProvider = mapDeps!!.poiProvider,
+                                availabilityProviderFactory = mapDeps!!.availabilityProviderFactory,
+                                trafficProviderFactory = mapDeps!!.trafficProviderFactory,
+                                settingsManager = settingsManager,
+                                authManager = authManager,
+                                store = store,
+                                palette = palette,
+                                onBack = { showMap = false },
+                                onPlanRoute = { showRoutePlanning = true },
+                                communityRepo = mapDeps!!.communityRepo,
+                                favoritesRepo = mapDeps!!.favoritesRepo
+                            )
+                        }
                     } else {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator()

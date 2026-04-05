@@ -15,6 +15,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Directions
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.EvStation
+import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -49,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.effectiveMapEnergyFilterIds
 import fr.geoking.julius.effectiveProviders
+import fr.geoking.julius.poi.PoiProviderType
+import fr.geoking.julius.ui.SettingsScreenPage
 import fr.geoking.julius.feature.location.LocationHelper
 import fr.geoking.julius.poi.MapPoiFilter
 import fr.geoking.julius.poi.Poi
@@ -101,7 +106,7 @@ fun PhonePlaystoreHomeScreen(
     onOpenMap: () -> Unit,
     onOpenRoutes: () -> Unit,
     onOpenNetworkDiagnostics: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: (List<SettingsScreenPage>?) -> Unit
 ) {
     val context = LocalContext.current
     val settings by settingsManager.settings.collectAsState()
@@ -159,22 +164,52 @@ fun PhonePlaystoreHomeScreen(
 
     val rows = listOf(
         DashboardRow(
-            title = "Map",
-            subtitle = "Fuel & IRVE stations (all filters)",
-            icon = Icons.Default.Map,
+            title = "Map (Gas)",
+            subtitle = "Fuel stations only",
+            icon = Icons.Default.LocalGasStation,
             onClick = {
                 settingsManager.setUseVehicleFilter(false)
+                settingsManager.setPoiProviderTypes(setOf(PoiProviderType.Routex))
+                settingsManager.setMapEnergyTypes(emptySet())
+                settingsManager.setMapPowerLevels(emptySet())
+                settingsManager.setMapIrveOperators(emptySet())
+                settingsManager.setMapConnectorTypes(emptySet())
                 onOpenMap()
             }
         ),
         DashboardRow(
-            title = "POI map (vehicle)",
-            subtitle = "Filtered by vehicle settings",
-            icon = Icons.Default.Map,
+            title = "Map (IRVE)",
+            subtitle = "Electric charging stations only",
+            icon = Icons.Default.EvStation,
             onClick = {
-                settingsManager.setUseVehicleFilter(true)
+                settingsManager.setUseVehicleFilter(false)
+                settingsManager.setPoiProviderTypes(setOf(PoiProviderType.DataGouvElec))
+                settingsManager.setMapEnergyTypes(setOf("electric"))
+                settingsManager.setMapPowerLevels(emptySet())
+                settingsManager.setMapIrveOperators(emptySet())
+                settingsManager.setMapConnectorTypes(emptySet())
                 onOpenMap()
             }
+        ),
+        DashboardRow(
+            title = "Map (Hybrid)",
+            subtitle = "Fuel & Electric stations",
+            icon = Icons.Default.Map,
+            onClick = {
+                settingsManager.setUseVehicleFilter(false)
+                settingsManager.setPoiProviderTypes(setOf(PoiProviderType.Hybrid))
+                settingsManager.setMapEnergyTypes(emptySet())
+                settingsManager.setMapPowerLevels(emptySet())
+                settingsManager.setMapIrveOperators(emptySet())
+                settingsManager.setMapConnectorTypes(emptySet())
+                onOpenMap()
+            }
+        ),
+        DashboardRow(
+            title = "My car settings",
+            subtitle = if (settings.vehicleBrand.isNotEmpty()) "${settings.vehicleBrand} ${settings.vehicleModel}" else "Configure your vehicle",
+            icon = Icons.Default.DirectionsCar,
+            onClick = { onOpenSettings(listOf(SettingsScreenPage.VehicleConfig)) }
         ),
         DashboardRow(
             title = "Routes",
@@ -193,7 +228,7 @@ fun PhonePlaystoreHomeScreen(
             title = "Settings",
             subtitle = "AI, theme, map, vehicle",
             icon = Icons.Default.Settings,
-            onClick = onOpenSettings
+            onClick = { onOpenSettings(null) }
         )
     )
 

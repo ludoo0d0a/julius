@@ -209,6 +209,7 @@ dependencies {
 
     // Maps
     implementation(libs.maps.compose)
+    implementation(libs.maplibre.android)
     // Bundle Apache HTTP legacy classes for Play Services Maps Dynamite (removed from Android 9+ bootclasspath)
     implementation(libs.httpclient.android)
 
