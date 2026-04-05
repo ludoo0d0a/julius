@@ -44,6 +44,8 @@ import fr.geoking.julius.FractalQuality
 import fr.geoking.julius.PerplexityModel
 import fr.geoking.julius.OpenAiModel
 import fr.geoking.julius.GeminiModel
+import fr.geoking.julius.MapEngine
+import fr.geoking.julius.MapTheme
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.SpeakingInterruptMode
 import fr.geoking.julius.feature.auth.GoogleAuthManager
@@ -296,6 +298,48 @@ private fun MapConfig(
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
+        // Map Engine
+        Column {
+            Text("Map Engine", color = Lavender, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                MapEngine.entries.forEach { engine ->
+                    FilterChip(
+                        selected = settings.phoneMapEngine == engine,
+                        onClick = { onUpdate(settings.copy(phoneMapEngine = engine)) },
+                        label = { Text(engine.name) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Lavender,
+                            selectedLabelColor = DeepPurple,
+                            labelColor = Color.White,
+                            containerColor = Color.White.copy(alpha = 0.1f)
+                        )
+                    )
+                }
+            }
+        }
+
+        if (settings.phoneMapEngine == MapEngine.MapLibre) {
+            // Map Theme (for MapLibre)
+            Column {
+                Text("Map Theme", color = Lavender, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    MapTheme.entries.forEach { theme ->
+                        FilterChip(
+                            selected = settings.mapTheme == theme,
+                            onClick = { onUpdate(settings.copy(mapTheme = theme)) },
+                            label = { Text(theme.name) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Lavender,
+                                selectedLabelColor = DeepPurple,
+                                labelColor = Color.White,
+                                containerColor = Color.White.copy(alpha = 0.1f)
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
         // Data Sources
         Column {
             Text("Data Sources", color = Lavender, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
