@@ -28,7 +28,11 @@ class AutoSurfaceRenderer(
     private val context: Context,
     private val surface: Surface,
     private val width: Int,
-    private val height: Int
+    private val height: Int,
+    /** XYZ raster tile URL; default is OSM. Lab screens may pass another template for contrast. */
+    private val tileUrl: (z: Int, x: Int, y: Int) -> String = { z, x, y ->
+        "https://tile.openstreetmap.org/$z/$x/$y.png"
+    }
 ) {
     @Volatile
     private var running = true
@@ -157,7 +161,7 @@ class AutoSurfaceRenderer(
         if (pendingRequests.add(key)) {
             executor.submit {
                 try {
-                    val url = URL("https://tile.openstreetmap.org/$z/$x/$y.png")
+                    val url = URL(tileUrl(z, x, y))
                     val connection = url.openConnection() as HttpURLConnection
                     connection.setRequestProperty("User-Agent", "Julius-Android-Auto/1.0")
                     connection.connectTimeout = 5000

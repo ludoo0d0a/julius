@@ -135,6 +135,16 @@ class AutoTemplateLabScreen(
 
         listBuilder.addItem(
             Row.Builder()
+                .setTitle("MapLibre (lab)")
+                .addText("Raster surface + zoom; open vector map on phone")
+                .setOnClickListener {
+                    screenManager.push(AutoLibreMapLabScreen(carContext))
+                }
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
                 .setTitle("Custom map (pan)")
                 .addText("Surface / custom tiles")
                 .setOnClickListener {
