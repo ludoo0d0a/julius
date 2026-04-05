@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -11,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import fr.geoking.julius.DEFAULT_MAP_ENERGY_TYPES
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.poi.PoiProviderType
@@ -256,39 +258,7 @@ fun FilterFab(
 @Composable
 private fun FuelFilters(settingsManager: SettingsManager) {
     val settings by settingsManager.settings.collectAsState()
-
     val brandOptions = remember { BrandHelper.getGasBrands() }
-
-    FilterSectionTitle("Brands")
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        brandOptions.forEach { (id, label) ->
-            FilterChip(
-                selected = settings.mapBrands.contains(id),
-                onClick = {
-                    val newBrands = if (settings.mapBrands.contains(id)) settings.mapBrands - id else settings.mapBrands + id
-                    settingsManager.setMapBrands(newBrands)
-                },
-                label = { Text(label) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                    labelColor = Color.White,
-                    containerColor = Color(0xFF334155)
-                ),
-                border = FilterChipDefaults.filterChipBorder(
-                    enabled = true,
-                    selected = settings.mapBrands.contains(id),
-                    borderColor = Color.White.copy(alpha = 0.3f),
-                    selectedBorderColor = MaterialTheme.colorScheme.primary
-                )
-            )
-        }
-    }
-
-    Spacer(modifier = Modifier.height(16.dp))
 
     FilterSectionTitle("Fuel Types")
     FlowRow(
@@ -320,43 +290,21 @@ private fun FuelFilters(settingsManager: SettingsManager) {
             )
         }
     }
+
+    Spacer(modifier = Modifier.height(24.dp))
+
+    FilterSectionTitle("Brands")
+    MultiSelectBrandFilter(
+        options = brandOptions,
+        selectedIds = settings.mapBrands,
+        onUpdate = { settingsManager.setMapBrands(it) }
+    )
 }
 
 @Composable
 private fun ElectricFilters(settingsManager: SettingsManager) {
     val settings by settingsManager.settings.collectAsState()
     val brandOptions = remember { BrandHelper.getElectricBrands() }
-
-    FilterSectionTitle("Brands / Operators")
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        brandOptions.forEach { (id, label) ->
-            FilterChip(
-                selected = settings.mapIrveOperators.contains(id),
-                onClick = {
-                    val newOps = if (settings.mapIrveOperators.contains(id)) settings.mapIrveOperators - id else settings.mapIrveOperators + id
-                    settingsManager.setMapIrveOperators(newOps)
-                },
-                label = { Text(label) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                    labelColor = Color.White,
-                    containerColor = Color(0xFF334155)
-                ),
-                border = FilterChipDefaults.filterChipBorder(
-                    enabled = true,
-                    selected = settings.mapIrveOperators.contains(id),
-                    borderColor = Color.White.copy(alpha = 0.3f),
-                    selectedBorderColor = MaterialTheme.colorScheme.primary
-                )
-            )
-        }
-    }
-
-    Spacer(modifier = Modifier.height(16.dp))
 
     FilterSectionTitle("Power Range")
     FlowRow(
@@ -419,6 +367,16 @@ private fun ElectricFilters(settingsManager: SettingsManager) {
             )
         }
     }
+
+    Spacer(modifier = Modifier.height(24.dp))
+
+    FilterSectionTitle("Brands / Operators")
+    MultiSelectBrandFilter(
+        options = brandOptions,
+        selectedIds = settings.mapIrveOperators,
+        onUpdate = { settingsManager.setMapIrveOperators(it) },
+        label = "Search operators..."
+    )
 }
 
 @Composable
@@ -429,6 +387,110 @@ private fun FilterSectionTitle(title: String) {
         color = Color.White.copy(alpha = 0.7f),
         modifier = Modifier.padding(bottom = 8.dp)
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun MultiSelectBrandFilter(
+    options: List<Pair<String, String>>,
+    selectedIds: Set<String>,
+    onUpdate: (Set<String>) -> Unit,
+    label: String = "Search brands..."
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val filteredOptions = remember(searchQuery, options) {
+        if (searchQuery.isBlank()) options
+        else options.filter { it.second.contains(searchQuery, ignoreCase = true) }
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                label = { Text(label, color = Color.White.copy(alpha = 0.7f)) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                    focusedTrailingIconColor = Color.White,
+                    unfocusedTrailingIconColor = Color.White.copy(alpha = 0.7f)
+                ),
+                modifier = Modifier
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable)
+                    .fillMaxWidth()
+            )
+
+            if (filteredOptions.isNotEmpty()) {
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    containerColor = Color(0xFF334155)
+                ) {
+                    filteredOptions.forEach { (id, brandName) ->
+                        val isSelected = selectedIds.contains(id)
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(
+                                        checked = isSelected,
+                                        onCheckedChange = null,
+                                        colors = CheckboxDefaults.colors(
+                                            checkedColor = MaterialTheme.colorScheme.primary,
+                                            uncheckedColor = Color.White.copy(alpha = 0.5f)
+                                        )
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(brandName, color = Color.White)
+                                }
+                            },
+                            onClick = {
+                                val next = if (isSelected) selectedIds - id else selectedIds + id
+                                onUpdate(next)
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        if (selectedIds.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                selectedIds.forEach { id ->
+                    val brandName = options.find { it.first == id }?.second ?: id
+                    FilterChip(
+                        selected = true,
+                        onClick = { onUpdate(selectedIds - id) },
+                        label = { Text(brandName, fontSize = 12.sp) },
+                        trailingIcon = {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Remove",
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                            selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    )
+                }
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
