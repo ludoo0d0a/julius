@@ -331,6 +331,7 @@ fun MainUI(
     var showMap by remember { mutableStateOf(false) }
     var showPlaystoreNetworkInfo by remember { mutableStateOf(false) }
     var showPlaystoreSettings by remember { mutableStateOf(false) }
+    var playstoreSettingsInitialStack by remember { mutableStateOf<List<SettingsScreenPage>?>(null) }
     var showRoutePlanning by remember { mutableStateOf(false) }
     var initialNavDestination by remember { mutableStateOf<NavDestination?>(null) }
     var settingsInitialStack by remember { mutableStateOf<List<SettingsScreenPage>?>(null) }
@@ -419,7 +420,9 @@ fun MainUI(
                         settingsManager = settingsManager,
                         authManager = authManager,
                         errorLog = state.errorLog,
-                        onDismiss = { showPlaystoreSettings = false }
+                        onDismiss = { showPlaystoreSettings = false },
+                        initialScreenStack = playstoreSettingsInitialStack,
+                        onInitialRouteConsumed = { playstoreSettingsInitialStack = null }
                     )
                 }
                 isPlaystoreDistribution && showMap && showRoutePlanning && mapDeps != null -> {
@@ -466,7 +469,10 @@ fun MainUI(
                             showMap = true
                         },
                         onOpenNetworkDiagnostics = { showPlaystoreNetworkInfo = true },
-                        onOpenSettings = { showPlaystoreSettings = true }
+                        onOpenSettings = { stack ->
+                            playstoreSettingsInitialStack = stack
+                            showPlaystoreSettings = true
+                        }
                     )
                 }
                 showSettings && !isPlaystoreDistribution -> {
