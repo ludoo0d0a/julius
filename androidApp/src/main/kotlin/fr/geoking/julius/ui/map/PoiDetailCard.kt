@@ -236,7 +236,7 @@ fun PoiDetailCard(
                                 val prices = poi.fuelPrices.orEmpty()
                                 if (prices.isNotEmpty()) {
                                     val sorted = prices.sortedBy { it.fuelName.lowercase() }
-                                    sorted.take(3).forEach { fp ->
+                                    sorted.take(6).forEach { fp ->
                                         val fuelId = MapPoiFilter.fuelNameToId(fp.fuelName)
                                         val matchColor = fuelId?.let { ColorHelper.getFuelColor(it) }
                                         Row(

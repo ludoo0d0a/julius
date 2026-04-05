@@ -182,4 +182,36 @@ class DataGouvPrixCarburantClientTest {
         assertNotNull(station)
         assertEquals("Station", station.name)
     }
+
+    @Test
+    fun parseFuels_parsesTopLevelFields() {
+        val body = """
+            {
+                "results": [
+                    {
+                        "id": "1",
+                        "adresse": "123 Rue de Paris",
+                        "ville": "Paris",
+                        "cp": "75001",
+                        "nom": "Station Paris",
+                        "latitude": 48.8566,
+                        "longitude": 2.3522,
+                        "gazole_prix": 1.85,
+                        "sp95_prix": 1.95
+                    }
+                ]
+            }
+        """.trimIndent()
+
+        val stations = client.parseRecords(body)
+        assertEquals(1, stations.size)
+        val fuels = stations[0].fuels
+        assertEquals(2, fuels.size)
+        val gazole = fuels.find { it.name == "Gazole" }
+        assertNotNull(gazole)
+        assertEquals(1.85, gazole.priceEur)
+        val sp95 = fuels.find { it.name == "SP95" }
+        assertNotNull(sp95)
+        assertEquals(1.95, sp95.priceEur)
+    }
 }

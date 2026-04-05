@@ -152,7 +152,7 @@ class DataGouvPrixCarburantClient(
 
     private fun parseFuels(record: JsonObject): List<DataGouvPrixCarburantFuelPrice> {
         val list = mutableListOf<DataGouvPrixCarburantFuelPrice>()
-        val prixElement = record["prix"] ?: return list
+        val prixElement = record["prix"]
         val prixArray = try {
             when {
                 prixElement is kotlinx.serialization.json.JsonPrimitive && prixElement.content.startsWith("[") ->
@@ -175,6 +175,21 @@ class DataGouvPrixCarburantClient(
                     ?: obj["@valeur"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
                     ?: obj["value"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
                 if (raw != null) list.add(DataGouvPrixCarburantFuelPrice(name = nom, priceEur = raw))
+            }
+        }
+
+        // data.economie.gouv.fr Explore v2.1 (flux instantané v2) provides individual fuel fields
+        listOf(
+            "gazole" to "Gazole",
+            "sp95" to "SP95",
+            "sp98" to "SP98",
+            "e10" to "E10",
+            "e85" to "E85",
+            "gplc" to "GPLc"
+        ).forEach { (fieldPrefix, fuelName) ->
+            val price = record["${fieldPrefix}_prix"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
+            if (price != null && list.none { it.name.equals(fuelName, ignoreCase = true) }) {
+                list.add(DataGouvPrixCarburantFuelPrice(name = fuelName, priceEur = price))
             }
         }
 
