@@ -10,7 +10,7 @@ on:
         description: 'If true, upload only and finish the release in Play Console yourself (managed publishing / draft-style).'
         required: true
         type: boolean
-        default: true
+        default: false
 
 jobs:
   build-and-release:
@@ -102,4 +102,4 @@ jobs:
           track: internal
           status: completed
           whatsNewDirectory: .github/play-release-notes
-          changesNotSentForReview: ${{ github.event_name == 'push' || github.event.inputs.changesNotSentForReview == 'true' || github.event.inputs.changesNotSentForReview == true }}
+          changesNotSentForReview: ${{ github.event.inputs.changesNotSentForReview == 'true' || github.event.inputs.changesNotSentForReview == true }}
