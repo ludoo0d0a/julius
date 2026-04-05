@@ -547,11 +547,21 @@ fun MainUI(
                             showRoutePlanning = true
                             showMap = true
                         },
+                        onOpenJules = { showJules = true },
                         onOpenNetworkDiagnostics = { showPlaystoreNetworkInfo = true },
                         onOpenSettings = { stack ->
                             playstoreSettingsInitialStack = stack
                             showPlaystoreSettings = true
                         }
+                    )
+                }
+                showJules -> {
+                    JulesScreen(
+                        onBack = { showJules = false },
+                        julesClient = julesClient,
+                        julesRepository = julesRepository,
+                        settingsManager = settingsManager,
+                        voiceManager = voiceManager
                     )
                 }
                 showSettings && !isPlaystoreDistribution -> {
@@ -631,15 +641,6 @@ fun MainUI(
                             CircularProgressIndicator()
                         }
                     }
-                }
-                showJules && !isPlaystoreDistribution -> {
-                    JulesScreen(
-                        onBack = { showJules = false },
-                        julesClient = julesClient,
-                        julesRepository = julesRepository,
-                        settingsManager = settingsManager,
-                        voiceManager = voiceManager
-                    )
                 }
                 else -> {
                     PhoneMainScreen(

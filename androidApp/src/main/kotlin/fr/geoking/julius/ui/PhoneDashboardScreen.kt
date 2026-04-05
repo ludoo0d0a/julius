@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.EvStation
@@ -105,6 +106,7 @@ fun PhoneDashboardScreen(
     mapDepsReady: Boolean,
     onOpenMap: () -> Unit,
     onOpenRoutes: () -> Unit,
+    onOpenJules: () -> Unit,
     onOpenNetworkDiagnostics: () -> Unit,
     onOpenSettings: (List<SettingsScreenPage>?) -> Unit
 ) {
@@ -223,6 +225,12 @@ fun PhoneDashboardScreen(
             subtitle = "Diagnostics",
             icon = Icons.Default.SignalCellular4Bar,
             onClick = onOpenNetworkDiagnostics
+        ),
+        DashboardRow(
+            title = "Jules",
+            subtitle = "AI Assistant",
+            icon = Icons.Default.Code,
+            onClick = onOpenJules
         ),
         DashboardRow(
             title = "Settings",
