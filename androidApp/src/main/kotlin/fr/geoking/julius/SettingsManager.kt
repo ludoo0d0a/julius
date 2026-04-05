@@ -83,6 +83,12 @@ enum class PerplexityModel(val modelName: String, val displayName: String) {
 }
 
 enum class CarMapMode { Native, Custom }
+enum class MapEngine { Google, MapLibre }
+enum class MapTheme(val styleUrl: String) {
+    Dark("https://tiles.openfreemap.org/styles/dark"),
+    Modern("https://tiles.openfreemap.org/styles/bright"),
+    Standard("https://tiles.openfreemap.org/styles/liberty")
+}
 
 enum class OpenAiModel(val modelName: String, val displayName: String) {
     GPT_4O("gpt-4o", "GPT-4o"),
@@ -155,6 +161,10 @@ data class AppSettings(
     val openChargeMapKey: String = "",
     /** When POI provider is Overpass: which amenity types to show (toilets, drinking_water, truck_stop, rest_area). */
     val selectedOverpassAmenityTypes: Set<String> = setOf("toilets", "drinking_water"),
+    /** Map engine to use on the phone (Google or MapLibre). */
+    val phoneMapEngine: MapEngine = MapEngine.Google,
+    /** Map theme for the MapLibre engine (Dark, Modern, Standard). */
+    val mapTheme: MapTheme = MapTheme.Dark,
     /** Vehicle type for POI categories and optional routing profile (Car, Truck, Motorcycle, Motorhome). */
     val vehicleType: VehicleType = VehicleType.Car,
     val carMapMode: CarMapMode = CarMapMode.Native,
@@ -324,6 +334,16 @@ open class SettingsManager(
         } catch (e: IllegalArgumentException) {
             VehicleType.Car
         }
+        val phoneMapEngine = try {
+            MapEngine.valueOf(prefs.getString("phone_map_engine", MapEngine.Google.name) ?: MapEngine.Google.name)
+        } catch (e: IllegalArgumentException) {
+            MapEngine.Google
+        }
+        val mapTheme = try {
+            MapTheme.valueOf(prefs.getString("map_theme", MapTheme.Dark.name) ?: MapTheme.Dark.name)
+        } catch (e: IllegalArgumentException) {
+            MapTheme.Dark
+        }
         val carMapMode = try {
             CarMapMode.valueOf(prefs.getString("car_map_mode", CarMapMode.Native.name) ?: CarMapMode.Native.name)
         } catch (e: IllegalArgumentException) {
@@ -399,6 +419,8 @@ open class SettingsManager(
             evConsumptionKwhPer100km = evConsumptionKwhPer100km,
             openChargeMapKey = openChargeMapKey,
             selectedOverpassAmenityTypes = selectedOverpassAmenityTypes,
+            phoneMapEngine = phoneMapEngine,
+            mapTheme = mapTheme,
             vehicleType = vehicleType,
             carMapMode = carMapMode,
             openAiKey = openAiKey,
@@ -641,6 +663,16 @@ open class SettingsManager(
         _settings.value = _settings.value.copy(carMapMode = mode)
     }
 
+    open fun setPhoneMapEngine(engine: MapEngine) {
+        prefs.edit().putString("phone_map_engine", engine.name).apply()
+        _settings.value = _settings.value.copy(phoneMapEngine = engine)
+    }
+
+    open fun setMapTheme(theme: MapTheme) {
+        prefs.edit().putString("map_theme", theme.name).apply()
+        _settings.value = _settings.value.copy(mapTheme = theme)
+    }
+
     open fun setVehicleBrand(brand: String) {
         prefs.edit().putString("vehicle_brand", brand).apply()
         _settings.value = _settings.value.copy(vehicleBrand = brand)
@@ -757,6 +789,8 @@ open class SettingsManager(
             .putString("overpass_amenity_types", settings.selectedOverpassAmenityTypes.joinToString(","))
             .putString("vehicle_type", settings.vehicleType.name)
             .putString("car_map_mode", settings.carMapMode.name)
+            .putString("phone_map_engine", settings.phoneMapEngine.name)
+            .putString("map_theme", settings.mapTheme.name)
             .putString("openai_key", settings.openAiKey)
             .putString("openai_model", settings.openAiModel.name)
             .putString("elevenlabs_key", settings.elevenLabsKey)
@@ -871,6 +905,8 @@ open class SettingsManager(
             evConsumptionKwhPer100km = _settings.value.evConsumptionKwhPer100km,
             openChargeMapKey = _settings.value.openChargeMapKey,
             selectedOverpassAmenityTypes = _settings.value.selectedOverpassAmenityTypes,
+            phoneMapEngine = _settings.value.phoneMapEngine,
+            mapTheme = _settings.value.mapTheme,
             vehicleType = _settings.value.vehicleType,
             carMapMode = _settings.value.carMapMode,
             openAiKey = openAiKey,
