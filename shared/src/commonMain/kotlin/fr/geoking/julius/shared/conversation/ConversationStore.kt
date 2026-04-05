@@ -76,6 +76,10 @@ open class ConversationStore(
 
     private var activeProcessingJob: Job? = null
 
+    /** Last assistant text sent to TTS / aligned with last played cloud audio (for echo-loop filtering). */
+    private var lastAssistantOutputForEchoFilter: String = ""
+    private var lastAssistantOutputTimeMs: Long = 0L
+
     private val _userName = MutableStateFlow<String?>(null)
     var userName: String?
         get() = _userName.value
@@ -155,19 +159,61 @@ open class ConversationStore(
         }.launchIn(scope)
 
         voiceManager.transcribedText.onEach { text ->
-             // If we get a final transcription, we send it
              if (text.isNotBlank()) {
-                 _state.value = _state.value.copy(currentTranscript = text)
                  if (isStopCommand(text)) {
+                     _state.value = _state.value.copy(currentTranscript = text)
                      stopAllActions()
                      return@onEach
                  }
-                 // Auto-send when transcription stabilizes (unless disabled by a feature flow)
+                 if (shouldDiscardAsAssistantEcho(text)) {
+                     log.d { "Ignored likely assistant-echo transcript (len=${text.length})" }
+                     _state.value = _state.value.copy(currentTranscript = "")
+                     return@onEach
+                 }
+                 _state.value = _state.value.copy(currentTranscript = text)
                  if (autoSendFinalTranscripts) {
                      onUserFinishedSpeaking(text)
                  }
              }
         }.launchIn(scope)
+    }
+
+    private companion object {
+        private const val ECHO_FILTER_WINDOW_MS = 2500L
+        private const val ECHO_JACCARD_THRESHOLD = 0.55
+    }
+
+    private fun normalizeForEchoCompare(s: String): String =
+        s.lowercase()
+            .replace(Regex("[^\\p{L}\\p{N}\\s]"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+
+    private fun wordSetForEcho(s: String): Set<String> =
+        normalizeForEchoCompare(s).split(' ').filter { it.length >= 2 }.toSet()
+
+    private fun echoTokenJaccard(a: String, b: String): Double {
+        val wa = wordSetForEcho(a)
+        val wb = wordSetForEcho(b)
+        if (wa.isEmpty() || wb.isEmpty()) return 0.0
+        val inter = wa.intersect(wb).size
+        val union = wa.union(wb).size
+        return inter.toDouble() / union.toDouble()
+    }
+
+    /** Drops STT that matches what we just played, reducing mic-echo agent loops during barge-in. */
+    private fun shouldDiscardAsAssistantEcho(userText: String): Boolean {
+        val assistant = lastAssistantOutputForEchoFilter
+        if (assistant.isBlank()) return false
+        val age = getCurrentTimeMillis() - lastAssistantOutputTimeMs
+        if (age < 0 || age > ECHO_FILTER_WINDOW_MS) return false
+        val nu = normalizeForEchoCompare(userText)
+        val na = normalizeForEchoCompare(assistant)
+        if (nu.isBlank() || na.isBlank()) return false
+        if (nu == na) return true
+        if (nu.length >= 12 && na.contains(nu)) return true
+        if (na.length >= 12 && nu.contains(na)) return true
+        return echoTokenJaccard(userText, assistant) >= ECHO_JACCARD_THRESHOLD
     }
 
     private fun isStopCommand(text: String): Boolean {
@@ -259,6 +305,9 @@ open class ConversationStore(
                 _state.value = _state.value.copy(currentTranscript = "")
 
                 // 6. Speak (text without action result message for cleaner audio)
+                val spokenForEcho = response.text.trim()
+                lastAssistantOutputForEchoFilter = spokenForEcho
+                lastAssistantOutputTimeMs = getCurrentTimeMillis()
                 if (response.audio != null) {
                     voiceManager.playAudio(response.audio)
                 } else {
@@ -370,6 +419,8 @@ open class ConversationStore(
     /** Speaks an existing message again without sending it to the agent. */
     fun speakAgain(text: String, isInterruptible: Boolean = true) {
         if (text.isBlank()) return
+        lastAssistantOutputForEchoFilter = text.trim()
+        lastAssistantOutputTimeMs = getCurrentTimeMillis()
         val speechLanguageTag = _preferredSpeechLanguageTag.value
             ?: SpeechLanguageResolver.detectLanguageTag(text)
         voiceManager.speak(text, speechLanguageTag, isInterruptible)

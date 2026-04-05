@@ -46,7 +46,7 @@ import fr.geoking.julius.ui.map.maplibre.VectorMapScreen
 import fr.geoking.julius.ui.map.maplibre.DirectionsMapScreen
 import fr.geoking.julius.ui.PhoneMainScreen
 import fr.geoking.julius.ui.PhoneNetworkLocationScreen
-import fr.geoking.julius.ui.PhonePlaystoreHomeScreen
+import fr.geoking.julius.ui.PhoneDashboardScreen
 import fr.geoking.julius.ui.PlaystoreLightTheme
 import fr.geoking.julius.ui.RoutePlanningScreen
 import fr.geoking.julius.api.routing.RouteResult
@@ -529,7 +529,7 @@ fun MainUI(
                     }
                 }
                 isPlaystoreDistribution && !showMap -> {
-                    PhonePlaystoreHomeScreen(
+                    PhoneDashboardScreen(
                         settingsManager = settingsManager,
                         poiProvider = mapDeps?.poiProvider,
                         hasLocationPermission = hasLocationPermission,

@@ -98,7 +98,7 @@ private data class DashboardRow(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PhonePlaystoreHomeScreen(
+fun PhoneDashboardScreen(
     settingsManager: SettingsManager,
     poiProvider: PoiProvider?,
     hasLocationPermission: Boolean,
@@ -156,7 +156,7 @@ fun PhonePlaystoreHomeScreen(
                     }
                     .take(3)
             } catch (e: Exception) {
-                android.util.Log.e("PhonePlaystoreHomeScreen", "Failed to fetch nearby POIs", e)
+                android.util.Log.e("PhoneDashboardScreen", "Failed to fetch nearby POIs", e)
             }
         }
         isLoadingPois = false

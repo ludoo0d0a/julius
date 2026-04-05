@@ -46,7 +46,7 @@ On the **phone `SpeechRecognizer` path**, Julius can keep the microphone active 
 |------|----------|
 | **Off** | Recognition is cancelled before playback; no listening during assistant audio. |
 | **Hey Julius only** | A hidden barge-in recognizer runs; only **"hey julius"** or **"stop"** stops playback and captures input (fewer false triggers from echo). |
-| **Any speech** | Any detected speech stops playback; the recognized text is sent as the next user turn (may false-trigger if the assistant’s voice is picked up by the mic). |
+| **Any speech** | Speech activity stops playback (via `SpeechRecognizer`); final text is sent as the next user turn. Partial results no longer cut TTS immediately (reduces echo glitches). [`ConversationStore`](../shared/src/commonMain/kotlin/fr/geoking/julius/shared/conversation/ConversationStore.kt) drops final transcripts that closely match the last assistant reply within ~2.5s to limit mic-echo loops. Natural interrupt works best with headphones, Bluetooth, or car audio—not guaranteed on phone speaker alone. |
 
 **Migration:** The legacy boolean `hey_julius_during_speaking_enabled` is migrated once: if it was **true**, the mode becomes **Hey Julius only**; if **false**, **Any speech** (new default for users who had not enabled the old toggle). After save, preferences use `speaking_interrupt_mode` and the legacy key is removed.
 

@@ -65,6 +65,8 @@ class AndroidVoiceManager(
     companion object {
         private const val TAG = "Julius/Voice"
         private const val BARGE_IN_RESTART_DELAY_MS = 250L
+        /** Delay before starting barge-in STT so playback transients / initial echo are less likely to trigger recognition. */
+        private const val BARGE_IN_START_DELAY_MS = 300L
         private const val RMS_LOG_INTERVAL = 20
         private const val BUFFER_LOG_INTERVAL = 50
     }
@@ -90,6 +92,9 @@ class AndroidVoiceManager(
     private var isHeyJuliusKeywordBargeIn: Boolean = false
     private var heyJuliusActivationInProgress: Boolean = false
     private var bargeInRestartScheduled: Boolean = false
+    private var delayedBargeInRunnable: Runnable? = null
+    /** Whether the current TTS utterance may use barge-in (set in [speak], read in utterance onStart). */
+    private var speakInterruptibleForCurrentUtterance: Boolean = true
     private var rmsCallCount: Int = 0
     private var bufferCallCount: Int = 0
     private var transcriber: (suspend (ByteArray) -> String?)? = null
@@ -243,11 +248,14 @@ class AndroidVoiceManager(
                             _events.value = VoiceEvent.Speaking
                             player.notifyStateChanged()
                         }
-                        startBargeInWhileSpeakingIfNeeded()
+                        if (speakInterruptibleForCurrentUtterance) {
+                            scheduleDelayedBargeInStart()
+                        }
                     }
 
                     override fun onDone(utteranceId: String?) {
                         mainHandler.post {
+                            cancelDelayedBargeInStart()
                             if (_events.value == VoiceEvent.Speaking) {
                                 _events.value = VoiceEvent.Silence
                                 player.notifyStateChanged()
@@ -267,6 +275,7 @@ class AndroidVoiceManager(
                 })
                 mediaPlayer = newMediaPlayer
                 mediaPlayer?.setOnCompletionListener {
+                    cancelDelayedBargeInStart()
                     if (_events.value == VoiceEvent.Speaking) {
                         _events.value = VoiceEvent.Silence
                         player.notifyStateChanged()
@@ -387,7 +396,23 @@ class AndroidVoiceManager(
         }
     }
 
+    private fun scheduleDelayedBargeInStart() {
+        cancelDelayedBargeInStart()
+        val r = Runnable {
+            delayedBargeInRunnable = null
+            startBargeInWhileSpeakingIfNeeded()
+        }
+        delayedBargeInRunnable = r
+        mainHandler.postDelayed(r, BARGE_IN_START_DELAY_MS)
+    }
+
+    private fun cancelDelayedBargeInStart() {
+        delayedBargeInRunnable?.let { mainHandler.removeCallbacks(it) }
+        delayedBargeInRunnable = null
+    }
+
     private fun cancelActiveRecognitionForSpeechOutput() {
+        cancelDelayedBargeInStart()
         isBargeInActive = false
         bargeInRestartScheduled = false
         if (isRecording) {
@@ -408,10 +433,10 @@ class AndroidVoiceManager(
         _events.value = VoiceEvent.Speaking
         player.notifyStateChanged()
         updateTtsLanguage(languageTag)
+        speakInterruptibleForCurrentUtterance =
+            isInterruptible &&
+                settingsManager.settings.value.speakingInterruptMode != SpeakingInterruptMode.OFF
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "voice_ai_utterance")
-        if (isInterruptible) {
-            startBargeInWhileSpeakingIfNeeded()
-        }
     }
 
     override fun playAudio(bytes: ByteArray) {
@@ -437,10 +462,13 @@ class AndroidVoiceManager(
             e.printStackTrace()
             _events.value = VoiceEvent.Silence // Reset on error
         }
-        startBargeInWhileSpeakingIfNeeded()
+        if (settingsManager.settings.value.speakingInterruptMode != SpeakingInterruptMode.OFF) {
+            scheduleDelayedBargeInStart()
+        }
     }
 
     override fun stopSpeaking() {
+        cancelDelayedBargeInStart()
         tts?.stop()
         try {
             if (mediaPlayer?.isPlaying == true) {
@@ -595,6 +623,7 @@ class AndroidVoiceManager(
     }
 
     private fun activateStopKeyword() {
+        cancelDelayedBargeInStart()
         android.util.Log.d(TAG, "\"stop\" detected: stop outputs + cancel recognition")
         tts?.stop()
         try {
@@ -623,6 +652,7 @@ class AndroidVoiceManager(
 
     private fun activateHeyJulius() {
         if (heyJuliusActivationInProgress) return
+        cancelDelayedBargeInStart()
         heyJuliusActivationInProgress = true
         android.util.Log.d(TAG, "Hey Julius detected: interrupt + startListening")
 
@@ -906,22 +936,9 @@ class AndroidVoiceManager(
                     }
                     // Don't touch UI transcript while speaking/passive; barge-in is hidden.
                     return
-                } else {
-                    // In normal barge-in, as soon as we have a partial result, we stop TTS
-                    if (_events.value == VoiceEvent.Speaking) {
-                        tts?.stop()
-                        try {
-                            if (mediaPlayer?.isPlaying == true) {
-                                mediaPlayer?.stop()
-                            }
-                        } catch (e: IllegalStateException) {
-                            e.printStackTrace()
-                        }
-                    }
-                    isBargeInActive = false
-                    _events.value = VoiceEvent.Listening
-                    player.notifyStateChanged()
                 }
+                // ANY_SPEECH: do not stop playback on partials (reduces echo/loop); onBeginningOfSpeech + onResults handle interrupt.
+                return
             }
 
             _partialText.value = text
