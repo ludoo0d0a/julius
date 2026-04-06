@@ -134,7 +134,7 @@ data class AppSettings(
     val fuelCard: FuelCard = FuelCard.None,
     val useVehicleFilter: Boolean = false,
     val selectedPoiProviders: Set<PoiProviderType> = setOf(
-        PoiProviderType.Routex),
+        PoiProviderType.DataGouv),
     /** Selected energy types to show on map (e.g. sp95, sp98, gazole, e85, electric). Empty = show all. */
     val selectedMapEnergyTypes: Set<String> = DEFAULT_MAP_ENERGY_TYPES,
     /** Type d'enseigne: "all", "major", "gms", "independant". Filter applied when provider supplies data. */
@@ -383,10 +383,10 @@ open class SettingsManager(
                     try {
                         setOf(fr.geoking.julius.poi.PoiProviderType.valueOf(legacy))
                     } catch (e: Exception) {
-                        setOf(fr.geoking.julius.poi.PoiProviderType.Routex)
+                        setOf(fr.geoking.julius.poi.PoiProviderType.DataGouv)
                     }
                 } else {
-                    setOf(fr.geoking.julius.poi.PoiProviderType.Routex)
+                    setOf(fr.geoking.julius.poi.PoiProviderType.DataGouv)
                 }
             }
         }
