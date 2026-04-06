@@ -212,11 +212,15 @@ fun PhoneDashboardScreen(
             icon = Icons.Default.LocalGasStation,
             type = QuickActionType.Fuel,
             onClick = {
-                settingsManager.setUseVehicleFilter(false)
-                settingsManager.setPoiProviderTypes(setOf(PoiProviderType.DataGouv))
-                // Preserve fuel filters but ensure 'electric' is removed for Fuel-only mode
-                settingsManager.setMapEnergyTypes(settings.selectedMapEnergyTypes - "electric")
-                onOpenMap()
+                val isSelected = !settings.useVehicleFilter && settings.selectedPoiProviders == setOf(PoiProviderType.DataGouv)
+                if (isSelected) {
+                    settingsManager.setUseVehicleFilter(true)
+                } else {
+                    settingsManager.setUseVehicleFilter(false)
+                    settingsManager.setPoiProviderTypes(setOf(PoiProviderType.DataGouv))
+                    // Preserve fuel filters but ensure 'electric' is removed for Fuel-only mode
+                    settingsManager.setMapEnergyTypes(settings.selectedMapEnergyTypes - "electric")
+                }
             }
         ),
         DashboardRow(
@@ -225,10 +229,14 @@ fun PhoneDashboardScreen(
             icon = Icons.Default.EvStation,
             type = QuickActionType.EV,
             onClick = {
-                settingsManager.setUseVehicleFilter(false)
-                settingsManager.setPoiProviderTypes(setOf(PoiProviderType.DataGouvElec))
-                settingsManager.setMapEnergyTypes(setOf("electric"))
-                onOpenMap()
+                val isSelected = !settings.useVehicleFilter && settings.selectedPoiProviders == setOf(PoiProviderType.DataGouvElec)
+                if (isSelected) {
+                    settingsManager.setUseVehicleFilter(true)
+                } else {
+                    settingsManager.setUseVehicleFilter(false)
+                    settingsManager.setPoiProviderTypes(setOf(PoiProviderType.DataGouvElec))
+                    settingsManager.setMapEnergyTypes(setOf("electric"))
+                }
             }
         ),
         DashboardRow(
@@ -237,10 +245,14 @@ fun PhoneDashboardScreen(
             icon = Icons.Default.Map,
             type = QuickActionType.Hybrid,
             onClick = {
-                settingsManager.setUseVehicleFilter(false)
-                settingsManager.setPoiProviderTypes(setOf(PoiProviderType.Hybrid))
-                // Preserve existing fuel filters; 'electric' will be injected by effective filters if needed
-                onOpenMap()
+                val isSelected = !settings.useVehicleFilter && settings.selectedPoiProviders == setOf(PoiProviderType.Hybrid)
+                if (isSelected) {
+                    settingsManager.setUseVehicleFilter(true)
+                } else {
+                    settingsManager.setUseVehicleFilter(false)
+                    settingsManager.setPoiProviderTypes(setOf(PoiProviderType.Hybrid))
+                    // Preserve existing fuel filters; 'electric' will be injected by effective filters if needed
+                }
             }
         )
     )
@@ -277,7 +289,7 @@ fun PhoneDashboardScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Julius — POI") },
+                    title = { Text("Julius - station finder") },
                     actions = {
                         IconButton(onClick = { onOpenSettings(null) }) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings")
@@ -328,7 +340,8 @@ fun PhoneDashboardScreen(
                             userLatitude = userLat,
                             userLongitude = userLon,
                             selectedEnergyIds = energyFilterIds,
-                            onClick = { poiForDetails = it }
+                            onClick = { poiForDetails = it },
+                            onMapClick = onOpenMap
                         )
                     }
                 }
