@@ -1,7 +1,7 @@
 package fr.geoking.julius.ui
 
 import fr.geoking.julius.R
-import java.text.Normalizer
+import fr.geoking.julius.poi.BrandRegistry
 import java.util.Locale
 
 /**
@@ -9,56 +9,6 @@ import java.util.Locale
  * Uses brand-specific drawable when available, otherwise default gas icon.
  */
 object BrandHelper {
-
-    /** Lookup key (lowercase, normalized) -> company display name. */
-    private val brandNames = mapOf(
-        "total" to "Total",
-        "totalenergies" to "Total",
-        "bp" to "BP",
-        "shell" to "Shell",
-        "esso" to "Esso",
-        "esso express" to "Esso",
-        "eni" to "Eni",
-        "repsol" to "Repsol",
-        "omv" to "OMV",
-        "avia" to "AVIA",
-        "q8" to "Q8",
-        "agip" to "Agip",
-        "carrefour" to "Carrefour",
-        "leclerc" to "Leclerc",
-        "e.leclerc" to "Leclerc",
-        "auchan" to "Auchan",
-        "intermarche" to "Intermarché",
-        "casino" to "Casino",
-        "superu" to "Super U",
-        "indigo" to "Indigo",
-        "rel" to "REL",
-        "rel.metz" to "REL",
-        "circle k" to "Circle K",
-        "eurogarages" to "Euro Garages",
-        "aral" to "Aral",
-        "jet" to "Jet",
-        "elf" to "Elf",
-        "migrol" to "Migrol",
-        "coop" to "Coop",
-        "migros" to "Migros",
-        "tesla" to "Tesla",
-        "ionity" to "Ionity",
-        "fastned" to "Fastned",
-        "allego" to "Allego",
-        "lidl" to "Lidl",
-        "chargy" to "Chargy",
-        "atlante" to "Atlante",
-        "zunder" to "Zunder",
-        "freshmile" to "Freshmile",
-        "superu" to "Super U",
-        "système u" to "Système U",
-        "coopérative u" to "Coopérative U",
-        "match" to "Match",
-        "supermarché match" to "Supermarché Match",
-        "powerdot" to "Powerdot",
-        "driveco" to "Driveco",
-    )
 
     /** Lookup key -> brand icon drawable. Unlisted brands use ic_poi_gas. */
     private val brandIcons = mapOf(
@@ -100,10 +50,10 @@ object BrandHelper {
         "zunder" to R.drawable.ic_brand_zunder,
         "freshmile" to R.drawable.ic_brand_freshmile,
         "superu" to R.drawable.ic_brand_superu,
-        "système u" to R.drawable.ic_brand_superu,
-        "coopérative u" to R.drawable.ic_brand_superu,
+        "systeme u" to R.drawable.ic_brand_superu,
+        "cooperative u" to R.drawable.ic_brand_superu,
         "match" to R.drawable.ic_brand_match,
-        "supermarché match" to R.drawable.ic_brand_match,
+        "supermarche match" to R.drawable.ic_brand_match,
         "powerdot" to R.drawable.ic_brand_powerdot,
         "driveco" to R.drawable.ic_brand_driveco,
     )
@@ -148,27 +98,12 @@ object BrandHelper {
         "zunder" to R.drawable.ic_brand_zunder_rounded,
         "freshmile" to R.drawable.ic_brand_freshmile_rounded,
         "superu" to R.drawable.ic_brand_superu_rounded,
-        "système u" to R.drawable.ic_brand_superu_rounded,
-        "coopérative u" to R.drawable.ic_brand_superu_rounded,
+        "systeme u" to R.drawable.ic_brand_superu_rounded,
+        "cooperative u" to R.drawable.ic_brand_superu_rounded,
         "match" to R.drawable.ic_brand_match_rounded,
-        "supermarché match" to R.drawable.ic_brand_match_rounded,
+        "supermarche match" to R.drawable.ic_brand_match_rounded,
         "powerdot" to R.drawable.ic_brand_powerdot_rounded,
         "driveco" to R.drawable.ic_brand_driveco_rounded,
-    )
-
-    /** brand_id (lowercase) -> is gas station brand. */
-    private val gasBrands = setOf(
-        "total", "totalenergies", "bp", "shell", "esso", "esso express", "eni", "repsol", "omv", "avia",
-        "q8", "agip", "carrefour", "leclerc", "auchan", "intermarche", "casino", "rel", "rel.metz",
-        "circle k", "eurogarages", "aral", "jet", "elf", "migrol", "coop", "migros",
-        "superu", "système u", "match", "supermarché match"
-    )
-
-    /** brand_id (lowercase) -> is electric charging brand. */
-    private val electricBrands = setOf(
-        "tesla", "ionity", "fastned", "allego", "lidl", "chargy", "atlante", "zunder", "total", "totalenergies",
-        "freshmile", "superu", "système u", "coopérative u", "match", "supermarché match",
-        "powerdot", "driveco", "carrefour", "leclerc", "auchan"
     )
 
     data class BrandInfo(
@@ -179,10 +114,10 @@ object BrandHelper {
 
     fun getBrandInfo(brandId: String?): BrandInfo? {
         if (brandId.isNullOrBlank()) return null
-        val normalized = brandId.trim().lowercase()
+        val normalized = BrandRegistry.normalizeLookupKey(brandId)
 
         // 1. Try fuzzy match first
-        val fuzzyEntry = brandNames.entries.find { normalized.contains(it.key) }
+        val fuzzyEntry = BrandRegistry.BRAND_NAMES.entries.find { normalized.contains(it.key) }
         if (fuzzyEntry != null) {
             val key = fuzzyEntry.key
             return BrandInfo(
@@ -193,9 +128,9 @@ object BrandHelper {
         }
 
         // 2. Exact match (redundant if fuzzy match caught it, but safe)
-        if (brandNames.containsKey(normalized)) {
+        if (BrandRegistry.BRAND_NAMES.containsKey(normalized)) {
             return BrandInfo(
-                displayName = brandNames[normalized]!!,
+                displayName = BrandRegistry.BRAND_NAMES[normalized]!!,
                 iconResId = brandIcons[normalized] ?: R.drawable.ic_poi_gas,
                 roundedIconResId = roundedBrandIcons[normalized] ?: R.drawable.ic_poi_gas_rounded
             )
@@ -207,7 +142,7 @@ object BrandHelper {
 
     /** Returns list of brands for fuel (gas). */
     fun getGasBrands(): List<Pair<String, String>> {
-        return brandNames.filterKeys { it in gasBrands }
+        return BrandRegistry.BRAND_NAMES.filterKeys { it in BrandRegistry.GAS_BRANDS }
             .entries.map { it.key to it.value }
             .distinctBy { it.second }
             .sortedBy { it.second }
@@ -215,7 +150,7 @@ object BrandHelper {
 
     /** Returns list of brands for electric charging. */
     fun getElectricBrands(): List<Pair<String, String>> {
-        return brandNames.filterKeys { it in electricBrands }
+        return BrandRegistry.BRAND_NAMES.filterKeys { it in BrandRegistry.ELECTRIC_BRANDS }
             .entries.map { it.key to it.value }
             .distinctBy { it.second }
             .sortedBy { it.second }
@@ -246,7 +181,7 @@ object BrandHelper {
     fun distinctRoundedBrandHeads(): List<Pair<String, Int>> {
         return brandIcons.entries
             .mapNotNull { (key, _) ->
-                val label = brandNames[key] ?: return@mapNotNull null
+                val label = BrandRegistry.BRAND_NAMES[key] ?: return@mapNotNull null
                 val rounded = roundedBrandIcons[key] ?: return@mapNotNull null
                 label to rounded
             }
@@ -262,26 +197,5 @@ object BrandHelper {
         "ef" -> "E/F"
         "autre" -> "Autre"
         else -> id
-    }
-
-    /**
-     * Strip accents, lowercase, and map common API / commercial variants to a single lookup key
-     * (e.g. "SUPER U EXPRESS", "Hyper U" -> superu).
-     */
-    private fun normalizeLookupKey(raw: String): String {
-        val base = Normalizer.normalize(raw.trim(), Normalizer.Form.NFD)
-            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
-            .lowercase(Locale.FRANCE)
-            .replace(Regex("\\s+"), " ")
-        return when {
-            base.contains("systeme u") || base.contains("super u") || base.contains("hyper u") ||
-                base.contains("u express") || base.contains("station u") -> "superu"
-            base.contains("intermarche") -> "intermarche"
-            base.contains("casino") -> "casino"
-            base.contains("indigo") -> "indigo"
-            base.contains("total") && base.contains("access") -> "totalenergies"
-            base.contains("esso") && base.contains("express") -> "esso express"
-            else -> base.replace(". ", ".").trim()
-        }
     }
 }
