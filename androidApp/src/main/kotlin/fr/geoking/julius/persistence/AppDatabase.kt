@@ -11,7 +11,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         JulesSessionEntity::class,
         JulesActivityEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -57,6 +57,12 @@ abstract class AppDatabase : RoomDatabase() {
                     )
                     """.trimIndent()
                 )
+            }
+        }
+
+        val MIGRATION_3_4: Migration = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `prMergeable` INTEGER")
             }
         }
     }
