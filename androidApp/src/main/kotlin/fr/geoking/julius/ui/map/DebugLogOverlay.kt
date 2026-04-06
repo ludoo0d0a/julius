@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
@@ -21,6 +22,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import kotlinx.coroutines.launch
+import fr.geoking.julius.CacheManager
 import fr.geoking.julius.shared.logging.DebugLogStore
 import fr.geoking.julius.shared.logging.NetworkLog
 import java.text.SimpleDateFormat
@@ -40,6 +43,8 @@ private fun DebugLogOverlayContent() {
     var isExpanded by remember { mutableStateOf(false) }
     val logs by DebugLogStore.logs.collectAsState()
     var selectedLog by remember { mutableStateOf<NetworkLog?>(null) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Box(modifier = Modifier.padding(16.dp).zIndex(2f)) {
         if (!isExpanded) {
@@ -74,8 +79,15 @@ private fun DebugLogOverlayContent() {
                             fontWeight = FontWeight.Bold
                         )
                         Row {
+                            IconButton(onClick = {
+                                scope.launch {
+                                    CacheManager.clearAllCaches(context)
+                                }
+                            }) {
+                                Icon(Icons.Default.CleaningServices, "Clear Cache", tint = Color.White)
+                            }
                             IconButton(onClick = { DebugLogStore.clearLogs() }) {
-                                Icon(Icons.Default.Delete, "Clear", tint = Color.White)
+                                Icon(Icons.Default.Delete, "Clear Logs", tint = Color.White)
                             }
                             IconButton(onClick = { isExpanded = false }) {
                                 Icon(Icons.Default.Close, "Close", tint = Color.White)
