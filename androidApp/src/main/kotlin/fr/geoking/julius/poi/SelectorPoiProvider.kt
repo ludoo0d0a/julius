@@ -5,6 +5,7 @@ import fr.geoking.julius.StationMapFilters
 import fr.geoking.julius.effectiveProviders
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.VehicleType
+import fr.geoking.julius.parking.ParkingRegion
 import fr.geoking.julius.api.openvan.OpenVanCampClient
 import fr.geoking.julius.api.openvan.OpenVanCampProvider
 import fr.geoking.julius.poi.PoiMerger
