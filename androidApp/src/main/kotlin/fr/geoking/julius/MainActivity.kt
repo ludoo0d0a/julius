@@ -472,6 +472,15 @@ fun MainUI(
                         onInitialRouteConsumed = { playstoreSettingsInitialStack = null }
                     )
                 }
+                isPlaystoreDistribution && showDirectionsMap && mapDeps != null -> {
+                    BackHandler { showDirectionsMap = false }
+                    DirectionsMapScreen(
+                        route = routeForDirections,
+                        pois = stationsForDirections,
+                        settingsManager = settingsManager,
+                        onBack = { showDirectionsMap = false }
+                    )
+                }
                 isPlaystoreDistribution && showMap && showRoutePlanning && mapDeps != null -> {
                     RoutePlanningScreen(
                         routePlanner = mapDeps!!.routePlanner,
@@ -494,15 +503,6 @@ fun MainUI(
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
-                }
-                isPlaystoreDistribution && showDirectionsMap && mapDeps != null -> {
-                    BackHandler { showDirectionsMap = false }
-                    DirectionsMapScreen(
-                        route = routeForDirections,
-                        pois = stationsForDirections,
-                        settingsManager = settingsManager,
-                        onBack = { showDirectionsMap = false }
-                    )
                 }
                 isPlaystoreDistribution && showMap && mapDeps != null -> {
                     BackHandler { showMap = false }

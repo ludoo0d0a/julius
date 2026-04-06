@@ -252,7 +252,7 @@ object PoiMarkerHelper {
         }
     }
 
-    private fun getPoiColor(
+    internal fun getPoiColor(
         poi: Poi,
         category: PoiCategory,
         effectiveEnergyTypes: Set<String>,
