@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -43,6 +44,10 @@ private fun DebugLogOverlayContent() {
     var isExpanded by remember { mutableStateOf(false) }
     val logs by DebugLogStore.logs.collectAsState()
     var selectedLog by remember { mutableStateOf<NetworkLog?>(null) }
+    var selectedHost by remember { mutableStateOf<String?>(null) }
+    val availableHosts = remember(logs) {
+        logs.map { it.host }.filter { it.isNotEmpty() }.distinct().sorted()
+    }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -95,8 +100,66 @@ private fun DebugLogOverlayContent() {
                         }
                     }
 
+                    if (availableHosts.isNotEmpty()) {
+                        LazyRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            item {
+                                FilterChip(
+                                    selected = selectedHost == null,
+                                    onClick = { selectedHost = null },
+                                    label = { Text("All", fontSize = 11.sp) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        containerColor = Color.Transparent,
+                                        labelColor = Color.White.copy(alpha = 0.6f),
+                                        selectedContainerColor = Color.White.copy(alpha = 0.2f),
+                                        selectedLabelColor = Color.White
+                                    ),
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        borderColor = Color.White.copy(alpha = 0.2f),
+                                        selectedBorderColor = Color.White.copy(alpha = 0.5f),
+                                        borderWidth = 1.dp,
+                                        selectedBorderWidth = 1.dp,
+                                        enabled = true,
+                                        selected = selectedHost == null
+                                    )
+                                )
+                            }
+                            items(availableHosts) { host ->
+                                FilterChip(
+                                    selected = selectedHost == host,
+                                    onClick = { selectedHost = if (selectedHost == host) null else host },
+                                    label = { Text(host, fontSize = 11.sp) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        containerColor = Color.Transparent,
+                                        labelColor = Color.White.copy(alpha = 0.6f),
+                                        selectedContainerColor = Color.White.copy(alpha = 0.2f),
+                                        selectedLabelColor = Color.White
+                                    ),
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        borderColor = Color.White.copy(alpha = 0.2f),
+                                        selectedBorderColor = Color.White.copy(alpha = 0.5f),
+                                        borderWidth = 1.dp,
+                                        selectedBorderWidth = 1.dp,
+                                        enabled = true,
+                                        selected = selectedHost == host
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    val filteredLogs = if (selectedHost == null) {
+                        logs
+                    } else {
+                        logs.filter { it.host == selectedHost }
+                    }
+
                     LazyColumn(modifier = Modifier.weight(1f)) {
-                        items(logs, key = { it.id }) { log ->
+                        items(filteredLogs, key = { it.id }) { log ->
                             LogItem(log, onClick = { selectedLog = log })
                         }
                     }
