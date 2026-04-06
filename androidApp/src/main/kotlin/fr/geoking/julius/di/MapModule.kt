@@ -85,7 +85,7 @@ val mapModule = module {
             client = get(),
             radiusKm = 10,
             limit = 100,
-            gasApiClient = GasApiClient(get())
+            gasApiClient = null
         )
     }
     single<PoiProvider>(named("datagouvelec")) {
