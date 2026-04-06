@@ -9,10 +9,10 @@ class PoiTest {
 
     @Test
     fun sanitizeUserPoiProviderSelection_keepsOnlySelectableProviders() {
-        // GasApi is disabled in POI_DATA_SOURCES_DISABLED_FOR_USER_SELECTION
+        // When all providers are enabled (POI_DATA_SOURCES_DISABLED_FOR_USER_SELECTION is empty)
         val inSet = setOf(PoiProviderType.Etalab, PoiProviderType.GasApi, PoiProviderType.Routex)
         assertEquals(
-            setOf(PoiProviderType.Etalab, PoiProviderType.Routex),
+            setOf(PoiProviderType.Etalab, PoiProviderType.GasApi, PoiProviderType.Routex),
             inSet.sanitizeUserPoiProviderSelection()
         )
     }
