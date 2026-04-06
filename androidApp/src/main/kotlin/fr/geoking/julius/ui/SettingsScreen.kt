@@ -443,6 +443,52 @@ private fun MapConfig(
                 )
             )
         }
+
+        // Map Filters
+        Column {
+            Text("Map Filters", color = Lavender, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
+
+            Text("Fuel Types", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+            FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MAP_ENERGY_OPTIONS.filter { it.first != "electric" }.forEach { (id, label) ->
+                    FilterChip(
+                        selected = settings.selectedMapEnergyTypes.contains(id),
+                        onClick = {
+                            val next = if (settings.selectedMapEnergyTypes.contains(id)) settings.selectedMapEnergyTypes - id else settings.selectedMapEnergyTypes + id
+                            onUpdate(settings.copy(selectedMapEnergyTypes = next, useVehicleFilter = false))
+                        },
+                        label = { Text(label) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Lavender,
+                            selectedLabelColor = DeepPurple,
+                            labelColor = Color.White,
+                            containerColor = Color.White.copy(alpha = 0.1f)
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("Power Levels", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+            FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MAP_IRVE_POWER_OPTIONS.forEach { (kw, label) ->
+                    FilterChip(
+                        selected = settings.mapPowerLevels.contains(kw),
+                        onClick = {
+                            val next = if (settings.mapPowerLevels.contains(kw)) settings.mapPowerLevels - kw else settings.mapPowerLevels + kw
+                            onUpdate(settings.copy(mapPowerLevels = next, useVehicleFilter = false))
+                        },
+                        label = { Text(label) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Lavender,
+                            selectedLabelColor = DeepPurple,
+                            labelColor = Color.White,
+                            containerColor = Color.White.copy(alpha = 0.1f)
+                        )
+                    )
+                }
+            }
+        }
     }
 }
 

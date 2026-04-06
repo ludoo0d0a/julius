@@ -736,13 +736,15 @@ fun MapScreen(
 
                 if (selectedProviders.anyProvidesFuel()) {
                     items(MAP_ENERGY_OPTIONS.filter { it.first != "electric" }) { (id, label) ->
-                        val isSelected = settings.selectedMapEnergyTypes.contains(id)
+                        val isSelected = settings.effectiveMapEnergyFilterIds().contains(id)
                         val color = ColorHelper.getFuelColor(id) ?: MaterialTheme.colorScheme.primary
                         FilterChip(
                             selected = isSelected,
                             onClick = {
-                                val newEnergies = if (isSelected) emptySet() else setOf(id)
-                                settingsManager.setMapEnergyTypes(newEnergies)
+                                val current = settings.selectedMapEnergyTypes
+                                val next = if (current.contains(id)) current - id else current + id
+                                settingsManager.setUseVehicleFilter(false)
+                                settingsManager.setMapEnergyTypes(next)
                             },
                             label = { Text(label) },
                             colors = FilterChipDefaults.filterChipColors(
@@ -760,13 +762,15 @@ fun MapScreen(
 
                 if (selectedProviders.anyProvidesElectric()) {
                     items(MAP_IRVE_POWER_OPTIONS) { (kw, label) ->
-                        val isSelected = settings.mapPowerLevels.contains(kw)
+                        val isSelected = settings.effectiveIrvePowerLevels().contains(kw)
                         val color = ColorHelper.getPowerColorByLevel(kw)
                         FilterChip(
                             selected = isSelected,
                             onClick = {
-                                val newLevels = if (isSelected) settings.mapPowerLevels - kw else settings.mapPowerLevels + kw
-                                settingsManager.setMapPowerLevels(newLevels)
+                                val current = settings.mapPowerLevels
+                                val next = if (current.contains(kw)) current - kw else current + kw
+                                settingsManager.setUseVehicleFilter(false)
+                                settingsManager.setMapPowerLevels(next)
                             },
                             label = { Text(label) },
                             colors = FilterChipDefaults.filterChipColors(
