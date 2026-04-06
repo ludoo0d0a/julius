@@ -21,6 +21,15 @@ object PoiMarkerHelper {
     /** Rasterized vector heads (rounded = circle + logo); keyed by id + bucketed pixel size. Do not recycle evicted entries (bitmaps may still be referenced by marker bitmaps in flight). */
     private val vectorRasterCache = LruCache<String, Bitmap>(150)
 
+    fun clearCache() {
+        synchronized(cache) {
+            cache.evictAll()
+        }
+        synchronized(vectorRasterCache) {
+            vectorRasterCache.evictAll()
+        }
+    }
+
     /** Bump when marker layout changes so [cache] entries are not stale. */
     private const val MARKER_LAYOUT_CACHE_TAG = "pinColumn11"
 

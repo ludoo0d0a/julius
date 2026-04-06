@@ -53,6 +53,7 @@ import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.poi.anyProvidesElectric
 import fr.geoking.julius.poi.isUserSelectablePoiDataSource
 import fr.geoking.julius.TextAnimation
+import fr.geoking.julius.CacheManager
 import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.shared.conversation.ConversationStore
 import fr.geoking.julius.shared.conversation.DetailedError
@@ -494,6 +495,33 @@ private fun MainMenu(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    var showClearCacheConfirm by remember { mutableStateOf(false) }
+
+    if (showClearCacheConfirm) {
+        AlertDialog(
+            onDismissRequest = { showClearCacheConfirm = false },
+            title = { Text("Clear Cache") },
+            text = { Text("This will clear map markers, image caches, temporary recordings, and debug logs. Continue?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showClearCacheConfirm = false
+                        scope.launch {
+                            CacheManager.clearAllCaches(context)
+                            snackbarHostState.showSnackbar("Cache cleared")
+                        }
+                    }
+                ) {
+                    Text("Clear", color = Color(0xFFFF6B6B))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearCacheConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -759,6 +787,11 @@ private fun MainMenu(
             label = "About",
             value = "Version & build info",
             onClick = { onNavigate(SettingsScreenPage.About) }
+        )
+        SettingsItem(
+            label = "Clear Cache",
+            value = "Markers, images, logs & temp files",
+            onClick = { showClearCacheConfirm = true }
         )
     }
 
