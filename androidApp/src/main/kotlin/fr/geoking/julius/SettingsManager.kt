@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import fr.geoking.julius.feature.settings.FirestoreSettingsSync
+import fr.geoking.julius.api.geocoding.GeocodedPlace
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -217,7 +220,9 @@ data class AppSettings(
     /** Path to downloaded OpenTollData JSON for highway toll estimation; null until user downloads. */
     val tollDataPath: String? = null,
     /** Optional API key for Luxembourg mobiliteit.lu (request from opendata-api@atp.etat.lu). */
-    val mobiliteitLuxembourgKey: String = ""
+    val mobiliteitLuxembourgKey: String = "",
+    /** Last 10 unique destinations. */
+    val routeHistory: List<GeocodedPlace> = emptyList()
 )
 
 open class SettingsManager(
@@ -266,6 +271,12 @@ open class SettingsManager(
         val lastJulesRepoName = prefs.getString("last_jules_repo_name", "") ?: ""
         val googleUserName = prefs.getString("google_user_name", null)
         val isLoggedIn = prefs.getBoolean("is_logged_in", false)
+        val routeHistoryJson = prefs.getString("route_history", "[]") ?: "[]"
+        val routeHistory = try {
+            Json.decodeFromString<List<GeocodedPlace>>(routeHistoryJson)
+        } catch (e: Exception) {
+            emptyList()
+        }
 
         // Persist build-time keys (from env/local.properties) when prefs were empty so they show in settings and are reused
         persistBuildTimeKeysIfUsed(
@@ -518,7 +529,8 @@ open class SettingsManager(
             lastJulesRepoId = lastJulesRepoId,
             lastJulesRepoName = lastJulesRepoName,
             googleUserName = googleUserName,
-            isLoggedIn = isLoggedIn
+            isLoggedIn = isLoggedIn,
+            routeHistory = routeHistory
         )
     }
 
@@ -736,6 +748,13 @@ open class SettingsManager(
         prefs.edit().putInt("poi_rating_$poiId", v).apply()
     }
 
+    open fun addRouteHistory(place: GeocodedPlace) {
+        val current = _settings.value.routeHistory
+        val filtered = current.filter { it.label != place.label || it.latitude != place.latitude || it.longitude != place.longitude }
+        val updated = (listOf(place) + filtered).take(10)
+        saveSettings(_settings.value.copy(routeHistory = updated))
+    }
+
     open fun saveSettings(settings: AppSettings) {
         saveSettingsInternal(settings)
     }
@@ -834,6 +853,7 @@ open class SettingsManager(
             .putString("last_jules_repo_name", settings.lastJulesRepoName)
             .putString("google_user_name", settings.googleUserName)
             .putBoolean("is_logged_in", settings.isLoggedIn)
+            .putString("route_history", Json.encodeToString(settings.routeHistory))
             .apply()
 
         // Update StateFlow immediately with the new values to ensure UI and agent switching update right away
@@ -950,7 +970,8 @@ open class SettingsManager(
             lastJulesRepoId = _settings.value.lastJulesRepoId,
             lastJulesRepoName = _settings.value.lastJulesRepoName,
             googleUserName = _settings.value.googleUserName,
-            isLoggedIn = _settings.value.isLoggedIn
+            isLoggedIn = _settings.value.isLoggedIn,
+            routeHistory = _settings.value.routeHistory
         )
         saveSettings(newSettings)
     }
