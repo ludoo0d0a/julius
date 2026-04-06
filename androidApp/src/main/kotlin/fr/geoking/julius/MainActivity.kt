@@ -47,7 +47,7 @@ import fr.geoking.julius.ui.map.maplibre.DirectionsMapScreen
 import fr.geoking.julius.ui.PhoneMainScreen
 import fr.geoking.julius.ui.PhoneNetworkLocationScreen
 import fr.geoking.julius.ui.PhoneDashboardScreen
-import fr.geoking.julius.ui.PlaystoreLightTheme
+import fr.geoking.julius.ui.PlaystoreTheme
 import fr.geoking.julius.ui.RoutePlanningScreen
 import fr.geoking.julius.api.routing.RouteResult
 import fr.geoking.julius.ui.HistoryScreen

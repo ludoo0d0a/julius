@@ -3,13 +3,19 @@ package fr.geoking.julius.ui
 import android.location.Address
 import android.location.Geocoder
 import android.os.Build
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -35,6 +41,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,6 +56,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.StationMapFilters
@@ -84,6 +93,25 @@ val PlaystoreHomeLightScheme = lightColorScheme(
     background = Color(0xFFF1F5F9),
     onBackground = Color(0xFF0F172A)
 )
+
+/** Dark theme for Play Store phone surfaces (home, diagnostics, map settings). */
+val PlaystoreHomeDarkScheme = darkColorScheme(
+    primary = Color(0xFF60A5FA),
+    onPrimary = Color(0xFF1E3A8A),
+    primaryContainer = Color(0xFF1E40AF),
+    onPrimaryContainer = Color(0xFFDBEAFE),
+    surface = Color(0xFF0F172A),
+    onSurface = Color(0xFFF8FAFC),
+    surfaceContainerHighest = Color(0xFF1E293B),
+    background = Color(0xFF020617),
+    onBackground = Color(0xFFF1F5F9)
+)
+
+@Composable
+fun PlaystoreTheme(content: @Composable () -> Unit) {
+    val colorScheme = if (isSystemInDarkTheme()) PlaystoreHomeDarkScheme else PlaystoreHomeLightScheme
+    MaterialTheme(colorScheme = colorScheme, content = content)
+}
 
 @Composable
 fun PlaystoreLightTheme(content: @Composable () -> Unit) {
@@ -174,10 +202,10 @@ fun PhoneDashboardScreen(
         isLoadingPois = false
     }
 
-    val rows = listOf(
+    val quickActions = listOf(
         DashboardRow(
-            title = "Map (Gas)",
-            subtitle = "Fuel stations only",
+            title = "Fuel",
+            subtitle = "Gas stations",
             icon = Icons.Default.LocalGasStation,
             onClick = {
                 settingsManager.setUseVehicleFilter(false)
@@ -190,8 +218,8 @@ fun PhoneDashboardScreen(
             }
         ),
         DashboardRow(
-            title = "Map (IRVE)",
-            subtitle = "Electric charging stations only",
+            title = "EV",
+            subtitle = "Charging",
             icon = Icons.Default.EvStation,
             onClick = {
                 settingsManager.setUseVehicleFilter(false)
@@ -204,8 +232,8 @@ fun PhoneDashboardScreen(
             }
         ),
         DashboardRow(
-            title = "Map (Hybrid)",
-            subtitle = "Fuel & Electric stations",
+            title = "Hybrid",
+            subtitle = "Both",
             icon = Icons.Default.Map,
             onClick = {
                 settingsManager.setUseVehicleFilter(false)
@@ -216,7 +244,10 @@ fun PhoneDashboardScreen(
                 settingsManager.setMapConnectorTypes(emptySet())
                 onOpenMap()
             }
-        ),
+        )
+    )
+
+    val otherActions = listOf(
         DashboardRow(
             title = "My car settings",
             subtitle = if (settings.vehicleBrand.isNotEmpty()) "${settings.vehicleBrand} ${settings.vehicleModel}" else "Configure your vehicle",
@@ -242,19 +273,18 @@ fun PhoneDashboardScreen(
             icon = Icons.Default.Code,
             onClick = onOpenJules
         ),
-        DashboardRow(
-            title = "Settings",
-            subtitle = "AI, theme, map, vehicle",
-            icon = Icons.Default.Settings,
-            onClick = { onOpenSettings(null) }
-        )
     )
 
-    MaterialTheme(colorScheme = PlaystoreHomeLightScheme) {
+    PlaystoreTheme {
         Scaffold(
             topBar = {
                 TopAppBar(
                     title = { Text("Julius — POI") },
+                    actions = {
+                        IconButton(onClick = { onOpenSettings(null) }) {
+                            Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        }
+                    },
                     colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface,
                         titleContentColor = MaterialTheme.colorScheme.onSurface
@@ -268,16 +298,33 @@ fun PhoneDashboardScreen(
                     .fillMaxSize()
                     .padding(padding)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                if (isLoadingPois) {
-                    item {
-                        Box(Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                // 1. Nearby Cheapest (loader or card)
+                item {
+                    if (isLoadingPois) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        ) {
+                            Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    "Nearby cheapest",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.align(Alignment.Start).padding(bottom = 12.dp)
+                                )
+                                Box(Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                                        Spacer(Modifier.height(8.dp))
+                                        Text("Searching nearby...", style = MaterialTheme.typography.bodySmall)
+                                    }
+                                }
+                            }
                         }
-                    }
-                } else if (nearbyPois.isNotEmpty()) {
-                    item {
+                    } else if (nearbyPois.isNotEmpty()) {
                         CheapestStationsCard(
                             stations = nearbyPois,
                             userLatitude = userLat,
@@ -288,26 +335,85 @@ fun PhoneDashboardScreen(
                     }
                 }
 
-                items(rows.size, key = { rows[it].title + rows[it].subtitle }) { index ->
-                    val row = rows[index]
-                    Card(
-                        onClick = row.onClick,
-                        enabled = row.enabled,
+                // 2. Quick Actions Row (Fuel, EV, Hybrid)
+                item {
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            disabledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        ListItem(
-                            headlineContent = { Text(row.title) },
-                            supportingContent = { Text(row.subtitle) },
-                            leadingContent = {
-                                Icon(row.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                            },
-                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                        )
+                        quickActions.forEach { action ->
+                            Card(
+                                onClick = action.onClick,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .aspectRatio(1f),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxSize().padding(8.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = action.icon,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        text = action.title,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = action.subtitle,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 3. Other Actions
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        otherActions.chunked(2).forEach { pair ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                pair.forEach { action ->
+                                    Card(
+                                        onClick = action.onClick,
+                                        enabled = action.enabled,
+                                        modifier = Modifier.weight(1f),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surface,
+                                            disabledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+                                        ),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                                    ) {
+                                        ListItem(
+                                            headlineContent = { Text(action.title, style = MaterialTheme.typography.titleSmall) },
+                                            supportingContent = { Text(action.subtitle, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                            leadingContent = {
+                                                Icon(action.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                                            },
+                                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                                        )
+                                    }
+                                }
+                                if (pair.size == 1) {
+                                    Spacer(Modifier.weight(1f))
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -360,7 +466,7 @@ fun PhoneNetworkLocationScreen(
         loading = false
     }
 
-    MaterialTheme(colorScheme = PlaystoreHomeLightScheme) {
+    PlaystoreTheme {
         Scaffold(
             topBar = {
                 TopAppBar(
