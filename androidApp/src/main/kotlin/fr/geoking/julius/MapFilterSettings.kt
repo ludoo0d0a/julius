@@ -41,16 +41,7 @@ fun AppSettings.effectiveIrveOperatorFilter(): Set<String> =
         mapIrveOperators
     }
 
-fun AppSettings.effectiveProviders(): Set<PoiProviderType> {
-    return if (useVehicleFilter && fuelCard == FuelCard.Routex && (vehicleEnergy == "gas" || vehicleEnergy == "hybrid")) {
-        // For Routex, we must include Routex provider, but we don't want to hide other
-        // selected non-fuel providers (like IRVE or Overpass) that the user might need.
-        val nonFuelProviders = selectedPoiProviders.filter { !it.providesFuel }.toSet()
-        nonFuelProviders + PoiProviderType.Routex
-    } else {
-        selectedPoiProviders
-    }
-}
+fun AppSettings.effectiveProviders(): Set<PoiProviderType> = selectedPoiProviders
 
 fun Set<PoiProviderType>.isOnlyOverpass(): Boolean =
     isNotEmpty() && all { it == PoiProviderType.Overpass }

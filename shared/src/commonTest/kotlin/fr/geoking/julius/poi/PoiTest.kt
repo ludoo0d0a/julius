@@ -8,10 +8,11 @@ import kotlin.test.assertTrue
 class PoiTest {
 
     @Test
-    fun sanitizeUserPoiProviderSelection_keepsSelectedProviders() {
+    fun sanitizeUserPoiProviderSelection_keepsOnlySelectableProviders() {
+        // GasApi is disabled in POI_DATA_SOURCES_DISABLED_FOR_USER_SELECTION
         val inSet = setOf(PoiProviderType.Etalab, PoiProviderType.GasApi, PoiProviderType.Routex)
         assertEquals(
-            setOf(PoiProviderType.Etalab, PoiProviderType.GasApi, PoiProviderType.Routex),
+            setOf(PoiProviderType.Etalab, PoiProviderType.Routex),
             inSet.sanitizeUserPoiProviderSelection()
         )
     }
