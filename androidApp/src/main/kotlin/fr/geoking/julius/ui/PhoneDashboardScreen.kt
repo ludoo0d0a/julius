@@ -121,7 +121,7 @@ fun PhoneDashboardScreen(
     val energyFilterIds = settings.effectiveMapEnergyFilterIds()
     val providers = settings.effectiveProviders()
 
-    LaunchedEffect(poiProvider, hasLocationPermission, energyFilterIds, providers) {
+    LaunchedEffect(poiProvider, hasLocationPermission, energyFilterIds, providers, settings) {
         if (poiProvider == null || !hasLocationPermission) return@LaunchedEffect
 
         isLoadingPois = true
@@ -140,13 +140,22 @@ fun PhoneDashboardScreen(
                     )
                 )
 
+                val filteredResults = StationMapFilters.apply(
+                    settings = settings,
+                    pois = results,
+                    providers = providers,
+                    skipWhenOnlyOverpass = true
+                )
+
                 val fuelIds = energyFilterIds - "electric"
 
-                nearbyPois = results
-                    .filter { MapPoiFilter.matchesEnergyFilter(it, energyFilterIds) }
+                nearbyPois = filteredResults
                     .sortedWith { a, b ->
-                        val priceA = a.fuelPrices?.filter { MapPoiFilter.fuelNameToId(it.fuelName) in fuelIds }?.minByOrNull { it.price }?.price ?: Double.MAX_VALUE
-                        val priceB = b.fuelPrices?.filter { MapPoiFilter.fuelNameToId(it.fuelName) in fuelIds }?.minByOrNull { it.price }?.price ?: Double.MAX_VALUE
+                        val pricesA = if (fuelIds.isEmpty()) a.fuelPrices else a.fuelPrices?.filter { MapPoiFilter.fuelNameToId(it.fuelName) in fuelIds }
+                        val pricesB = if (fuelIds.isEmpty()) b.fuelPrices else b.fuelPrices?.filter { MapPoiFilter.fuelNameToId(it.fuelName) in fuelIds }
+
+                        val priceA = pricesA?.minByOrNull { it.price }?.price ?: Double.MAX_VALUE
+                        val priceB = pricesB?.minByOrNull { it.price }?.price ?: Double.MAX_VALUE
 
                         if (priceA != priceB && (priceA != Double.MAX_VALUE || priceB != Double.MAX_VALUE)) {
                             priceA.compareTo(priceB)
@@ -171,7 +180,7 @@ fun PhoneDashboardScreen(
             icon = Icons.Default.LocalGasStation,
             onClick = {
                 settingsManager.setUseVehicleFilter(false)
-                settingsManager.setPoiProviderTypes(setOf(PoiProviderType.Routex))
+                settingsManager.setPoiProviderTypes(setOf(PoiProviderType.DataGouv))
                 settingsManager.setMapEnergyTypes(emptySet())
                 settingsManager.setMapPowerLevels(emptySet())
                 settingsManager.setMapIrveOperators(emptySet())

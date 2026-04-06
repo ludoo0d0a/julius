@@ -2027,7 +2027,7 @@ fun SettingsScreenPreview() {
         object : SettingsManager(context) {
             private val mockSettings = MutableStateFlow(
                 AppSettings(
-                    selectedPoiProviders = setOf(PoiProviderType.Routex),
+                    selectedPoiProviders = setOf(PoiProviderType.DataGouv),
                     openAiKey = "sk-preview-key-123",
                     elevenLabsKey = "preview-eleven-key",
                     perplexityKey = "preview-perplexity-key",
