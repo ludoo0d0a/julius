@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.update
 data class NetworkLog(
     val id: String,
     val url: String,
+    val host: String,
     val method: String,
     val requestHeaders: Map<String, List<String>>,
     val requestBody: String?,

@@ -235,6 +235,7 @@ val appModule = module {
                                 NetworkLog(
                                     id = UUID.randomUUID().toString(),
                                     url = request.url.toString(),
+                                    host = request.url.host,
                                     method = request.method.value,
                                     requestHeaders = request.headers.toMap(),
                                     requestBody = reqBody,
