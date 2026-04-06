@@ -8,10 +8,10 @@ import kotlin.test.assertTrue
 class PoiTest {
 
     @Test
-    fun sanitizeUserPoiProviderSelection_mapsEtalabAndGasApiToDataGouv() {
+    fun sanitizeUserPoiProviderSelection_keepsSelectedProviders() {
         val inSet = setOf(PoiProviderType.Etalab, PoiProviderType.GasApi, PoiProviderType.Routex)
         assertEquals(
-            setOf(PoiProviderType.DataGouv, PoiProviderType.Routex),
+            setOf(PoiProviderType.Etalab, PoiProviderType.GasApi, PoiProviderType.Routex),
             inSet.sanitizeUserPoiProviderSelection()
         )
     }

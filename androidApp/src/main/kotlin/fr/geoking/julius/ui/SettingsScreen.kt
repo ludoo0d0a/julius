@@ -375,7 +375,7 @@ private fun MapConfig(
                 listOf(
                     PoiProviderType.Routex to "Routex",
                     PoiProviderType.Etalab to "Prix carburant (instantané)",
-                    PoiProviderType.GasApi to "GasApi",
+                    PoiProviderType.GasApi to "gas-api.ovh",
                     PoiProviderType.DataGouv to "data.gouv (Fuel)",
                     PoiProviderType.OpenVanCamp to "OpenVan.camp (LU)",
                     PoiProviderType.SpainMinetur to "Spain Minetur",

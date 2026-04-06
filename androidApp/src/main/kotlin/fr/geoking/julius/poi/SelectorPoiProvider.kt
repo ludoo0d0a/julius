@@ -7,7 +7,6 @@ import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.VehicleType
 import fr.geoking.julius.api.openvan.OpenVanCampClient
 import fr.geoking.julius.api.openvan.OpenVanCampProvider
-import fr.geoking.julius.parking.ParkingRegion
 import fr.geoking.julius.poi.PoiMerger
 
 /**
@@ -127,15 +126,7 @@ class SelectorPoiProvider(
 
         val effectiveRequest = request.copy(categories = categories, skipFilters = true)
 
-        // Inject country-specific providers from registry if the user has a matching general provider selected
-        val augmentedProviders = providers.toMutableSet()
-        val region = ParkingRegion.containing(request.latitude, request.longitude)
-        val iso = region?.countryCode
-        if (iso != null && (PoiProviderType.Routex in providers || PoiProviderType.DataGouv in providers || PoiProviderType.OpenVanCamp in providers)) {
-            FuelPriceRegistry.COUNTRY_SPECIFIC_PROVIDERS[iso]?.let { augmentedProviders.addAll(it) }
-        }
-
-        augmentedProviders.forEach { providerType ->
+        providers.forEach { providerType ->
             val activeProvider = getProvider(providerType)
             val searchResult = activeProvider.searchResult(effectiveRequest)
             allPois.addAll(searchResult.pois)
@@ -195,15 +186,7 @@ class SelectorPoiProvider(
 
         val allPois = mutableListOf<Poi>()
 
-        // Inject country-specific providers from registry
-        val augmentedProviders = providers.toMutableSet()
-        val region = ParkingRegion.containing(latitude, longitude)
-        val iso = region?.countryCode
-        if (iso != null && (PoiProviderType.Routex in providers || PoiProviderType.DataGouv in providers || PoiProviderType.OpenVanCamp in providers)) {
-            FuelPriceRegistry.COUNTRY_SPECIFIC_PROVIDERS[iso]?.let { augmentedProviders.addAll(it) }
-        }
-
-        augmentedProviders.forEach { providerType ->
+        providers.forEach { providerType ->
             val activeProvider = getProvider(providerType)
             allPois.addAll(activeProvider.getGasStations(latitude, longitude, viewport))
         }

@@ -90,23 +90,17 @@ enum class PoiProviderType(
     Hybrid(providesFuel = true, providesElectric = true),
 }
 
-private val POI_DATA_SOURCES_DISABLED_FOR_USER_SELECTION: Set<PoiProviderType> = setOf(
-    PoiProviderType.Etalab,
-    PoiProviderType.GasApi,
-)
+private val POI_DATA_SOURCES_DISABLED_FOR_USER_SELECTION: Set<PoiProviderType> = emptySet()
 
 /** True if this source is shown in map / Auto POI data source pickers. */
 fun PoiProviderType.isUserSelectablePoiDataSource(): Boolean =
     this !in POI_DATA_SOURCES_DISABLED_FOR_USER_SELECTION
 
 /**
- * Replaces disabled fuel sources with [PoiProviderType.DataGouv] when loading or saving user selection.
- * Implementations and tests can still use [PoiProviderType.Etalab] / [PoiProviderType.GasApi] directly.
+ * Ensures user selection is valid.
  */
 fun Set<PoiProviderType>.sanitizeUserPoiProviderSelection(): Set<PoiProviderType> =
-    map { type ->
-        if (type in POI_DATA_SOURCES_DISABLED_FOR_USER_SELECTION) PoiProviderType.DataGouv else type
-    }.toSet()
+    this.toSet()
 
 /** True if any selected provider can supply fuel POIs (for filter / mode chips). */
 fun Iterable<PoiProviderType>.anyProvidesFuel(): Boolean = any { it.providesFuel }
