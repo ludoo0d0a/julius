@@ -3,6 +3,7 @@ package fr.geoking.julius
 import fr.geoking.julius.poi.MapPoiFilter
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiProviderType
+import fr.geoking.julius.poi.anyProvidesElectric
 
 fun AppSettings.effectiveMapEnergyFilterIds(): Set<String> =
     if (useVehicleFilter) {
@@ -12,7 +13,12 @@ fun AppSettings.effectiveMapEnergyFilterIds(): Set<String> =
             else -> vehicleGasTypes
         }
     } else {
-        selectedMapEnergyTypes
+        val base = selectedMapEnergyTypes
+        if (base.isNotEmpty() && "electric" !in base && selectedPoiProviders.anyProvidesElectric()) {
+            base + "electric"
+        } else {
+            base
+        }
     }
 
 fun AppSettings.effectiveFuelBrandFilterIds(): Set<String> =

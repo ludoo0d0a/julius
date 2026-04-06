@@ -118,12 +118,15 @@ fun PlaystoreLightTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = PlaystoreHomeLightScheme, content = content)
 }
 
+enum class QuickActionType { Fuel, EV, Hybrid }
+
 private data class DashboardRow(
     val title: String,
     val subtitle: String,
     val icon: ImageVector,
     val onClick: () -> Unit,
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
+    val type: QuickActionType? = null
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -207,13 +210,12 @@ fun PhoneDashboardScreen(
             title = "Fuel",
             subtitle = "Gas stations",
             icon = Icons.Default.LocalGasStation,
+            type = QuickActionType.Fuel,
             onClick = {
                 settingsManager.setUseVehicleFilter(false)
                 settingsManager.setPoiProviderTypes(setOf(PoiProviderType.DataGouv))
-                settingsManager.setMapEnergyTypes(emptySet())
-                settingsManager.setMapPowerLevels(emptySet())
-                settingsManager.setMapIrveOperators(emptySet())
-                settingsManager.setMapConnectorTypes(emptySet())
+                // Preserve fuel filters but ensure 'electric' is removed for Fuel-only mode
+                settingsManager.setMapEnergyTypes(settings.selectedMapEnergyTypes - "electric")
                 onOpenMap()
             }
         ),
@@ -221,13 +223,11 @@ fun PhoneDashboardScreen(
             title = "EV",
             subtitle = "Charging",
             icon = Icons.Default.EvStation,
+            type = QuickActionType.EV,
             onClick = {
                 settingsManager.setUseVehicleFilter(false)
                 settingsManager.setPoiProviderTypes(setOf(PoiProviderType.DataGouvElec))
                 settingsManager.setMapEnergyTypes(setOf("electric"))
-                settingsManager.setMapPowerLevels(emptySet())
-                settingsManager.setMapIrveOperators(emptySet())
-                settingsManager.setMapConnectorTypes(emptySet())
                 onOpenMap()
             }
         ),
@@ -235,13 +235,11 @@ fun PhoneDashboardScreen(
             title = "Hybrid",
             subtitle = "Both",
             icon = Icons.Default.Map,
+            type = QuickActionType.Hybrid,
             onClick = {
                 settingsManager.setUseVehicleFilter(false)
                 settingsManager.setPoiProviderTypes(setOf(PoiProviderType.Hybrid))
-                settingsManager.setMapEnergyTypes(emptySet())
-                settingsManager.setMapPowerLevels(emptySet())
-                settingsManager.setMapIrveOperators(emptySet())
-                settingsManager.setMapConnectorTypes(emptySet())
+                // Preserve existing fuel filters; 'electric' will be injected by effective filters if needed
                 onOpenMap()
             }
         )
@@ -342,14 +340,23 @@ fun PhoneDashboardScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         quickActions.forEach { action ->
+                            val isSelected = remember(settings, action.type) {
+                                !settings.useVehicleFilter && when (action.type) {
+                                    QuickActionType.Fuel -> settings.selectedPoiProviders == setOf(PoiProviderType.DataGouv)
+                                    QuickActionType.EV -> settings.selectedPoiProviders == setOf(PoiProviderType.DataGouvElec)
+                                    QuickActionType.Hybrid -> settings.selectedPoiProviders == setOf(PoiProviderType.Hybrid)
+                                    else -> false
+                                }
+                            }
                             Card(
                                 onClick = action.onClick,
                                 modifier = Modifier
                                     .weight(1f)
                                     .aspectRatio(1f),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surface
+                                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
                                 ),
+                                border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
                                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                             ) {
                                 Column(
