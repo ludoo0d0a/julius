@@ -20,10 +20,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.*
 import fr.geoking.julius.CacheManager
 import fr.geoking.julius.shared.logging.DebugLogStore
 import fr.geoking.julius.shared.logging.NetworkLog
@@ -239,6 +241,8 @@ private fun LogItem(log: NetworkLog, onClick: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LogDetailsDialog(log: NetworkLog, onDismiss: () -> Unit) {
+    var fullscreenBody by remember { mutableStateOf<String?>(null) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
@@ -268,7 +272,7 @@ private fun LogDetailsDialog(log: NetworkLog, onDismiss: () -> Unit) {
                         if (reqBody.isNotBlank()) {
                             Spacer(modifier = Modifier.height(16.dp))
                             DetailSection("Request Body")
-                            BodyContent(reqBody)
+                            BodyContent(reqBody, onFullscreen = { fullscreenBody = reqBody })
                         }
 
                         log.responseHeaders?.let { headers ->
@@ -283,7 +287,7 @@ private fun LogDetailsDialog(log: NetworkLog, onDismiss: () -> Unit) {
                         if (respBody.isNotBlank()) {
                             Spacer(modifier = Modifier.height(16.dp))
                             DetailSection("Response Body")
-                            BodyContent(respBody)
+                            BodyContent(respBody, onFullscreen = { fullscreenBody = respBody })
                         }
                     }
                 }
@@ -291,6 +295,74 @@ private fun LogDetailsDialog(log: NetworkLog, onDismiss: () -> Unit) {
         },
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier.fillMaxWidth(0.95f).fillMaxHeight(0.8f)
+    )
+
+    if (fullscreenBody != null) {
+        FullscreenBodyDialog(
+            body = fullscreenBody!!,
+            onDismiss = { fullscreenBody = null }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FullscreenBodyDialog(body: String, onDismiss: () -> Unit) {
+    val jsonElement = remember(body) {
+        try {
+            Json.parseToJsonElement(body)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        },
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Body Viewer", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, contentDescription = "Close")
+                }
+            }
+        },
+        text = {
+            SelectionContainer {
+                Surface(
+                    color = Color.Black.copy(alpha = 0.05f),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    if (jsonElement != null) {
+                        JsonTree(
+                            jsonElement = jsonElement,
+                            modifier = Modifier.fillMaxSize().padding(8.dp),
+                            initialExpanded = true,
+                            useLazyColumn = true
+                        )
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+                            item {
+                                Text(
+                                    text = body,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.fillMaxSize()
     )
 }
 
@@ -318,19 +390,216 @@ private fun DetailItem(label: String, value: String) {
     }
 }
 
+private data class JsonNode(
+    val path: String,
+    val key: String?,
+    val value: JsonElement,
+    val depth: Int
+)
+
 @Composable
-private fun BodyContent(body: String) {
-    Surface(
-        color = Color.Black.copy(alpha = 0.05f),
-        shape = RoundedCornerShape(8.dp),
-        modifier = Modifier.fillMaxWidth()
+private fun JsonTree(
+    jsonElement: JsonElement,
+    modifier: Modifier = Modifier,
+    initialExpanded: Boolean = false,
+    useLazyColumn: Boolean = false
+) {
+    val expandedPaths = remember { mutableStateMapOf<String, Boolean>() }
+
+    val nodes = remember(jsonElement, expandedPaths.toMap()) {
+        val list = mutableListOf<JsonNode>()
+        fun collectNodes(path: String, key: String?, value: JsonElement, depth: Int) {
+            list.add(JsonNode(path, key, value, depth))
+            val isExpanded = expandedPaths.getOrPut(path) { initialExpanded }
+            if (isExpanded) {
+                when (value) {
+                    is JsonObject -> {
+                        value.forEach { (k, v) ->
+                            collectNodes("$path/$k", k, v, depth + 1)
+                        }
+                    }
+                    is JsonArray -> {
+                        value.forEachIndexed { i, v ->
+                            collectNodes("$path/$i", i.toString(), v, depth + 1)
+                        }
+                    }
+                    else -> {}
+                }
+            }
+        }
+        collectNodes("", null, jsonElement, 0)
+        list
+    }
+
+    if (useLazyColumn) {
+        LazyColumn(modifier = modifier) {
+            items(nodes, key = { it.path }) { node ->
+                JsonNodeRow(
+                    node = node,
+                    isExpanded = expandedPaths.getOrPut(node.path) { initialExpanded },
+                    onToggle = { expandedPaths[node.path] = !expandedPaths.getOrDefault(node.path, initialExpanded) }
+                )
+            }
+        }
+    } else {
+        Column(modifier = modifier) {
+            nodes.forEach { node ->
+                JsonNodeRow(
+                    node = node,
+                    isExpanded = expandedPaths.getOrPut(node.path) { initialExpanded },
+                    onToggle = { expandedPaths[node.path] = !expandedPaths.getOrDefault(node.path, initialExpanded) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun JsonNodeRow(
+    node: JsonNode,
+    isExpanded: Boolean,
+    onToggle: () -> Unit
+) {
+    val indent = (node.depth * 12).dp
+    val value = node.value
+
+    when (value) {
+        is JsonObject, is JsonArray -> {
+            val label = when (value) {
+                is JsonObject -> if (value.isEmpty()) "{ }" else "{ ... }"
+                else -> if ((value as JsonArray).isEmpty()) "[ ]" else "[ ... ]"
+            }
+            ExpandableNode(
+                indent = indent,
+                key = node.key,
+                label = label,
+                isExpanded = isExpanded,
+                onToggle = onToggle
+            )
+        }
+        is JsonPrimitive -> {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = indent, top = 2.dp, bottom = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Invisible spacer to align with expandable nodes (which have a 16dp icon)
+                Spacer(modifier = Modifier.width(16.dp))
+                if (node.key != null) {
+                    Text(
+                        text = "\"${node.key}\": ",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Text(
+                    text = if (value.isString) "\"${value.content}\"" else value.content,
+                    color = when {
+                        value.isString -> Color(0xFF2DD4BF)
+                        value.content == "true" || value.content == "false" -> Color(0xFFF472B6)
+                        value.content == "null" -> Color(0xFF94A3B8)
+                        else -> Color(0xFFFB923C)
+                    },
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExpandableNode(
+    indent: Dp,
+    key: String?,
+    label: String,
+    isExpanded: Boolean,
+    onToggle: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggle)
+            .padding(start = indent, top = 2.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = body,
-            fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace,
-            modifier = Modifier.padding(8.dp)
+        Icon(
+            imageVector = if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.5f),
+            modifier = Modifier.size(16.dp)
         )
+        if (key != null) {
+            Text(
+                text = "\"$key\": ",
+                color = Color(0xFF94A3B8),
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Text(
+            text = label,
+            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+@Composable
+private fun BodyContent(
+    body: String,
+    onFullscreen: (() -> Unit)? = null
+) {
+    val jsonElement = remember(body) {
+        try {
+            Json.parseToJsonElement(body)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Surface(
+            color = Color.Black.copy(alpha = 0.05f),
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (jsonElement != null) {
+                JsonTree(
+                    jsonElement = jsonElement,
+                    modifier = Modifier.padding(8.dp)
+                )
+            } else {
+                Text(
+                    text = body,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
+        }
+
+        if (onFullscreen != null) {
+            IconButton(
+                onClick = onFullscreen,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .size(24.dp)
+            ) {
+                Icon(
+                    Icons.Default.Fullscreen,
+                    contentDescription = "Fullscreen",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
     }
 }
 
