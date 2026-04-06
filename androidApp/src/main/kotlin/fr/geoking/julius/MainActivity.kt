@@ -536,6 +536,15 @@ fun MainUI(
                         )
                     }
                 }
+                showJules -> {
+                    JulesScreen(
+                        onBack = { showJules = false },
+                        julesClient = julesClient,
+                        julesRepository = julesRepository,
+                        settingsManager = settingsManager,
+                        voiceManager = voiceManager
+                    )
+                }
                 isPlaystoreDistribution && !showMap -> {
                     PhoneDashboardScreen(
                         settingsManager = settingsManager,
@@ -553,15 +562,6 @@ fun MainUI(
                             playstoreSettingsInitialStack = stack
                             showPlaystoreSettings = true
                         }
-                    )
-                }
-                showJules -> {
-                    JulesScreen(
-                        onBack = { showJules = false },
-                        julesClient = julesClient,
-                        julesRepository = julesRepository,
-                        settingsManager = settingsManager,
-                        voiceManager = voiceManager
                     )
                 }
                 showSettings && !isPlaystoreDistribution -> {

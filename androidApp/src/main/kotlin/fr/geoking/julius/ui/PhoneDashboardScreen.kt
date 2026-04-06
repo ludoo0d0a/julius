@@ -59,6 +59,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.StationMapFilters
 import fr.geoking.julius.effectiveMapEnergyFilterIds
@@ -422,6 +423,18 @@ fun PhoneDashboardScreen(
                             }
                         }
                     }
+                }
+
+                item {
+                    Spacer(Modifier.height(16.dp))
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
                 }
             }
         }
