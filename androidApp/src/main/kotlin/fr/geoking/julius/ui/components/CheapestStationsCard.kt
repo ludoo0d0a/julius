@@ -20,6 +20,9 @@ import fr.geoking.julius.ui.ColorHelper
 import fr.geoking.julius.poi.MapPoiFilter
 import kotlin.math.roundToInt
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Map
+
 @Composable
 fun CheapestStationsCard(
     stations: List<Poi>,
@@ -27,6 +30,7 @@ fun CheapestStationsCard(
     userLongitude: Double?,
     selectedEnergyIds: Set<String>,
     onClick: (Poi) -> Unit,
+    onMapClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -37,12 +41,28 @@ fun CheapestStationsCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Nearby cheapest",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Nearby cheapest",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                IconButton(
+                    onClick = onMapClick,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Map,
+                        contentDescription = "Open Map",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
 
             if (stations.isEmpty()) {
                 Text(

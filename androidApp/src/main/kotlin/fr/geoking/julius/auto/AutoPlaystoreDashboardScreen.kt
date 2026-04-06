@@ -112,7 +112,7 @@ class AutoPlaystoreDashboardScreen(
             .setSingleList(listBuilder.build())
             .setHeader(
                 Header.Builder()
-                    .setTitle("Julius — POI")
+                    .setTitle("Julius - station finder")
                     .setStartHeaderAction(Action.APP_ICON)
                     .build()
             )
