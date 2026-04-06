@@ -19,8 +19,8 @@ interface JulesDao {
     @Query("SELECT * FROM jules_sessions WHERE id = :sessionId")
     suspend fun getSession(sessionId: String): JulesSessionEntity?
 
-    @Query("UPDATE jules_sessions SET prState = :state WHERE id = :sessionId")
-    suspend fun updateSessionPrState(sessionId: String, state: String)
+    @Query("UPDATE jules_sessions SET prState = :state, prMergeable = :mergeable WHERE id = :sessionId")
+    suspend fun updateSessionPrStatus(sessionId: String, state: String, mergeable: Boolean?)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertActivities(activities: List<JulesActivityEntity>)

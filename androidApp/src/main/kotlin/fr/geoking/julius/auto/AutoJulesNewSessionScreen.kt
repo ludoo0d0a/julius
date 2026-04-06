@@ -84,6 +84,7 @@ class AutoJulesNewSessionScreen(
                     prUrl = session.outputs?.firstOrNull()?.pullRequest?.url,
                     prTitle = session.outputs?.firstOrNull()?.pullRequest?.title,
                     prState = null,
+                    prMergeable = null,
                     isArchived = false,
                     lastUpdated = System.currentTimeMillis()
                 )

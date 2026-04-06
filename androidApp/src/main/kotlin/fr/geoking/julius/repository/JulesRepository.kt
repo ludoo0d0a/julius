@@ -50,6 +50,7 @@ class JulesRepository(
                     prUrl = pr?.url,
                     prTitle = pr?.title,
                     prState = existing?.prState,
+                    prMergeable = existing?.prMergeable,
                     isArchived = existing?.isArchived ?: false,
                     lastUpdated = System.currentTimeMillis()
                 ))
@@ -92,9 +93,9 @@ class JulesRepository(
                 else -> "open"
             }
             try {
-                julesDao.updateSessionPrState(session.id, state)
+                julesDao.updateSessionPrStatus(session.id, state, detail.mergeable)
             } catch (e: Exception) {
-                android.util.Log.e("JulesRepository", "Failed to update PR state in DB", e)
+                android.util.Log.e("JulesRepository", "Failed to update PR status in DB", e)
             }
         } catch (e: Exception) {
             // Ignore
@@ -106,6 +107,35 @@ class JulesRepository(
             julesDao.archiveSession(sessionId)
         } catch (e: Exception) {
             android.util.Log.e("JulesRepository", "Failed to archive session", e)
+        }
+    }
+
+    /**
+     * Polls the status of a specific session and its associated PR.
+     * Refreshes PR details from GitHub and session details (for new PR URLs) from Jules.
+     */
+    suspend fun pollSessionStatus(apiKey: String, sessionId: String, githubToken: String) {
+        try {
+            // 1. Refresh session from Jules to see if a PR was just created
+            val session = julesClient.getSession(apiKey, sessionId)
+            val pr = session.outputs?.firstOrNull()?.pullRequest
+            val existing = julesDao.getSession(sessionId)
+
+            if (existing != null && pr?.url != null && existing.prUrl != pr.url) {
+                // New PR URL found
+                val updated = existing.copy(
+                    prUrl = pr.url,
+                    prTitle = pr.title,
+                    lastUpdated = System.currentTimeMillis()
+                )
+                julesDao.insertSessions(listOf(updated))
+                updatePrStatus(githubToken, updated)
+            } else if (existing?.prUrl != null) {
+                // Refresh existing PR status
+                updatePrStatus(githubToken, existing)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("JulesRepository", "pollSessionStatus failed for $sessionId", e)
         }
     }
 

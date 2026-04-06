@@ -75,6 +75,7 @@ import fr.geoking.julius.repository.JulesQuota
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.network.NetworkException
 import fr.geoking.julius.shared.voice.VoiceManager
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -160,6 +161,10 @@ fun JulesScreen(
             quota = julesRepository.getUsageQuota(apiKey)
             julesRepository.getSessions(apiKey, sourceName, githubToken).collectLatest { list ->
                 sessions = list
+                // If we are in a session, update currentSession object from the list to get refreshed PR state
+                currentSession?.let { curr ->
+                    list.find { it.id == curr.id }?.let { currentSession = it }
+                }
                 loadingSessions = false
             }
         }
@@ -201,6 +206,32 @@ fun JulesScreen(
             }
         } else {
             sessions = emptyList()
+        }
+    }
+
+    // Polling logic for PR status/creation while on Jules screen
+    LaunchedEffect(apiKey, githubToken, selectedSourceName, currentSession?.id) {
+        if (apiKey.isBlank() || selectedSourceName == null) return@LaunchedEffect
+        while (true) {
+            delay(30_000)
+            val sessionToPoll = currentSession
+            if (sessionToPoll != null) {
+                julesRepository.pollSessionStatus(apiKey, sessionToPoll.id, githubToken)
+                // loadSessions will refresh the list and update currentSession in its collectLatest block
+                loadSessions()
+            } else {
+                // Poll any session that is "In progress" (null prState but has no PR URL yet)
+                val inProgress = sessions.filter { it.prState == null && it.prUrl == null }
+                if (inProgress.isNotEmpty()) {
+                    for (s in inProgress) {
+                        julesRepository.pollSessionStatus(apiKey, s.id, githubToken)
+                    }
+                    loadSessions()
+                } else {
+                    // Even if none in progress, refresh to check for updates
+                    loadSessions()
+                }
+            }
         }
     }
 
@@ -313,7 +344,16 @@ fun JulesScreen(
                                 }
                             },
                             onBackToList = { currentSession = null },
-                            loading = loading
+                            loading = loading,
+                            onMergePr = {
+                                scope.launch {
+                                    loading = true
+                                    val res = julesRepository.mergePr(githubToken, currentSession!!.prUrl!!)
+                                    if (res.isFailure) error = "Merge failed: ${res.exceptionOrNull()?.message}"
+                                    else loadSessions()
+                                    loading = false
+                                }
+                            }
                         )
                     } else {
                         RepoAndSessionsContent(
@@ -345,6 +385,7 @@ fun JulesScreen(
                                             prUrl = session.outputs?.firstOrNull()?.pullRequest?.url,
                                             prTitle = session.outputs?.firstOrNull()?.pullRequest?.title,
                                             prState = null,
+                                            prMergeable = null,
                                             isArchived = false,
                                             lastUpdated = System.currentTimeMillis()
                                         )
@@ -534,7 +575,8 @@ private fun InConversationContent(
     voiceManager: VoiceManager,
     onSend: () -> Unit,
     onBackToList: () -> Unit,
-    loading: Boolean
+    loading: Boolean,
+    onMergePr: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -559,6 +601,67 @@ private fun InConversationContent(
                 modifier = Modifier.weight(1f)
             )
         }
+
+        // PR Status Bar
+        if (currentSession.prUrl != null) {
+            val (statusText, statusColor) = when (currentSession.prState) {
+                "merged" -> "Merged" to Color.Magenta
+                "closed" -> "Closed" to Color.Red
+                "open" -> "Open PR" to Color.Green
+                else -> "In progress" to Color.White.copy(alpha = 0.6f)
+            }
+
+            val mergeabilityText = when (currentSession.prMergeable) {
+                true -> " • Ready to merge"
+                false -> " • Conflicts"
+                else -> ""
+            }
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                colors = CardDefaults.cardColors(containerColor = JulesHeaderBg),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = currentSession.prTitle ?: "Pull Request",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(modifier = Modifier.size(6.dp).background(statusColor, RoundedCornerShape(3.dp)))
+                            Spacer(modifier = Modifier.size(6.dp))
+                            Text(
+                                text = "$statusText$mergeabilityText",
+                                color = statusColor,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+
+                    if (currentSession.prState == "open" && currentSession.prMergeable == true) {
+                        FilledTonalButton(
+                            onClick = onMergePr,
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            modifier = Modifier.height(32.dp),
+                            colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = Color.Green.copy(alpha = 0.2f))
+                        ) {
+                            Icon(Icons.Default.Merge, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Green)
+                            Spacer(modifier = Modifier.size(4.dp))
+                            Text("Merge", color = Color.Green, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        }
+
         val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
         val nowInstant = remember { Instant.now() }
 
@@ -878,10 +981,12 @@ private fun SessionRow(
                     "open" -> "Open PR" to Color.Green
                     else -> (if (hasOutput) "Output available" else "In progress") to (if (hasOutput) JulesAccent else Color.White.copy(alpha = 0.6f))
                 }
+                val mergeabilityText = if (session.prState == "open" && session.prMergeable == false) " (Conflicts)" else ""
+
                 Box(modifier = Modifier.size(8.dp).background(statusColor, RoundedCornerShape(4.dp)))
                 Spacer(modifier = Modifier.size(6.dp))
                 Text(
-                    text = statusText,
+                    text = "$statusText$mergeabilityText",
                     color = statusColor,
                     fontSize = 12.sp,
                     modifier = Modifier.weight(1f)
@@ -895,9 +1000,11 @@ private fun SessionRow(
                     IconButton(onClick = onDetails, modifier = Modifier.size(24.dp)) {
                         Icon(Icons.Default.Description, contentDescription = "Details", tint = Color.White, modifier = Modifier.size(16.dp))
                     }
-                    Spacer(modifier = Modifier.size(4.dp))
-                    IconButton(onClick = onMerge, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.Merge, contentDescription = "Merge", tint = Color.White, modifier = Modifier.size(16.dp))
+                    if (session.prMergeable == true) {
+                        Spacer(modifier = Modifier.size(4.dp))
+                        IconButton(onClick = onMerge, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Merge, contentDescription = "Merge", tint = Color.Green, modifier = Modifier.size(16.dp))
+                        }
                     }
                     Spacer(modifier = Modifier.size(4.dp))
                     IconButton(onClick = onClose, modifier = Modifier.size(24.dp)) {
