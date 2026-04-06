@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -46,6 +47,7 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
+import fr.geoking.julius.CacheManager
 import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.agents.AgentResponse
@@ -581,6 +583,30 @@ fun MapScreen(
                     showFavoritesOnly = showFavoritesOnly,
                     onShowFavoritesOnlyChange = { showFavoritesOnly = it }
                 )
+
+                FloatingActionButton(
+                    onClick = {
+                        scope.launch {
+                            CacheManager.clearAllCaches(context)
+                            loadedRegions.clear()
+                            cachedPois = emptyList()
+                            poiSeenAtMs.clear()
+                            availabilityByPoiId = emptyMap()
+                            trafficInfo = null
+                            mapErrorMessage = null
+                            isErrorPaused = false
+                            retryCount++
+                        }
+                    },
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Refresh map"
+                    )
+                }
 
                 FloatingActionButton(
                     onClick = { showMapSettings = true },
