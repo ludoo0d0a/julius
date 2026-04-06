@@ -18,7 +18,7 @@ import kotlin.math.sqrt
  */
 object PoiMerger {
     // Empirically chosen to avoid merging distinct nearby stations.
-    private const val MERGE_DISTANCE_METERS = 120.0
+    private const val MERGE_DISTANCE_METERS = 100.0
     private const val NAME_TOKEN_MIN_LENGTH = 3
     private const val NAME_SIMILARITY_MIN = 0.25
 
@@ -211,14 +211,22 @@ object PoiMerger {
         if (candidate.isNullOrBlank()) return false
         if (current.isNullOrBlank()) return true
 
+        val hasIconCandidate = BrandRegistry.hasIcon(candidate)
+        val hasIconCurrent = BrandRegistry.hasIcon(current)
+
+        // 1. Priority to brands with icons
+        if (hasIconCandidate && !hasIconCurrent) return true
+        if (!hasIconCandidate && hasIconCurrent) return false
+
         val candLower = candidate.lowercase()
         val currLower = current.lowercase()
 
-        // Generic labels to avoid
+        // 2. Generic labels to avoid
         val generic = setOf("station", "independant", "independant (gms)", "sans enseigne", "autoroute", "route")
         if (currLower in generic && candLower !in generic) return true
+        if (candLower in generic && currLower !in generic) return false
 
-        // If current is short (like an ID or very short name) and candidate is longer, it might be better
+        // 3. Length heuristic: if current is short and candidate is longer, it might be more descriptive
         if (currLower.length < 3 && candLower.length >= 3) return true
 
         return false
