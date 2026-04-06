@@ -77,37 +77,118 @@ class AutoTemplateLabScreen(
                 .setTitle("MessageTemplate")
                 .addText("Simple text + OK action")
                 .setOnClickListener {
-                    screenManager.push(
-                        object : Screen(carContext) {
-                            override fun onGetTemplate(): Template = MessageTemplate.Builder(
-                                "MessageTemplate sample — use for errors or short notices."
-                            )
-                                .setHeader(
-                                    Header.Builder()
-                                        .setTitle("Lab: message")
-                                        .setStartHeaderAction(Action.BACK)
-                                        .build()
-                                )
-                                .addAction(
-                                    Action.Builder()
-                                        .setTitle("Close")
-                                        .setOnClickListener { screenManager.pop() }
-                                        .build()
-                                )
-                                .build()
-                        }
-                    )
+                    screenManager.push(AutoMessageTemplateScreen(carContext))
                 }
                 .build()
         )
 
         listBuilder.addItem(
             Row.Builder()
-                .setTitle("NavigationTemplate (sample)")
-                .addText("Placeholder routing UI (navigation category apps)")
+                .setTitle("NavigationTemplate")
+                .addText("Active guidance UI")
                 .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
                 .setOnClickListener {
                     screenManager.push(GuidanceScreen(carContext, sampleDestination))
+                }
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("PaneTemplate")
+                .addText("Information rows and primary/secondary actions")
+                .setOnClickListener {
+                    screenManager.push(AutoPaneTemplateScreen(carContext))
+                }
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("GridTemplate")
+                .addText("Grid of clickable items with icons")
+                .setOnClickListener {
+                    screenManager.push(AutoGridTemplateScreen(carContext))
+                }
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("LongMessageTemplate")
+                .addText("Scrollable long text content")
+                .setOnClickListener {
+                    screenManager.push(AutoLongMessageTemplateScreen(carContext))
+                }
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("SearchTemplate")
+                .addText("Keyboard and results search view")
+                .setOnClickListener {
+                    screenManager.push(AutoSearchTemplateScreen(carContext))
+                }
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("SignInTemplate")
+                .addText("Input-based authentication flow")
+                .setOnClickListener {
+                    screenManager.push(AutoSignInTemplateScreen(carContext))
+                }
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("MapTemplate (OSM)")
+                .addText("Full screen map with custom background")
+                .setOnClickListener {
+                    screenManager.push(AutoMapTemplateScreen(carContext))
+                }
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("RoutePreviewNavigationTemplate")
+                .addText("Route choices and navigation start")
+                .setOnClickListener {
+                    screenManager.push(AutoRoutePreviewNavigationTemplateScreen(carContext))
+                }
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("TabTemplate")
+                .addText("Top-level tabs for category switching")
+                .setOnClickListener {
+                    screenManager.push(AutoTabTemplateScreen(carContext))
+                }
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("PlaceListMapTemplate")
+                .addText("Places with map backdrop")
+                .setOnClickListener {
+                    screenManager.push(AutoPlaceListMapTemplateScreen(carContext))
+                }
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("PlaceListNavigationTemplate")
+                .addText("Places with map in nav context")
+                .setOnClickListener {
+                    screenManager.push(AutoPlaceListNavigationTemplateScreen(carContext))
                 }
                 .build()
         )
