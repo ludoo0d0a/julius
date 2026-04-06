@@ -17,16 +17,6 @@ object FuelPriceRegistry {
     val UNIFORM_PRICE_COUNTRIES = setOf("LU", "ME", "MK", "HR", "SI")
 
     /**
-     * Map of country ISO codes to their specific free/open price sources.
-     */
-    val COUNTRY_SPECIFIC_PROVIDERS = mapOf(
-        "FR" to listOf(PoiProviderType.DataGouv),
-         "ES" to listOf(PoiProviderType.SpainMinetur),
-         "DE" to listOf(PoiProviderType.GermanyTankerkoenig),
-         "AT" to listOf(PoiProviderType.AustriaEControl),
-    )
-
-    /**
      * Returns true if the given country code has uniform fuel prices.
      */
     fun isUniformPriceCountry(countryCode: String?): Boolean =
