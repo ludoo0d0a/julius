@@ -90,9 +90,7 @@ enum class PoiProviderType(
     Hybrid(providesFuel = true, providesElectric = true),
 }
 
-private val POI_DATA_SOURCES_DISABLED_FOR_USER_SELECTION: Set<PoiProviderType> = setOf(
-    PoiProviderType.GasApi
-)
+private val POI_DATA_SOURCES_DISABLED_FOR_USER_SELECTION: Set<PoiProviderType> = emptySet()
 
 /** True if this source is shown in map / Auto POI data source pickers. */
 fun PoiProviderType.isUserSelectablePoiDataSource(): Boolean =

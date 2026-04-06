@@ -171,6 +171,11 @@ object PoiMerger {
 
         val mergedSources = mergeSources(existing.source, incoming.source)
 
+        val mergedBrand = when {
+            isBetterBrand(incoming.brand, existing.brand) -> incoming.brand
+            else -> existing.brand
+        }
+
         return existing.copy(
             // Keep coordinates from the "existing" entry for stable marker placement.
             // They are already close (see isSamePoi).
@@ -184,7 +189,7 @@ object PoiMerger {
             name = if (existing.name.isNotBlank()) existing.name else incoming.name,
             address = if (existing.address.isNotBlank()) existing.address else incoming.address,
             siteName = preferNonBlank(existing.siteName, incoming.siteName),
-            brand = existing.brand ?: incoming.brand,
+            brand = mergedBrand,
             addressLocal = preferNonBlank(existing.addressLocal, incoming.addressLocal),
             postcode = preferNonBlank(existing.postcode, incoming.postcode),
             countryLocal = preferNonBlank(existing.countryLocal, incoming.countryLocal),
@@ -200,6 +205,23 @@ object PoiMerger {
 
     private fun preferNonBlank(a: String?, b: String?): String? {
         return a?.takeIf { it.isNotBlank() } ?: b?.takeIf { it.isNotBlank() }
+    }
+
+    private fun isBetterBrand(candidate: String?, current: String?): Boolean {
+        if (candidate.isNullOrBlank()) return false
+        if (current.isNullOrBlank()) return true
+
+        val candLower = candidate.lowercase()
+        val currLower = current.lowercase()
+
+        // Generic labels to avoid
+        val generic = setOf("station", "independant", "independant (gms)", "sans enseigne", "autoroute", "route")
+        if (currLower in generic && candLower !in generic) return true
+
+        // If current is short (like an ID or very short name) and candidate is longer, it might be better
+        if (currLower.length < 3 && candLower.length >= 3) return true
+
+        return false
     }
 
     private fun mergeMaxOrNull(a: Int?, b: Int?): Int? {
