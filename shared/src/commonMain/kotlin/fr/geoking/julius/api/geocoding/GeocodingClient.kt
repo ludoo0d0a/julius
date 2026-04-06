@@ -1,5 +1,8 @@
 package fr.geoking.julius.api.geocoding
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class GeocodedPlace(
     val label: String,
     val latitude: Double,

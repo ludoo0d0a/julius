@@ -18,6 +18,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -25,6 +28,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Directions
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -73,6 +78,12 @@ import fr.geoking.julius.api.traffic.TrafficInfo
 import fr.geoking.julius.api.traffic.TrafficProviderFactory
 import fr.geoking.julius.api.traffic.TrafficRequest
 import fr.geoking.julius.api.geocoding.GeocodingClient
+import fr.geoking.julius.api.geocoding.GeocodedPlace
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntOffset
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,6 +117,54 @@ fun RoutePlanningScreen(
     var tollEstimate by remember { mutableStateOf<TollEstimate?>(null) }
     var routeTraffic by remember { mutableStateOf<TrafficInfo?>(null) }
     var calculateTrigger by remember { mutableStateOf(0) }
+
+    val settings by settingsManager.settings.collectAsState()
+    var originSuggestions by remember { mutableStateOf<List<GeocodedPlace>>(emptyList()) }
+    var destSuggestions by remember { mutableStateOf<List<GeocodedPlace>>(emptyList()) }
+    var originFocused by remember { mutableStateOf(false) }
+    var destFocused by remember { mutableStateOf(false) }
+    var originFieldHeight by remember { mutableStateOf(0) }
+    var destFieldHeight by remember { mutableStateOf(0) }
+    var selectedOrigin by remember { mutableStateOf<GeocodedPlace?>(null) }
+    var selectedDest by remember { mutableStateOf<GeocodedPlace?>(null) }
+
+    LaunchedEffect(originQuery) {
+        if (originQuery.isBlank() || useCurrentLocationAsOrigin) {
+            originSuggestions = emptyList()
+            return@LaunchedEffect
+        }
+        val historyMatches = settings.routeHistory.filter { it.label.contains(originQuery, ignoreCase = true) }
+        originSuggestions = historyMatches
+        if (originQuery.length > 2) {
+            delay(500)
+            try {
+                val remote = geocodingClient.geocode(originQuery, limit = 5)
+                val newSuggestions = (historyMatches + remote).distinctBy { it.label }
+                originSuggestions = newSuggestions
+            } catch (e: Exception) {
+                // Ignore geocoding errors for autocomplete
+            }
+        }
+    }
+
+    LaunchedEffect(destQuery) {
+        if (destQuery.isBlank()) {
+            destSuggestions = emptyList()
+            return@LaunchedEffect
+        }
+        val historyMatches = settings.routeHistory.filter { it.label.contains(destQuery, ignoreCase = true) }
+        destSuggestions = historyMatches
+        if (destQuery.length > 2) {
+            delay(500)
+            try {
+                val remote = geocodingClient.geocode(destQuery, limit = 5)
+                val newSuggestions = (historyMatches + remote).distinctBy { it.label }
+                destSuggestions = newSuggestions
+            } catch (e: Exception) {
+                // Ignore
+            }
+        }
+    }
 
     val hasLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
@@ -151,26 +210,118 @@ fun RoutePlanningScreen(
             }
             if (!useCurrentLocationAsOrigin) {
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = originQuery,
-                    onValueChange = { originQuery = it.take(120) },
-                    label = { Text("Origin address or city") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Box {
+                    OutlinedTextField(
+                        value = originQuery,
+                        onValueChange = {
+                            originQuery = it.take(120)
+                            selectedOrigin = null
+                        },
+                        label = { Text("Origin address or city") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        modifier = Modifier.fillMaxWidth()
+                            .onFocusChanged { originFocused = it.isFocused }
+                            .onSizeChanged { originFieldHeight = it.height }
+                    )
+                    if (originFocused && originSuggestions.isNotEmpty()) {
+                        Popup(
+                            onDismissRequest = { originFocused = false },
+                            offset = IntOffset(0, originFieldHeight),
+                            properties = PopupProperties(focusable = false)
+                        ) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                                elevation = CardDefaults.cardElevation(8.dp)
+                            ) {
+                                LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
+                                    items(originSuggestions) { suggestion ->
+                                        val isHistory = settings.routeHistory.any { it.label == suggestion.label && it.latitude == suggestion.latitude && it.longitude == suggestion.longitude }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().clickable {
+                                                originQuery = suggestion.label
+                                                selectedOrigin = suggestion
+                                                originFocused = false
+                                            }.padding(12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                if (isHistory) Icons.Default.History else Icons.Default.Place,
+                                                contentDescription = null,
+                                                tint = Color.White.copy(alpha = 0.6f),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(Modifier.width(12.dp))
+                                            Text(
+                                                text = suggestion.label,
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text("Destination", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelMedium)
             Spacer(modifier = Modifier.height(4.dp))
-            OutlinedTextField(
-                value = destQuery,
-                onValueChange = { destQuery = it.take(120) },
-                label = { Text("Destination address or city") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                modifier = Modifier.fillMaxWidth()
-            )
+            Box {
+                OutlinedTextField(
+                    value = destQuery,
+                    onValueChange = {
+                        destQuery = it.take(120)
+                        selectedDest = null
+                    },
+                    label = { Text("Destination address or city") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    modifier = Modifier.fillMaxWidth()
+                        .onFocusChanged { destFocused = it.isFocused }
+                        .onSizeChanged { destFieldHeight = it.height }
+                )
+                if (destFocused && destSuggestions.isNotEmpty()) {
+                    Popup(
+                        onDismissRequest = { destFocused = false },
+                        offset = IntOffset(0, destFieldHeight),
+                        properties = PopupProperties(focusable = false)
+                    ) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                            elevation = CardDefaults.cardElevation(8.dp)
+                        ) {
+                            LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
+                                items(destSuggestions) { suggestion ->
+                                    val isHistory = settings.routeHistory.any { it.label == suggestion.label && it.latitude == suggestion.latitude && it.longitude == suggestion.longitude }
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().clickable {
+                                            destQuery = suggestion.label
+                                            selectedDest = suggestion
+                                            destFocused = false
+                                        }.padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            if (isHistory) Icons.Default.History else Icons.Default.Place,
+                                            contentDescription = null,
+                                            tint = Color.White.copy(alpha = 0.6f),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(Modifier.width(12.dp))
+                                        Text(
+                                            text = suggestion.label,
+                                            color = Color.White
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(24.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
@@ -375,31 +526,40 @@ fun RoutePlanningScreen(
                 }
                 Pair("Current location", loc.latitude to loc.longitude)
             } else {
-                val results = geocodingClient.geocode(originQuery, limit = 1)
-                val first = results.firstOrNull()
-                if (first == null) {
-                    loading = false
-                    error = "Origin not found"
-                    return@LaunchedEffect
+                selectedOrigin?.let { it.label to (it.latitude to it.longitude) } ?: run {
+                    val results = geocodingClient.geocode(originQuery, limit = 1)
+                    val first = results.firstOrNull()
+                    if (first == null) {
+                        loading = false
+                        error = "Origin not found"
+                        return@LaunchedEffect
+                    }
+                    Pair(first.label, first.latitude to first.longitude)
                 }
-                Pair(first.label, first.latitude to first.longitude)
             }
 
             val destination = if (initialDestination?.latitude != null && initialDestination.longitude != null) {
                 Pair(initialDestination.address ?: destQuery, initialDestination.latitude to initialDestination.longitude)
             } else {
-                val destResults = geocodingClient.geocode(destQuery, limit = 1)
-                val destFirst = destResults.firstOrNull()
-                if (destFirst == null) {
-                    loading = false
-                    error = "Destination not found"
-                    return@LaunchedEffect
+                selectedDest?.let { it.label to (it.latitude to it.longitude) } ?: run {
+                    val destResults = geocodingClient.geocode(destQuery, limit = 1)
+                    val destFirst = destResults.firstOrNull()
+                    if (destFirst == null) {
+                        loading = false
+                        error = "Destination not found"
+                        return@LaunchedEffect
+                    }
+                    Pair(destFirst.label, destFirst.latitude to destFirst.longitude)
                 }
-                Pair(destFirst.label, destFirst.latitude to destFirst.longitude)
             }
 
             val (oLat, oLon) = origin.second
             val (dLat, dLon) = destination.second
+
+            if (!useCurrentLocationAsOrigin) {
+                settingsManager.addRouteHistory(GeocodedPlace(origin.first, oLat, oLon))
+            }
+            settingsManager.addRouteHistory(GeocodedPlace(destination.first, dLat, dLon))
 
             val settings = settingsManager.settings.value
             val route = routingClient.getRoute(oLat, oLon, dLat, dLon)
