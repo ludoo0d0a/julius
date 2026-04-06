@@ -14,8 +14,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -31,6 +35,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -45,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -52,8 +59,12 @@ import fr.geoking.julius.feature.location.LocationHelper
 import fr.geoking.julius.intent.NavDestination
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.VehicleType
+import fr.geoking.julius.effectiveIrvePowerLevels
+import fr.geoking.julius.effectiveMapEnergyFilterIds
+import fr.geoking.julius.effectiveProviders
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiProvider
+import fr.geoking.julius.ui.map.PoiMarkerHelper
 import fr.geoking.julius.api.routing.RoutePlanner
 import fr.geoking.julius.api.routing.RoutingClient
 import fr.geoking.julius.toll.TollCalculator
@@ -218,15 +229,79 @@ fun RoutePlanningScreen(
                     Spacer(modifier = Modifier.height(4.dp))
                 }
                 val settings by settingsManager.settings.collectAsState()
+                val effectiveProviders = settings.effectiveProviders()
+                val filteredStations = remember(stations, settings, effectiveProviders) {
+                    fr.geoking.julius.StationMapFilters.apply(
+                        settings = settings,
+                        pois = stations,
+                        providers = effectiveProviders,
+                        skipWhenOnlyOverpass = false
+                    )
+                }
+
                 val title = if (settings.vehicleType == VehicleType.Truck || settings.vehicleType == VehicleType.Motorhome) {
-                    "POIs along route (${stations.size})"
+                    "POIs along route (${filteredStations.size})"
                 } else {
-                    "Stations along route (${stations.size})"
+                    "Stations along route (${filteredStations.size})"
                 }
                 Text(title, color = Color.White, style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
+
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (effectiveProviders.any { it.providesFuel }) {
+                        items(MAP_ENERGY_OPTIONS.filter { it.first != "electric" }) { (id, label) ->
+                            val isSelected = settings.selectedMapEnergyTypes.contains(id)
+                            val color = ColorHelper.getFuelColor(id) ?: MaterialTheme.colorScheme.primary
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    val newEnergies = if (isSelected) emptySet() else setOf(id)
+                                    settingsManager.setMapEnergyTypes(newEnergies)
+                                },
+                                label = { Text(label) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = color,
+                                    selectedLabelColor = Color.White
+                                ),
+                                leadingIcon = {
+                                    Box(modifier = Modifier.size(12.dp).background(color, MaterialTheme.shapes.small))
+                                }
+                            )
+                        }
+                    }
+
+                    if (effectiveProviders.any { it.providesElectric }) {
+                        items(MAP_IRVE_POWER_OPTIONS) { (kw, label) ->
+                            val isSelected = settings.mapPowerLevels.contains(kw)
+                            val color = ColorHelper.getPowerColorByLevel(kw)
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    val newLevels = if (isSelected) settings.mapPowerLevels - kw else settings.mapPowerLevels + kw
+                                    settingsManager.setMapPowerLevels(newLevels)
+                                },
+                                label = { Text(label) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = color,
+                                    selectedLabelColor = Color.White
+                                ),
+                                leadingIcon = {
+                                    Box(modifier = Modifier.size(12.dp).background(color, MaterialTheme.shapes.small))
+                                }
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(stations, key = { it.id }) { poi ->
+                    items(filteredStations, key = { it.id }) { poi ->
                         Card(
                             colors = CardDefaults.cardColors(containerColor = Color(0xFF334155)),
                             modifier = Modifier.fillMaxWidth()
@@ -240,7 +315,27 @@ fun RoutePlanningScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(poi.name.ifBlank { poi.address }, color = Color.White, style = MaterialTheme.typography.bodyLarge)
                                     Text(poi.address, color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.bodySmall)
-                                    poi.powerKw?.let { Text("$it kW", color = Color.White.copy(alpha = 0.6f), style = MaterialTheme.typography.labelSmall) }
+
+                                    val energyTypes = settings.effectiveMapEnergyFilterIds()
+                                    val powerLevels = settings.effectiveIrvePowerLevels()
+                                    val label = PoiMarkerHelper.getPoiLabel(poi, energyTypes, powerLevels)
+
+                                    if (label != null) {
+                                        val color = PoiMarkerHelper.getPoiColor(
+                                            poi,
+                                            poi.poiCategory ?: if (poi.isElectric) fr.geoking.julius.poi.PoiCategory.Irve else fr.geoking.julius.poi.PoiCategory.Gas,
+                                            energyTypes,
+                                            powerLevels
+                                        )
+                                        Text(
+                                            text = label,
+                                            color = Color(color),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    } else if (poi.powerKw != null) {
+                                        Text("${poi.powerKw} kW", color = Color.White.copy(alpha = 0.6f), style = MaterialTheme.typography.labelSmall)
+                                    }
                                 }
                                 IconButton(
                                     onClick = {
