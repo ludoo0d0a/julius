@@ -11,8 +11,8 @@ import androidx.core.graphics.drawable.IconCompat
 import fr.geoking.julius.R
 
 class AutoMessageTemplateScreen(carContext: CarContext) : Screen(carContext) {
-    override fun onGetTemplate(): Template {
-        return MessageTemplate.Builder("This is a MessageTemplate sample. It can show a message, an icon, and up to two actions.")
+    override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoMessageTemplateScreen") {
+        MessageTemplate.Builder("This is a MessageTemplate sample. It can show a message, an icon, and up to two actions.")
             .setHeader(
                 Header.Builder()
                     .setTitle("MessageTemplate")

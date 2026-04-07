@@ -8,10 +8,10 @@ import androidx.car.app.model.signin.SignInTemplate
 import androidx.car.app.model.signin.PinSignInMethod
 
 class AutoSignInTemplateScreen(carContext: CarContext) : Screen(carContext) {
-    override fun onGetTemplate(): Template {
+    override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoSignInTemplateScreen") {
         val signInMethod = PinSignInMethod("123456")
 
-        return SignInTemplate.Builder(signInMethod)
+        SignInTemplate.Builder(signInMethod)
             .setTitle("SignInTemplate Sample")
             .setHeaderAction(Action.BACK)
             .setInstructions("Please enter this PIN on your phone.")

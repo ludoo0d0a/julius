@@ -14,12 +14,13 @@ import androidx.car.app.model.Row
 import androidx.car.app.model.Template
 
 class AutoPlaceListNavigationTemplateScreen(carContext: CarContext) : Screen(carContext) {
-    override fun onGetTemplate(): Template {
+    override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoPlaceListNavigationTemplateScreen") {
         val listBuilder = ItemList.Builder()
             .addItem(
                 Row.Builder()
                     .setTitle("Eiffel Tower")
                     .addText("Champ de Mars, 5 Avenue Anatole France, 75007 Paris")
+                    .setBrowsable(true)
                     .setMetadata(
                         Metadata.Builder()
                             .setPlace(
@@ -33,7 +34,7 @@ class AutoPlaceListNavigationTemplateScreen(carContext: CarContext) : Screen(car
                     .build()
             )
 
-        return PlaceListNavigationTemplate.Builder()
+        PlaceListNavigationTemplate.Builder()
             .setHeader(
                 Header.Builder()
                     .setTitle("PlaceListNavigationTemplate")
