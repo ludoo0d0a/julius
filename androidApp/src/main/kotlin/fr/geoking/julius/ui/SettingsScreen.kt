@@ -499,8 +499,8 @@ private fun MapConfig(
             Slider(
                 value = settings.routeStationSearchRadiusMeters.toFloat(),
                 onValueChange = { onUpdate(settings.copy(routeStationSearchRadiusMeters = it.toInt())) },
-                valueRange = 100f..5000f,
-                steps = 48,
+                valueRange = 0f..2000f,
+                steps = 19,
                 colors = SliderDefaults.colors(
                     thumbColor = Lavender,
                     activeTrackColor = Lavender,
