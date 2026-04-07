@@ -3,6 +3,7 @@ package fr.geoking.julius.ui
 import android.location.Address
 import android.location.Geocoder
 import android.os.Build
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -63,8 +65,12 @@ import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.StationMapFilters
 import fr.geoking.julius.effectiveMapEnergyFilterIds
+import fr.geoking.julius.effectiveIrvePowerLevels
 import fr.geoking.julius.effectiveProviders
 import fr.geoking.julius.poi.PoiProviderType
+import fr.geoking.julius.ui.ColorHelper
+import fr.geoking.julius.ui.MAP_ENERGY_OPTIONS
+import fr.geoking.julius.ui.MAP_IRVE_POWER_OPTIONS
 import fr.geoking.julius.ui.SettingsScreenPage
 import fr.geoking.julius.feature.location.LocationHelper
 import fr.geoking.julius.poi.MapPoiFilter
@@ -74,6 +80,8 @@ import fr.geoking.julius.poi.PoiSearchRequest
 import fr.geoking.julius.shared.network.NetworkService
 import fr.geoking.julius.shared.network.NetworkStatus
 import fr.geoking.julius.shared.network.NetworkType
+import fr.geoking.julius.poi.anyProvidesElectric
+import fr.geoking.julius.poi.anyProvidesFuel
 import fr.geoking.julius.ui.components.CheapestStationsCard
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
 import kotlinx.coroutines.Dispatchers
@@ -198,7 +206,7 @@ fun PhoneDashboardScreen(
                             distA.compareTo(distB)
                         }
                     }
-                    .take(3)
+                    .take(5)
             } catch (e: Exception) {
                 android.util.Log.e("PhoneDashboardScreen", "Failed to fetch nearby POIs", e)
             }
@@ -311,6 +319,67 @@ fun PhoneDashboardScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // 0. Chips Selector
+                item {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (providers.anyProvidesFuel()) {
+                            items(MAP_ENERGY_OPTIONS.filter { it.first != "electric" }) { (id, label) ->
+                                val isSelected = settings.effectiveMapEnergyFilterIds().contains(id)
+                                val color = ColorHelper.getFuelColor(id) ?: MaterialTheme.colorScheme.primary
+                                androidx.compose.material3.FilterChip(
+                                    selected = isSelected,
+                                    onClick = {
+                                        val current = settings.selectedMapEnergyTypes
+                                        val next = if (current.contains(id)) current - id else current + id
+                                        settingsManager.setUseVehicleFilter(false)
+                                        settingsManager.setMapEnergyTypes(next)
+                                    },
+                                    label = { Text(label) },
+                                    colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = color,
+                                        selectedLabelColor = Color.White,
+                                        iconColor = color,
+                                        selectedLeadingIconColor = Color.White
+                                    ),
+                                    leadingIcon = {
+                                        Box(modifier = Modifier.size(12.dp).background(color, MaterialTheme.shapes.small))
+                                    }
+                                )
+                            }
+                        }
+
+                        if (providers.anyProvidesElectric()) {
+                            items(MAP_IRVE_POWER_OPTIONS) { (kw, label) ->
+                                val isSelected = settings.effectiveIrvePowerLevels().contains(kw)
+                                val color = ColorHelper.getPowerColorByLevel(kw)
+                                androidx.compose.material3.FilterChip(
+                                    selected = isSelected,
+                                    onClick = {
+                                        val current = settings.mapPowerLevels
+                                        val next = if (current.contains(kw)) current - kw else current + kw
+                                        settingsManager.setUseVehicleFilter(false)
+                                        settingsManager.setMapPowerLevels(next)
+                                    },
+                                    label = { Text(label) },
+                                    colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = color,
+                                        selectedLabelColor = Color.White,
+                                        iconColor = color,
+                                        selectedLeadingIconColor = Color.White
+                                    ),
+                                    leadingIcon = {
+                                        Box(modifier = Modifier.size(12.dp).background(color, MaterialTheme.shapes.small))
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // 1. Nearby Cheapest (loader or card)
                 item {
                     if (isLoadingPois) {
