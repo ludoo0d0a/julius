@@ -190,8 +190,8 @@ class AutoRoutePlanningScreen(
         val list = ItemList.Builder()
             .setNoItemsMessage("No POIs found along route")
 
-        // Keep within Android Auto list limits
-        stations.take(10).forEach { poi ->
+        // Standard Android Auto list limit is 6 items for many templates.
+        stations.take(6).forEach { poi ->
             list.addItem(
                 Row.Builder()
                     .setTitle(poi.name.ifBlank { poi.address.ifBlank { "POI" } })
@@ -308,4 +308,3 @@ class AutoRoutePlanningScreen(
         }
     }
 }
-

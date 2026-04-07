@@ -43,9 +43,9 @@ class AutoTabTemplateScreen(carContext: CarContext) : Screen(carContext) {
                     .build()
             )
 
+        // Nested ListTemplate in TabContents must not have a header or title.
         val listTemplate = ListTemplate.Builder()
             .setSingleList(listBuilder.build())
-            .setTitle("TabTemplate Sample")
             .build()
 
         return tabBuilder.setTabContents(
