@@ -5,8 +5,9 @@ import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.poi.anyProvidesElectric
 
-fun AppSettings.effectiveMapEnergyFilterIds(): Set<String> =
-    if (useVehicleFilter) {
+fun AppSettings.effectiveMapEnergyFilterIds(): Set<String> {
+    val useVehicle = useVehicleFilter || (selectedMapEnergyTypes.isEmpty() && vehicleBrand.isNotEmpty())
+    return if (useVehicle) {
         when (vehicleEnergy) {
             "electric" -> setOf("electric")
             "hybrid" -> vehicleGasTypes + "electric"
@@ -20,9 +21,11 @@ fun AppSettings.effectiveMapEnergyFilterIds(): Set<String> =
             base
         }
     }
+}
 
-fun AppSettings.effectiveFuelBrandFilterIds(): Set<String> =
-    if (useVehicleFilter) {
+fun AppSettings.effectiveFuelBrandFilterIds(): Set<String> {
+    val useVehicle = useVehicleFilter || (mapBrands.isEmpty() && vehicleBrand.isNotEmpty())
+    return if (useVehicle) {
         if (fuelCard == FuelCard.Routex && (vehicleEnergy == "gas" || vehicleEnergy == "hybrid")) {
             // Official Routex alliance partners and common partners
             setOf("esso", "eni", "total", "shell", "aral", "totalenergies", "bp", "omv", "circle k", "texaco", "g&v", "avia")
@@ -32,20 +35,25 @@ fun AppSettings.effectiveFuelBrandFilterIds(): Set<String> =
     } else {
         mapBrands
     }
+}
 
-fun AppSettings.effectiveIrvePowerLevels(): Set<Int> =
-    if (useVehicleFilter && (vehicleEnergy == "electric" || vehicleEnergy == "hybrid")) {
+fun AppSettings.effectiveIrvePowerLevels(): Set<Int> {
+    val useVehicle = useVehicleFilter || (mapPowerLevels.isEmpty() && vehicleBrand.isNotEmpty())
+    return if (useVehicle && (vehicleEnergy == "electric" || vehicleEnergy == "hybrid")) {
         vehiclePowerLevels
     } else {
         mapPowerLevels
     }
+}
 
-fun AppSettings.effectiveIrveOperatorFilter(): Set<String> =
-    if (useVehicleFilter && (vehicleEnergy == "electric" || vehicleEnergy == "hybrid")) {
+fun AppSettings.effectiveIrveOperatorFilter(): Set<String> {
+    val useVehicle = useVehicleFilter || (mapIrveOperators.isEmpty() && vehicleBrand.isNotEmpty())
+    return if (useVehicle && (vehicleEnergy == "electric" || vehicleEnergy == "hybrid")) {
         emptySet()
     } else {
         mapIrveOperators
     }
+}
 
 fun AppSettings.effectiveProviders(): Set<PoiProviderType> = selectedPoiProviders
 
