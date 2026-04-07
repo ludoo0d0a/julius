@@ -89,6 +89,8 @@ import fr.geoking.julius.StationMapFilters
 import fr.geoking.julius.effectiveIrvePowerLevels
 import fr.geoking.julius.effectiveMapEnergyFilterIds
 import fr.geoking.julius.effectiveProviders
+import fr.geoking.julius.shared.location.approxDistanceKm
+import fr.geoking.julius.shared.location.haversineKm
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
@@ -124,28 +126,6 @@ private data class LoadedPoiRegion(
     val maxRadiusKmLoaded: Int,
     val loadedAtMs: Long
 )
-
-private fun haversineKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-    val r = 6371.0
-    val rad = kotlin.math.PI / 180.0
-    val dLat = (lat2 - lat1) * rad
-    val dLon = (lon2 - lon1) * rad
-    val sinDLat = kotlin.math.sin(dLat / 2)
-    val sinDLon = kotlin.math.sin(dLon / 2)
-    val a = sinDLat * sinDLat +
-        kotlin.math.cos(lat1 * rad) * kotlin.math.cos(lat2 * rad) *
-        sinDLon * sinDLon
-    val c = 2 * kotlin.math.atan2(kotlin.math.sqrt(a), kotlin.math.sqrt(1 - a))
-    return r * c
-}
-
-private fun approxDistanceKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-    // Fast equirectangular approximation (good for small distances).
-    val dLatKm = (lat2 - lat1) * 111.0
-    val avgLatRad = ((lat1 + lat2) / 2.0) * kotlin.math.PI / 180.0
-    val dLonKm = (lon2 - lon1) * 111.0 * kotlin.math.cos(avgLatRad)
-    return kotlin.math.sqrt(dLatKm * dLatKm + dLonKm * dLonKm)
-}
 
 @OptIn(ExperimentalMaterial3Api::class, kotlinx.coroutines.FlowPreview::class)
 @Composable
@@ -240,29 +220,6 @@ fun MapScreen(
 
     val effectiveProviders = settings.effectiveProviders()
 
-    val poiFetchKey = remember(
-        effectiveProviders,
-        settings.useVehicleFilter,
-        settings.fuelCard,
-        settings.vehicleType,
-        settings.vehicleEnergy,
-        settings.selectedOverpassAmenityTypes
-    ) {
-        buildString {
-            append(effectiveProviders.sortedBy { it.name }.joinToString(",") { it.name })
-            append("|vehicleFilter=").append(settings.useVehicleFilter)
-            append("|fuelCard=").append(settings.fuelCard)
-            append("|vehicleType=").append(settings.vehicleType)
-            append("|vehicleEnergy=").append(settings.vehicleEnergy)
-            append("|overpassAmenities=").append(settings.selectedOverpassAmenityTypes.sorted().joinToString(","))
-        }
-    }
-
-    val loadedRegions = remember { mutableListOf<LoadedPoiRegion>() }
-    // POI cache metadata: used for TTL + bounded cache size.
-    val poiSeenAtMs = remember { mutableStateMapOf<String, Long>() }
-    var lastCacheKey by remember { mutableStateOf<String?>(null) }
-
     val poisInView = remember(cachedPois, cameraPositionState.position.target, cameraPositionState.position.zoom, mapSizePx, settings, effectiveProviders) {
         val center = cameraPositionState.position.target
         val zoom = cameraPositionState.position.zoom
@@ -322,20 +279,7 @@ fun MapScreen(
         }
     }
 
-    LaunchedEffect(poiFetchKey, mapSizePx, retryCount) {
-        val currentCacheKey = "$poiFetchKey|size=${mapSizePx.width}x${mapSizePx.height}"
-        val cacheKeyChanged = lastCacheKey != currentCacheKey
-        if (cacheKeyChanged) {
-            loadedRegions.clear()
-            cachedPois = emptyList()
-            poiSeenAtMs.clear()
-            availabilityByPoiId = emptyMap()
-            trafficInfo = null
-            mapErrorMessage = null
-            isErrorPaused = false
-            lastCacheKey = currentCacheKey
-        }
-
+    LaunchedEffect(mapSizePx, retryCount) {
         if (mapSizePx.width <= 0 || mapSizePx.height <= 0) return@LaunchedEffect
 
         if (!hasLocationPermission) {
@@ -350,11 +294,6 @@ fun MapScreen(
                 val centerLat = position.target.latitude
                 val centerLng = position.target.longitude
                 val zoom = position.zoom
-                val nowMs = System.currentTimeMillis()
-                val ttlMs = 8L * 60L * 60L * 1000L
-                val expiresBeforeMs = nowMs - ttlMs
-                val maxRegions = 8
-                val maxPoisInCache = 1200
 
                 val requiredRadiusKm = radiusKmFromMapViewport(
                     centerLat,
@@ -363,33 +302,6 @@ fun MapScreen(
                     mapSizePx.width,
                     mapSizePx.height
                 ).coerceIn(1, 50)
-
-                // TTL eviction before coverage check, so we don't "think" an expired region still covers the view.
-                loadedRegions.removeAll { it.loadedAtMs < expiresBeforeMs }
-                if (poiSeenAtMs.isNotEmpty()) {
-                    val expiredPoiIds = poiSeenAtMs
-                        .asSequence()
-                        .filter { (_, seenAt) -> seenAt < expiresBeforeMs }
-                        .map { (id, _) -> id }
-                        .toSet()
-                    if (expiredPoiIds.isNotEmpty()) {
-                        poiSeenAtMs.keys.removeAll(expiredPoiIds)
-                        cachedPois = cachedPois.filterNot { it.id in expiredPoiIds }
-                        availabilityByPoiId = availabilityByPoiId - expiredPoiIds
-                    }
-                }
-
-                val viewportCovered = loadedRegions.any { region ->
-                    region.maxRadiusKmLoaded >= requiredRadiusKm &&
-                        haversineKm(
-                            centerLat,
-                            centerLng,
-                            region.centerLat,
-                            region.centerLng
-                        ) <= (region.maxRadiusKmLoaded - requiredRadiusKm).toDouble() + 0.5
-                }
-
-                if (viewportCovered) return@collectLatest
 
                 mapErrorMessage = null
 
@@ -446,52 +358,7 @@ fun MapScreen(
                         return@collectLatest
                     }
 
-                    cachedPois = PoiMerger.mergeInto(cachedPois, finalPois)
-                    // Update "seen" timestamps for TTL tracking.
-                    val mergedNow = System.currentTimeMillis()
-                    finalPois.forEach { poiSeenAtMs[it.id] = mergedNow }
-                    // POIs that were merged into existing entries may have kept the existing ID (and that is OK).
-                    cachedPois.forEach { p ->
-                        // Ensure stable entries remain "warm" when reloaded.
-                        if (poiSeenAtMs[p.id] == null) poiSeenAtMs[p.id] = mergedNow
-                    }
-                    loadedRegions.add(
-                        LoadedPoiRegion(
-                            centerLat = centerLat,
-                            centerLng = centerLng,
-                            maxRadiusKmLoaded = requiredRadiusKm,
-                            loadedAtMs = System.currentTimeMillis()
-                        )
-                    )
-
-                    // Keep the region cache bounded.
-                    while (loadedRegions.size > maxRegions) {
-                        val currentCenter = LatLng(centerLat, centerLng)
-                        val farthest = loadedRegions.maxBy { r ->
-                            haversineKm(
-                                r.centerLat,
-                                r.centerLng,
-                                currentCenter.latitude,
-                                currentCenter.longitude
-                            )
-                        }
-                        loadedRegions.remove(farthest)
-                    }
-
-                    // Keep the POI cache bounded: keep closest POIs to current center.
-                    if (cachedPois.size > maxPoisInCache) {
-                        val sortedByDist = cachedPois
-                            .asSequence()
-                            .map { p -> p to approxDistanceKm(centerLat, centerLng, p.latitude, p.longitude) }
-                            .sortedBy { it.second }
-                            .take(maxPoisInCache)
-                            .map { it.first }
-                            .toList()
-                        val keepIds = sortedByDist.asSequence().map { it.id }.toSet()
-                        cachedPois = sortedByDist
-                        poiSeenAtMs.keys.retainAll(keepIds)
-                        availabilityByPoiId = availabilityByPoiId.filterKeys { it in keepIds }
-                    }
+                    cachedPois = finalPois
 
                     // Availability: refresh for POIs close enough for the cards.
                     val availabilityProvider = availabilityProviderFactory?.getProvider(centerLat, centerLng)
@@ -553,9 +420,7 @@ fun MapScreen(
         onRefresh = {
             scope.launch {
                 CacheManager.clearAllCaches(context)
-                loadedRegions.clear()
                 cachedPois = emptyList()
-                poiSeenAtMs.clear()
                 availabilityByPoiId = emptyMap()
                 trafficInfo = null
                 mapErrorMessage = null
