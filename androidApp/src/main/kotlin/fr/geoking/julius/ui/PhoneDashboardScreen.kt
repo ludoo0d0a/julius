@@ -155,6 +155,7 @@ fun PhoneDashboardScreen(
     val settings by settingsManager.settings.collectAsState()
     var nearbyPois by remember { mutableStateOf<List<Poi>>(emptyList()) }
     var isLoadingPois by remember { mutableStateOf(false) }
+    var searchError by remember { mutableStateOf<String?>(null) }
     var userLat by remember { mutableStateOf<Double?>(null) }
     var userLon by remember { mutableStateOf<Double?>(null) }
     var poiForDetails by remember { mutableStateOf<Poi?>(null) }
@@ -163,9 +164,18 @@ fun PhoneDashboardScreen(
     val providers = settings.effectiveProviders()
 
     LaunchedEffect(poiProvider, hasLocationPermission, energyFilterIds, providers, settings) {
-        if (poiProvider == null || !hasLocationPermission) return@LaunchedEffect
+        if (poiProvider == null) return@LaunchedEffect
 
         isLoadingPois = true
+        searchError = null
+
+        if (!hasLocationPermission) {
+            nearbyPois = emptyList()
+            searchError = "Location permission is required to find nearby stations."
+            isLoadingPois = false
+            return@LaunchedEffect
+        }
+
         val location = LocationHelper.getCurrentLocation(context)
         if (location != null) {
             userLat = location.latitude
@@ -209,7 +219,12 @@ fun PhoneDashboardScreen(
                     .take(5)
             } catch (e: Exception) {
                 android.util.Log.e("PhoneDashboardScreen", "Failed to fetch nearby POIs", e)
+                searchError = "Unable to fetch nearby stations. Please check your connection."
+                nearbyPois = emptyList()
             }
+        } else {
+            searchError = "Unable to determine your location."
+            nearbyPois = emptyList()
         }
         isLoadingPois = false
     }
@@ -404,14 +419,15 @@ fun PhoneDashboardScreen(
                                 }
                             }
                         }
-                    } else if (nearbyPois.isNotEmpty()) {
+                    } else {
                         CheapestStationsCard(
                             stations = nearbyPois,
                             userLatitude = userLat,
                             userLongitude = userLon,
                             selectedEnergyIds = energyFilterIds,
                             onClick = { poiForDetails = it },
-                            onMapClick = onOpenMap
+                            onMapClick = onOpenMap,
+                            emptyMessage = searchError
                         )
                     }
                 }

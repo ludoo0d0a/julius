@@ -31,7 +31,8 @@ fun CheapestStationsCard(
     selectedEnergyIds: Set<String>,
     onClick: (Poi) -> Unit,
     onMapClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    emptyMessage: String? = null
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -66,7 +67,7 @@ fun CheapestStationsCard(
 
             if (stations.isEmpty()) {
                 Text(
-                    text = "No stations found nearby",
+                    text = emptyMessage ?: "No stations found nearby. Try opening the map to search elsewhere.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
