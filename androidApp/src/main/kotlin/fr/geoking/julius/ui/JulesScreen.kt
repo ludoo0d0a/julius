@@ -272,10 +272,17 @@ fun JulesScreen(
                     )
                     if (currentSession != null) {
                         val hasOutput = !currentSession!!.prUrl.isNullOrBlank()
-                        val (statusText, statusColor) = when (currentSession!!.prState) {
-                            "merged" -> "Merged" to Color.Magenta
-                            "closed" -> "Closed" to Color.Red
-                            "open" -> "Open PR" to Color.Green
+                        val (statusText, statusColor) = when {
+                            currentSession!!.prState == "merged" -> "Merged" to Color.Magenta
+                            currentSession!!.prState == "closed" -> "Closed" to Color.Red
+                            currentSession!!.prState == "open" -> "Open PR" to Color.Green
+                            currentSession!!.sessionState == "COMPLETED" -> "Completed" to Color.Green
+                            currentSession!!.sessionState == "FAILED" -> "Failed" to Color.Red
+                            currentSession!!.sessionState == "AWAITING_PLAN_APPROVAL" -> "Waiting for approval" to JulesAccent
+                            currentSession!!.sessionState == "AWAITING_USER_FEEDBACK" -> "Waiting for you" to JulesAccent
+                            currentSession!!.sessionState == "PLANNING" -> "Planning…" to JulesAccent
+                            currentSession!!.sessionState == "QUEUED" -> "Queued…" to Color.White.copy(alpha = 0.6f)
+                            currentSession!!.sessionState == "PAUSED" -> "Paused" to Color.Yellow
                             else -> (if (hasOutput) "Output available" else "In progress") to (if (hasOutput) JulesAccent else Color.White.copy(alpha = 0.6f))
                         }
                         val mergeabilityText = if (currentSession!!.prState == "open" && currentSession!!.prMergeable == false) " (Conflicts)" else ""
@@ -419,6 +426,7 @@ fun JulesScreen(
                                             prTitle = session.outputs?.firstOrNull()?.pullRequest?.title,
                                             prState = null,
                                             prMergeable = null,
+                                            sessionState = session.state,
                                             isArchived = false,
                                             lastUpdated = System.currentTimeMillis()
                                         )
@@ -612,12 +620,19 @@ private fun InConversationContent(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         // PR Status Bar
-        if (currentSession.prUrl != null) {
-            val (statusText, statusColor) = when (currentSession.prState) {
-                "merged" -> "Merged" to Color.Magenta
-                "closed" -> "Closed" to Color.Red
-                "open" -> "Open PR" to Color.Green
-                else -> "In progress" to Color.White.copy(alpha = 0.6f)
+        if (currentSession.prUrl != null || currentSession.sessionState != null) {
+            val (statusText, statusColor) = when {
+                currentSession.prState == "merged" -> "Merged" to Color.Magenta
+                currentSession.prState == "closed" -> "Closed" to Color.Red
+                currentSession.prState == "open" -> "Open PR" to Color.Green
+                currentSession.sessionState == "COMPLETED" -> "Completed" to Color.Green
+                currentSession.sessionState == "FAILED" -> "Failed" to Color.Red
+                currentSession.sessionState == "AWAITING_PLAN_APPROVAL" -> "Waiting for approval" to JulesAccent
+                currentSession.sessionState == "AWAITING_USER_FEEDBACK" -> "Waiting for you" to JulesAccent
+                currentSession.sessionState == "PLANNING" -> "Planning…" to JulesAccent
+                currentSession.sessionState == "QUEUED" -> "Queued…" to Color.White.copy(alpha = 0.6f)
+                currentSession.sessionState == "PAUSED" -> "Paused" to Color.Yellow
+                else -> (if (!currentSession.prUrl.isNullOrBlank()) "Output available" else "In progress") to (if (!currentSession.prUrl.isNullOrBlank()) JulesAccent else Color.White.copy(alpha = 0.6f))
             }
 
             val mergeabilityText = when (currentSession.prMergeable) {
@@ -974,10 +989,17 @@ private fun SessionRow(
                 fontSize = 16.sp
             )
             val hasOutput = !session.prUrl.isNullOrBlank()
-            val (statusText, statusColor) = when (session.prState) {
-                "merged" -> "Merged" to Color.Magenta
-                "closed" -> "Closed" to Color.Red
-                "open" -> "Open PR" to Color.Green
+            val (statusText, statusColor) = when {
+                session.prState == "merged" -> "Merged" to Color.Magenta
+                session.prState == "closed" -> "Closed" to Color.Red
+                session.prState == "open" -> "Open PR" to Color.Green
+                session.sessionState == "COMPLETED" -> "Completed" to Color.Green
+                session.sessionState == "FAILED" -> "Failed" to Color.Red
+                session.sessionState == "AWAITING_PLAN_APPROVAL" -> "Waiting for approval" to JulesAccent
+                session.sessionState == "AWAITING_USER_FEEDBACK" -> "Waiting for you" to JulesAccent
+                session.sessionState == "PLANNING" -> "Planning…" to JulesAccent
+                session.sessionState == "QUEUED" -> "Queued…" to Color.White.copy(alpha = 0.6f)
+                session.sessionState == "PAUSED" -> "Paused" to Color.Yellow
                 else -> (if (hasOutput) "Output available" else "In progress") to (if (hasOutput) JulesAccent else Color.White.copy(alpha = 0.6f))
             }
             val mergeabilityText = if (session.prState == "open" && session.prMergeable == false) " (Conflicts)" else ""

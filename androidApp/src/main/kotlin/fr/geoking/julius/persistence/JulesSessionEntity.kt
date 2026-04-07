@@ -14,6 +14,7 @@ data class JulesSessionEntity(
     val prTitle: String?,
     val prState: String?, // open, closed, merged
     val prMergeable: Boolean?, // true if no conflicts, false if conflicts, null if unknown
+    val sessionState: String?, // QUEUED, PLANNING, COMPLETED, etc.
     @ColumnInfo(defaultValue = "0")
     val isArchived: Boolean = false,
     val lastUpdated: Long
