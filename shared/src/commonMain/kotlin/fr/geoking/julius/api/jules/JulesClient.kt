@@ -2,6 +2,7 @@ package fr.geoking.julius.api.jules
 
 import fr.geoking.julius.shared.network.NetworkException
 import io.ktor.client.HttpClient
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -184,6 +185,17 @@ class JulesClient(
             throw NetworkException(response.status.value, "Jules listSessions: $body")
         }
         return json.decodeFromString(ListSessionsResponse.serializer(), body)
+    }
+
+    suspend fun deleteSession(apiKey: String, sessionId: String) {
+        val token = apiKeyHeader(apiKey)
+        val response = client.delete("$baseUrl/sessions/$sessionId") {
+            header("X-Goog-Api-Key", token)
+        }
+        if (response.status.value !in 200..299) {
+            val body = response.bodyAsText()
+            throw NetworkException(response.status.value, "Jules deleteSession: $body")
+        }
     }
 
     // --- Send message ---

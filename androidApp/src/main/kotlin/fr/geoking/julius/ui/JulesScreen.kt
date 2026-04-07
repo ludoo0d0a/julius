@@ -475,11 +475,11 @@ fun JulesScreen(
                             onArchive = { session ->
                                 scope.launch {
                                     loading = true
-                                    julesRepository.archiveSession(session.id)
+                                    julesRepository.archiveSession(apiKey, session.id)
                                     loadSessions()
                                     loading = false
                                 }
-                                    },
+                            },
                                     quota = quota
                         )
                     }
