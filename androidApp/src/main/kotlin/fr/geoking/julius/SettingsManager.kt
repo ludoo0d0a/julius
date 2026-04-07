@@ -224,7 +224,7 @@ data class AppSettings(
     /** Last 10 unique destinations. */
     val routeHistory: List<GeocodedPlace> = emptyList(),
     /** Radius in meters to search for stations along a route. */
-    val routeStationSearchRadiusMeters: Int = 500,
+    val routeStationSearchRadiusMeters: Int = 2000,
     /** When true, only show stations explicitly marked as on highway/autoroute. */
     val filterOnlyHighwayStations: Boolean = false
 )
@@ -281,7 +281,7 @@ open class SettingsManager(
         } catch (e: Exception) {
             emptyList()
         }
-        val routeStationSearchRadiusMeters = prefs.getInt("route_station_search_radius_meters", 500).coerceIn(100, 5000)
+        val routeStationSearchRadiusMeters = prefs.getInt("route_station_search_radius_meters", 2000).coerceIn(0, 2000)
         val filterOnlyHighwayStations = prefs.getBoolean("filter_only_highway_stations", false)
 
         // Persist build-time keys (from env/local.properties) when prefs were empty so they show in settings and are reused
@@ -745,7 +745,7 @@ open class SettingsManager(
     }
 
     open fun setRouteStationSearchRadiusMeters(meters: Int) {
-        val value = meters.coerceIn(100, 5000)
+        val value = meters.coerceIn(0, 2000)
         prefs.edit().putInt("route_station_search_radius_meters", value).apply()
         _settings.value = _settings.value.copy(routeStationSearchRadiusMeters = value)
     }
@@ -873,7 +873,7 @@ open class SettingsManager(
             .putString("google_user_name", settings.googleUserName)
             .putBoolean("is_logged_in", settings.isLoggedIn)
             .putString("route_history", Json.encodeToString(settings.routeHistory))
-            .putInt("route_station_search_radius_meters", settings.routeStationSearchRadiusMeters)
+            .putInt("route_station_search_radius_meters", settings.routeStationSearchRadiusMeters.coerceIn(0, 2000))
             .putBoolean("filter_only_highway_stations", settings.filterOnlyHighwayStations)
             .apply()
 
