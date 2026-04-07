@@ -32,8 +32,10 @@ import androidx.compose.material.icons.filled.Merge
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -114,7 +116,10 @@ fun JulesScreen(
     var selectedSourceDisplayName by remember { mutableStateOf(settings.lastJulesRepoName.takeIf { it.isNotBlank() } ?: "Select repository") }
     var sourcesLoaded by remember { mutableStateOf(false) }
     var showRepoSheet by remember { mutableStateOf(false) }
+    var showActivitiesSheet by remember { mutableStateOf(false) }
+    var rawActivities by remember { mutableStateOf<List<JulesClient.JulesActivity>>(emptyList()) }
     val sheetState = rememberModalBottomSheetState()
+    val activitiesSheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val sessionsListState = rememberLazyListState()
@@ -250,6 +255,13 @@ fun JulesScreen(
     Surface(modifier = Modifier.fillMaxSize(), color = JulesBg) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
+                if (loading || loadingSessions) {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = JulesAccent,
+                        trackColor = Color.Transparent
+                    )
+                }
                 Row(
                     modifier = Modifier
                     .fillMaxWidth()
@@ -296,6 +308,23 @@ fun JulesScreen(
                                 fontSize = 12.sp
                             )
                         }
+                    }
+                }
+                if (currentSession != null) {
+                    IconButton(onClick = {
+                        scope.launch {
+                            loading = true
+                            try {
+                                val resp = julesClient.listActivities(apiKey, currentSession!!.id)
+                                rawActivities = resp.activities
+                                showActivitiesSheet = true
+                            } catch (e: Exception) {
+                                error = "Could not load activities: ${e.message}"
+                            }
+                            loading = false
+                        }
+                    }) {
+                        Icon(Icons.Default.History, contentDescription = "Activities", tint = Color.White)
                     }
                 }
             }
@@ -417,16 +446,23 @@ fun JulesScreen(
                                             source = source,
                                             title = newSessionPrompt.take(80)
                                         )
+                                        // Immediately get session to have the initial state (as createSession might have it as null or QUEUED)
+                                        val updatedSession = try {
+                                            julesClient.getSession(apiKey, session.id)
+                                        } catch (e: Exception) {
+                                            session
+                                        }
+
                                         val entity = JulesSessionEntity(
-                                            id = session.id,
-                                            title = session.title,
-                                            prompt = session.prompt,
+                                            id = updatedSession.id,
+                                            title = updatedSession.title,
+                                            prompt = updatedSession.prompt,
                                             sourceName = source,
-                                            prUrl = session.outputs?.firstOrNull()?.pullRequest?.url,
-                                            prTitle = session.outputs?.firstOrNull()?.pullRequest?.title,
+                                            prUrl = updatedSession.outputs?.firstOrNull()?.pullRequest?.url,
+                                            prTitle = updatedSession.outputs?.firstOrNull()?.pullRequest?.title,
                                             prState = null,
                                             prMergeable = null,
-                                            sessionState = session.state,
+                                            sessionState = updatedSession.state,
                                             isArchived = false,
                                             lastUpdated = System.currentTimeMillis()
                                         )
@@ -488,17 +524,17 @@ fun JulesScreen(
             }
         }
 
-        if (loading || loadingSessions) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.4f))
-                        .clickable(enabled = true, onClick = {}),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = JulesAccent)
-                }
-            }
+        }
+    }
+
+    if (showActivitiesSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showActivitiesSheet = false },
+            sheetState = activitiesSheetState,
+            containerColor = JulesBg,
+            contentColor = Color.White
+        ) {
+            ActivitiesSheet(activities = rawActivities)
         }
     }
 
@@ -572,6 +608,89 @@ fun JulesScreen(
                                 Text("Refresh list")
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActivitiesSheet(activities: List<JulesClient.JulesActivity>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 32.dp)
+    ) {
+        Text(
+            "Activities",
+            color = Color.White,
+            fontSize = 20.sp,
+            modifier = Modifier.padding(16.dp),
+            fontWeight = FontWeight.Bold
+        )
+        if (activities.isEmpty()) {
+            Text(
+                "No activities found.",
+                color = Color.White.copy(alpha = 0.7f),
+                modifier = Modifier.padding(16.dp)
+            )
+        } else {
+            val timeFormatter = remember { DateTimeFormatter.ofPattern("MMM dd, HH:mm:ss") }
+            LazyColumn {
+                items(activities.sortedByDescending { it.createTime }) { activity ->
+                    val activityTime = try {
+                        OffsetDateTime.parse(activity.createTime).format(timeFormatter)
+                    } catch (e: Exception) {
+                        activity.createTime
+                    }
+
+                    val typeText = when {
+                        activity.planGenerated != null -> "Plan Generated"
+                        activity.planApproved != null -> "Plan Approved"
+                        activity.progressUpdated != null -> "Progress Updated"
+                        activity.messageSent != null -> "Message Sent"
+                        activity.sessionCompleted != null -> "Session Completed"
+                        else -> "Activity"
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = activity.originator.replaceFirstChar { it.uppercase() },
+                                color = if (activity.originator == "user") JulesAccent else Color.Green,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.size(8.dp))
+                            Text(
+                                text = typeText,
+                                color = Color.White,
+                                fontSize = 14.sp
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = activityTime,
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 12.sp
+                            )
+                        }
+                        activity.progressUpdated?.let {
+                            Text(
+                                text = it.title,
+                                color = Color.White.copy(alpha = 0.8f),
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                        HorizontalDivider(
+                            modifier = Modifier.padding(top = 12.dp),
+                            color = Color.White.copy(alpha = 0.1f)
+                        )
                     }
                 }
             }
