@@ -23,11 +23,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Merge
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -59,6 +62,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import java.time.OffsetDateTime
@@ -616,6 +628,136 @@ fun JulesScreen(
 }
 
 @Composable
+private fun MessageText(text: String, baseFontSize: Int) {
+    var expanded by remember { mutableStateOf(false) }
+    val isCodeReviewed = text.startsWith("Code reviewed", ignoreCase = true)
+    val isPlan = text.startsWith("**Plan", ignoreCase = true)
+
+    Column {
+        if (isCodeReviewed) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = JulesAccent,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(
+                    text = "Code reviewed",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = baseFontSize.sp
+                )
+            }
+        }
+
+        if (isPlan) {
+            val lines = text.split("\n")
+            lines.forEach { line ->
+                if (line.startsWith("**Plan")) {
+                    Text(
+                        text = "Plan",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = (baseFontSize + 2).sp,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                } else {
+                    val stepMatch = Regex("^\\d+\\.\\s+(.*)").find(line)
+                    if (stepMatch != null) {
+                        val content = stepMatch.groupValues[1]
+                        val parts = content.split(". ", limit = 2)
+                        val title = parts[0]
+                        val description = if (parts.size > 1) parts[1] else ""
+                        var stepExpanded by remember { mutableStateOf(false) }
+
+                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(enabled = description.isNotBlank()) { stepExpanded = !stepExpanded },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .background(JulesAccent, RoundedCornerShape(4.dp))
+                                )
+                                Spacer(modifier = Modifier.size(12.dp))
+                                Text(
+                                    text = title,
+                                    color = Color.White,
+                                    fontSize = baseFontSize.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                if (description.isNotBlank()) {
+                                    Icon(
+                                        if (stepExpanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        contentDescription = null,
+                                        tint = Color.White.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                            if (stepExpanded && description.isNotBlank()) {
+                                Text(
+                                    text = description,
+                                    color = Color.White.copy(alpha = 0.6f),
+                                    fontSize = (baseFontSize - 1).sp,
+                                    modifier = Modifier.padding(start = 20.dp, top = 4.dp, bottom = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (!isCodeReviewed || expanded) {
+            val sentences = text.split(Regex("(?<=[.!?])\\s+"))
+            val annotatedString = buildAnnotatedString {
+                sentences.forEachIndexed { index, sentence ->
+                    val isFirst = index == 0 && !isCodeReviewed
+                    val style = if (isFirst) {
+                        SpanStyle(color = Color.White, fontWeight = FontWeight.Bold)
+                    } else {
+                        SpanStyle(color = Color.White.copy(alpha = 0.6f))
+                    }
+
+                    withStyle(style) {
+                        // Apply Markdown-like bolding for **text**
+                        val parts = sentence.split("**")
+                        parts.forEachIndexed { pIndex, part ->
+                            if (pIndex % 2 == 1) {
+                                withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.White)) {
+                                    append(part)
+                                }
+                            } else {
+                                // Apply bullet point conversion
+                                val bulletedPart = part.replace(Regex("(?m)^\\s*[-*]\\s+"), " • ")
+                                append(bulletedPart)
+                            }
+                        }
+                    }
+                    if (index < sentences.size - 1) append(" ")
+                }
+            }
+            Text(
+                text = annotatedString,
+                modifier = Modifier.padding(12.dp),
+                fontSize = baseFontSize.sp
+            )
+        }
+    }
+}
+
+@Composable
 private fun ActivitiesSheet(activities: List<JulesClient.JulesActivity>) {
     Column(
         modifier = Modifier
@@ -679,6 +821,76 @@ private fun ActivitiesSheet(activities: List<JulesClient.JulesActivity>) {
                                 fontSize = 12.sp
                             )
                         }
+
+                        activity.artifacts?.forEach { artifact ->
+                            artifact.bashOutput?.let { bash ->
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp)
+                                        .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                                        .padding(8.dp)
+                                ) {
+                                    Text(
+                                        text = "> ${bash.command}",
+                                        color = Color.Green,
+                                        fontSize = 11.sp,
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                    )
+                                    if (bash.output.isNotBlank()) {
+                                        Text(
+                                            text = bash.output,
+                                            color = Color.White.copy(alpha = 0.7f),
+                                            fontSize = 10.sp,
+                                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            artifact.changeSet?.let { cs ->
+                                cs.gitPatch?.let { gp ->
+                                    Text(
+                                        text = "Changed: ${cs.source}",
+                                        color = JulesAccent,
+                                        fontSize = 12.sp,
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    )
+                                    gp.suggestedCommitMessage?.let { msg ->
+                                        Text(
+                                            text = "Commit: $msg",
+                                            color = Color.White.copy(alpha = 0.6f),
+                                            fontSize = 11.sp,
+                                            modifier = Modifier.padding(top = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            artifact.media?.let { media ->
+                                if (media.mimeType.startsWith("image/")) {
+                                    val bitmap = remember(media.data) {
+                                        try {
+                                            val decoded = Base64.decode(media.data, Base64.DEFAULT)
+                                            BitmapFactory.decodeByteArray(decoded, 0, decoded.size)
+                                        } catch (e: Exception) {
+                                            null
+                                        }
+                                    }
+                                    bitmap?.let {
+                                        Image(
+                                            bitmap = it.asImageBitmap(),
+                                            contentDescription = "Activity Media",
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 8.dp)
+                                                .height(200.dp)
+                                                .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         activity.progressUpdated?.let {
                             Text(
                                 text = it.title,
@@ -737,6 +949,7 @@ private fun InConversationContent(
     loading: Boolean,
     onMergePr: () -> Unit
 ) {
+    val uriHandler = LocalUriHandler.current
     Column(modifier = Modifier.fillMaxSize()) {
         // PR Status Bar
         if (currentSession.prUrl != null || currentSession.sessionState != null) {
@@ -786,6 +999,12 @@ private fun InConversationContent(
                                 color = statusColor,
                                 fontSize = 12.sp
                             )
+                        }
+                    }
+
+                    if (!currentSession.prUrl.isNullOrBlank()) {
+                        IconButton(onClick = { uriHandler.openUri(currentSession.prUrl) }) {
+                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open PR", tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(20.dp))
                         }
                     }
 
@@ -863,12 +1082,7 @@ private fun InConversationContent(
                                 .widthIn(max = 280.dp)
                                 .clickable { voiceManager.speak(item.text) }
                         ) {
-                            Text(
-                                text = item.text,
-                                color = Color.White,
-                                modifier = Modifier.padding(12.dp),
-                                fontSize = 15.sp
-                            )
+                            MessageText(text = item.text, baseFontSize = 15)
                         }
                     }
                     is JulesChatItem.AgentMessage -> Row(
@@ -882,12 +1096,7 @@ private fun InConversationContent(
                                 .widthIn(max = 320.dp)
                                 .clickable { voiceManager.speak(item.text) }
                         ) {
-                            Text(
-                                text = item.text,
-                                color = Color.White.copy(alpha = 0.95f),
-                                modifier = Modifier.padding(12.dp),
-                                fontSize = 14.sp
-                            )
+                            MessageText(text = item.text, baseFontSize = 14)
                         }
                     }
                 }
