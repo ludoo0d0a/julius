@@ -762,6 +762,7 @@ fun MainUIPreview() {
                     override suspend fun getSession(sessionId: String): JulesSessionEntity? = null
                     override suspend fun archiveSession(sessionId: String) {}
                     override suspend fun updateSessionPrStatus(sessionId: String, state: String, mergeable: Boolean?) {}
+                    override suspend fun updateSessionLastUpdated(sessionId: String, lastUpdated: Long) {}
                     override suspend fun insertActivities(activities: List<JulesActivityEntity>) {}
                     override suspend fun getActivitiesBySession(sessionId: String): List<JulesActivityEntity> = emptyList()
                     override suspend fun clearActivitiesBySession(sessionId: String) {}
