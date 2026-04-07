@@ -238,7 +238,40 @@ class JulesClient(
         val progressUpdated: ProgressUpdated? = null,
         val sessionCompleted: JsonObject? = null,
         val messageSent: MessageSent? = null,
-        val artifacts: List<JsonObject>? = null
+        val artifacts: List<JulesArtifact>? = null
+    )
+
+    @Serializable
+    data class JulesArtifact(
+        val bashOutput: BashOutput? = null,
+        val changeSet: ChangeSet? = null,
+        val media: Media? = null
+    )
+
+    @Serializable
+    data class BashOutput(
+        val command: String = "",
+        val output: String = "",
+        val exitCode: Int? = null
+    )
+
+    @Serializable
+    data class ChangeSet(
+        val source: String = "",
+        val gitPatch: GitPatch? = null
+    )
+
+    @Serializable
+    data class GitPatch(
+        val unidiffPatch: String? = null,
+        val baseCommitId: String? = null,
+        val suggestedCommitMessage: String? = null
+    )
+
+    @Serializable
+    data class Media(
+        val data: String = "", // base64
+        val mimeType: String = ""
     )
 
     @Serializable
@@ -299,7 +332,7 @@ class JulesClient(
                             JulesChatItem.UserMessage(a.id, a.createTime, a.messageSent.prompt ?: "")
                         )
                         a.planApproved != null -> items.add(
-                            JulesChatItem.AgentMessage(a.id, a.createTime, "Plan approved.")
+                            JulesChatItem.AgentMessage(a.id, a.createTime, "Plan approved. 🚀")
                         )
                     }
                 }
