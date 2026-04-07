@@ -8,8 +8,11 @@ import androidx.car.app.SurfaceCallback
 import androidx.car.app.SurfaceContainer
 import androidx.car.app.model.Action
 import androidx.car.app.model.Header
+import androidx.car.app.model.ItemList
+import androidx.car.app.model.ListTemplate
+import androidx.car.app.model.Row
 import androidx.car.app.model.Template
-import androidx.car.app.navigation.model.MapTemplate
+import androidx.car.app.navigation.model.MapWithContentTemplate
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 
@@ -18,7 +21,7 @@ class AutoMapTemplateScreen(carContext: CarContext) : Screen(carContext), Surfac
     private var surfaceRenderer: AutoSurfaceRenderer? = null
     private val lat = 48.8566
     private val lon = 2.3522
-    private val zoom = 14
+    private var zoom = 14
 
     init {
         lifecycle.addObserver(this)
@@ -60,20 +63,39 @@ class AutoMapTemplateScreen(carContext: CarContext) : Screen(carContext), Surfac
         surfaceRenderer = null
     }
 
+    private fun bumpZoom(delta: Int) {
+        zoom = (zoom + delta).coerceIn(4, 18)
+        surfaceRenderer?.updateLocation(lat, lon, zoom)
+        invalidate()
+    }
+
     override fun onGetTemplate(): Template {
-        return MapTemplate.Builder()
+        val listBuilder = ItemList.Builder()
+            .addItem(
+                Row.Builder()
+                    .setTitle("Zoom In")
+                    .setOnClickListener { bumpZoom(1) }
+                    .build()
+            )
+            .addItem(
+                Row.Builder()
+                    .setTitle("Zoom Out")
+                    .setOnClickListener { bumpZoom(-1) }
+                    .build()
+            )
+
+        val contentTemplate = ListTemplate.Builder()
             .setHeader(
                 Header.Builder()
                     .setTitle("MapTemplate (OSM)")
                     .setStartHeaderAction(Action.BACK)
-                    .addEndHeaderAction(
-                        Action.Builder()
-                            .setTitle("Zoom In")
-                            .setOnClickListener { /* Logic here */ }
-                            .build()
-                    )
                     .build()
             )
+            .setSingleList(listBuilder.build())
+            .build()
+
+        return MapWithContentTemplate.Builder()
+            .setContentTemplate(contentTemplate)
             .build()
     }
 }

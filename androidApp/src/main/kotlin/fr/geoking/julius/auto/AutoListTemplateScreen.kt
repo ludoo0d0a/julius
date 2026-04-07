@@ -12,7 +12,8 @@ import androidx.car.app.model.Template
 class AutoListTemplateScreen(carContext: CarContext) : Screen(carContext) {
     override fun onGetTemplate(): Template {
         val listBuilder = ItemList.Builder()
-        for (i in 1..10) {
+        // Standard Android Auto list limit is 6 items for many templates.
+        for (i in 1..6) {
             listBuilder.addItem(
                 Row.Builder()
                     .setTitle("List Item $i")
