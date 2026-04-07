@@ -102,6 +102,11 @@ object StationMapFilters {
             }
         }
 
+        // Filter by highway (autoroute)
+        if (settings.filterOnlyHighwayStations) {
+            result = result.filter { it.isOnHighway }
+        }
+
         // Brand filter remains active as it's often used to find specific networks or for fuel card compatibility.
         val filterBrands = settings.effectiveFuelBrandFilterIds()
         if (filterBrands.isNotEmpty()) {

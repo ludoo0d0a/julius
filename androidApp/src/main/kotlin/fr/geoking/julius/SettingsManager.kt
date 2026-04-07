@@ -222,7 +222,11 @@ data class AppSettings(
     /** Optional API key for Luxembourg mobiliteit.lu (request from opendata-api@atp.etat.lu). */
     val mobiliteitLuxembourgKey: String = "",
     /** Last 10 unique destinations. */
-    val routeHistory: List<GeocodedPlace> = emptyList()
+    val routeHistory: List<GeocodedPlace> = emptyList(),
+    /** Radius in meters to search for stations along a route. */
+    val routeStationSearchRadiusMeters: Int = 500,
+    /** When true, only show stations explicitly marked as on highway/autoroute. */
+    val filterOnlyHighwayStations: Boolean = false
 )
 
 open class SettingsManager(
@@ -277,6 +281,8 @@ open class SettingsManager(
         } catch (e: Exception) {
             emptyList()
         }
+        val routeStationSearchRadiusMeters = prefs.getInt("route_station_search_radius_meters", 500).coerceIn(100, 5000)
+        val filterOnlyHighwayStations = prefs.getBoolean("filter_only_highway_stations", false)
 
         // Persist build-time keys (from env/local.properties) when prefs were empty so they show in settings and are reused
         persistBuildTimeKeysIfUsed(
@@ -530,7 +536,9 @@ open class SettingsManager(
             lastJulesRepoName = lastJulesRepoName,
             googleUserName = googleUserName,
             isLoggedIn = isLoggedIn,
-            routeHistory = routeHistory
+            routeHistory = routeHistory,
+            routeStationSearchRadiusMeters = routeStationSearchRadiusMeters,
+            filterOnlyHighwayStations = filterOnlyHighwayStations
         )
     }
 
@@ -736,6 +744,17 @@ open class SettingsManager(
         }
     }
 
+    open fun setRouteStationSearchRadiusMeters(meters: Int) {
+        val value = meters.coerceIn(100, 5000)
+        prefs.edit().putInt("route_station_search_radius_meters", value).apply()
+        _settings.value = _settings.value.copy(routeStationSearchRadiusMeters = value)
+    }
+
+    open fun setFilterOnlyHighwayStations(value: Boolean) {
+        prefs.edit().putBoolean("filter_only_highway_stations", value).apply()
+        _settings.value = _settings.value.copy(filterOnlyHighwayStations = value)
+    }
+
     /** Local rating for a POI (1–5). No backend; stored in SharedPreferences. */
     open fun getPoiRating(poiId: String): Int? {
         val v = prefs.getInt("poi_rating_$poiId", -1)
@@ -854,6 +873,8 @@ open class SettingsManager(
             .putString("google_user_name", settings.googleUserName)
             .putBoolean("is_logged_in", settings.isLoggedIn)
             .putString("route_history", Json.encodeToString(settings.routeHistory))
+            .putInt("route_station_search_radius_meters", settings.routeStationSearchRadiusMeters)
+            .putBoolean("filter_only_highway_stations", settings.filterOnlyHighwayStations)
             .apply()
 
         // Update StateFlow immediately with the new values to ensure UI and agent switching update right away
@@ -971,7 +992,9 @@ open class SettingsManager(
             lastJulesRepoName = _settings.value.lastJulesRepoName,
             googleUserName = _settings.value.googleUserName,
             isLoggedIn = _settings.value.isLoggedIn,
-            routeHistory = _settings.value.routeHistory
+            routeHistory = _settings.value.routeHistory,
+            routeStationSearchRadiusMeters = _settings.value.routeStationSearchRadiusMeters,
+            filterOnlyHighwayStations = _settings.value.filterOnlyHighwayStations
         )
         saveSettings(newSettings)
     }

@@ -575,7 +575,11 @@ fun RoutePlanningScreen(
                 routeTraffic = null
             }
 
-            val result = routePlanner.getStationsAlongRoute(oLat, oLon, dLat, dLon, poiProvider)
+            val result = routePlanner.getStationsAlongRoute(
+                oLat, oLon, dLat, dLon,
+                poiProvider,
+                radiusMeters = settings.routeStationSearchRadiusMeters
+            )
             loading = false
             result.fold(
                 onSuccess = { stations = it },

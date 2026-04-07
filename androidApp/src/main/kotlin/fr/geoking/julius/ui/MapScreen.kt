@@ -76,8 +76,7 @@ import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.community.isCommunityPoiId
-import fr.geoking.julius.ui.components.FilterFab
-import fr.geoking.julius.ui.components.MapLoader
+import fr.geoking.julius.ui.components.MapScaffold
 import fr.geoking.julius.ui.ColorHelper
 import fr.geoking.julius.ui.map.AddPoiSheet
 import fr.geoking.julius.ui.map.PoiDetailCard
@@ -547,80 +546,43 @@ fun MapScreen(
         return
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Gas Stations", color = Color.White) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
-                    }
-                },
-                actions = {
-                    onPlanRoute?.let { plan ->
-                        TextButton(onClick = plan) {
-                            Text("Plan route", color = Color.White)
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF0F172A)
-                )
-            )
+    MapScaffold(
+        title = "Gas Stations",
+        settingsManager = settingsManager,
+        onBack = onBack,
+        onRefresh = {
+            scope.launch {
+                CacheManager.clearAllCaches(context)
+                loadedRegions.clear()
+                cachedPois = emptyList()
+                poiSeenAtMs.clear()
+                availabilityByPoiId = emptyMap()
+                trafficInfo = null
+                mapErrorMessage = null
+                isErrorPaused = false
+                retryCount++
+            }
         },
-        floatingActionButton = {
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                FilterFab(
-                    settingsManager = settingsManager,
-                    favoritesFilterEnabled = settings.isLoggedIn && favoritesRepo != null,
-                    showFavoritesOnly = showFavoritesOnly,
-                    onShowFavoritesOnlyChange = { showFavoritesOnly = it }
-                )
-
-                FloatingActionButton(
-                    onClick = {
-                        scope.launch {
-                            CacheManager.clearAllCaches(context)
-                            loadedRegions.clear()
-                            cachedPois = emptyList()
-                            poiSeenAtMs.clear()
-                            availabilityByPoiId = emptyMap()
-                            trafficInfo = null
-                            mapErrorMessage = null
-                            isErrorPaused = false
-                            retryCount++
-                        }
-                    },
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Refresh map"
-                    )
-                }
-
-                FloatingActionButton(
-                    onClick = { showMapSettings = true },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Map settings"
+        onLocateMe = {
+            scope.launch {
+                val location = LocationHelper.getCurrentLocation(context)
+                if (location != null) {
+                    cameraPositionState.animate(
+                        CameraUpdateFactory.newLatLngZoom(
+                            LatLng(location.latitude, location.longitude),
+                            12f
+                        )
                     )
                 }
             }
-        }
+        },
+        onShowSettings = { showMapSettings = true },
+        onPlanRoute = onPlanRoute,
+        showFavoritesOnly = showFavoritesOnly,
+        onShowFavoritesOnlyChange = { showFavoritesOnly = it },
+        favoritesFilterEnabled = settings.isLoggedIn && favoritesRepo != null,
+        isLoading = isLoading,
+        palette = palette
     ) { padding ->
         Column(
             modifier = Modifier
@@ -697,96 +659,16 @@ fun MapScreen(
                     }
                 }
             }
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                contentPadding = PaddingValues(horizontal = 16.dp)
-            ) {
-                item {
-                    FilterChip(
-                        selected = false,
-                        onClick = { showMapSettings = true },
-                        label = {
-                            Text(
-                                if (selectedProviders.isEmpty()) "No Source"
-                                else if (selectedProviders.size == 1) {
-                                    when (selectedProviders.first()) {
-                                        PoiProviderType.Routex -> "Source: Routex"
-                                        PoiProviderType.Etalab -> "Source: data.gouv.fr (prix carburants, instantané)"
-                                        PoiProviderType.GasApi -> "Source: Gas API"
-                                        PoiProviderType.DataGouv -> "Source: data.gouv.fr"
-                                        PoiProviderType.DataGouvElec -> "Source: IRVE"
-                                        PoiProviderType.OpenChargeMap -> "Source: Open Charge Map"
-                                        PoiProviderType.Chargy -> "Source: Chargy (real-time)"
-                                        PoiProviderType.OpenVanCamp -> "Source: OpenVan.camp (Luxembourg)"
-                                        PoiProviderType.SpainMinetur -> "Source: Spain Minetur (official)"
-                                        PoiProviderType.GermanyTankerkoenig -> "Source: Tankerkönig (Germany)"
-                                        PoiProviderType.AustriaEControl -> "Source: E-Control (Austria)"
-                                        PoiProviderType.Overpass -> "Source: OSM + data.gouv (camping, picnic…)"
-                                        PoiProviderType.Hybrid -> "Source: Hybrid (Gas + EV)"
-                                    }
-                                } else "Sources (${selectedProviders.size})"
-                            )
-                        }
-                    )
-                }
 
-                if (selectedProviders.anyProvidesFuel()) {
-                    items(MAP_ENERGY_OPTIONS.filter { it.first != "electric" }) { (id, label) ->
-                        val isSelected = settings.effectiveMapEnergyFilterIds().contains(id)
-                        val color = ColorHelper.getFuelColor(id) ?: MaterialTheme.colorScheme.primary
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = {
-                                val current = settings.selectedMapEnergyTypes
-                                val next = if (current.contains(id)) current - id else current + id
-                                settingsManager.setUseVehicleFilter(false)
-                                settingsManager.setMapEnergyTypes(next)
-                            },
-                            label = { Text(label) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = color,
-                                selectedLabelColor = Color.White,
-                                iconColor = color,
-                                selectedLeadingIconColor = Color.White
-                            ),
-                            leadingIcon = {
-                                Box(modifier = Modifier.size(12.dp).background(color, MaterialTheme.shapes.small))
-                            }
-                        )
-                    }
-                }
-
-                if (selectedProviders.anyProvidesElectric()) {
-                    items(MAP_IRVE_POWER_OPTIONS) { (kw, label) ->
-                        val isSelected = settings.effectiveIrvePowerLevels().contains(kw)
-                        val color = ColorHelper.getPowerColorByLevel(kw)
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = {
-                                val current = settings.mapPowerLevels
-                                val next = if (current.contains(kw)) current - kw else current + kw
-                                settingsManager.setUseVehicleFilter(false)
-                                settingsManager.setMapPowerLevels(next)
-                            },
-                            label = { Text(label) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = color,
-                                selectedLabelColor = Color.White,
-                                iconColor = color,
-                                selectedLeadingIconColor = Color.White
-                            ),
-                            leadingIcon = {
-                                Box(modifier = Modifier.size(12.dp).background(color, MaterialTheme.shapes.small))
-                            }
-                        )
-                    }
-                }
-
-                if (settings.isLoggedIn && (communityRepo != null || favoritesRepo != null)) {
+            if (settings.isLoggedIn && (communityRepo != null || favoritesRepo != null)) {
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    contentPadding = PaddingValues(horizontal = 16.dp)
+                ) {
                     if (communityRepo != null) {
                         item {
                             FilterChip(
@@ -804,31 +686,14 @@ fun MapScreen(
                             )
                         }
                     }
-                    if (favoritesRepo != null) {
-                        item {
-                            FilterChip(
-                                selected = showFavoritesOnly,
-                                onClick = { showFavoritesOnly = !showFavoritesOnly },
-                                label = { Text(if (showFavoritesOnly) "Saved only" else "Saved") }
-                            )
-                        }
-                    }
                 }
             }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .onSizeChanged { mapSizePx = it }
             ) {
-                if (isLoading) {
-                    MapLoader(
-                        palette = palette,
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .zIndex(1f)
-                    )
-                }
-
                 val configuration = LocalConfiguration.current
                 val mapPaddingBottom = if (selectedPoi != null) (configuration.screenHeightDp * 0.4f).dp else 0.dp
 

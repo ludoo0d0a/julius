@@ -15,8 +15,8 @@ import kotlin.math.sqrt
  */
 class RoutePlanner(
     private val routingClient: RoutingClient,
-    private val sampleIntervalKm: Double = 30.0,
-    private val poiRadiusKm: Int = 5
+    private val defaultSampleIntervalKm: Double = 30.0,
+    private val defaultPoiRadiusMeters: Int = 5000
 ) {
 
     /**
@@ -29,23 +29,40 @@ class RoutePlanner(
         originLon: Double,
         destLat: Double,
         destLon: Double,
-        poiProvider: PoiProvider
+        poiProvider: PoiProvider,
+        radiusMeters: Int = defaultPoiRadiusMeters
     ): Result<List<Poi>> {
         val route = routingClient.getRoute(originLat, originLon, destLat, destLon)
             ?: return Result.failure(Exception("No route found"))
         val points = route.points
         if (points.size < 2) return Result.success(emptyList())
 
-        val sampled = samplePointsByDistance(points, sampleIntervalKm * 1000)
+        // Adjust sample interval based on radius to ensure coverage.
+        // For a 500m radius, we want to sample more frequently (e.g. every 800m).
+        val intervalMeters = if (radiusMeters < 5000) {
+            (radiusMeters * 1.6).coerceAtLeast(150.0)
+        } else {
+            defaultSampleIntervalKm * 1000
+        }
+
+        val sampled = samplePointsByDistance(points, intervalMeters)
         val seenIds = mutableSetOf<String>()
         val result = mutableListOf<Poi>()
         val request = PoiSearchRequest(latitude = 0.0, longitude = 0.0, categories = emptySet())
+
+        // Use a small fixed viewport if provider supports it, otherwise fallback to radius filtering
         for ((lat, lon) in sampled) {
             val pois = poiProvider.search(request.copy(latitude = lat, longitude = lon))
             for (poi in pois) {
                 if (poi.id !in seenIds) {
-                    seenIds.add(poi.id)
-                    result.add(poi)
+                    // Manual distance check to the path segment might be better,
+                    // but for now we rely on the provider's proximity search around sampled points.
+                    // We filter out POIs that are further than radiusMeters from the sampled point.
+                    val dist = haversineMeters(lat, lon, poi.latitude, poi.longitude)
+                    if (dist <= radiusMeters) {
+                        seenIds.add(poi.id)
+                        result.add(poi)
+                    }
                 }
             }
         }
