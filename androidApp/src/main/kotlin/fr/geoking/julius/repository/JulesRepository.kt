@@ -42,6 +42,13 @@ class JulesRepository(
                 val pr = session.outputs?.firstOrNull()?.pullRequest
                 val existing = try { julesDao.getSession(sessionId) } catch (e: Exception) { null }
 
+                // Only update lastUpdated if PR URL changed or it's a new session
+                val newLastUpdated = if (existing == null || (pr?.url != null && existing.prUrl != pr.url)) {
+                    System.currentTimeMillis()
+                } else {
+                    existing.lastUpdated
+                }
+
                 entities.add(JulesSessionEntity(
                     id = sessionId,
                     title = session.title,
@@ -52,7 +59,7 @@ class JulesRepository(
                     prState = existing?.prState,
                     prMergeable = existing?.prMergeable,
                     isArchived = existing?.isArchived ?: false,
-                    lastUpdated = System.currentTimeMillis()
+                    lastUpdated = newLastUpdated
                 ))
             }
 
@@ -93,7 +100,13 @@ class JulesRepository(
                 else -> "open"
             }
             try {
+                // If status changed, update lastUpdated too
+                val existing = julesDao.getSession(session.id)
+                val statusChanged = existing?.prState != state || existing?.prMergeable != detail.mergeable
                 julesDao.updateSessionPrStatus(session.id, state, detail.mergeable)
+                if (statusChanged) {
+                    julesDao.updateSessionLastUpdated(session.id, System.currentTimeMillis())
+                }
             } catch (e: Exception) {
                 android.util.Log.e("JulesRepository", "Failed to update PR status in DB", e)
             }
@@ -107,6 +120,14 @@ class JulesRepository(
             julesDao.archiveSession(sessionId)
         } catch (e: Exception) {
             android.util.Log.e("JulesRepository", "Failed to archive session", e)
+        }
+    }
+
+    suspend fun updateSessionLastUpdated(sessionId: String, lastUpdated: Long) {
+        try {
+            julesDao.updateSessionLastUpdated(sessionId, lastUpdated)
+        } catch (e: Exception) {
+            android.util.Log.e("JulesRepository", "Failed to update session lastUpdated", e)
         }
     }
 

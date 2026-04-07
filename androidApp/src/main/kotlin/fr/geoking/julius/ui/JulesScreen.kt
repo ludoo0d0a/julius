@@ -96,8 +96,6 @@ fun JulesScreen(
     settingsManager: SettingsManager,
     voiceManager: VoiceManager
 ) {
-    BackHandler { onBack() }
-
     val settings by settingsManager.settings.collectAsState()
     val apiKey = settings.julesKey
     val githubToken = settings.githubApiKey
@@ -120,6 +118,16 @@ fun JulesScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val sessionsListState = rememberLazyListState()
+
+    val handleBack = {
+        if (currentSession != null) {
+            currentSession = null
+        } else {
+            onBack()
+        }
+    }
+
+    BackHandler(onBack = handleBack)
 
     fun clearError() { error = null }
 
@@ -249,16 +257,40 @@ fun JulesScreen(
                     .padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = handleBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                 }
                 Spacer(modifier = Modifier.size(8.dp))
-                Text(
-                    text = "Jules",
-                    color = Color.White,
-                    fontSize = 22.sp,
-                    modifier = Modifier.weight(1f)
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (currentSession != null) {
+                            currentSession!!.title.ifBlank { currentSession!!.prompt.take(40) }.ifBlank { "Conversation" }
+                        } else "Jules",
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        maxLines = 1
+                    )
+                    if (currentSession != null) {
+                        val hasOutput = !currentSession!!.prUrl.isNullOrBlank()
+                        val (statusText, statusColor) = when (currentSession!!.prState) {
+                            "merged" -> "Merged" to Color.Magenta
+                            "closed" -> "Closed" to Color.Red
+                            "open" -> "Open PR" to Color.Green
+                            else -> (if (hasOutput) "Output available" else "In progress") to (if (hasOutput) JulesAccent else Color.White.copy(alpha = 0.6f))
+                        }
+                        val mergeabilityText = if (currentSession!!.prState == "open" && currentSession!!.prMergeable == false) " (Conflicts)" else ""
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(modifier = Modifier.size(6.dp).background(statusColor, RoundedCornerShape(3.dp)))
+                            Spacer(modifier = Modifier.size(6.dp))
+                            Text(
+                                text = "$statusText$mergeabilityText",
+                                color = statusColor,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
             }
 
             // Repository link row
@@ -326,6 +358,8 @@ fun JulesScreen(
                                         }
 
                                         julesClient.sendMessage(apiKey, currentSession!!.id, prompt)
+                                        // Update lastUpdated locally/in DB when sending message
+                                        julesRepository.updateSessionLastUpdated(currentSession!!.id, System.currentTimeMillis())
 
                                         // Poll for response
                                         repeat(10) {
@@ -343,7 +377,6 @@ fun JulesScreen(
                                     loading = false
                                 }
                             },
-                            onBackToList = { currentSession = null },
                             loading = loading,
                             onMergePr = {
                                 scope.launch {
@@ -574,34 +607,10 @@ private fun InConversationContent(
     onInputChange: (String) -> Unit,
     voiceManager: VoiceManager,
     onSend: () -> Unit,
-    onBackToList: () -> Unit,
     loading: Boolean,
     onMergePr: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(JulesListBg.copy(alpha = 0.5f))
-                .clickable { onBackToList() }
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = null,
-                tint = JulesAccent,
-                modifier = Modifier.size(14.dp)
-            )
-            Spacer(modifier = Modifier.size(8.dp))
-            Text(
-                text = currentSession.title.ifBlank { currentSession.prompt.take(40) }.ifBlank { "Conversation" },
-                color = JulesAccent,
-                fontSize = 13.sp,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
         // PR Status Bar
         if (currentSession.prUrl != null) {
             val (statusText, statusColor) = when (currentSession.prState) {
@@ -964,33 +973,37 @@ private fun SessionRow(
                 color = Color.White,
                 fontSize = 16.sp
             )
-            if (session.prompt.isNotBlank() && session.title != session.prompt) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = session.prompt.take(120) + if (session.prompt.length > 120) "…" else "",
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 13.sp
-                )
-            }
             val hasOutput = !session.prUrl.isNullOrBlank()
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val (statusText, statusColor) = when (session.prState) {
-                    "merged" -> "Merged" to Color.Magenta
-                    "closed" -> "Closed" to Color.Red
-                    "open" -> "Open PR" to Color.Green
-                    else -> (if (hasOutput) "Output available" else "In progress") to (if (hasOutput) JulesAccent else Color.White.copy(alpha = 0.6f))
-                }
-                val mergeabilityText = if (session.prState == "open" && session.prMergeable == false) " (Conflicts)" else ""
+            val (statusText, statusColor) = when (session.prState) {
+                "merged" -> "Merged" to Color.Magenta
+                "closed" -> "Closed" to Color.Red
+                "open" -> "Open PR" to Color.Green
+                else -> (if (hasOutput) "Output available" else "In progress") to (if (hasOutput) JulesAccent else Color.White.copy(alpha = 0.6f))
+            }
+            val mergeabilityText = if (session.prState == "open" && session.prMergeable == false) " (Conflicts)" else ""
 
-                Box(modifier = Modifier.size(8.dp).background(statusColor, RoundedCornerShape(4.dp)))
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(6.dp).background(statusColor, RoundedCornerShape(3.dp)))
                 Spacer(modifier = Modifier.size(6.dp))
                 Text(
                     text = "$statusText$mergeabilityText",
                     color = statusColor,
-                    fontSize = 12.sp,
-                    modifier = Modifier.weight(1f)
+                    fontSize = 12.sp
                 )
+                if (session.prompt.isNotBlank() && session.title != session.prompt) {
+                    Text(
+                        text = " • " + session.prompt.take(60) + if (session.prompt.length > 60) "…" else "",
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 12.sp,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(modifier = Modifier.weight(1f))
 
                 IconButton(onClick = onArchive, modifier = Modifier.size(24.dp)) {
                     Icon(Icons.Default.Archive, contentDescription = "Archive", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
