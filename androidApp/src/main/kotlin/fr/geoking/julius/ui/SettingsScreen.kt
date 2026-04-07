@@ -284,44 +284,6 @@ fun SettingsScreen(
             }
         }
 
-        // Itinerary Settings
-        Column {
-            Text("Itinerary", color = Lavender, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
-
-            Text("Search radius: ${current.routeStationSearchRadiusMeters}m", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp)
-            Slider(
-                value = current.routeStationSearchRadiusMeters.toFloat(),
-                onValueChange = { save(settingsManager, current.copy(routeStationSearchRadiusMeters = it.toInt())) },
-                valueRange = 100f..5000f,
-                steps = 48,
-                colors = SliderDefaults.colors(
-                    thumbColor = Lavender,
-                    activeTrackColor = Lavender,
-                    inactiveTrackColor = Color.DarkGray
-                )
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Only Highway Stations", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                    Text("Filter results to stations on highways", color = Lavender.copy(alpha = 0.7f), fontSize = 12.sp)
-                }
-                Switch(
-                    checked = current.filterOnlyHighwayStations,
-                    onCheckedChange = { save(settingsManager, current.copy(filterOnlyHighwayStations = it)) },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Lavender,
-                        checkedTrackColor = DeepPurple,
-                        uncheckedThumbColor = Color.Gray,
-                        uncheckedTrackColor = Color.DarkGray
-                    )
-                )
-            }
-        }
     }
 }
 
@@ -526,6 +488,45 @@ private fun MapConfig(
                         )
                     )
                 }
+            }
+        }
+
+        // Itinerary
+        Column {
+            Text("Itinerary", color = Lavender, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
+
+            Text("Search radius: ${settings.routeStationSearchRadiusMeters}m", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp)
+            Slider(
+                value = settings.routeStationSearchRadiusMeters.toFloat(),
+                onValueChange = { onUpdate(settings.copy(routeStationSearchRadiusMeters = it.toInt())) },
+                valueRange = 100f..5000f,
+                steps = 48,
+                colors = SliderDefaults.colors(
+                    thumbColor = Lavender,
+                    activeTrackColor = Lavender,
+                    inactiveTrackColor = Color.DarkGray
+                )
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Only Highway Stations", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    Text("Filter results to stations on highways", color = Lavender.copy(alpha = 0.7f), fontSize = 12.sp)
+                }
+                Switch(
+                    checked = settings.filterOnlyHighwayStations,
+                    onCheckedChange = { onUpdate(settings.copy(filterOnlyHighwayStations = it)) },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Lavender,
+                        checkedTrackColor = DeepPurple,
+                        uncheckedThumbColor = Color.Gray,
+                        uncheckedTrackColor = Color.DarkGray
+                    )
+                )
             }
         }
     }
