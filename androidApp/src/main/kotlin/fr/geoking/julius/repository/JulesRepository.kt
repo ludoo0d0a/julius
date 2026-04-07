@@ -116,8 +116,11 @@ class JulesRepository(
         }
     }
 
-    suspend fun archiveSession(sessionId: String) {
+    suspend fun archiveSession(apiKey: String, sessionId: String) {
         try {
+            if (apiKey.isNotBlank()) {
+                julesClient.deleteSession(apiKey, sessionId)
+            }
             julesDao.archiveSession(sessionId)
         } catch (e: Exception) {
             android.util.Log.e("JulesRepository", "Failed to archive session", e)
