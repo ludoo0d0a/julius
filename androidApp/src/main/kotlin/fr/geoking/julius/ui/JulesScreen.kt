@@ -757,6 +757,69 @@ private fun MessageText(text: String, baseFontSize: Int) {
     }
 }
 
+private enum class ProgressStep(val label: String) {
+    PLAN("Plan"),
+    PLAN_APPROVED("Plan approved"),
+    RUNNING_CODE_REVIEW("Running code review"),
+    COMPLETE_PRE_COMMIT_STEPS("Complete pre-commit steps"),
+    ALL_PLAN_STEPS_COMPLETED("All plan steps completed")
+}
+
+private fun calculateProgressStep(session: JulesSessionEntity, chatItems: List<JulesChatItem>): ProgressStep? {
+    // Priority 1: sessionState from Jules API
+    when (session.sessionState) {
+        "PLANNING" -> return ProgressStep.PLAN
+        "AWAITING_PLAN_APPROVAL" -> return ProgressStep.PLAN
+        "COMPLETED" -> return ProgressStep.ALL_PLAN_STEPS_COMPLETED
+    }
+
+    // Priority 2: Look into chat items (activities)
+    val agentMessages = chatItems.filterIsInstance<JulesChatItem.AgentMessage>()
+    val userMessages = chatItems.filterIsInstance<JulesChatItem.UserMessage>()
+
+    val lastAgentMsg = agentMessages.lastOrNull()?.text ?: ""
+    val hasPlanApproved = agentMessages.any { it.text.contains("Plan approved", ignoreCase = true) }
+    val hasCodeReviewed = agentMessages.any { it.text.startsWith("Code reviewed", ignoreCase = true) }
+    val hasPreCommit = agentMessages.any { it.text.contains("pre commit", ignoreCase = true) || it.text.contains("pre-commit", ignoreCase = true) }
+    val isCompleted = session.sessionState == "COMPLETED" || agentMessages.any { it.text.contains("Session completed", ignoreCase = true) }
+
+    return when {
+        isCompleted -> ProgressStep.ALL_PLAN_STEPS_COMPLETED
+        hasPreCommit -> ProgressStep.COMPLETE_PRE_COMMIT_STEPS
+        hasCodeReviewed -> ProgressStep.RUNNING_CODE_REVIEW
+        hasPlanApproved -> ProgressStep.PLAN_APPROVED
+        lastAgentMsg.startsWith("**Plan") -> ProgressStep.PLAN
+        else -> null
+    }
+}
+
+@Composable
+private fun MiniProgressBar(currentStep: ProgressStep?) {
+    if (currentStep == null) return
+
+    val steps = ProgressStep.values()
+    val currentIndex = steps.indexOf(currentStep)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        steps.forEachIndexed { index, _ ->
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(4.dp)
+                    .background(
+                        if (index <= currentIndex) JulesAccent else Color.White.copy(alpha = 0.1f),
+                        RoundedCornerShape(2.dp)
+                    )
+            )
+        }
+    }
+}
+
 @Composable
 private fun ActivitiesSheet(activities: List<JulesClient.JulesActivity>) {
     Column(
@@ -950,7 +1013,13 @@ private fun InConversationContent(
     onMergePr: () -> Unit
 ) {
     val uriHandler = LocalUriHandler.current
+    val progressStep = remember(currentSession, chatItems.size) {
+        calculateProgressStep(currentSession, chatItems)
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
+        MiniProgressBar(currentStep = progressStep)
+
         // PR Status Bar
         if (currentSession.prUrl != null || currentSession.sessionState != null) {
             val (statusText, statusColor) = when {
@@ -1302,6 +1371,10 @@ private fun SessionRow(
     onArchive: () -> Unit,
     onDetails: () -> Unit
 ) {
+    val progressStep = remember(session) {
+        calculateProgressStep(session, emptyList())
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -1311,6 +1384,8 @@ private fun SessionRow(
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            MiniProgressBar(currentStep = progressStep)
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = session.title.ifBlank { session.prompt.take(60) }.ifBlank { "Conversation" },
                 color = Color.White,
