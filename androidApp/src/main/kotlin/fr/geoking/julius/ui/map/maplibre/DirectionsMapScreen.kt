@@ -20,9 +20,7 @@ import fr.geoking.julius.effectiveIrvePowerLevels
 import fr.geoking.julius.effectiveMapEnergyFilterIds
 import fr.geoking.julius.effectiveProviders
 import fr.geoking.julius.poi.Poi
-import fr.geoking.julius.ui.ColorHelper
-import fr.geoking.julius.ui.MAP_ENERGY_OPTIONS
-import fr.geoking.julius.ui.MAP_IRVE_POWER_OPTIONS
+import fr.geoking.julius.ui.components.MapScaffold
 import fr.geoking.julius.ui.map.MarkerStyle
 import fr.geoking.julius.ui.map.PoiMarkerHelper
 import org.maplibre.android.camera.CameraPosition
@@ -69,79 +67,20 @@ fun DirectionsMapScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            Column {
-                TopAppBar(
-                    title = { Text("Navigation Preview", color = Color.White) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color(0xFF0F172A)
-                    )
+    MapScaffold(
+        title = "Navigation Preview",
+        settingsManager = settingsManager,
+        onBack = onBack,
+        onRefresh = { /* Route is fixed, but could refresh POIs if needed */ },
+        onLocateMe = {
+            route?.points?.firstOrNull()?.let { point ->
+                mapLibreMap?.animateCamera(
+                    CameraUpdateFactory.newLatLngZoom(LatLng(point.first, point.second), 15.0)
                 )
-                LazyRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFF0F172A))
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    contentPadding = PaddingValues(horizontal = 16.dp)
-                ) {
-                    if (effectiveProviders.any { it.providesFuel }) {
-                        items(MAP_ENERGY_OPTIONS.filter { it.first != "electric" }) { (id, label) ->
-                            val isSelected = settings.selectedMapEnergyTypes.contains(id)
-                            val color = ColorHelper.getFuelColor(id) ?: MaterialTheme.colorScheme.primary
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    val newEnergies = if (isSelected) emptySet() else setOf(id)
-                                    settingsManager.setMapEnergyTypes(newEnergies)
-                                },
-                                label = { Text(label) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = color,
-                                    selectedLabelColor = Color.White
-                                ),
-                                leadingIcon = {
-                                    Box(modifier = Modifier.size(12.dp).background(color, MaterialTheme.shapes.small))
-                                }
-                            )
-                        }
-                    }
-
-                    if (effectiveProviders.any { it.providesElectric }) {
-                        items(MAP_IRVE_POWER_OPTIONS) { (kw, label) ->
-                            val isSelected = settings.mapPowerLevels.contains(kw)
-                            val color = ColorHelper.getPowerColorByLevel(kw)
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    val newLevels = if (isSelected) settings.mapPowerLevels - kw else settings.mapPowerLevels + kw
-                                    settingsManager.setMapPowerLevels(newLevels)
-                                },
-                                label = { Text(label) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = color,
-                                    selectedLabelColor = Color.White
-                                ),
-                                leadingIcon = {
-                                    Box(modifier = Modifier.size(12.dp).background(color, MaterialTheme.shapes.small))
-                                }
-                            )
-                        }
-                    }
-                }
             }
-        }
+        },
+        onShowSettings = { /* Maybe show simplified settings? */ },
+        isLoading = false
     ) { padding ->
         Box(
             modifier = Modifier
@@ -212,23 +151,6 @@ fun DirectionsMapScreen(
                     }
                 }
             )
-
-            // Zoom and center control
-            FloatingActionButton(
-                onClick = {
-                    route?.points?.firstOrNull()?.let { point ->
-                        mapLibreMap?.animateCamera(
-                            CameraUpdateFactory.newLatLngZoom(LatLng(point.first, point.second), 15.0)
-                        )
-                    }
-                },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(16.dp),
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Text("Recenter", style = MaterialTheme.typography.labelSmall)
-            }
         }
     }
 }

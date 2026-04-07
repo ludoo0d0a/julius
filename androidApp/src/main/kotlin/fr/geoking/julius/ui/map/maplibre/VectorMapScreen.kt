@@ -57,7 +57,7 @@ import fr.geoking.julius.api.routex.radiusKmFromMapViewport
 import fr.geoking.julius.community.isCommunityPoiId
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.ui.SettingsScreenPage
-import fr.geoking.julius.ui.components.FilterFab
+import fr.geoking.julius.ui.components.MapScaffold
 import fr.geoking.julius.ui.map.PoiMarkerHelper
 import fr.geoking.julius.ui.map.MarkerStyle
 import fr.geoking.julius.ui.map.PoiDetailCard
@@ -197,7 +197,7 @@ fun VectorMapScreen(
 
     LaunchedEffect(poiFetchKey, mapSizePx, retryCount, mapLibreMap) {
         val map = mapLibreMap ?: return@LaunchedEffect
-        val currentCacheKey = "$poiFetchKey|size=${mapSizePx.width}x${mapSizePx.height}"
+        val currentCacheKey = "|size=${mapSizePx.width}x${mapSizePx.height}"
         if (lastCacheKey != currentCacheKey) {
             loadedRegions.clear()
             cachedPois = emptyList()
@@ -357,116 +357,36 @@ fun VectorMapScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            Column {
-                TopAppBar(
-                    title = { Text("Vector Map", color = Color.White) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White
+    MapScaffold(
+        title = "Vector Map",
+        settingsManager = settingsManager,
+        onBack = onBack,
+        onRefresh = {
+            retryCount++
+        },
+        onLocateMe = {
+            if (hasLocationPermission) {
+                scope.launch {
+                    val loc = LocationHelper.getCurrentLocation(context)
+                    if (loc != null) {
+                        mapLibreMap?.animateCamera(
+                            CameraUpdateFactory.newLatLng(
+                                LatLng(loc.latitude, loc.longitude)
                             )
-                        }
-                    },
-                    actions = {
-                        onPlanRoute?.let { plan ->
-                            TextButton(onClick = plan) {
-                                Text("Plan route", color = Color.White)
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color(0xFF0F172A)
-                    )
-                )
-                LazyRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFF0F172A))
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    contentPadding = PaddingValues(horizontal = 16.dp)
-                ) {
-                    item {
-                        FilterChip(
-                            selected = false,
-                            onClick = { showMapSettings = true },
-                            label = { Text("Sources (${selectedProviders.size})") }
                         )
                     }
-                    if (selectedProviders.anyProvidesFuel()) {
-                        items(MAP_ENERGY_OPTIONS.filter { it.first != "electric" }) { (id, label) ->
-                            val isSelected = settings.selectedMapEnergyTypes.contains(id)
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    val newEnergies = if (isSelected) emptySet() else setOf(id)
-                                    settingsManager.setMapEnergyTypes(newEnergies)
-                                },
-                                label = { Text(label) }
-                            )
-                        }
-                    }
-                    if (selectedProviders.anyProvidesElectric()) {
-                        items(MAP_IRVE_POWER_OPTIONS) { (kw, label) ->
-                            val isSelected = settings.mapPowerLevels.contains(kw)
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    val newLevels = if (isSelected) settings.mapPowerLevels - kw else settings.mapPowerLevels + kw
-                                    settingsManager.setMapPowerLevels(newLevels)
-                                },
-                                label = { Text(label) }
-                            )
-                        }
-                    }
                 }
+            } else {
+                launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
             }
         },
-        floatingActionButton = {
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                FilterFab(
-                    settingsManager = settingsManager,
-                    favoritesFilterEnabled = settings.isLoggedIn && favoritesRepo != null,
-                    showFavoritesOnly = showFavoritesOnly,
-                    onShowFavoritesOnlyChange = { showFavoritesOnly = it }
-                )
-
-                FloatingActionButton(
-                    onClick = {
-                        if (hasLocationPermission) {
-                            scope.launch {
-                                val loc = LocationHelper.getCurrentLocation(context)
-                                if (loc != null) {
-                                    mapLibreMap?.animateCamera(CameraUpdateFactory.newLatLng(LatLng(loc.latitude, loc.longitude)))
-                                }
-                            }
-                        } else {
-                            launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-                        }
-                    },
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                ) {
-                    Icon(imageVector = Icons.Default.MyLocation, contentDescription = "Locate Me")
-                }
-
-                FloatingActionButton(
-                    onClick = { showMapSettings = true },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                ) {
-                    Icon(imageVector = Icons.Default.Settings, contentDescription = "Map settings")
-                }
-            }
-        }
+        onShowSettings = { showMapSettings = true },
+        onPlanRoute = onPlanRoute,
+        showFavoritesOnly = showFavoritesOnly,
+        onShowFavoritesOnlyChange = { showFavoritesOnly = it },
+        favoritesFilterEnabled = settings.isLoggedIn && favoritesRepo != null,
+        isLoading = isLoading,
+        palette = palette
     ) { padding ->
         Box(
             modifier = Modifier
