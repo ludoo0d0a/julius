@@ -22,6 +22,9 @@ interface JulesDao {
     @Query("UPDATE jules_sessions SET prState = :state, prMergeable = :mergeable WHERE id = :sessionId")
     suspend fun updateSessionPrStatus(sessionId: String, state: String, mergeable: Boolean?)
 
+    @Query("UPDATE jules_sessions SET sessionState = :state WHERE id = :sessionId")
+    suspend fun updateSessionState(sessionId: String, state: String?)
+
     @Query("UPDATE jules_sessions SET lastUpdated = :lastUpdated WHERE id = :sessionId")
     suspend fun updateSessionLastUpdated(sessionId: String, lastUpdated: Long)
 

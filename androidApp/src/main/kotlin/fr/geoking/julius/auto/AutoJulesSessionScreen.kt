@@ -79,10 +79,17 @@ class AutoJulesSessionScreen(
         )
 
         sessions.filter { !it.isArchived }.take(10).forEach { session ->
-            val status = when (session.prState) {
-                "merged" -> "Merged"
-                "closed" -> "Closed"
-                "open" -> "Open PR"
+            val status = when {
+                session.prState == "merged" -> "Merged"
+                session.prState == "closed" -> "Closed"
+                session.prState == "open" -> "Open PR"
+                session.sessionState == "COMPLETED" -> "Completed"
+                session.sessionState == "FAILED" -> "Failed"
+                session.sessionState == "AWAITING_PLAN_APPROVAL" -> "Waiting for approval"
+                session.sessionState == "AWAITING_USER_FEEDBACK" -> "Waiting for you"
+                session.sessionState == "PLANNING" -> "Planning…"
+                session.sessionState == "QUEUED" -> "Queued…"
+                session.sessionState == "PAUSED" -> "Paused"
                 else -> if (!session.prUrl.isNullOrBlank()) "Output available" else "In progress"
             }
 

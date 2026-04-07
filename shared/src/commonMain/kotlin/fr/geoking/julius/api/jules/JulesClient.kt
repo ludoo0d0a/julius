@@ -104,6 +104,7 @@ class JulesClient(
         val title: String = "",
         val sourceContext: SourceContext? = null,
         val prompt: String = "",
+        val state: String? = null,
         val outputs: List<JulesOutput>? = null
     )
 

@@ -378,7 +378,7 @@ val appModule = module {
             android.util.Log.d("AppModule", "Building persistent Room database...")
             buildAndValidate(
                 Room.databaseBuilder(androidContext(), AppDatabase::class.java, "julius-db")
-                    .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4)
+                    .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5)
             )
         } catch (e: Throwable) {
             android.util.Log.e("AppModule", "Persistent DB failed. Falling back to in-memory. Error: ${e.stackTraceToString()}", e)
