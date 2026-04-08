@@ -65,6 +65,7 @@ import com.google.firebase.auth.FirebaseAuth
 import fr.geoking.julius.poi.MockPoiProvider
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiProviderType
+import fr.geoking.julius.repository.FuelForecastRepository
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.ui.UpdateAvailableDialog
 import fr.geoking.julius.ui.anim.AnimationPalettes
@@ -188,6 +189,7 @@ class MainActivity : ComponentActivity() {
             val voiceManager: VoiceManager = get()
             val conversationalAgent: ConversationalAgent = get()
             val networkService: NetworkService = get()
+            val fuelForecastRepository: FuelForecastRepository = get()
             android.util.Log.d("MainActivity", "Dependencies resolved successfully.")
 
             if (!BuildConfig.IS_PLAYSTORE_DISTRIBUTION) {
@@ -208,6 +210,7 @@ class MainActivity : ComponentActivity() {
                 voiceManager = voiceManager,
                 conversationalAgent = conversationalAgent,
                 networkService = networkService,
+                fuelForecastRepository = fuelForecastRepository,
                 isPlaystoreDistribution = BuildConfig.IS_PLAYSTORE_DISTRIBUTION
             )
             android.util.Log.d("MainActivity", "setContent called successfully.")
@@ -230,6 +233,7 @@ class MainActivity : ComponentActivity() {
         voiceManager: VoiceManager,
         conversationalAgent: ConversationalAgent,
         networkService: NetworkService,
+        fuelForecastRepository: FuelForecastRepository,
         isPlaystoreDistribution: Boolean
     ) {
         try {
@@ -245,6 +249,7 @@ class MainActivity : ComponentActivity() {
                     voiceManager = voiceManager,
                     conversationalAgent = conversationalAgent,
                     networkService = networkService,
+                    fuelForecastRepository = fuelForecastRepository,
                     inAppUpdateHelper = inAppUpdateHelper,
                     updateResultLauncher = updateResultLauncher,
                     pendingNavDestination = pendingNavDestination,
@@ -280,6 +285,7 @@ private fun MainActivityComposeRoot(
     voiceManager: VoiceManager,
     conversationalAgent: ConversationalAgent,
     networkService: NetworkService,
+    fuelForecastRepository: FuelForecastRepository,
     inAppUpdateHelper: InAppUpdateHelper,
     updateResultLauncher: ActivityResultLauncher<IntentSenderRequest>,
     pendingNavDestination: MutableStateFlow<NavDestination?>,
@@ -324,6 +330,7 @@ private fun MainActivityComposeRoot(
         voiceManager = voiceManager,
         conversationalAgent = conversationalAgent,
         networkService = networkService,
+        fuelForecastRepository = fuelForecastRepository,
         inAppUpdateHelper = inAppUpdateHelper,
         onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) },
         pendingNavDestinationFlow = pendingNavDestination,
@@ -346,6 +353,7 @@ fun MainUI(
     voiceManager: VoiceManager,
     conversationalAgent: ConversationalAgent,
     networkService: NetworkService,
+    fuelForecastRepository: FuelForecastRepository? = null,
     inAppUpdateHelper: InAppUpdateHelper? = null,
     onStartUpdate: (AppUpdateInfo) -> Unit = {},
     pendingNavDestinationFlow: kotlinx.coroutines.flow.MutableStateFlow<NavDestination?>? = null,
@@ -551,6 +559,7 @@ fun MainUI(
                         poiProvider = mapDeps?.poiProvider,
                         hasLocationPermission = hasLocationPermission,
                         mapDepsReady = mapDeps != null,
+                        fuelForecastRepository = fuelForecastRepository,
                         onOpenMap = { showMap = true },
                         onOpenRoutes = {
                             showRoutePlanning = true

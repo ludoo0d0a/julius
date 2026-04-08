@@ -12,7 +12,7 @@ import androidx.car.app.model.Template
 class AutoSearchTemplateScreen(carContext: CarContext) : Screen(carContext) {
     private var searchText = ""
 
-    override fun onGetTemplate(): Template {
+    override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoSearchTemplateScreen") {
         val listBuilder = ItemList.Builder()
         if (searchText.isNotBlank()) {
             listBuilder.addItem(
@@ -25,7 +25,7 @@ class AutoSearchTemplateScreen(carContext: CarContext) : Screen(carContext) {
             listBuilder.setNoItemsMessage("Type something to search")
         }
 
-        return SearchTemplate.Builder(object : SearchTemplate.SearchCallback {
+        SearchTemplate.Builder(object : SearchTemplate.SearchCallback {
             override fun onSearchTextChanged(text: String) {
                 searchText = text
                 invalidate()

@@ -7,10 +7,10 @@ import androidx.car.app.model.LongMessageTemplate
 import androidx.car.app.model.Template
 
 class AutoLongMessageTemplateScreen(carContext: CarContext) : Screen(carContext) {
-    override fun onGetTemplate(): Template {
+    override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoLongMessageTemplateScreen") {
         val longText = (1..20).joinToString("\n") { "This is line $it of the long message." }
 
-        return LongMessageTemplate.Builder(longText)
+        LongMessageTemplate.Builder(longText)
             .setTitle("LongMessage Sample")
             .setHeaderAction(Action.BACK)
             .addAction(

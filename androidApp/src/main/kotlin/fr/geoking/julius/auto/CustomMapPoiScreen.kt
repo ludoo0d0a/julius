@@ -419,7 +419,8 @@ class CustomMapPoiScreen(
                         poi = poi,
                         availability = availability,
                         effectiveEnergyTypes = effectiveEnergies,
-                        effectivePowerLevels = effectivePowerLevels
+                        effectivePowerLevels = effectivePowerLevels,
+                        distanceFromLatLon = searchLat to searchLon
                     ) {
                         screenManager.push(
                             PoiDetailScreen(

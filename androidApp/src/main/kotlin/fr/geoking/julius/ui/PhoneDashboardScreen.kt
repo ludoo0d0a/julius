@@ -48,11 +48,13 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -82,9 +84,16 @@ import fr.geoking.julius.shared.network.NetworkStatus
 import fr.geoking.julius.shared.network.NetworkType
 import fr.geoking.julius.poi.anyProvidesElectric
 import fr.geoking.julius.poi.anyProvidesFuel
+import fr.geoking.julius.shared.location.approxDistanceKm
+import fr.geoking.julius.repository.FuelForecastRepository
+import fr.geoking.julius.repository.FuelForecastUiState
 import fr.geoking.julius.ui.components.CheapestStationsCard
+import fr.geoking.julius.ui.components.FuelForecastChartCard
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import kotlin.coroutines.resume
@@ -138,13 +147,14 @@ private data class DashboardRow(
     val type: QuickActionType? = null
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, kotlinx.coroutines.FlowPreview::class)
 @Composable
 fun PhoneDashboardScreen(
     settingsManager: SettingsManager,
     poiProvider: PoiProvider?,
     hasLocationPermission: Boolean,
     mapDepsReady: Boolean,
+    fuelForecastRepository: FuelForecastRepository? = null,
     onOpenMap: () -> Unit,
     onOpenRoutes: () -> Unit,
     onOpenJules: () -> Unit,
@@ -159,74 +169,143 @@ fun PhoneDashboardScreen(
     var userLat by remember { mutableStateOf<Double?>(null) }
     var userLon by remember { mutableStateOf<Double?>(null) }
     var poiForDetails by remember { mutableStateOf<Poi?>(null) }
+    var fuelForecastState by remember {
+        mutableStateOf(
+            FuelForecastUiState(fuelId = "gazole", locationKey = "")
+        )
+    }
+    var fuelForecastLoading by remember { mutableStateOf(false) }
 
     val energyFilterIds = settings.effectiveMapEnergyFilterIds()
     val providers = settings.effectiveProviders()
 
-    LaunchedEffect(poiProvider, hasLocationPermission, energyFilterIds, providers, settings) {
+    // 400ms delay for the loader appearance to prevent "flashing" on fast/cached requests
+    var showLoaderByDelay by remember { mutableStateOf(false) }
+    LaunchedEffect(isLoadingPois) {
+        if (isLoadingPois) {
+            delay(400)
+            showLoaderByDelay = true
+        } else {
+            showLoaderByDelay = false
+        }
+    }
+
+    LaunchedEffect(poiProvider, hasLocationPermission) {
         if (poiProvider == null) return@LaunchedEffect
 
-        isLoadingPois = true
-        searchError = null
-
-        if (!hasLocationPermission) {
-            nearbyPois = emptyList()
-            searchError = "Location permission is required to find nearby stations."
-            isLoadingPois = false
-            return@LaunchedEffect
+        // Use a flow to debounce settings/filter changes (300ms)
+        snapshotFlow {
+            Triple(
+                settings.effectiveMapEnergyFilterIds(),
+                settings.effectiveProviders(),
+                settings.useVehicleFilter
+            )
         }
+        .debounce(300)
+        .collectLatest { (currentEnergyIds, currentProviders, _) ->
+            isLoadingPois = true
+            searchError = null
 
-        val location = LocationHelper.getCurrentLocation(context)
-        if (location != null) {
-            userLat = location.latitude
-            userLon = location.longitude
+            if (!hasLocationPermission) {
+                nearbyPois = emptyList()
+                searchError = "Location permission is required to find nearby stations."
+                isLoadingPois = false
+                return@collectLatest
+            }
 
-            try {
-                val results = poiProvider.search(
-                    PoiSearchRequest(
-                        latitude = location.latitude,
-                        longitude = location.longitude,
-                        categories = emptySet(),
-                        skipFilters = true
+            val location = LocationHelper.getCurrentLocation(context)
+            if (location != null) {
+                userLat = location.latitude
+                userLon = location.longitude
+
+                try {
+                    val results = poiProvider.search(
+                        PoiSearchRequest(
+                            latitude = location.latitude,
+                            longitude = location.longitude,
+                            categories = emptySet(),
+                            skipFilters = true
+                        )
                     )
-                )
 
-                val filteredResults = StationMapFilters.apply(
-                    settings = settings,
-                    pois = results,
-                    providers = providers,
-                    skipWhenOnlyOverpass = true
-                )
+                    val filteredResults = StationMapFilters.apply(
+                        settings = settingsManager.settings.value,
+                        pois = results,
+                        providers = currentProviders,
+                        skipWhenOnlyOverpass = true
+                    )
 
-                val fuelIds = energyFilterIds - "electric"
+                    val fuelIds = currentEnergyIds - "electric"
 
-                nearbyPois = filteredResults
-                    .sortedWith { a, b ->
-                        val pricesA = if (fuelIds.isEmpty()) a.fuelPrices else a.fuelPrices?.filter { MapPoiFilter.fuelNameToId(it.fuelName) in fuelIds }
-                        val pricesB = if (fuelIds.isEmpty()) b.fuelPrices else b.fuelPrices?.filter { MapPoiFilter.fuelNameToId(it.fuelName) in fuelIds }
+                    nearbyPois = filteredResults
+                        .sortedWith { a, b ->
+                            val pricesA = if (fuelIds.isEmpty()) a.fuelPrices else a.fuelPrices?.filter { MapPoiFilter.fuelNameToId(it.fuelName) in fuelIds }
+                            val pricesB = if (fuelIds.isEmpty()) b.fuelPrices else b.fuelPrices?.filter { MapPoiFilter.fuelNameToId(it.fuelName) in fuelIds }
 
-                        val priceA = pricesA?.minByOrNull { it.price }?.price ?: Double.MAX_VALUE
-                        val priceB = pricesB?.minByOrNull { it.price }?.price ?: Double.MAX_VALUE
+                            val priceA = pricesA?.minByOrNull { it.price }?.price ?: Double.MAX_VALUE
+                            val priceB = pricesB?.minByOrNull { it.price }?.price ?: Double.MAX_VALUE
 
-                        if (priceA != priceB && (priceA != Double.MAX_VALUE || priceB != Double.MAX_VALUE)) {
-                            priceA.compareTo(priceB)
-                        } else {
-                            val distA = approxDistanceKm(location.latitude, location.longitude, a.latitude, a.longitude)
-                            val distB = approxDistanceKm(location.latitude, location.longitude, b.latitude, b.longitude)
-                            distA.compareTo(distB)
+                            if (priceA != priceB && (priceA != Double.MAX_VALUE || priceB != Double.MAX_VALUE)) {
+                                priceA.compareTo(priceB)
+                            } else {
+                                val distA = approxDistanceKm(location.latitude, location.longitude, a.latitude, a.longitude)
+                                val distB = approxDistanceKm(location.latitude, location.longitude, b.latitude, b.longitude)
+                                distA.compareTo(distB)
+                            }
                         }
-                    }
-                    .take(5)
-            } catch (e: Exception) {
-                android.util.Log.e("PhoneDashboardScreen", "Failed to fetch nearby POIs", e)
-                searchError = "Unable to fetch nearby stations. Please check your connection."
+                        .take(5)
+                } catch (e: Exception) {
+                    android.util.Log.e("PhoneDashboardScreen", "Failed to fetch nearby POIs", e)
+                    searchError = "Unable to fetch nearby stations. Please check your connection."
+                    nearbyPois = emptyList()
+                }
+            } else {
+                searchError = "Unable to determine your location."
                 nearbyPois = emptyList()
             }
-        } else {
-            searchError = "Unable to determine your location."
-            nearbyPois = emptyList()
+            isLoadingPois = false
         }
-        isLoadingPois = false
+    }
+
+    LaunchedEffect(userLat, userLon, energyFilterIds, hasLocationPermission, fuelForecastRepository) {
+        val repo = fuelForecastRepository ?: return@LaunchedEffect
+        if (!hasLocationPermission) {
+            fuelForecastState = FuelForecastUiState(
+                fuelId = "gazole",
+                locationKey = "",
+                errorMessage = "Location needed for local price forecast."
+            )
+            return@LaunchedEffect
+        }
+        val locLatLon: Pair<Double, Double> = when {
+            userLat != null && userLon != null -> Pair(userLat!!, userLon!!)
+            else -> {
+                val loc = withContext(Dispatchers.IO) { LocationHelper.getCurrentLocation(context) }
+                if (loc == null) {
+                    fuelForecastState = FuelForecastUiState(
+                        fuelId = "gazole",
+                        locationKey = "",
+                        errorMessage = "Unable to read location for forecast."
+                    )
+                    return@LaunchedEffect
+                }
+                Pair(loc.latitude, loc.longitude)
+            }
+        }
+        val (la, lo) = locLatLon
+        fuelForecastLoading = true
+        try {
+            fuelForecastState = repo.refreshAndBuildUiState(la, lo, energyFilterIds)
+        } catch (e: Exception) {
+            android.util.Log.e("PhoneDashboardScreen", "Fuel forecast refresh failed", e)
+            fuelForecastState = FuelForecastUiState(
+                fuelId = energyFilterIds.firstOrNull { it != "electric" } ?: "gazole",
+                locationKey = repo.locationKey(la, lo),
+                errorMessage = "Could not refresh forecast."
+            )
+        } finally {
+            fuelForecastLoading = false
+        }
     }
 
     val quickActions = listOf(
@@ -395,9 +474,18 @@ fun PhoneDashboardScreen(
                     }
                 }
 
+                if (fuelForecastRepository != null) {
+                    item {
+                        FuelForecastChartCard(
+                            state = fuelForecastState,
+                            isLoading = fuelForecastLoading
+                        )
+                    }
+                }
+
                 // 1. Nearby Cheapest (loader or card)
                 item {
-                    if (isLoadingPois) {
+                    if (isLoadingPois && showLoaderByDelay) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -544,13 +632,6 @@ fun PhoneDashboardScreen(
             onDismiss = { poiForDetails = null }
         )
     }
-}
-
-private fun approxDistanceKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-    val dLatKm = (lat2 - lat1) * 111.0
-    val avgLatRad = ((lat1 + lat2) / 2.0) * Math.PI / 180.0
-    val dLonKm = (lon2 - lon1) * 111.0 * Math.cos(avgLatRad)
-    return Math.sqrt(dLatKm * dLatKm + dLonKm * dLonKm)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

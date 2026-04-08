@@ -80,6 +80,11 @@ class AutoLibreMapLabScreen(carContext: CarContext) : Screen(carContext), Surfac
             surfaceRenderer = null
             return
         }
+        if (surfaceContainer.width <= 0 || surfaceContainer.height <= 0) {
+            Log.w("AutoLibreMapLabScreen", "Skipping map surface: invalid size ${surfaceContainer.width}x${surfaceContainer.height}")
+            surfaceRenderer = null
+            return
+        }
         // Carto Voyager raster — visually distinct from the OSM tiles used by [CustomMapPoiScreen].
         val cartoVoyager: (Int, Int, Int) -> String = { z, x, y ->
             "https://a.basemaps.cartocdn.com/rastertiles/voyager/$z/$x/$y.png"
@@ -111,7 +116,7 @@ class AutoLibreMapLabScreen(carContext: CarContext) : Screen(carContext), Surfac
         surfaceRenderer = null
     }
 
-    override fun onGetTemplate(): Template {
+    override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoLibreMapLabScreen") {
         val actionStrip = ActionStrip.Builder()
             .addAction(
                 Action.Builder()
@@ -125,7 +130,7 @@ class AutoLibreMapLabScreen(carContext: CarContext) : Screen(carContext), Surfac
         val title = "MapLibre (lab)"
 
         if (isLoading) {
-            return MapWithContentTemplate.Builder()
+            return@safeCarTemplate MapWithContentTemplate.Builder()
                 .setContentTemplate(
                     ListTemplate.Builder()
                         .setLoading(true)
@@ -194,7 +199,7 @@ class AutoLibreMapLabScreen(carContext: CarContext) : Screen(carContext), Surfac
             .setSingleList(list)
             .build()
 
-        return MapWithContentTemplate.Builder()
+        MapWithContentTemplate.Builder()
             .setContentTemplate(listTemplate)
             .setActionStrip(actionStrip)
             .build()

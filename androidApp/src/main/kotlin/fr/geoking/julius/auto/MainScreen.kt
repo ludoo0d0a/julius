@@ -238,7 +238,7 @@ class MainScreen(
             TabTemplate.Builder(object : TabTemplate.TabCallback {
                 override fun onTabSelected(tabContentId: String) {
                     when (tabContentId) {
-                        TAB_SETTINGS -> screenManager.push(AutoSettingsScreen(carContext, settingsManager, store, julesClient))
+                        TAB_SETTINGS -> screenManager.push(AutoSettingsScreen(carContext, settingsManager))
                         TAB_MAP -> {
                             try {
                                 val mapDeps = getMapDeps()
@@ -371,7 +371,7 @@ class MainScreen(
                             is AgentSetupIssue.MissingLlamatikModel ->
                                 screenManager.push(AutoLlamatikModelScreen(carContext, settingsManager))
                             is AgentSetupIssue.MissingApiKey ->
-                                screenManager.push(AutoSettingsScreen(carContext, settingsManager, store, julesClient))
+                                screenManager.push(AutoSettingsScreen(carContext, settingsManager))
                         }
                     }
                     .build()
@@ -393,7 +393,7 @@ class MainScreen(
                     .setTitle(errorTitle)
                     .addText(errorMessage.take(400))
                     .setOnClickListener {
-                        screenManager.push(AutoSettingsScreen(carContext, settingsManager, store, julesClient))
+                        screenManager.push(AutoSettingsScreen(carContext, settingsManager))
                     }
                     .build()
             )

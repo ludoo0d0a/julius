@@ -7,14 +7,18 @@ import androidx.car.app.Screen
 import androidx.car.app.SurfaceCallback
 import androidx.car.app.SurfaceContainer
 import androidx.car.app.model.Action
+import androidx.car.app.model.ActionStrip
+import androidx.car.app.model.CarIcon
 import androidx.car.app.model.Header
 import androidx.car.app.model.ItemList
 import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
 import androidx.car.app.navigation.model.MapWithContentTemplate
+import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
+import fr.geoking.julius.R
 
 class AutoMapTemplateScreen(carContext: CarContext) : Screen(carContext), SurfaceCallback, DefaultLifecycleObserver {
 
@@ -31,6 +35,11 @@ class AutoMapTemplateScreen(carContext: CarContext) : Screen(carContext), Surfac
         surfaceRenderer?.stop()
         val surface = surfaceContainer.surface
         if (surface == null) {
+            surfaceRenderer = null
+            return
+        }
+        if (surfaceContainer.width <= 0 || surfaceContainer.height <= 0) {
+            Log.w("AutoMapTemplateScreen", "Skipping map surface: invalid size ${surfaceContainer.width}x${surfaceContainer.height}")
             surfaceRenderer = null
             return
         }
@@ -69,7 +78,17 @@ class AutoMapTemplateScreen(carContext: CarContext) : Screen(carContext), Surfac
         invalidate()
     }
 
-    override fun onGetTemplate(): Template {
+    override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoMapTemplateScreen") {
+        val actionStrip = ActionStrip.Builder()
+            .addAction(
+                Action.Builder()
+                    .setTitle("Home")
+                    .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_home)).build())
+                    .setOnClickListener { screenManager.popToRoot() }
+                    .build()
+            )
+            .build()
+
         val listBuilder = ItemList.Builder()
             .addItem(
                 Row.Builder()
@@ -94,8 +113,9 @@ class AutoMapTemplateScreen(carContext: CarContext) : Screen(carContext), Surfac
             .setSingleList(listBuilder.build())
             .build()
 
-        return MapWithContentTemplate.Builder()
+        MapWithContentTemplate.Builder()
             .setContentTemplate(contentTemplate)
+            .setActionStrip(actionStrip)
             .build()
     }
 }

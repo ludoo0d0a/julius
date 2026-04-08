@@ -13,7 +13,7 @@ import androidx.core.graphics.drawable.IconCompat
 import fr.geoking.julius.R
 
 class AutoPaneTemplateScreen(carContext: CarContext) : Screen(carContext) {
-    override fun onGetTemplate(): Template {
+    override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoPaneTemplateScreen") {
         val paneBuilder = Pane.Builder()
             .addAction(
                 Action.Builder()
@@ -47,7 +47,7 @@ class AutoPaneTemplateScreen(carContext: CarContext) : Screen(carContext) {
                     .build()
             )
 
-        return PaneTemplate.Builder(paneBuilder.build())
+        PaneTemplate.Builder(paneBuilder.build())
             .setHeader(
                 Header.Builder()
                     .setTitle("PaneTemplate Sample")

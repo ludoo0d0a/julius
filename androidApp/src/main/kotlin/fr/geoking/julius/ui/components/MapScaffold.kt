@@ -6,7 +6,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -38,6 +40,8 @@ fun MapScaffold(
     onLocateMe: () -> Unit,
     onShowSettings: () -> Unit,
     onPlanRoute: (() -> Unit)? = null,
+    onLocatePlace: (() -> Unit)? = null,
+    onRouteToDirection: (() -> Unit)? = null,
     showFavoritesOnly: Boolean = false,
     onShowFavoritesOnlyChange: ((Boolean) -> Unit)? = null,
     favoritesFilterEnabled: Boolean = false,
@@ -47,6 +51,7 @@ fun MapScaffold(
 ) {
     val settings by settingsManager.settings.collectAsState()
     val selectedProviders = settings.selectedPoiProviders
+    var navMenuExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -63,9 +68,50 @@ fun MapScaffold(
                         }
                     },
                     actions = {
-                        onPlanRoute?.let { plan ->
-                            TextButton(onClick = plan) {
-                                Text("Plan route", color = Color.White)
+                        if (onPlanRoute != null || onLocatePlace != null || onRouteToDirection != null) {
+                            Box {
+                                IconButton(onClick = { navMenuExpanded = true }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Directions,
+                                        contentDescription = "Navigation",
+                                        tint = Color.White
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = navMenuExpanded,
+                                    onDismissRequest = { navMenuExpanded = false }
+                                ) {
+                                    if (onPlanRoute != null) {
+                                        DropdownMenuItem(
+                                            text = { Text("Plan route") },
+                                            leadingIcon = { Icon(Icons.Default.Directions, contentDescription = null) },
+                                            onClick = {
+                                                navMenuExpanded = false
+                                                onPlanRoute()
+                                            }
+                                        )
+                                    }
+                                    if (onLocatePlace != null) {
+                                        DropdownMenuItem(
+                                            text = { Text("Locate a place") },
+                                            leadingIcon = { Icon(Icons.Default.Place, contentDescription = null) },
+                                            onClick = {
+                                                navMenuExpanded = false
+                                                onLocatePlace()
+                                            }
+                                        )
+                                    }
+                                    if (onRouteToDirection != null) {
+                                        DropdownMenuItem(
+                                            text = { Text("Route to a direction") },
+                                            leadingIcon = { Icon(Icons.Default.Directions, contentDescription = null) },
+                                            onClick = {
+                                                navMenuExpanded = false
+                                                onRouteToDirection()
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         }
                     },

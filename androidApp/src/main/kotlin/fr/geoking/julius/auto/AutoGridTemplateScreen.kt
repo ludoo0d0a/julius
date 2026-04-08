@@ -13,7 +13,7 @@ import androidx.core.graphics.drawable.IconCompat
 import fr.geoking.julius.R
 
 class AutoGridTemplateScreen(carContext: CarContext) : Screen(carContext) {
-    override fun onGetTemplate(): Template {
+    override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoGridTemplateScreen") {
         val gridBuilder = ItemList.Builder()
         for (i in 1..6) {
             gridBuilder.addItem(
@@ -25,7 +25,7 @@ class AutoGridTemplateScreen(carContext: CarContext) : Screen(carContext) {
             )
         }
 
-        return GridTemplate.Builder()
+        GridTemplate.Builder()
             .setSingleList(gridBuilder.build())
             .setHeader(
                 Header.Builder()

@@ -21,7 +21,7 @@ class AutoTemplateLabScreen(
     private val getMapDeps: () -> MapDeps?
 ) : Screen(carContext) {
 
-    override fun onGetTemplate(): Template {
+    override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoTemplateLabScreen") {
         val listBuilder = ItemList.Builder()
 
         listBuilder.addItem(
@@ -66,7 +66,7 @@ class AutoTemplateLabScreen(
                 .build()
         )
 
-        return ListTemplate.Builder()
+        ListTemplate.Builder()
             .setSingleList(listBuilder.build())
             .setHeader(
                 Header.Builder()
@@ -79,7 +79,7 @@ class AutoTemplateLabScreen(
 }
 
 class AutoTemplateLabBasicScreen(carContext: CarContext) : Screen(carContext) {
-    override fun onGetTemplate(): Template {
+    override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoTemplateLabBasicScreen") {
         val listBuilder = ItemList.Builder()
         listBuilder.addItem(Row.Builder().setTitle("MessageTemplate").setOnClickListener { screenManager.push(AutoMessageTemplateScreen(carContext)) }.build())
         listBuilder.addItem(Row.Builder().setTitle("PaneTemplate").setOnClickListener { screenManager.push(AutoPaneTemplateScreen(carContext)) }.build())
@@ -88,7 +88,7 @@ class AutoTemplateLabBasicScreen(carContext: CarContext) : Screen(carContext) {
         listBuilder.addItem(Row.Builder().setTitle("SearchTemplate").setOnClickListener { screenManager.push(AutoSearchTemplateScreen(carContext)) }.build())
         listBuilder.addItem(Row.Builder().setTitle("SignInTemplate").setOnClickListener { screenManager.push(AutoSignInTemplateScreen(carContext)) }.build())
 
-        return ListTemplate.Builder()
+        ListTemplate.Builder()
             .setSingleList(listBuilder.build())
             .setHeader(Header.Builder().setTitle("UI Templates").setStartHeaderAction(Action.BACK).build())
             .build()
@@ -96,7 +96,7 @@ class AutoTemplateLabBasicScreen(carContext: CarContext) : Screen(carContext) {
 }
 
 class AutoTemplateLabMapTemplatesScreen(carContext: CarContext) : Screen(carContext) {
-    override fun onGetTemplate(): Template {
+    override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoTemplateLabMapTemplatesScreen") {
         val listBuilder = ItemList.Builder()
         listBuilder.addItem(Row.Builder().setTitle("NavigationTemplate").setOnClickListener { screenManager.push(GuidanceScreen(carContext, fr.geoking.julius.poi.Poi(id="lab", name="Sample", address = "Sample address", latitude=48.8, longitude=2.3))) }.build())
         listBuilder.addItem(Row.Builder().setTitle("RoutePreviewNavigationTemplate").setOnClickListener { screenManager.push(AutoRoutePreviewNavigationTemplateScreen(carContext)) }.build())
@@ -105,7 +105,7 @@ class AutoTemplateLabMapTemplatesScreen(carContext: CarContext) : Screen(carCont
         listBuilder.addItem(Row.Builder().setTitle("TabTemplate").setOnClickListener { screenManager.push(AutoTabTemplateScreen(carContext)) }.build())
         listBuilder.addItem(Row.Builder().setTitle("MapTemplate (Custom OSM)").setOnClickListener { screenManager.push(AutoMapTemplateScreen(carContext)) }.build())
 
-        return ListTemplate.Builder()
+        ListTemplate.Builder()
             .setSingleList(listBuilder.build())
             .setHeader(Header.Builder().setTitle("Map & Nav Templates").setStartHeaderAction(Action.BACK).build())
             .build()
@@ -117,7 +117,7 @@ class AutoTemplateLabFeaturesScreen(
     private val settingsManager: SettingsManager,
     private val getMapDeps: () -> MapDeps?
 ) : Screen(carContext) {
-    override fun onGetTemplate(): Template {
+    override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoTemplateLabFeaturesScreen") {
         val listBuilder = ItemList.Builder()
 
         listBuilder.addItem(Row.Builder().setTitle("Native map POI").setOnClickListener {
@@ -137,7 +137,7 @@ class AutoTemplateLabFeaturesScreen(
             if (deps != null) screenManager.push(AutoRoutePlanningScreen(carContext, deps.routePlanner, deps.routingClient, deps.poiProvider, deps.geocodingClient, settingsManager))
         }.build())
 
-        return ListTemplate.Builder()
+        ListTemplate.Builder()
             .setSingleList(listBuilder.build())
             .setHeader(Header.Builder().setTitle("App Features").setStartHeaderAction(Action.BACK).build())
             .build()

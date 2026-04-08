@@ -343,6 +343,9 @@ interface PoiProvider {
         longitude: Double,
         viewport: MapViewport? = null
     ): List<Poi>
+
+    /** Clears any internal cache this provider may have. */
+    fun clearCache() {}
 }
 
 private fun Poi.ensureCategory(): Poi = copy(

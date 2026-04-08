@@ -11,6 +11,6 @@ class VoiceAppService : CarAppService() {
     }
 
     override fun onCreateSession(): Session {
-        return VoiceSession()
+        return CarAppSession()
     }
 }

@@ -4,13 +4,23 @@ import android.content.Context
 import coil3.SingletonImageLoader
 import fr.geoking.julius.ui.map.PoiMarkerHelper
 import fr.geoking.julius.shared.logging.DebugLogStore
+import fr.geoking.julius.poi.PoiProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.koin.core.context.GlobalContext
 
 object CacheManager {
     suspend fun clearAllCaches(context: Context) {
         // 1. POI Markers (Memory-only, fast)
         PoiMarkerHelper.clearCache()
+
+        // POI Provider Cache (Memory-only, fast)
+        try {
+            val poiProvider = GlobalContext.get().getOrNull<PoiProvider>()
+            poiProvider?.clearCache()
+        } catch (e: Exception) {
+            android.util.Log.e("CacheManager", "Error clearing PoiProvider cache", e)
+        }
 
         // 2. Network Debug Logs (Memory-only, fast)
         try {

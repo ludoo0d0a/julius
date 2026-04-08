@@ -4,16 +4,17 @@ import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.Action
 import androidx.car.app.model.CarIcon
+import androidx.car.app.model.GridItem
+import androidx.car.app.model.GridTemplate
 import androidx.car.app.model.Header
 import androidx.car.app.model.ItemList
-import androidx.car.app.model.ListTemplate
-import androidx.car.app.model.Row
 import androidx.car.app.model.Template
 import androidx.core.graphics.drawable.IconCompat
 import fr.geoking.julius.CarMapMode
 import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.di.MapDeps
+import fr.geoking.julius.repository.FuelForecastRepository
 import fr.geoking.julius.shared.network.NetworkService
 
 /**
@@ -24,17 +25,21 @@ class AutoPlaystoreDashboardScreen(
     carContext: CarContext,
     private val settingsManager: SettingsManager,
     private val networkService: NetworkService,
+    private val fuelForecastRepository: FuelForecastRepository,
     private val getMapDeps: () -> MapDeps?
 ) : Screen(carContext) {
 
     override fun onGetTemplate(): Template {
-        val listBuilder = ItemList.Builder()
+        fun gridIcon(drawableId: Int) =
+            CarIcon.Builder(IconCompat.createWithResource(carContext, drawableId)).build()
 
-        listBuilder.addItem(
-            Row.Builder()
+        val grid = ItemList.Builder()
+
+        grid.addItem(
+            GridItem.Builder()
                 .setTitle("Map")
-                .addText("Fuel & IRVE stations (all filters)")
-                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
+                .setText("All filters")
+                .setImage(gridIcon(R.drawable.ic_map))
                 .setOnClickListener {
                     settingsManager.setUseVehicleFilter(false)
                     pushMapScreen()
@@ -42,11 +47,11 @@ class AutoPlaystoreDashboardScreen(
                 .build()
         )
 
-        listBuilder.addItem(
-            Row.Builder()
-                .setTitle("POI map (vehicle)")
-                .addText("Filtered by vehicle settings")
-                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
+        grid.addItem(
+            GridItem.Builder()
+                .setTitle("POI (vehicle)")
+                .setText("Saved vehicle filters")
+                .setImage(gridIcon(R.drawable.ic_poi_caravan_rounded))
                 .setOnClickListener {
                     settingsManager.setUseVehicleFilter(true)
                     pushMapScreen()
@@ -54,11 +59,24 @@ class AutoPlaystoreDashboardScreen(
                 .build()
         )
 
-        listBuilder.addItem(
-            Row.Builder()
+        grid.addItem(
+            GridItem.Builder()
+                .setTitle("Fuel outlook")
+                .setText("Next days estimate")
+                .setImage(gridIcon(R.drawable.ic_poi_gas_rounded))
+                .setOnClickListener {
+                    screenManager.push(
+                        AutoFuelForecastScreen(carContext, settingsManager, fuelForecastRepository)
+                    )
+                }
+                .build()
+        )
+
+        grid.addItem(
+            GridItem.Builder()
                 .setTitle("Routes")
-                .addText("Plan a journey")
-                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_swap_horiz)).build())
+                .setText("Plan journey")
+                .setImage(gridIcon(R.drawable.ic_swap_horiz))
                 .setOnClickListener {
                     val mapDeps = getMapDeps() ?: return@setOnClickListener
                     screenManager.push(
@@ -75,41 +93,41 @@ class AutoPlaystoreDashboardScreen(
                 .build()
         )
 
-        listBuilder.addItem(
-            Row.Builder()
+        grid.addItem(
+            GridItem.Builder()
                 .setTitle("Template lab")
-                .addText("Try list, message, navigation template, maps")
-                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_settings)).build())
+                .setText("Try templates & maps")
+                .setImage(gridIcon(R.drawable.ic_launcher))
                 .setOnClickListener {
                     screenManager.push(AutoTemplateLabScreen(carContext, settingsManager, getMapDeps))
                 }
                 .build()
         )
 
-        listBuilder.addItem(
-            Row.Builder()
-                .setTitle("Network & location")
-                .addText("Diagnostics")
-                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_speaker)).build())
+        grid.addItem(
+            GridItem.Builder()
+                .setTitle("Network & GPS")
+                .setText("Diagnostics")
+                .setImage(gridIcon(R.drawable.ic_poi_radar_rounded))
                 .setOnClickListener {
                     screenManager.push(AutoNetworkLocationInfoScreen(carContext, networkService))
                 }
                 .build()
         )
 
-        listBuilder.addItem(
-            Row.Builder()
+        grid.addItem(
+            GridItem.Builder()
                 .setTitle("Map settings")
-                .addText("Data sources, traffic, vehicle")
-                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_settings)).build())
+                .setText("Sources & vehicle")
+                .setImage(gridIcon(R.drawable.ic_settings))
                 .setOnClickListener {
                     screenManager.push(AutoMapSettingsScreen(carContext, settingsManager))
                 }
                 .build()
         )
 
-        return ListTemplate.Builder()
-            .setSingleList(listBuilder.build())
+        return GridTemplate.Builder()
+            .setSingleList(grid.build())
             .setHeader(
                 Header.Builder()
                     .setTitle("Julius - station finder")

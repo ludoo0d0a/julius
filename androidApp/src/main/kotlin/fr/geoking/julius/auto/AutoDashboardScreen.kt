@@ -4,7 +4,6 @@ import android.util.Log
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.Action
-import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.CarIcon
 import androidx.car.app.model.Header
 import androidx.car.app.model.ItemList
@@ -15,35 +14,28 @@ import androidx.core.graphics.drawable.IconCompat
 import fr.geoking.julius.CarMapMode
 import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
-import fr.geoking.julius.agents.ConversationalAgent
-import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.di.MapDeps
-import fr.geoking.julius.repository.JulesRepository
-import fr.geoking.julius.shared.conversation.ConversationStore
+import fr.geoking.julius.repository.FuelForecastRepository
 import fr.geoking.julius.shared.network.NetworkService
 
 class AutoDashboardScreen(
     carContext: CarContext,
-    private val store: ConversationStore,
     private val settingsManager: SettingsManager,
-    private val julesClient: JulesClient,
-    private val julesRepository: JulesRepository,
     private val networkService: NetworkService,
-    private val conversationalAgent: ConversationalAgent,
+    private val fuelForecastRepository: FuelForecastRepository,
     private val getMapDeps: () -> MapDeps?
 ) : Screen(carContext) {
 
     init {
         val screenNames = listOf(
+            "AutoFuelForecastScreen",
             "AutoDashboardScreen",
-            "MainScreen (Assistant)",
-            "AutoJulesSourceScreen",
             "NativeMapPoiScreen",
             "CustomMapPoiScreen",
             "AutoRoutePlanningScreen",
             "AutoNetworkLocationInfoScreen",
             "AutoSettingsScreen",
-            "AutoHistoryScreen (via MainScreen)"
+            "AutoTemplateLabScreen",
         )
         Log.d("JuliusNavigation", "Android Auto Screens: ${screenNames.joinToString(", ")}")
     }
@@ -51,31 +43,19 @@ class AutoDashboardScreen(
     override fun onGetTemplate(): Template {
         val listBuilder = ItemList.Builder()
 
-        // 1. Assistant
         listBuilder.addItem(
             Row.Builder()
-                .setTitle("Assistant")
-                .addText("Voice interaction and help")
-                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_speaker)).build())
+                .setTitle("Fuel price outlook")
+                .addText("Local estimate from market + nearby pumps")
+                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
                 .setOnClickListener {
-                    screenManager.push(MainScreen(carContext, store, settingsManager, julesClient, getMapDeps, conversationalAgent))
+                    screenManager.push(
+                        AutoFuelForecastScreen(carContext, settingsManager, fuelForecastRepository)
+                    )
                 }
                 .build()
         )
 
-        // 2. Jules Chat
-        listBuilder.addItem(
-            Row.Builder()
-                .setTitle("Jules Chat")
-                .addText("Open Jules code assistant")
-                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_jules)).build())
-                .setOnClickListener {
-                    screenManager.push(AutoJulesSourceScreen(carContext, store, settingsManager, julesClient, julesRepository))
-                }
-                .build()
-        )
-
-        // 3. Map (Native or Custom)
         listBuilder.addItem(
             Row.Builder()
                 .setTitle("Map")
@@ -88,7 +68,6 @@ class AutoDashboardScreen(
                 .build()
         )
 
-        // 4. POI Map (Vehicle filtered)
         listBuilder.addItem(
             Row.Builder()
                 .setTitle("POI Map")
@@ -101,7 +80,6 @@ class AutoDashboardScreen(
                 .build()
         )
 
-        // 5. Routes
         listBuilder.addItem(
             Row.Builder()
                 .setTitle("Routes")
@@ -125,7 +103,6 @@ class AutoDashboardScreen(
                 .build()
         )
 
-        // 6. Network/Location Info
         listBuilder.addItem(
             Row.Builder()
                 .setTitle("Network & Location Info")
@@ -137,7 +114,6 @@ class AutoDashboardScreen(
                 .build()
         )
 
-        // 7. Template lab (maps & templates)
         listBuilder.addItem(
             Row.Builder()
                 .setTitle("Template lab")
@@ -149,14 +125,13 @@ class AutoDashboardScreen(
                 .build()
         )
 
-        // 8. Settings
         listBuilder.addItem(
             Row.Builder()
                 .setTitle("Settings")
-                .addText("App and agent configuration")
+                .addText("Toll data and car-safe options")
                 .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_settings)).build())
                 .setOnClickListener {
-                    screenManager.push(AutoSettingsScreen(carContext, settingsManager, store, julesClient))
+                    screenManager.push(AutoSettingsScreen(carContext, settingsManager))
                 }
                 .build()
         )

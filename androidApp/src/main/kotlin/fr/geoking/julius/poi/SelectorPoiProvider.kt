@@ -9,6 +9,9 @@ import fr.geoking.julius.parking.ParkingRegion
 import fr.geoking.julius.api.openvan.OpenVanCampClient
 import fr.geoking.julius.api.openvan.OpenVanCampProvider
 import fr.geoking.julius.poi.PoiMerger
+import fr.geoking.julius.shared.location.haversineKm
+import fr.geoking.julius.shared.location.approxDistanceKm
+import fr.geoking.julius.api.routex.radiusKmFromMapViewport
 
 /**
  * Delegates to the currently selected [PoiProvider] (Routex, DataGouv fuel, …). Etalab / GasApi stay wired for tests;
@@ -33,7 +36,20 @@ class SelectorPoiProvider(
     private val settingsManager: SettingsManager
 ) : PoiProvider {
 
+    private data class LoadedPoiRegion(
+        val centerLat: Double,
+        val centerLng: Double,
+        val maxRadiusKmLoaded: Int,
+        val loadedAtMs: Long
+    )
+
     private val hybridProvider by lazy { HybridPoiProvider(dataGouv, dataGouvElec) }
+
+    private var cachedPois = listOf<Poi>()
+    private val poiSeenAtMs = mutableMapOf<String, Long>()
+    private val loadedRegions = mutableListOf<LoadedPoiRegion>()
+    private var lastCacheKey: String? = null
+    private val cacheLock = Any()
 
     private fun getProvider(type: PoiProviderType): PoiProvider = when (type) {
         PoiProviderType.Routex -> routex
@@ -69,9 +85,6 @@ class SelectorPoiProvider(
     }
 
     override suspend fun searchResult(request: PoiSearchRequest): PoiSearchResult {
-        val allPois = mutableListOf<Poi>()
-        val errors = mutableListOf<PoiProviderError>()
-
         val settings = settingsManager.settings.value
         val providers = try {
             settings.effectiveProviders()
@@ -81,6 +94,70 @@ class SelectorPoiProvider(
         }
 
         if (providers.isEmpty()) return PoiSearchResult()
+
+        val poiFetchKey = buildString {
+            append(providers.sortedBy { it.name }.joinToString(",") { it.name })
+            append("|vehicleFilter=").append(settings.useVehicleFilter)
+            append("|fuelCard=").append(settings.fuelCard)
+            append("|vehicleType=").append(settings.vehicleType)
+            append("|vehicleEnergy=").append(settings.vehicleEnergy)
+            append("|overpassAmenities=").append(settings.selectedOverpassAmenityTypes.sorted().joinToString(","))
+        }
+
+        val nowMs = System.currentTimeMillis()
+        val ttlMs = 5L * 60L * 1000L // 5 minutes TTL as requested
+        val expiresBeforeMs = nowMs - ttlMs
+        val maxRegions = 8
+        val maxPoisInCache = 1200
+
+        synchronized(cacheLock) {
+            if (lastCacheKey != poiFetchKey) {
+                loadedRegions.clear()
+                cachedPois = emptyList()
+                poiSeenAtMs.clear()
+                lastCacheKey = poiFetchKey
+            }
+
+            // TTL eviction
+            loadedRegions.removeAll { it.loadedAtMs < expiresBeforeMs }
+            if (poiSeenAtMs.isNotEmpty()) {
+                val expiredPoiIds = poiSeenAtMs
+                    .filter { (_, seenAt) -> seenAt < expiresBeforeMs }
+                    .keys
+                    .toSet()
+                if (expiredPoiIds.isNotEmpty()) {
+                    poiSeenAtMs.keys.removeAll(expiredPoiIds)
+                    cachedPois = cachedPois.filterNot { it.id in expiredPoiIds }
+                }
+            }
+
+            val requiredRadiusKm = request.viewport?.let { v ->
+                radiusKmFromMapViewport(
+                    request.latitude,
+                    request.longitude,
+                    v.zoom,
+                    v.mapWidthPx,
+                    v.mapHeightPx
+                ).coerceIn(1, 50)
+            } ?: 10 // Default radius for dashboard
+
+            val viewportCovered = loadedRegions.any { region ->
+                region.maxRadiusKmLoaded >= requiredRadiusKm &&
+                        haversineKm(
+                            request.latitude,
+                            request.longitude,
+                            region.centerLat,
+                            region.centerLng
+                        ) <= (region.maxRadiusKmLoaded - requiredRadiusKm).toDouble() + 0.5
+            }
+
+            if (viewportCovered) {
+                return PoiSearchResult(pois = applyPostFilters(cachedPois, request, providers))
+            }
+        }
+
+        val allPois = mutableListOf<Poi>()
+        val errors = mutableListOf<PoiProviderError>()
 
         val vehicleType = settings.vehicleType
         val categories = try {
@@ -129,7 +206,12 @@ class SelectorPoiProvider(
 
         providers.forEach { providerType ->
             val activeProvider = getProvider(providerType)
-            val searchResult = activeProvider.searchResult(effectiveRequest)
+            val searchResult = try {
+                activeProvider.searchResult(effectiveRequest)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                PoiSearchResult(errors = listOf(PoiProviderError(providerType.name, e.message ?: "Unknown error")))
+            }
             allPois.addAll(searchResult.pois)
             errors.addAll(searchResult.errors)
 
@@ -144,27 +226,119 @@ class SelectorPoiProvider(
             }
         }
 
-        var result = PoiMerger.mergePois(allPois)
-        result = enrichUniformReferencePrices(
-            pois = result,
+        val merged = PoiMerger.mergePois(allPois)
+        val enriched = enrichUniformReferencePrices(
+            pois = merged,
             providers = providers,
             centerLat = request.latitude,
             centerLon = request.longitude
         )
-        if (!request.skipFilters) {
-            result = StationMapFilters.apply(
-                settings = settings,
-                pois = result,
-                providers = providers,
-                skipWhenOnlyOverpass = true,
+
+        val requiredRadiusKm = request.viewport?.let { v ->
+            radiusKmFromMapViewport(
+                request.latitude,
+                request.longitude,
+                v.zoom,
+                v.mapWidthPx,
+                v.mapHeightPx
+            ).coerceIn(1, 50)
+        } ?: 10
+
+        synchronized(cacheLock) {
+            cachedPois = PoiMerger.mergeInto(cachedPois, enriched)
+            val mergedNow = System.currentTimeMillis()
+            enriched.forEach { poiSeenAtMs[it.id] = mergedNow }
+            cachedPois.forEach { p ->
+                if (poiSeenAtMs[p.id] == null) poiSeenAtMs[p.id] = mergedNow
+            }
+
+            loadedRegions.add(
+                LoadedPoiRegion(
+                    centerLat = request.latitude,
+                    centerLng = request.longitude,
+                    maxRadiusKmLoaded = requiredRadiusKm,
+                    loadedAtMs = mergedNow
+                )
             )
+
+            // Keep the region cache bounded.
+            while (loadedRegions.size > maxRegions) {
+                val farthest = loadedRegions.maxBy { r ->
+                    haversineKm(r.centerLat, r.centerLng, request.latitude, request.longitude)
+                }
+                loadedRegions.remove(farthest)
+            }
+
+            // Keep the POI cache bounded: keep closest POIs to current center.
+            if (cachedPois.size > maxPoisInCache) {
+                cachedPois = cachedPois
+                    .asSequence()
+                    .map { p -> p to approxDistanceKm(request.latitude, request.longitude, p.latitude, p.longitude) }
+                    .sortedBy { it.second }
+                    .take(maxPoisInCache)
+                    .map { it.first }
+                    .toList()
+                val keepIds = cachedPois.map { it.id }.toSet()
+                poiSeenAtMs.keys.retainAll(keepIds)
+            }
         }
+
+        val result = applyPostFilters(cachedPois, request, providers)
         Log.d("SelectorPoiProvider", "search providers=$providers categories=$categories skipFilters=${request.skipFilters} -> ${result.size} pois")
         return PoiSearchResult(pois = result, errors = errors)
     }
 
+    private fun applyPostFilters(pois: List<Poi>, request: PoiSearchRequest, providers: Set<PoiProviderType>): List<Poi> {
+        val centerLat = request.latitude
+        val centerLng = request.longitude
+        val displayRadiusKm = request.viewport?.let { v ->
+            radiusKmFromMapViewport(
+                centerLat,
+                centerLng,
+                v.zoom,
+                v.mapWidthPx,
+                v.mapHeightPx
+            ).coerceIn(1, 50)
+        } ?: 10
+
+        val raw = pois.filter { poi ->
+            approxDistanceKm(centerLat, centerLng, poi.latitude, poi.longitude) <= displayRadiusKm * 1.05
+        }
+
+        return if (!request.skipFilters) {
+            StationMapFilters.apply(
+                settings = settingsManager.settings.value,
+                pois = raw,
+                providers = providers,
+                skipWhenOnlyOverpass = true
+            )
+        } else {
+            raw
+        }
+    }
+
     override suspend fun search(request: PoiSearchRequest): List<Poi> {
         return searchResult(request).pois
+    }
+
+    override fun clearCache() {
+        synchronized(cacheLock) {
+            loadedRegions.clear()
+            cachedPois = emptyList()
+            poiSeenAtMs.clear()
+        }
+        routex.clearCache()
+        dataGouvPrixCarburant.clearCache()
+        gasApi.clearCache()
+        dataGouv.clearCache()
+        dataGouvElec.clearCache()
+        openChargeMap.clearCache()
+        chargy.clearCache()
+        openVanCamp.clearCache()
+        spainMinetur.clearCache()
+        germanyTankerkoenig.clearCache()
+        austriaEControl.clearCache()
+        overpass.clearCache()
     }
 
     // POI deduplication/merge is centralized in `PoiMerger` so the map cache and selectors

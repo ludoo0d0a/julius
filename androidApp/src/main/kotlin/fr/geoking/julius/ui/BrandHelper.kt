@@ -56,6 +56,9 @@ object BrandHelper {
         "supermarche match" to R.drawable.ic_brand_match,
         "powerdot" to R.drawable.ic_brand_powerdot,
         "driveco" to R.drawable.ic_brand_driveco,
+        "spar" to R.drawable.ic_brand_spar,
+        "gulf" to R.drawable.ic_brand_gulf,
+        "monoprix" to R.drawable.ic_brand_monoprix,
     )
 
     /** Lookup key -> rounded brand icon drawable. Unlisted brands use ic_poi_gas_rounded. */
@@ -104,6 +107,9 @@ object BrandHelper {
         "supermarche match" to R.drawable.ic_brand_match_rounded,
         "powerdot" to R.drawable.ic_brand_powerdot_rounded,
         "driveco" to R.drawable.ic_brand_driveco_rounded,
+        "spar" to R.drawable.ic_brand_spar_rounded,
+        "gulf" to R.drawable.ic_brand_gulf_rounded,
+        "monoprix" to R.drawable.ic_brand_monoprix_rounded,
     )
 
     data class BrandInfo(

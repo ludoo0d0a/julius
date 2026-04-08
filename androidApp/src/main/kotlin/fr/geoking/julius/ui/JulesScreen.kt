@@ -23,17 +23,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Merge
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -58,6 +63,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import java.time.OffsetDateTime
@@ -117,7 +131,10 @@ fun JulesScreen(
     var selectedSourceDisplayName by remember { mutableStateOf(settings.lastJulesRepoName.takeIf { it.isNotBlank() } ?: "Select repository") }
     var sourcesLoaded by remember { mutableStateOf(false) }
     var showRepoSheet by remember { mutableStateOf(false) }
+    var showActivitiesSheet by remember { mutableStateOf(false) }
+    var rawActivities by remember { mutableStateOf<List<JulesClient.JulesActivity>>(emptyList()) }
     val sheetState = rememberModalBottomSheetState()
+    val activitiesSheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val sessionsListState = rememberLazyListState()
@@ -261,6 +278,13 @@ fun JulesScreen(
     Surface(modifier = Modifier.fillMaxSize(), color = JulesBg) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
+                if (loading || loadingSessions) {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = JulesAccent,
+                        trackColor = Color.Transparent
+                    )
+                }
                 Row(
                     modifier = Modifier
                     .fillMaxWidth()
@@ -307,6 +331,23 @@ fun JulesScreen(
                                 fontSize = 12.sp
                             )
                         }
+                    }
+                }
+                if (currentSession != null) {
+                    IconButton(onClick = {
+                        scope.launch {
+                            loading = true
+                            try {
+                                val resp = julesClient.listActivities(apiKey, currentSession!!.id)
+                                rawActivities = resp.activities
+                                showActivitiesSheet = true
+                            } catch (e: Exception) {
+                                error = "Could not load activities: ${e.message}"
+                            }
+                            loading = false
+                        }
+                    }) {
+                        Icon(Icons.Default.History, contentDescription = "Activities", tint = Color.White)
                     }
                 }
             }
@@ -430,16 +471,23 @@ fun JulesScreen(
                                             source = source,
                                             title = newSessionPrompt.take(80)
                                         )
+                                        // Immediately get session to have the initial state (as createSession might have it as null or QUEUED)
+                                        val updatedSession = try {
+                                            julesClient.getSession(apiKey, session.id)
+                                        } catch (e: Exception) {
+                                            session
+                                        }
+
                                         val entity = JulesSessionEntity(
-                                            id = session.id,
-                                            title = session.title,
-                                            prompt = session.prompt,
+                                            id = updatedSession.id,
+                                            title = updatedSession.title,
+                                            prompt = updatedSession.prompt,
                                             sourceName = source,
-                                            prUrl = session.outputs?.firstOrNull()?.pullRequest?.url,
-                                            prTitle = session.outputs?.firstOrNull()?.pullRequest?.title,
+                                            prUrl = updatedSession.outputs?.firstOrNull()?.pullRequest?.url,
+                                            prTitle = updatedSession.outputs?.firstOrNull()?.pullRequest?.title,
                                             prState = null,
                                             prMergeable = null,
-                                            sessionState = session.state,
+                                            sessionState = updatedSession.state,
                                             isArchived = false,
                                             lastUpdated = System.currentTimeMillis()
                                         )
@@ -488,7 +536,7 @@ fun JulesScreen(
                             onArchive = { session ->
                                 scope.launch {
                                     loading = true
-                                    julesRepository.archiveSession(session.id)
+                                    julesRepository.archiveSession(apiKey, session.id)
                                     loadSessions()
                                     loading = false
                                 }
@@ -503,17 +551,17 @@ fun JulesScreen(
             }
         }
 
-        if (loading || loadingSessions) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.4f))
-                        .clickable(enabled = true, onClick = {}),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = JulesAccent)
-                }
-            }
+        }
+    }
+
+    if (showActivitiesSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showActivitiesSheet = false },
+            sheetState = activitiesSheetState,
+            containerColor = JulesBg,
+            contentColor = Color.White
+        ) {
+            ActivitiesSheet(activities = rawActivities)
         }
     }
 
@@ -595,6 +643,352 @@ fun JulesScreen(
 }
 
 @Composable
+private fun MessageText(text: String, baseFontSize: Int) {
+    var expanded by remember { mutableStateOf(false) }
+    val isCodeReviewed = text.startsWith("Code reviewed", ignoreCase = true)
+    val isPlan = text.startsWith("**Plan", ignoreCase = true)
+
+    Column {
+        if (isCodeReviewed) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = JulesAccent,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(
+                    text = "Code reviewed",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = baseFontSize.sp
+                )
+            }
+        }
+
+        if (isPlan) {
+            val lines = text.split("\n")
+            lines.forEach { line ->
+                if (line.startsWith("**Plan")) {
+                    Text(
+                        text = "Plan",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = (baseFontSize + 2).sp,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                } else {
+                    val stepMatch = Regex("^\\d+\\.\\s+(.*)").find(line)
+                    if (stepMatch != null) {
+                        val content = stepMatch.groupValues[1]
+                        val parts = content.split(". ", limit = 2)
+                        val title = parts[0]
+                        val description = if (parts.size > 1) parts[1] else ""
+                        var stepExpanded by remember { mutableStateOf(false) }
+
+                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(enabled = description.isNotBlank()) { stepExpanded = !stepExpanded },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .background(JulesAccent, RoundedCornerShape(4.dp))
+                                )
+                                Spacer(modifier = Modifier.size(12.dp))
+                                Text(
+                                    text = title,
+                                    color = Color.White,
+                                    fontSize = baseFontSize.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                if (description.isNotBlank()) {
+                                    Icon(
+                                        if (stepExpanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        contentDescription = null,
+                                        tint = Color.White.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                            if (stepExpanded && description.isNotBlank()) {
+                                Text(
+                                    text = description,
+                                    color = Color.White.copy(alpha = 0.6f),
+                                    fontSize = (baseFontSize - 1).sp,
+                                    modifier = Modifier.padding(start = 20.dp, top = 4.dp, bottom = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (!isCodeReviewed || expanded) {
+            val sentences = text.split(Regex("(?<=[.!?])\\s+"))
+            val annotatedString = buildAnnotatedString {
+                sentences.forEachIndexed { index, sentence ->
+                    val isFirst = index == 0 && !isCodeReviewed
+                    val style = if (isFirst) {
+                        SpanStyle(color = Color.White, fontWeight = FontWeight.Bold)
+                    } else {
+                        SpanStyle(color = Color.White.copy(alpha = 0.6f))
+                    }
+
+                    withStyle(style) {
+                        // Apply Markdown-like bolding for **text**
+                        val parts = sentence.split("**")
+                        parts.forEachIndexed { pIndex, part ->
+                            if (pIndex % 2 == 1) {
+                                withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.White)) {
+                                    append(part)
+                                }
+                            } else {
+                                // Apply bullet point conversion
+                                val bulletedPart = part.replace(Regex("(?m)^\\s*[-*]\\s+"), " • ")
+                                append(bulletedPart)
+                            }
+                        }
+                    }
+                    if (index < sentences.size - 1) append(" ")
+                }
+            }
+            Text(
+                text = annotatedString,
+                modifier = Modifier.padding(12.dp),
+                fontSize = baseFontSize.sp
+            )
+        }
+    }
+}
+
+private enum class ProgressStep(val label: String) {
+    PLAN("Plan"),
+    PLAN_APPROVED("Plan approved"),
+    RUNNING_CODE_REVIEW("Running code review"),
+    COMPLETE_PRE_COMMIT_STEPS("Complete pre-commit steps"),
+    ALL_PLAN_STEPS_COMPLETED("All plan steps completed")
+}
+
+private fun calculateProgressStep(session: JulesSessionEntity, chatItems: List<JulesChatItem>): ProgressStep? {
+    // Priority 1: sessionState from Jules API
+    when (session.sessionState) {
+        "PLANNING" -> return ProgressStep.PLAN
+        "AWAITING_PLAN_APPROVAL" -> return ProgressStep.PLAN
+        "COMPLETED" -> return ProgressStep.ALL_PLAN_STEPS_COMPLETED
+    }
+
+    // Priority 2: Look into chat items (activities)
+    val agentMessages = chatItems.filterIsInstance<JulesChatItem.AgentMessage>()
+    val userMessages = chatItems.filterIsInstance<JulesChatItem.UserMessage>()
+
+    val lastAgentMsg = agentMessages.lastOrNull()?.text ?: ""
+    val hasPlanApproved = agentMessages.any { it.text.contains("Plan approved", ignoreCase = true) }
+    val hasCodeReviewed = agentMessages.any { it.text.startsWith("Code reviewed", ignoreCase = true) }
+    val hasPreCommit = agentMessages.any { it.text.contains("pre commit", ignoreCase = true) || it.text.contains("pre-commit", ignoreCase = true) }
+    val isCompleted = session.sessionState == "COMPLETED" || agentMessages.any { it.text.contains("Session completed", ignoreCase = true) }
+
+    return when {
+        isCompleted -> ProgressStep.ALL_PLAN_STEPS_COMPLETED
+        hasPreCommit -> ProgressStep.COMPLETE_PRE_COMMIT_STEPS
+        hasCodeReviewed -> ProgressStep.RUNNING_CODE_REVIEW
+        hasPlanApproved -> ProgressStep.PLAN_APPROVED
+        lastAgentMsg.startsWith("**Plan") -> ProgressStep.PLAN
+        else -> null
+    }
+}
+
+@Composable
+private fun MiniProgressBar(currentStep: ProgressStep?) {
+    if (currentStep == null) return
+
+    val steps = ProgressStep.values()
+    val currentIndex = steps.indexOf(currentStep)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        steps.forEachIndexed { index, _ ->
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(4.dp)
+                    .background(
+                        if (index <= currentIndex) JulesAccent else Color.White.copy(alpha = 0.1f),
+                        RoundedCornerShape(2.dp)
+                    )
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActivitiesSheet(activities: List<JulesClient.JulesActivity>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 32.dp)
+    ) {
+        Text(
+            "Activities",
+            color = Color.White,
+            fontSize = 20.sp,
+            modifier = Modifier.padding(16.dp),
+            fontWeight = FontWeight.Bold
+        )
+        if (activities.isEmpty()) {
+            Text(
+                "No activities found.",
+                color = Color.White.copy(alpha = 0.7f),
+                modifier = Modifier.padding(16.dp)
+            )
+        } else {
+            val timeFormatter = remember { DateTimeFormatter.ofPattern("MMM dd, HH:mm:ss") }
+            LazyColumn {
+                items(activities.sortedByDescending { it.createTime }) { activity ->
+                    val activityTime = try {
+                        OffsetDateTime.parse(activity.createTime).format(timeFormatter)
+                    } catch (e: Exception) {
+                        activity.createTime
+                    }
+
+                    val typeText = when {
+                        activity.planGenerated != null -> "Plan Generated"
+                        activity.planApproved != null -> "Plan Approved"
+                        activity.progressUpdated != null -> "Progress Updated"
+                        activity.messageSent != null -> "Message Sent"
+                        activity.sessionCompleted != null -> "Session Completed"
+                        else -> "Activity"
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = activity.originator.replaceFirstChar { it.uppercase() },
+                                color = if (activity.originator == "user") JulesAccent else Color.Green,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.size(8.dp))
+                            Text(
+                                text = typeText,
+                                color = Color.White,
+                                fontSize = 14.sp
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = activityTime,
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        activity.artifacts?.forEach { artifact ->
+                            artifact.bashOutput?.let { bash ->
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp)
+                                        .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                                        .padding(8.dp)
+                                ) {
+                                    Text(
+                                        text = "> ${bash.command}",
+                                        color = Color.Green,
+                                        fontSize = 11.sp,
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                    )
+                                    if (bash.output.isNotBlank()) {
+                                        Text(
+                                            text = bash.output,
+                                            color = Color.White.copy(alpha = 0.7f),
+                                            fontSize = 10.sp,
+                                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            artifact.changeSet?.let { cs ->
+                                cs.gitPatch?.let { gp ->
+                                    Text(
+                                        text = "Changed: ${cs.source}",
+                                        color = JulesAccent,
+                                        fontSize = 12.sp,
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    )
+                                    gp.suggestedCommitMessage?.let { msg ->
+                                        Text(
+                                            text = "Commit: $msg",
+                                            color = Color.White.copy(alpha = 0.6f),
+                                            fontSize = 11.sp,
+                                            modifier = Modifier.padding(top = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            artifact.media?.let { media ->
+                                if (media.mimeType.startsWith("image/")) {
+                                    val bitmap = remember(media.data) {
+                                        try {
+                                            val decoded = Base64.decode(media.data, Base64.DEFAULT)
+                                            BitmapFactory.decodeByteArray(decoded, 0, decoded.size)
+                                        } catch (e: Exception) {
+                                            null
+                                        }
+                                    }
+                                    bitmap?.let {
+                                        Image(
+                                            bitmap = it.asImageBitmap(),
+                                            contentDescription = "Activity Media",
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 8.dp)
+                                                .height(200.dp)
+                                                .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        activity.progressUpdated?.let {
+                            Text(
+                                text = it.title,
+                                color = Color.White.copy(alpha = 0.8f),
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                        HorizontalDivider(
+                            modifier = Modifier.padding(top = 12.dp),
+                            color = Color.White.copy(alpha = 0.1f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun ErrorCard(
     title: String,
     message: String,
@@ -636,7 +1030,14 @@ private fun InConversationContent(
     isRefreshing: Boolean,
     onRefresh: () -> Unit
 ) {
+    val uriHandler = LocalUriHandler.current
+    val progressStep = remember(currentSession, chatItems.size) {
+        calculateProgressStep(currentSession, chatItems)
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
+        MiniProgressBar(currentStep = progressStep)
+
         // PR Status Bar
         if (currentSession.prUrl != null || currentSession.sessionState != null) {
             val (statusText, statusColor) = when {
@@ -685,6 +1086,12 @@ private fun InConversationContent(
                                 color = statusColor,
                                 fontSize = 12.sp
                             )
+                        }
+                    }
+
+                    if (!currentSession.prUrl.isNullOrBlank()) {
+                        IconButton(onClick = { uriHandler.openUri(currentSession.prUrl) }) {
+                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open PR", tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(20.dp))
                         }
                     }
 
@@ -767,12 +1174,7 @@ private fun InConversationContent(
                                 .widthIn(max = 280.dp)
                                 .clickable { voiceManager.speak(item.text) }
                         ) {
-                            Text(
-                                text = item.text,
-                                color = Color.White,
-                                modifier = Modifier.padding(12.dp),
-                                fontSize = 15.sp
-                            )
+                            MessageText(text = item.text, baseFontSize = 15)
                         }
                     }
                     is JulesChatItem.AgentMessage -> Row(
@@ -786,12 +1188,7 @@ private fun InConversationContent(
                                 .widthIn(max = 320.dp)
                                 .clickable { voiceManager.speak(item.text) }
                         ) {
-                            Text(
-                                text = item.text,
-                                color = Color.White.copy(alpha = 0.95f),
-                                modifier = Modifier.padding(12.dp),
-                                fontSize = 14.sp
-                            )
+                            MessageText(text = item.text, baseFontSize = 14)
                         }
                     }
                 }
@@ -1007,6 +1404,10 @@ private fun SessionRow(
     onArchive: () -> Unit,
     onDetails: () -> Unit
 ) {
+    val progressStep = remember(session) {
+        calculateProgressStep(session, emptyList())
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -1016,6 +1417,8 @@ private fun SessionRow(
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            MiniProgressBar(currentStep = progressStep)
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = session.title.ifBlank { session.prompt.take(60) }.ifBlank { "Conversation" },
                 color = Color.White,

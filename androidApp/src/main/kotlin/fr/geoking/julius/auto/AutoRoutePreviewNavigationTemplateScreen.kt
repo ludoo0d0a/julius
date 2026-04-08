@@ -10,7 +10,7 @@ import androidx.car.app.model.Template
 import androidx.car.app.navigation.model.RoutePreviewNavigationTemplate
 
 class AutoRoutePreviewNavigationTemplateScreen(carContext: CarContext) : Screen(carContext) {
-    override fun onGetTemplate(): Template {
+    override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoRoutePreviewNavigationTemplateScreen") {
         val listBuilder = ItemList.Builder()
             .addItem(
                 Row.Builder()
@@ -27,7 +27,7 @@ class AutoRoutePreviewNavigationTemplateScreen(carContext: CarContext) : Screen(
                     .build()
             )
 
-        return RoutePreviewNavigationTemplate.Builder()
+        RoutePreviewNavigationTemplate.Builder()
             .setHeader(
                 Header.Builder()
                     .setTitle("Route Preview")

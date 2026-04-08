@@ -40,4 +40,8 @@ class MergedPoiProvider(
     ): List<Poi> {
         return search(PoiSearchRequest(latitude, longitude, viewport, emptySet()))
     }
+
+    override fun clearCache() {
+        base.clearCache()
+    }
 }

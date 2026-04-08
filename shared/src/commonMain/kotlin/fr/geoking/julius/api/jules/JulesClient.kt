@@ -2,6 +2,7 @@ package fr.geoking.julius.api.jules
 
 import fr.geoking.julius.shared.network.NetworkException
 import io.ktor.client.HttpClient
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -186,6 +187,17 @@ class JulesClient(
         return json.decodeFromString(ListSessionsResponse.serializer(), body)
     }
 
+    suspend fun deleteSession(apiKey: String, sessionId: String) {
+        val token = apiKeyHeader(apiKey)
+        val response = client.delete("$baseUrl/sessions/$sessionId") {
+            header("X-Goog-Api-Key", token)
+        }
+        if (response.status.value !in 200..299) {
+            val body = response.bodyAsText()
+            throw NetworkException(response.status.value, "Jules deleteSession: $body")
+        }
+    }
+
     // --- Send message ---
 
     @Serializable
@@ -238,7 +250,40 @@ class JulesClient(
         val progressUpdated: ProgressUpdated? = null,
         val sessionCompleted: JsonObject? = null,
         val messageSent: MessageSent? = null,
-        val artifacts: List<JsonObject>? = null
+        val artifacts: List<JulesArtifact>? = null
+    )
+
+    @Serializable
+    data class JulesArtifact(
+        val bashOutput: BashOutput? = null,
+        val changeSet: ChangeSet? = null,
+        val media: Media? = null
+    )
+
+    @Serializable
+    data class BashOutput(
+        val command: String = "",
+        val output: String = "",
+        val exitCode: Int? = null
+    )
+
+    @Serializable
+    data class ChangeSet(
+        val source: String = "",
+        val gitPatch: GitPatch? = null
+    )
+
+    @Serializable
+    data class GitPatch(
+        val unidiffPatch: String? = null,
+        val baseCommitId: String? = null,
+        val suggestedCommitMessage: String? = null
+    )
+
+    @Serializable
+    data class Media(
+        val data: String = "", // base64
+        val mimeType: String = ""
     )
 
     @Serializable
@@ -299,7 +344,7 @@ class JulesClient(
                             JulesChatItem.UserMessage(a.id, a.createTime, a.messageSent.prompt ?: "")
                         )
                         a.planApproved != null -> items.add(
-                            JulesChatItem.AgentMessage(a.id, a.createTime, "Plan approved.")
+                            JulesChatItem.AgentMessage(a.id, a.createTime, "Plan approved. 🚀")
                         )
                     }
                 }

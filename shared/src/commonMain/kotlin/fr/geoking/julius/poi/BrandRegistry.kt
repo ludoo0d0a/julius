@@ -53,6 +53,9 @@ object BrandRegistry {
         "supermarche match" to "Supermarché Match",
         "powerdot" to "Powerdot",
         "driveco" to "Driveco",
+        "spar" to "SPAR",
+        "gulf" to "Gulf",
+        "monoprix" to "Monoprix",
     )
 
     /** brand_id (lowercase) -> is gas station brand. */
@@ -60,7 +63,8 @@ object BrandRegistry {
         "total", "totalenergies", "bp", "shell", "esso", "esso express", "eni", "repsol", "omv", "avia",
         "q8", "agip", "carrefour", "leclerc", "auchan", "intermarche", "casino", "rel", "rel.metz",
         "circle k", "eurogarages", "aral", "jet", "elf", "migrol", "coop", "migros",
-        "superu", "systeme u", "match", "supermarche match"
+        "superu", "systeme u", "match", "supermarche match",
+        "spar", "gulf", "monoprix"
     )
 
     /** brand_id (lowercase) -> is electric charging brand. */
@@ -77,6 +81,7 @@ object BrandRegistry {
         "circle k", "aral", "carrefour", "leclerc", "e.leclerc", "auchan", "intermarche", "casino",
         "tesla", "ionity", "fastned", "allego", "lidl", "chargy", "atlante", "zunder", "freshmile",
         "superu", "systeme u", "cooperative u", "match", "supermarche match", "powerdot", "driveco"
+        , "spar", "gulf", "monoprix"
     )
 
     /** Returns true if the brand has a dedicated icon. */

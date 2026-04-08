@@ -27,7 +27,7 @@ class GuidanceScreen(
     private val destination: Poi
 ) : Screen(carContext) {
 
-    override fun onGetTemplate(): Template {
+    override fun onGetTemplate(): Template = safeCarTemplate(carContext, "GuidanceScreen") {
         // In a real app, these values would come from a navigation engine.
         // For now, we provide placeholders to satisfy Play Store requirements for the NAVIGATION category.
 
@@ -52,7 +52,7 @@ class GuidanceScreen(
         ).setRemainingTimeSeconds(TimeUnit.MINUTES.toSeconds(10))
          .build()
 
-        return NavigationTemplate.Builder()
+        NavigationTemplate.Builder()
             .setNavigationInfo(routingInfo)
             .setDestinationTravelEstimate(travelEstimate)
             .setActionStrip(
