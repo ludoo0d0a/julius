@@ -39,6 +39,7 @@ fun MapScaffold(
     onRefresh: () -> Unit,
     onLocateMe: () -> Unit,
     onShowSettings: () -> Unit,
+    onPlanRoute: (() -> Unit)? = null,
     onLocatePlace: (() -> Unit)? = null,
     onRouteToDirection: (() -> Unit)? = null,
     showFavoritesOnly: Boolean = false,
@@ -67,7 +68,7 @@ fun MapScaffold(
                         }
                     },
                     actions = {
-                        if (onLocatePlace != null || onRouteToDirection != null) {
+                        if (onPlanRoute != null || onLocatePlace != null || onRouteToDirection != null) {
                             Box {
                                 IconButton(onClick = { navMenuExpanded = true }) {
                                     Icon(
@@ -80,6 +81,16 @@ fun MapScaffold(
                                     expanded = navMenuExpanded,
                                     onDismissRequest = { navMenuExpanded = false }
                                 ) {
+                                    if (onPlanRoute != null) {
+                                        DropdownMenuItem(
+                                            text = { Text("Plan route") },
+                                            leadingIcon = { Icon(Icons.Default.Directions, contentDescription = null) },
+                                            onClick = {
+                                                navMenuExpanded = false
+                                                onPlanRoute()
+                                            }
+                                        )
+                                    }
                                     if (onLocatePlace != null) {
                                         DropdownMenuItem(
                                             text = { Text("Locate a place") },
