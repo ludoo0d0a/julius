@@ -85,7 +85,10 @@ import fr.geoking.julius.shared.network.NetworkType
 import fr.geoking.julius.poi.anyProvidesElectric
 import fr.geoking.julius.poi.anyProvidesFuel
 import fr.geoking.julius.shared.location.approxDistanceKm
+import fr.geoking.julius.repository.FuelForecastRepository
+import fr.geoking.julius.repository.FuelForecastUiState
 import fr.geoking.julius.ui.components.CheapestStationsCard
+import fr.geoking.julius.ui.components.FuelForecastChartCard
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -151,6 +154,7 @@ fun PhoneDashboardScreen(
     poiProvider: PoiProvider?,
     hasLocationPermission: Boolean,
     mapDepsReady: Boolean,
+    fuelForecastRepository: FuelForecastRepository? = null,
     onOpenMap: () -> Unit,
     onOpenRoutes: () -> Unit,
     onOpenJules: () -> Unit,
@@ -165,6 +169,12 @@ fun PhoneDashboardScreen(
     var userLat by remember { mutableStateOf<Double?>(null) }
     var userLon by remember { mutableStateOf<Double?>(null) }
     var poiForDetails by remember { mutableStateOf<Poi?>(null) }
+    var fuelForecastState by remember {
+        mutableStateOf(
+            FuelForecastUiState(fuelId = "gazole", locationKey = "")
+        )
+    }
+    var fuelForecastLoading by remember { mutableStateOf(false) }
 
     val energyFilterIds = settings.effectiveMapEnergyFilterIds()
     val providers = settings.effectiveProviders()
@@ -254,6 +264,47 @@ fun PhoneDashboardScreen(
                 nearbyPois = emptyList()
             }
             isLoadingPois = false
+        }
+    }
+
+    LaunchedEffect(userLat, userLon, energyFilterIds, hasLocationPermission, fuelForecastRepository) {
+        val repo = fuelForecastRepository ?: return@LaunchedEffect
+        if (!hasLocationPermission) {
+            fuelForecastState = FuelForecastUiState(
+                fuelId = "gazole",
+                locationKey = "",
+                errorMessage = "Location needed for local price forecast."
+            )
+            return@LaunchedEffect
+        }
+        val locLatLon: Pair<Double, Double> = when {
+            userLat != null && userLon != null -> Pair(userLat!!, userLon!!)
+            else -> {
+                val loc = withContext(Dispatchers.IO) { LocationHelper.getCurrentLocation(context) }
+                if (loc == null) {
+                    fuelForecastState = FuelForecastUiState(
+                        fuelId = "gazole",
+                        locationKey = "",
+                        errorMessage = "Unable to read location for forecast."
+                    )
+                    return@LaunchedEffect
+                }
+                Pair(loc.latitude, loc.longitude)
+            }
+        }
+        val (la, lo) = locLatLon
+        fuelForecastLoading = true
+        try {
+            fuelForecastState = repo.refreshAndBuildUiState(la, lo, energyFilterIds)
+        } catch (e: Exception) {
+            android.util.Log.e("PhoneDashboardScreen", "Fuel forecast refresh failed", e)
+            fuelForecastState = FuelForecastUiState(
+                fuelId = energyFilterIds.firstOrNull { it != "electric" } ?: "gazole",
+                locationKey = repo.locationKey(la, lo),
+                errorMessage = "Could not refresh forecast."
+            )
+        } finally {
+            fuelForecastLoading = false
         }
     }
 
@@ -420,6 +471,15 @@ fun PhoneDashboardScreen(
                                 )
                             }
                         }
+                    }
+                }
+
+                if (fuelForecastRepository != null) {
+                    item {
+                        FuelForecastChartCard(
+                            state = fuelForecastState,
+                            isLoading = fuelForecastLoading
+                        )
                     }
                 }
 

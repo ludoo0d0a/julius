@@ -11,7 +11,7 @@ import androidx.core.graphics.drawable.IconCompat
 import fr.geoking.julius.R
 
 /**
- * Fallback screen shown when MainScreen fails to load (e.g. Koin/DI init error on Android Auto).
+ * Fallback screen shown when the Android Auto root screen fails to load (e.g. Koin/DI init error).
  * Displays the error message for debugging on real devices.
  */
 class ErrorScreen(

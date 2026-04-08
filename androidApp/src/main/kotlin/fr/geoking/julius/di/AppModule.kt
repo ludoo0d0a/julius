@@ -28,6 +28,7 @@ import fr.geoking.julius.shared.network.NetworkException
 import fr.geoking.julius.persistence.AppDatabase
 import fr.geoking.julius.persistence.RoomMessagePersistence
 import fr.geoking.julius.persistence.JulesDao
+import fr.geoking.julius.repository.FuelForecastRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import fr.geoking.julius.feature.settings.FirestoreSettingsSync
@@ -359,6 +360,8 @@ val appModule = module {
         )
     }
 
+    single { FuelForecastRepository(http = get(), db = get()) }
+
     single<ActionExecutor> {
         AndroidActionExecutor(androidContext(), get(), get(), get())
     }
@@ -378,7 +381,14 @@ val appModule = module {
             android.util.Log.d("AppModule", "Building persistent Room database...")
             buildAndValidate(
                 Room.databaseBuilder(androidContext(), AppDatabase::class.java, "julius-db")
-                    .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5)
+                    .addMigrations(
+                        AppDatabase.MIGRATION_1_2,
+                        AppDatabase.MIGRATION_2_3,
+                        AppDatabase.MIGRATION_3_4,
+                        AppDatabase.MIGRATION_4_5,
+                        AppDatabase.MIGRATION_5_6,
+                        AppDatabase.MIGRATION_6_7
+                    )
             )
         } catch (e: Throwable) {
             android.util.Log.e("AppModule", "Persistent DB failed. Falling back to in-memory. Error: ${e.stackTraceToString()}", e)
