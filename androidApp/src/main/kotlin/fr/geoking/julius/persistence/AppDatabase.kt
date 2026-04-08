@@ -9,14 +9,16 @@ import androidx.sqlite.db.SupportSQLiteDatabase
     entities = [
         ChatMessageEntity::class,
         JulesSessionEntity::class,
-        JulesActivityEntity::class
+        JulesActivityEntity::class,
+        StationPriceSampleEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun julesDao(): JulesDao
+    abstract fun stationPriceSampleDao(): StationPriceSampleDao
 
     companion object {
         // v1 -> v2: no schema change; we keep data across upgrades.
@@ -69,6 +71,29 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_4_5: Migration = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `sessionState` TEXT")
+            }
+        }
+
+        val MIGRATION_5_6: Migration = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `station_price_samples` (
+                        `id` TEXT NOT NULL,
+                        `stationId` TEXT NOT NULL,
+                        `fuelId` TEXT NOT NULL,
+                        `fuelName` TEXT NOT NULL,
+                        `price` REAL NOT NULL,
+                        `currency` TEXT NOT NULL,
+                        `outOfStock` INTEGER NOT NULL,
+                        `observedAtMs` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_station_price_samples_stationId_fuelId_observedAtMs` ON `station_price_samples` (`stationId`, `fuelId`, `observedAtMs`)"
+                )
             }
         }
     }

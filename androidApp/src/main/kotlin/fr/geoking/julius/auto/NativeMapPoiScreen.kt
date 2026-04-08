@@ -103,7 +103,7 @@ class NativeMapPoiScreen(
         }
     }
 
-    override fun onGetTemplate(): Template {
+    override fun onGetTemplate(): Template = safeCarTemplate(carContext, "NativeMapPoiScreen") {
         val actionStrip = ActionStrip.Builder()
             .addAction(
                 Action.Builder()
@@ -119,7 +119,7 @@ class NativeMapPoiScreen(
 
         // PlaceListMapTemplate: loading and item list are mutually exclusive (see Builder.build()).
         if (isLoading) {
-            return PlaceListMapTemplate.Builder()
+            return@safeCarTemplate PlaceListMapTemplate.Builder()
                 .setTitle("Nearby POIs")
                 .setHeaderAction(Action.BACK)
                 .setActionStrip(actionStrip)
@@ -156,7 +156,7 @@ class NativeMapPoiScreen(
             )
         }
 
-        return PlaceListMapTemplate.Builder()
+        PlaceListMapTemplate.Builder()
             .setTitle("Nearby POIs")
             .setHeaderAction(Action.BACK)
             .setActionStrip(actionStrip)
