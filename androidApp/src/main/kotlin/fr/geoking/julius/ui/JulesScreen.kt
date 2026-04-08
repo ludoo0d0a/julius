@@ -45,6 +45,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -120,7 +121,9 @@ fun JulesScreen(
     var quota by remember { mutableStateOf<JulesQuota?>(null) }
     val chatItems = remember { mutableStateListOf<JulesChatItem>() }
     var loading by remember { mutableStateOf(false) }
+    var refreshing by remember { mutableStateOf(false) }
     var loadingSessions by remember { mutableStateOf(false) }
+    var refreshingSessions by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var inputText by remember { mutableStateOf("") }
     var newSessionPrompt by remember { mutableStateOf("") }
@@ -177,41 +180,49 @@ fun JulesScreen(
         }
     }
 
-    fun loadSessions() {
+    fun loadSessions(isRefresh: Boolean = false) {
         val sourceName = selectedSourceName ?: return
         if (apiKey.isBlank()) return
         scope.launch {
-            loadingSessions = true
+            if (isRefresh) refreshingSessions = true else loadingSessions = true
             clearError()
             quota = julesRepository.getUsageQuota(apiKey)
-            julesRepository.getSessions(apiKey, sourceName, githubToken).collectLatest { list ->
-                sessions = list
-                // If we are in a session, update currentSession object from the list to get refreshed PR state
-                currentSession?.let { curr ->
-                    list.find { it.id == curr.id }?.let { currentSession = it }
+            try {
+                julesRepository.getSessions(apiKey, sourceName, githubToken).collectLatest { list ->
+                    sessions = list
+                    // If we are in a session, update currentSession object from the list to get refreshed PR state
+                    currentSession?.let { curr ->
+                        list.find { it.id == curr.id }?.let { currentSession = it }
+                    }
                 }
+            } finally {
                 loadingSessions = false
+                refreshingSessions = false
             }
         }
     }
 
-    suspend fun refreshActivitiesInternal() {
+    suspend fun refreshActivitiesInternal(isRefresh: Boolean = false) {
         val session = currentSession ?: return
         if (apiKey.isBlank()) return
-        loading = true
+        if (isRefresh) refreshing = true else loading = true
         clearError()
-        julesRepository.getActivities(apiKey, session.id).collectLatest { list ->
-            chatItems.clear()
-            chatItems.addAll(list)
-            if (chatItems.isNotEmpty()) {
-                listState.animateScrollToItem(chatItems.size - 1)
+        try {
+            julesRepository.getActivities(apiKey, session.id).collectLatest { list ->
+                chatItems.clear()
+                chatItems.addAll(list)
+                if (chatItems.isNotEmpty()) {
+                    listState.animateScrollToItem(chatItems.size - 1)
+                }
             }
+        } finally {
             loading = false
+            refreshing = false
         }
     }
 
-    fun refreshActivities() {
-        scope.launch { refreshActivitiesInternal() }
+    fun refreshActivities(isRefresh: Boolean = false) {
+        scope.launch { refreshActivitiesInternal(isRefresh) }
     }
 
     LaunchedEffect(apiKey) {
@@ -434,7 +445,9 @@ fun JulesScreen(
                                     else loadSessions()
                                     loading = false
                                 }
-                            }
+                            },
+                            isRefreshing = refreshing,
+                            onRefresh = { refreshActivities(isRefresh = true) }
                         )
                     } else {
                         RepoAndSessionsContent(
@@ -528,7 +541,9 @@ fun JulesScreen(
                                     loading = false
                                 }
                             },
-                                    quota = quota
+                            quota = quota,
+                            isRefreshingSessions = refreshingSessions,
+                            onRefreshSessions = { loadSessions(isRefresh = true) }
                         )
                     }
 
@@ -1000,6 +1015,7 @@ private fun ErrorCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun InConversationContent(
     currentSession: JulesSessionEntity,
@@ -1010,7 +1026,9 @@ private fun InConversationContent(
     voiceManager: VoiceManager,
     onSend: () -> Unit,
     loading: Boolean,
-    onMergePr: () -> Unit
+    onMergePr: () -> Unit,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit
 ) {
     val uriHandler = LocalUriHandler.current
     val progressStep = remember(currentSession, chatItems.size) {
@@ -1096,12 +1114,17 @@ private fun InConversationContent(
         val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
         val nowInstant = remember { Instant.now() }
 
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
+            modifier = Modifier.weight(1f)
         ) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
             items(chatItems, key = {
                 when (it) {
                     is JulesChatItem.UserMessage -> it.id
@@ -1171,6 +1194,7 @@ private fun InConversationContent(
                 }
             }
         }
+    }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1198,6 +1222,7 @@ private fun InConversationContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RepoAndSessionsContent(
     apiKey: String,
@@ -1213,7 +1238,9 @@ private fun RepoAndSessionsContent(
     onClosePr: (JulesSessionEntity) -> Unit,
     onGetPrDetails: (JulesSessionEntity, (GitHubClient.GitHubPullRequestDetail?) -> Unit) -> Unit,
     onArchive: (JulesSessionEntity) -> Unit,
-    quota: JulesQuota? = null
+    quota: JulesQuota? = null,
+    isRefreshingSessions: Boolean,
+    onRefreshSessions: () -> Unit
 ) {
     var showPrDetails by remember { mutableStateOf<GitHubClient.GitHubPullRequestDetail?>(null) }
     Column(
@@ -1236,10 +1263,15 @@ private fun RepoAndSessionsContent(
 
         var showNewForm by remember { mutableStateOf(false) }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)
+        PullToRefreshBox(
+            isRefreshing = isRefreshingSessions,
+            onRefresh = onRefreshSessions,
+            modifier = Modifier.fillMaxSize()
         ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)
+            ) {
             item {
                 if (showNewForm) {
                     Card(
@@ -1335,6 +1367,7 @@ private fun RepoAndSessionsContent(
                             onGetPrDetails(session) { showPrDetails = it }
                         }
                     )
+                }
                 }
             }
         }
