@@ -33,6 +33,7 @@ import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.poi.*
+import fr.geoking.julius.poi.MapPoiFilter
 import fr.geoking.julius.feature.location.LocationHelper
 import fr.geoking.julius.shared.conversation.ConversationStore
 import fr.geoking.julius.ui.anim.AnimationPalette
@@ -405,6 +406,17 @@ fun VectorMapScreen(
                 poisInView
             }
 
+            val fuelIdsForCheapest = effectiveEnergies - "electric"
+            val minPrice = remember(poisToShow, fuelIdsForCheapest) {
+                if (fuelIdsForCheapest.isEmpty()) null
+                else {
+                    poisToShow.mapNotNull { poi ->
+                        poi.fuelPrices?.filter { !it.outOfStock && MapPoiFilter.fuelNameToId(it.fuelName) in fuelIdsForCheapest }
+                            ?.minByOrNull { it.price }?.price
+                    }.minOrNull()
+                }
+            }
+
             MapLibreView(
                 modifier = Modifier.fillMaxSize(),
                 styleUrl = settings.mapTheme.styleUrl,
@@ -422,12 +434,14 @@ fun VectorMapScreen(
                 update = { map ->
                     map.clear()
                     poisToShow.forEach { poi ->
+                        val isCheapest = minPrice != null && poi.fuelPrices?.any { !it.outOfStock && MapPoiFilter.fuelNameToId(it.fuelName) in fuelIdsForCheapest && it.price == minPrice } == true
                         val markerBitmap = PoiMarkerHelper.getMarkerBitmap(
                             context = context,
                             poi = poi,
                             effectiveEnergyTypes = effectiveEnergies,
                             effectivePowerLevels = effectivePowerLevels,
                             isSelected = selectedPoi?.id == poi.id,
+                            isCheapest = isCheapest,
                             sizePx = 120,
                             availability = availabilityByPoiId[poi.id],
                             markerStyle = MarkerStyle.Bubble

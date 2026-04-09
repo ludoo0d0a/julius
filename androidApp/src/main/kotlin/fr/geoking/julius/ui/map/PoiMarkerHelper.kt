@@ -46,6 +46,7 @@ object PoiMarkerHelper {
         effectiveEnergyTypes: Set<String>,
         effectivePowerLevels: Set<Int>,
         isSelected: Boolean = false,
+        isCheapest: Boolean = false,
         sizePx: Int = 120,
         availability: StationAvailabilitySummary? = null,
         markerStyle: MarkerStyle = MarkerStyle.Circle
@@ -60,7 +61,7 @@ object PoiMarkerHelper {
         val category = poi.poiCategory ?: if (poi.isElectric) PoiCategory.Irve else PoiCategory.Gas
         val categoryColor = getPoiColor(poi, category, effectiveEnergyTypes, effectivePowerLevels)
 
-        val cacheKey = "${poi.id}_${label}_${headDrawableId}_${categoryColor}_${sizePx}_$MARKER_LAYOUT_CACHE_TAG"
+        val cacheKey = "${poi.id}_${label}_${headDrawableId}_${categoryColor}_${isSelected}_${isCheapest}_${sizePx}_$MARKER_LAYOUT_CACHE_TAG"
         synchronized(cache) {
             cache.get(cacheKey)?.let { return it }
         }
@@ -68,8 +69,8 @@ object PoiMarkerHelper {
         val w = sizePx.coerceIn(56, 512)
         val fillColor = categoryColor
         val labelFg = contrastingForegroundArgb(fillColor)
-        val edgeStrokeArgb = contrastingEdgeStrokeArgb(labelFg)
-        val strokeW = (w * 0.035f).coerceIn(2f, 5f)
+        val edgeStrokeArgb = if (isCheapest) 0xFFFFD700.toInt() else contrastingEdgeStrokeArgb(labelFg)
+        val strokeW = if (isCheapest) (w * 0.07f).coerceIn(4f, 10f) else (w * 0.035f).coerceIn(2f, 5f)
         val topMargin = w * 0.03f
         val gapSmall = w * 0.025f
 
