@@ -12,6 +12,12 @@ import fr.geoking.julius.poi.PoiMerger
 import fr.geoking.julius.shared.location.haversineKm
 import fr.geoking.julius.shared.location.approxDistanceKm
 import fr.geoking.julius.api.routex.radiusKmFromMapViewport
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Delegates to the currently selected [PoiProvider] (Routex, DataGouv fuel, …). Etalab / GasApi stay wired for tests;
@@ -51,6 +57,7 @@ class SelectorPoiProvider(
     private val loadedRegions = mutableListOf<LoadedPoiRegion>()
     private var lastCacheKey: String? = null
     private val cacheLock = Any()
+    private val flowMutex = Mutex()
 
     private fun getProvider(type: PoiProviderType): PoiProvider = when (type) {
         PoiProviderType.Routex -> routex
@@ -83,6 +90,225 @@ class SelectorPoiProvider(
             val gasResult = gasProvider.getGasStations(latitude, longitude, viewport)
             val elecResult = elecProvider.getGasStations(latitude, longitude, viewport)
             return gasResult + elecResult
+        }
+    }
+
+    override fun searchFlow(request: PoiSearchRequest): Flow<PoiSearchResult> = channelFlow {
+        val settings = settingsManager.settings.value
+        val providers = try {
+            settings.effectiveProviders()
+        } catch (e: Exception) {
+            Log.e("SelectorPoiProvider", "Failed to resolve providers from settings", e)
+            settings.selectedPoiProviders
+        }
+
+        if (providers.isEmpty()) {
+            send(PoiSearchResult())
+            return@channelFlow
+        }
+
+        val poiFetchKey = buildString {
+            append(providers.sortedBy { it.name }.joinToString(",") { it.name })
+            append("|vehicleFilter=").append(settings.useVehicleFilter)
+            append("|fuelCard=").append(settings.fuelCard)
+            append("|vehicleType=").append(settings.vehicleType)
+            append("|vehicleEnergy=").append(settings.vehicleEnergy)
+            append("|overpassAmenities=").append(settings.selectedOverpassAmenityTypes.sorted().joinToString(","))
+        }
+
+        val nowMs = System.currentTimeMillis()
+        val ttlMs = 5L * 60L * 1000L // 5 minutes TTL as requested
+        val expiresBeforeMs = nowMs - ttlMs
+        val maxRegions = 8
+        val maxPoisInCache = 1200
+
+        val alreadyCoveredResult = synchronized(cacheLock) {
+            if (lastCacheKey != poiFetchKey) {
+                loadedRegions.clear()
+                cachedPois = emptyList()
+                poiSeenAtMs.clear()
+                lastCacheKey = poiFetchKey
+            }
+
+            // TTL eviction
+            loadedRegions.removeAll { it.loadedAtMs < expiresBeforeMs }
+            if (poiSeenAtMs.isNotEmpty()) {
+                val expiredPoiIds = poiSeenAtMs
+                    .filter { (_, seenAt) -> seenAt < expiresBeforeMs }
+                    .keys
+                    .toSet()
+                if (expiredPoiIds.isNotEmpty()) {
+                    poiSeenAtMs.keys.removeAll(expiredPoiIds)
+                    cachedPois = cachedPois.filterNot { it.id in expiredPoiIds }
+                }
+            }
+
+            val requiredRadiusKm = request.viewport?.let { v ->
+                radiusKmFromMapViewport(
+                    request.latitude,
+                    request.longitude,
+                    v.zoom,
+                    v.mapWidthPx,
+                    v.mapHeightPx
+                ).coerceIn(1, 50)
+            } ?: 10 // Default radius for dashboard
+
+            val viewportCovered = loadedRegions.any { region ->
+                region.maxRadiusKmLoaded >= requiredRadiusKm &&
+                        haversineKm(
+                            request.latitude,
+                            request.longitude,
+                            region.centerLat,
+                            region.centerLng
+                        ) <= (region.maxRadiusKmLoaded - requiredRadiusKm).toDouble() + 0.5
+            }
+
+            if (viewportCovered) {
+                PoiSearchResult(pois = applyPostFilters(cachedPois, request, providers))
+            } else null
+        }
+
+        if (alreadyCoveredResult != null) {
+            send(alreadyCoveredResult)
+            return@channelFlow
+        }
+
+        val allPois = mutableListOf<Poi>()
+        val errors = mutableListOf<PoiProviderError>()
+        var finalEnriched = listOf<Poi>()
+
+        val vehicleType = settings.vehicleType
+        val categories = try {
+            providers.map { providerType ->
+                when (providerType) {
+                    PoiProviderType.Overpass -> {
+                        val fromSettings = settings.selectedOverpassAmenityTypes.mapNotNull { id ->
+                            when (id) {
+                                "toilets" -> PoiCategory.Toilet
+                                "drinking_water" -> PoiCategory.DrinkingWater
+                                "camp_site" -> PoiCategory.Camping
+                                "caravan_site" -> PoiCategory.CaravanSite
+                                "picnic_site" -> PoiCategory.PicnicSite
+                                "truck_stop" -> PoiCategory.TruckStop
+                                "rest_area" -> PoiCategory.RestArea
+                                "restaurant" -> PoiCategory.Restaurant
+                                "fast_food" -> PoiCategory.FastFood
+                                "speed_camera" -> PoiCategory.Radar
+                                else -> null
+                            }
+                        }.toSet()
+                        val defaultOverpass = fromSettings.ifEmpty {
+                            setOf(PoiCategory.Toilet, PoiCategory.DrinkingWater)
+                        }
+                        when (vehicleType) {
+                            VehicleType.Truck -> defaultOverpass + setOf(PoiCategory.TruckStop, PoiCategory.RestArea, PoiCategory.Gas)
+                            VehicleType.Motorhome -> defaultOverpass + setOf(PoiCategory.CaravanSite, PoiCategory.Camping, PoiCategory.PicnicSite)
+                            else -> defaultOverpass
+                        }
+                    }
+
+                    else -> {
+                        when (vehicleType) {
+                            VehicleType.Truck -> setOf(PoiCategory.Gas, PoiCategory.TruckStop, PoiCategory.RestArea)
+                            else -> setOf(PoiCategory.Gas, PoiCategory.Irve)
+                        }
+                    }
+                }
+            }.flatten().toSet()
+        } catch (e: Exception) {
+            Log.e("SelectorPoiProvider", "Failed to map categories", e)
+            setOf(PoiCategory.Gas, PoiCategory.Irve)
+        }
+
+        val effectiveRequest = request.copy(categories = categories, skipFilters = true)
+
+        coroutineScope {
+            providers.forEach { providerType ->
+                launch {
+                    val activeProvider = getProvider(providerType)
+                    val searchResult = try {
+                        activeProvider.searchResult(effectiveRequest)
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        PoiSearchResult(errors = listOf(PoiProviderError(providerType.name, e.message ?: "Unknown error")))
+                    }
+
+                    flowMutex.withLock {
+                        allPois.addAll(searchResult.pois)
+                        errors.addAll(searchResult.errors)
+
+                        if (providerType == PoiProviderType.Overpass && PoiCategory.CaravanSite in categories && dataGouvCamping != null) {
+                            try {
+                                val extra = dataGouvCamping.search(effectiveRequest)
+                                allPois.addAll(extra)
+                            } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) throw e
+                                errors.add(PoiProviderError("DataGouv Camping", e.message ?: "Unknown error"))
+                            }
+                        }
+
+                        val merged = PoiMerger.mergePois(allPois)
+                        val enriched = enrichUniformReferencePrices(
+                            pois = merged,
+                            providers = providers,
+                            centerLat = request.latitude,
+                            centerLon = request.longitude
+                        )
+                        finalEnriched = enriched
+                        PoiSearchResult(pois = applyPostFilters(enriched, request, providers), errors = errors.toList())
+                    }.let { result ->
+                        send(result)
+                    }
+                }
+            }
+        }
+
+        // After all providers finish, update the cache.
+        val requiredRadiusKm = request.viewport?.let { v ->
+            radiusKmFromMapViewport(
+                request.latitude,
+                request.longitude,
+                v.zoom,
+                v.mapWidthPx,
+                v.mapHeightPx
+            ).coerceIn(1, 50)
+        } ?: 10
+
+        synchronized(cacheLock) {
+            cachedPois = PoiMerger.mergeInto(cachedPois, finalEnriched)
+            val mergedNow = System.currentTimeMillis()
+            finalEnriched.forEach { poiSeenAtMs[it.id] = mergedNow }
+            cachedPois.forEach { p ->
+                if (poiSeenAtMs[p.id] == null) poiSeenAtMs[p.id] = mergedNow
+            }
+
+            loadedRegions.add(
+                LoadedPoiRegion(
+                    centerLat = request.latitude,
+                    centerLng = request.longitude,
+                    maxRadiusKmLoaded = requiredRadiusKm,
+                    loadedAtMs = mergedNow
+                )
+            )
+
+            while (loadedRegions.size > maxRegions) {
+                val farthest = loadedRegions.maxBy { r ->
+                    haversineKm(r.centerLat, r.centerLng, request.latitude, request.longitude)
+                }
+                loadedRegions.remove(farthest)
+            }
+
+            if (cachedPois.size > maxPoisInCache) {
+                cachedPois = cachedPois
+                    .asSequence()
+                    .map { p -> p to approxDistanceKm(request.latitude, request.longitude, p.latitude, p.longitude) }
+                    .sortedBy { it.second }
+                    .take(maxPoisInCache)
+                    .map { it.first }
+                    .toList()
+                val keepIds = cachedPois.map { it.id }.toSet()
+                poiSeenAtMs.keys.retainAll(keepIds)
+            }
         }
     }
 

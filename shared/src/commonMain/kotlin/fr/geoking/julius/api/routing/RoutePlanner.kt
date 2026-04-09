@@ -3,6 +3,10 @@ package fr.geoking.julius.api.routing
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.poi.PoiSearchRequest
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flow
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -24,21 +28,25 @@ class RoutePlanner(
      * Uses [poiProvider] to fetch POIs near sampled points; categories are vehicle-aware when the provider
      * uses settings (e.g. SelectorPoiProvider). No range simulation; just "POIs along route".
      */
-    suspend fun getStationsAlongRoute(
+    /**
+     * Returns a [Flow] that emits incremental lists of POIs along the route.
+     */
+    fun getStationsAlongRouteFlow(
         originLat: Double,
         originLon: Double,
         destLat: Double,
         destLon: Double,
         poiProvider: PoiProvider,
         radiusMeters: Int = defaultPoiRadiusMeters
-    ): Result<List<Poi>> {
+    ): Flow<List<Poi>> = channelFlow {
         val route = routingClient.getRoute(originLat, originLon, destLat, destLon)
-            ?: return Result.failure(Exception("No route found"))
+            ?: throw Exception("No route found")
         val points = route.points
-        if (points.size < 2) return Result.success(emptyList())
+        if (points.size < 2) {
+            send(emptyList())
+            return@channelFlow
+        }
 
-        // Adjust sample interval based on radius to ensure coverage.
-        // For a 500m radius, we want to sample more frequently (e.g. every 800m).
         val intervalMeters = if (radiusMeters < 5000) {
             (radiusMeters * 1.6).coerceAtLeast(150.0)
         } else {
@@ -47,26 +55,45 @@ class RoutePlanner(
 
         val sampled = samplePointsByDistance(points, intervalMeters)
         val seenIds = mutableSetOf<String>()
-        val result = mutableListOf<Poi>()
+        val resultPois = mutableListOf<Poi>()
         val request = PoiSearchRequest(latitude = 0.0, longitude = 0.0, categories = emptySet())
 
-        // Use a small fixed viewport if provider supports it, otherwise fallback to radius filtering
         for ((lat, lon) in sampled) {
-            val pois = poiProvider.search(request.copy(latitude = lat, longitude = lon))
-            for (poi in pois) {
-                if (poi.id !in seenIds) {
-                    // Manual distance check to the path segment might be better,
-                    // but for now we rely on the provider's proximity search around sampled points.
-                    // We filter out POIs that are further than radiusMeters from the sampled point.
-                    val dist = haversineMeters(lat, lon, poi.latitude, poi.longitude)
-                    if (dist <= radiusMeters) {
-                        seenIds.add(poi.id)
-                        result.add(poi)
+            poiProvider.searchFlow(request.copy(latitude = lat, longitude = lon)).collect { res ->
+                var changed = false
+                for (poi in res.pois) {
+                    if (poi.id !in seenIds) {
+                        val dist = haversineMeters(lat, lon, poi.latitude, poi.longitude)
+                        if (dist <= radiusMeters) {
+                            seenIds.add(poi.id)
+                            resultPois.add(poi)
+                            changed = true
+                        }
                     }
+                }
+                if (changed) {
+                    send(resultPois.toList())
                 }
             }
         }
-        return Result.success(result)
+    }
+
+    suspend fun getStationsAlongRoute(
+        originLat: Double,
+        originLon: Double,
+        destLat: Double,
+        destLon: Double,
+        poiProvider: PoiProvider,
+        radiusMeters: Int = defaultPoiRadiusMeters
+    ): Result<List<Poi>> {
+        return try {
+            val result = mutableListOf<Poi>()
+            getStationsAlongRouteFlow(originLat, originLon, destLat, destLon, poiProvider, radiusMeters)
+                .collect { result.clear(); result.addAll(it) }
+            Result.success(result)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     private fun samplePointsByDistance(points: List<Pair<Double, Double>>, intervalMeters: Double): List<Pair<Double, Double>> {
