@@ -13,8 +13,9 @@ object FuelPriceRegistry {
      * - MK: North Macedonia (regulated by government)
      * - HR: Croatia (regulated prices, updated every 14 days)
      * - SI: Slovenia (regulated prices outside motorways)
+     * - BE: Belgium (regulated maximum prices)
      */
-    val UNIFORM_PRICE_COUNTRIES = setOf("LU", "ME", "MK", "HR", "SI")
+    val UNIFORM_PRICE_COUNTRIES = setOf("LU", "ME", "MK", "HR", "SI", "BE")
 
     /**
      * Returns true if the given country code has uniform fuel prices.
