@@ -22,6 +22,7 @@ import fr.geoking.julius.shared.network.NetworkStatus
 import fr.geoking.julius.shared.network.NetworkType
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
 
 class AutoNetworkLocationInfoScreen(
@@ -34,6 +35,7 @@ class AutoNetworkLocationInfoScreen(
     private var latitude: Double = 0.0
     private var longitude: Double = 0.0
     private var isLoadingLocation = true
+    private var isGeocoding = false
 
     init {
         lifecycleScope.launch {
@@ -48,29 +50,36 @@ class AutoNetworkLocationInfoScreen(
     private fun loadLocation() {
         lifecycleScope.launch {
             isLoadingLocation = true
+            isGeocoding = false
+            locationAddress = "Searching address..."
             invalidate()
 
             val location = LocationHelper.getCurrentLocation(carContext)
             if (location != null) {
                 latitude = location.latitude
                 longitude = location.longitude
+                isLoadingLocation = false
+                isGeocoding = true
+                invalidate()
 
                 val geocoder = Geocoder(carContext, Locale.getDefault())
                 try {
-                    val address = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        kotlin.coroutines.suspendCoroutine<String?> { continuation ->
-                            geocoder.getFromLocation(location.latitude, location.longitude, 1, object : Geocoder.GeocodeListener {
-                                override fun onGeocode(addresses: MutableList<Address>) {
-                                    continuation.resumeWith(Result.success(addresses.firstOrNull()?.let { formatAddress(it) }))
-                                }
-                                override fun onError(errorMessage: String?) {
-                                    continuation.resumeWith(Result.success(null))
-                                }
-                            })
+                    val address = withTimeoutOrNull(5000) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            kotlin.coroutines.suspendCoroutine<String?> { continuation ->
+                                geocoder.getFromLocation(location.latitude, location.longitude, 1, object : Geocoder.GeocodeListener {
+                                    override fun onGeocode(addresses: MutableList<Address>) {
+                                        continuation.resumeWith(Result.success(addresses.firstOrNull()?.let { formatAddress(it) }))
+                                    }
+                                    override fun onError(errorMessage: String?) {
+                                        continuation.resumeWith(Result.success(null))
+                                    }
+                                })
+                            }
+                        } else {
+                            @Suppress("DEPRECATION")
+                            geocoder.getFromLocation(location.latitude, location.longitude, 1)?.firstOrNull()?.let { formatAddress(it) }
                         }
-                    } else {
-                        @Suppress("DEPRECATION")
-                        geocoder.getFromLocation(location.latitude, location.longitude, 1)?.firstOrNull()?.let { formatAddress(it) }
                     }
                     locationAddress = address ?: "Address not found"
                 } catch (e: Exception) {
@@ -79,8 +88,9 @@ class AutoNetworkLocationInfoScreen(
                 }
             } else {
                 locationAddress = "Location not available"
+                isLoadingLocation = false
             }
-            isLoadingLocation = false
+            isGeocoding = false
             invalidate()
         }
     }
@@ -114,7 +124,11 @@ class AutoNetworkLocationInfoScreen(
             locationRow.addText("Loading coordinates...")
         } else {
             locationRow.addText("Lat: ${String.format("%.6f", latitude)}, Lon: ${String.format("%.6f", longitude)}")
-            locationRow.addText(locationAddress)
+            if (isGeocoding && locationAddress == "Searching address...") {
+                locationRow.addText("Searching address...")
+            } else {
+                locationRow.addText(locationAddress)
+            }
         }
         locationRow.setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
         listBuilder.addItem(locationRow.build())
