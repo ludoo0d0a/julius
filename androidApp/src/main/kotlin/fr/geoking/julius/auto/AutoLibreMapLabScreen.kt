@@ -61,6 +61,7 @@ class AutoLibreMapLabScreen(carContext: CarContext) : Screen(carContext), Surfac
             searchLat = lat
             searchLon = lon
             surfaceRenderer?.updateLocation(searchLat, searchLon, zoom)
+            surfaceRenderer?.updateUserLocation(searchLat, searchLon)
             isLoading = false
             invalidate()
         }
@@ -97,6 +98,7 @@ class AutoLibreMapLabScreen(carContext: CarContext) : Screen(carContext), Surfac
             tileUrl = cartoVoyager
         ).apply {
             updateLocation(searchLat, searchLon, zoom)
+            updateUserLocation(searchLat, searchLon)
             updatePois(emptyList(), emptySet(), emptySet())
             start()
         }

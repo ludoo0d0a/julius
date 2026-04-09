@@ -165,6 +165,8 @@ class CustomMapPoiScreen(
             searchLon = lon
             Log.d("CustomMapPoiScreen", "loadPois search center lat=$lat lon=$lon")
 
+            surfaceRenderer?.updateUserLocation(searchLat, searchLon)
+
             try {
                 val settings = settingsManager.settings.value
                 val result = poiProvider.searchResult(PoiSearchRequest(lat, lon, null, emptySet(), skipFilters = true))
@@ -174,6 +176,7 @@ class CustomMapPoiScreen(
                 val filteredPois = getFilteredPois(settings)
                 surfaceRenderer?.let { renderer ->
                     renderer.updateLocation(searchLat, searchLon)
+                    renderer.updateUserLocation(searchLat, searchLon)
                     renderer.updatePois(
                         newPois = filteredPois,
                         effectiveEnergyTypes = settings.effectiveMapEnergyFilterIds(),
@@ -273,6 +276,7 @@ class CustomMapPoiScreen(
             updateLocation(searchLat, searchLon)
             val settings = settingsManager.settings.value
             val filteredPois = getFilteredPois(settings)
+            updateUserLocation(searchLat, searchLon)
             updatePois(
                 newPois = filteredPois,
                 effectiveEnergyTypes = settings.effectiveMapEnergyFilterIds(),
