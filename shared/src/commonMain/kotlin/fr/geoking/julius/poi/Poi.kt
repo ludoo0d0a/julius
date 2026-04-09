@@ -86,6 +86,8 @@ enum class PoiProviderType(
     GermanyTankerkoenig(providesFuel = true),
     /** Austrian fuel prices via E-Control. */
     AustriaEControl(providesFuel = true),
+    /** Belgian official maximum fuel prices. */
+    BelgiumOfficial(providesFuel = true),
     Overpass,
     Hybrid(providesFuel = true, providesElectric = true),
 }

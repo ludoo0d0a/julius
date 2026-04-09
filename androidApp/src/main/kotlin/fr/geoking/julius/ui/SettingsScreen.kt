@@ -349,8 +349,8 @@ private fun MapConfig(
             Text("Electric", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
             FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(
-                    PoiProviderType.DataGouvElec to "data.gouv (IRVE)",
-                    PoiProviderType.Chargy to "Chargy",
+                    PoiProviderType.DataGouvElec to "data.gouv (France official)",
+                    PoiProviderType.Chargy to "Chargy (Luxembourg)",
                     PoiProviderType.OpenChargeMap to "OpenChargeMap"
                 ).forEach { (type, label) ->
                     FilterChip(
@@ -375,13 +375,14 @@ private fun MapConfig(
             FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(
                     PoiProviderType.Routex to "Routex",
-                    PoiProviderType.Etalab to "Prix carburant (instantané)",
+                    PoiProviderType.Etalab to "Prix carburant (France official)",
                     PoiProviderType.GasApi to "gas-api.ovh",
-                    PoiProviderType.DataGouv to "data.gouv (Fuel)",
-                    PoiProviderType.OpenVanCamp to "OpenVan.camp (LU)",
-                    PoiProviderType.SpainMinetur to "Spain Minetur",
-                    PoiProviderType.GermanyTankerkoenig to "Tankerkönig",
-                    PoiProviderType.AustriaEControl to "E-Control"
+                    PoiProviderType.DataGouv to "data.gouv (France official)",
+                    PoiProviderType.OpenVanCamp to "OpenVan.camp (LU, HR, SI...)",
+                    PoiProviderType.SpainMinetur to "Spain Minetur (official)",
+                    PoiProviderType.GermanyTankerkoenig to "Tankerkönig (Germany)",
+                    PoiProviderType.AustriaEControl to "E-Control (Austria)",
+                    PoiProviderType.BelgiumOfficial to "Belgium (official)"
                 ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }.forEach { (type, label) ->
                     FilterChip(
                         selected = settings.selectedPoiProviders.contains(type),

@@ -15,6 +15,8 @@ import fr.geoking.julius.api.datagouv.DataGouvPrixCarburantProvider
 import fr.geoking.julius.api.minetur.SpainMineturProvider
 import fr.geoking.julius.api.tankerkoenig.GermanyTankerkoenigProvider
 import fr.geoking.julius.api.econtrol.AustriaEControlProvider
+import fr.geoking.julius.api.belgium.BelgiumPetrolPricesClient
+import fr.geoking.julius.api.belgium.BelgiumOfficialProvider
 import fr.geoking.julius.api.gas.GasApiClient
 import fr.geoking.julius.api.gas.GasApiProvider
 import fr.geoking.julius.api.openvan.OpenVanCampClient
@@ -118,6 +120,10 @@ val mapModule = module {
     single<PoiProvider>(named("austriaecontrol")) {
         AustriaEControlProvider(get(), limit = 50)
     }
+    single { BelgiumPetrolPricesClient(get()) }
+    single<PoiProvider>(named("belgiumofficial")) {
+        BelgiumOfficialProvider(belgiumClient = get(), overpassClient = get(), radiusKm = 10, limit = 50)
+    }
     single { DataGouvCampingClient(get()) }
     single<PoiProvider>(named("datagouvcamping")) {
         DataGouvCampingProvider(get(), radiusKm = 15, limit = 50)
@@ -135,6 +141,7 @@ val mapModule = module {
             spainMinetur = get(named("spainminetur")),
             germanyTankerkoenig = get(named("germanytankerkoenig")),
             austriaEControl = get(named("austriaecontrol")),
+            belgiumOfficial = get(named("belgiumofficial")),
             openVanCampClient = get(),
             overpass = get(named("overpass")),
             dataGouvCamping = get(named("datagouvcamping")),
