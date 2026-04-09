@@ -64,6 +64,16 @@ class FuelForecastRepository(
         longitude: Double,
         fuelIds: Set<String>
     ): FuelForecastUiState {
+        val results = refreshAndBuildMultiUiState(latitude, longitude, fuelIds)
+        val primaryFuel = FUEL_PRIORITY.firstOrNull { it in results.keys } ?: fuelIds.firstOrNull { it != "electric" } ?: "gazole"
+        return results[primaryFuel] ?: FuelForecastUiState(fuelId = primaryFuel, locationKey = locationKey(latitude, longitude))
+    }
+
+    suspend fun refreshAndBuildMultiUiState(
+        latitude: Double,
+        longitude: Double,
+        fuelIds: Set<String>
+    ): Map<String, FuelForecastUiState> {
         val locKey = locationKey(latitude, longitude)
         val today = todayParis()
         val now = System.currentTimeMillis()
@@ -76,17 +86,12 @@ class FuelForecastRepository(
 
         val effectiveFuels = fuelIds.filter { it != "electric" }.toSet()
         if (effectiveFuels.isEmpty()) {
-            return FuelForecastUiState(
-                fuelId = "gazole",
-                locationKey = locKey,
-                historyPoints = emptyList(),
-                forecastPoints = emptyList(),
-                marketScore = null,
-                directionUp = null,
-                accuracyHitRate7d = null,
-                accuracyMae7d = null,
-                lastScoreDirectionCorrect = null,
-                errorMessage = "Select a fuel type (e.g. Gazole or SP95)."
+            return mapOf(
+                "gazole" to FuelForecastUiState(
+                    fuelId = "gazole",
+                    locationKey = locKey,
+                    errorMessage = "Select a fuel type (e.g. Gazole or SP95)."
+                )
             )
         }
 
@@ -105,13 +110,6 @@ class FuelForecastRepository(
                     updatedAtMs = now
                 )
             )
-        }
-
-        val primaryFuel = FUEL_PRIORITY.firstOrNull { it in effectiveFuels } ?: effectiveFuels.first()
-        val error = if (stationPricesForFuel(stations, primaryFuel).isEmpty()) {
-            "No pump prices for $primaryFuel nearby. Try again later."
-        } else {
-            null
         }
 
         refreshMarketCacheIfStale(now)
@@ -138,40 +136,52 @@ class FuelForecastRepository(
 
         scorePendingPredictions(today)
 
-        val baseline = localAvgDao.getDay(locKey, primaryFuel, today)?.avgPrice
-        if (baseline != null && brent.size >= 4) {
-            val forecast = predictor.predict(primaryFuel, baseline, brent, ho, fx)
-            persistPredictions(today, now, locKey, primaryFuel, baseline, forecast)
+        val resultMap = mutableMapOf<String, FuelForecastUiState>()
+
+        for (fuel in effectiveFuels) {
+            val baseline = localAvgDao.getDay(locKey, fuel, today)?.avgPrice
+            if (baseline != null && brent.size >= 4) {
+                val forecast = predictor.predict(fuel, baseline, brent, ho, fx)
+                persistPredictions(today, now, locKey, fuel, baseline, forecast)
+            }
+
+            val history = localAvgDao.series(locKey, fuel, fromDay).map {
+                DailyPricePoint(day = it.day, priceEurPerL = it.avgPrice, isForecast = false)
+            }
+
+            val predictions = predictionDao.forCreationDay(today, fuel, locKey)
+            val forecastPoints = predictions.map { p ->
+                DailyPricePoint(day = p.targetDay, priceEurPerL = p.predictedPrice, isForecast = true)
+            }
+
+            val score = predictions.firstOrNull()?.marketScore
+            val up = predictions.firstOrNull()?.predictedUp
+
+            val accFrom = LocalDate.parse(today).minusDays(7).toString()
+            val accRow = scoreDao.accuracySince(fuel, locKey, accFrom)
+            val lastScore = scoreDao.latestScoreForLocation(fuel, locKey)
+
+            val error = if (stationPricesForFuel(stations, fuel).isEmpty()) {
+                "No pump prices for $fuel nearby. Try again later."
+            } else {
+                null
+            }
+
+            resultMap[fuel] = FuelForecastUiState(
+                fuelId = fuel,
+                locationKey = locKey,
+                historyPoints = history,
+                forecastPoints = forecastPoints,
+                marketScore = score,
+                directionUp = up,
+                accuracyHitRate7d = accRow?.hitRate,
+                accuracyMae7d = accRow?.mae,
+                lastScoreDirectionCorrect = lastScore?.directionCorrect,
+                errorMessage = error
+            )
         }
 
-        val history = localAvgDao.series(locKey, primaryFuel, fromDay).map {
-            DailyPricePoint(day = it.day, priceEurPerL = it.avgPrice, isForecast = false)
-        }
-
-        val predictions = predictionDao.forCreationDay(today, primaryFuel, locKey)
-        val forecastPoints = predictions.map { p ->
-            DailyPricePoint(day = p.targetDay, priceEurPerL = p.predictedPrice, isForecast = true)
-        }
-
-        val score = predictions.firstOrNull()?.marketScore
-        val up = predictions.firstOrNull()?.predictedUp
-
-        val accFrom = LocalDate.parse(today).minusDays(7).toString()
-        val accRow = scoreDao.accuracySince(primaryFuel, locKey, accFrom)
-        val lastScore = scoreDao.latestScoreForLocation(primaryFuel, locKey)
-
-        return FuelForecastUiState(
-            fuelId = primaryFuel,
-            locationKey = locKey,
-            historyPoints = history,
-            forecastPoints = forecastPoints,
-            marketScore = score,
-            directionUp = up,
-            accuracyHitRate7d = accRow?.hitRate,
-            accuracyMae7d = accRow?.mae,
-            lastScoreDirectionCorrect = lastScore?.directionCorrect,
-            errorMessage = error
-        )
+        return resultMap
     }
 
     private suspend fun persistPredictions(

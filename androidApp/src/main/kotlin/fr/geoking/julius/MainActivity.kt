@@ -53,6 +53,7 @@ import fr.geoking.julius.api.routing.RouteResult
 import fr.geoking.julius.ui.HistoryScreen
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.ui.SettingsScreenPage
+import fr.geoking.julius.ui.FuelForecastScreen
 import fr.geoking.julius.agents.LlamatikModelHelper
 import fr.geoking.julius.ui.agentConfigSettingsPages
 import fr.geoking.julius.ui.evaluateAgentSetup
@@ -373,6 +374,7 @@ fun MainUI(
     var playstoreSettingsInitialStack by remember { mutableStateOf<List<SettingsScreenPage>?>(null) }
     var showRoutePlanning by remember { mutableStateOf(false) }
     var showDirectionsMap by remember { mutableStateOf(false) }
+    var showFuelForecast by remember { mutableStateOf(false) }
     var routeForDirections by remember { mutableStateOf<RouteResult?>(null) }
     var stationsForDirections by remember { mutableStateOf<List<Poi>>(emptyList()) }
     var initialNavDestination by remember { mutableStateOf<NavDestination?>(null) }
@@ -480,6 +482,13 @@ fun MainUI(
                         onInitialRouteConsumed = { playstoreSettingsInitialStack = null }
                     )
                 }
+                isPlaystoreDistribution && showFuelForecast -> {
+                    BackHandler { showFuelForecast = false }
+                    FuelForecastScreen(
+                        repository = fuelForecastRepository!!,
+                        onBack = { showFuelForecast = false }
+                    )
+                }
                 isPlaystoreDistribution && showDirectionsMap && mapDeps != null -> {
                     BackHandler { showDirectionsMap = false }
                     DirectionsMapScreen(
@@ -567,6 +576,7 @@ fun MainUI(
                         },
                         onOpenJules = { showJules = true },
                         onOpenNetworkDiagnostics = { showPlaystoreNetworkInfo = true },
+                        onOpenFuelForecast = { showFuelForecast = true },
                         onOpenSettings = { stack ->
                             playstoreSettingsInitialStack = stack
                             showPlaystoreSettings = true

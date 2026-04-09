@@ -89,6 +89,7 @@ import fr.geoking.julius.repository.FuelForecastRepository
 import fr.geoking.julius.repository.FuelForecastUiState
 import fr.geoking.julius.ui.components.CheapestStationsCard
 import fr.geoking.julius.ui.components.FuelForecastChartCard
+import fr.geoking.julius.ui.components.FuelForecastCompactCard
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -159,6 +160,7 @@ fun PhoneDashboardScreen(
     onOpenRoutes: () -> Unit,
     onOpenJules: () -> Unit,
     onOpenNetworkDiagnostics: () -> Unit,
+    onOpenFuelForecast: () -> Unit,
     onOpenSettings: (List<SettingsScreenPage>?) -> Unit
 ) {
     val context = LocalContext.current
@@ -394,6 +396,14 @@ fun PhoneDashboardScreen(
                 TopAppBar(
                     title = { Text("Julius - station finder") },
                     actions = {
+                        if (fuelForecastRepository != null) {
+                            FuelForecastCompactCard(
+                                state = fuelForecastState,
+                                isLoading = fuelForecastLoading,
+                                onClick = onOpenFuelForecast,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                        }
                         IconButton(onClick = { onOpenSettings(null) }) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings")
                         }
@@ -471,15 +481,6 @@ fun PhoneDashboardScreen(
                                 )
                             }
                         }
-                    }
-                }
-
-                if (fuelForecastRepository != null) {
-                    item {
-                        FuelForecastChartCard(
-                            state = fuelForecastState,
-                            isLoading = fuelForecastLoading
-                        )
                     }
                 }
 
