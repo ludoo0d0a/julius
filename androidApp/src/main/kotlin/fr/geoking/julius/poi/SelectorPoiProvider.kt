@@ -248,7 +248,7 @@ class SelectorPoiProvider(
                         }
 
                         val merged = PoiMerger.mergePois(allPois)
-                        val enriched = enrichUniformReferencePrices(
+                        val enriched = enrichNationalReferencePrices(
                             pois = merged,
                             providers = providers,
                             centerLat = request.latitude,
@@ -455,7 +455,7 @@ class SelectorPoiProvider(
         }
 
         val merged = PoiMerger.mergePois(allPois)
-        val enriched = enrichUniformReferencePrices(
+        val enriched = enrichNationalReferencePrices(
             pois = merged,
             providers = providers,
             centerLat = request.latitude,
@@ -596,7 +596,7 @@ class SelectorPoiProvider(
         }
 
         var result = PoiMerger.mergePois(allPois)
-        result = enrichUniformReferencePrices(
+        result = enrichNationalReferencePrices(
             pois = result,
             providers = providers,
             centerLat = latitude,
@@ -614,9 +614,9 @@ class SelectorPoiProvider(
 
     /**
      * When OpenVan.camp is enabled, attach reference fuel prices (weekly averages) to gas POIs
-     * in countries known for having uniform regulated prices (e.g. Luxembourg).
+     * in countries known for having reference prices (e.g. Luxembourg, Portugal, Italy, etc.).
      */
-    private suspend fun enrichUniformReferencePrices(
+    private suspend fun enrichNationalReferencePrices(
         pois: List<Poi>,
         providers: Set<PoiProviderType>,
         centerLat: Double,
@@ -628,7 +628,7 @@ class SelectorPoiProvider(
         val region = ParkingRegion.containing(centerLat, centerLon) ?: return pois
         val iso = region.countryCode
 
-        if (!FuelPriceRegistry.isUniformPriceCountry(iso)) return pois
+        if (!FuelPriceRegistry.hasReferencePrice(iso)) return pois
 
         val prices = try {
             openVanCampClient.getReferenceFuelPrices(iso)?.takeIf { it.isNotEmpty() } ?: return pois

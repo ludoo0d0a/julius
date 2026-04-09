@@ -5,8 +5,9 @@ package fr.geoking.julius.poi
  */
 object FuelPriceRegistry {
     /**
-     * Countries where fuel prices are strictly regulated and identical at all stations (or nearly all).
-     * For these countries, applying a national average (e.g. from OpenVanCamp) to all stations is valid.
+     * Countries where fuel prices are strictly regulated and identical at all stations (or nearly all),
+     * or countries where we provide a national reference price from official sources.
+     * For these countries, applying a national average (e.g. from OpenVanCamp) to all stations is valid as a fallback.
      *
      * - LU: Luxembourg (strictly regulated maximum prices)
      * - ME: Montenegro (regulated by government)
@@ -14,12 +15,17 @@ object FuelPriceRegistry {
      * - HR: Croatia (regulated prices, updated every 14 days)
      * - SI: Slovenia (regulated prices outside motorways)
      * - BE: Belgium (regulated maximum prices)
+     * - PT: Portugal (official reference prices)
+     * - IT: Italy (official reference prices)
+     * - SE: Sweden (official reference prices)
+     * - DK: Denmark (official reference prices)
+     * - FI: Finland (official reference prices)
      */
-    val UNIFORM_PRICE_COUNTRIES = setOf("LU", "ME", "MK", "HR", "SI", "BE")
+    val REFERENCE_PRICE_COUNTRIES = setOf("LU", "ME", "MK", "HR", "SI", "BE", "PT", "IT", "SE", "DK", "FI")
 
     /**
-     * Returns true if the given country code has uniform fuel prices.
+     * Returns true if the given country code has a reference fuel price available.
      */
-    fun isUniformPriceCountry(countryCode: String?): Boolean =
-        countryCode?.uppercase() in UNIFORM_PRICE_COUNTRIES
+    fun hasReferencePrice(countryCode: String?): Boolean =
+        countryCode?.uppercase() in REFERENCE_PRICE_COUNTRIES
 }

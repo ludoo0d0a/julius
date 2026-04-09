@@ -14,7 +14,7 @@ import fr.geoking.julius.shared.logging.log
  * [PoiProvider] that fetches fuel stations from OpenStreetMap and enriches them with
  * national weekly retail averages from [OpenVanCampClient] (OpenVan.camp, CC BY 4.0).
  *
- * Enrichment only occurs in countries with regulated uniform fuel prices (see [FuelPriceRegistry.UNIFORM_PRICE_COUNTRIES]).
+ * Enrichment only occurs in countries with reference fuel prices (see [FuelPriceRegistry.REFERENCE_PRICE_COUNTRIES]).
  */
 class OpenVanCampProvider(
     private val openVanClient: OpenVanCampClient,
@@ -32,9 +32,9 @@ class OpenVanCampProvider(
     ): List<Poi> {
         val region = ParkingRegion.containing(latitude, longitude)
         val iso = region?.countryCode
-        val isUniform = FuelPriceRegistry.isUniformPriceCountry(iso)
+        val hasRef = FuelPriceRegistry.hasReferencePrice(iso)
 
-        log.d { "[OpenVanCampProvider] getGasStations lat=$latitude lon=$longitude iso=$iso uniform=$isUniform" }
+        log.d { "[OpenVanCampProvider] getGasStations lat=$latitude lon=$longitude iso=$iso hasRef=$hasRef" }
 
         val effectiveRadiusKm = viewport
             ?.let {
@@ -42,7 +42,7 @@ class OpenVanCampProvider(
             }
             ?: radiusKm
 
-        val fuelPrices = if (iso != null && isUniform) {
+        val fuelPrices = if (iso != null && hasRef) {
             try {
                 openVanClient.getReferenceFuelPrices(iso)?.takeIf { it.isNotEmpty() }
             } catch (e: Exception) {

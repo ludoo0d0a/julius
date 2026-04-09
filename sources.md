@@ -10,7 +10,7 @@ This document lists the free API source providers integrated into the Julius sta
 | **Spain Minetur** | Spain | Fuel | `https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/` | Spanish Government (Minetur) |
 | **Germany Tankerkönig** | Germany | Fuel | `https://creativecommons.tankerkoenig.de/json/list.php` | CC BY 4.0 (MTS-K) |
 | **Austria E-Control** | Austria | Fuel | `https://api.e-control.at/sprit/1.0/` | E-Control Open Data |
-| **OpenVan.camp** | Europe (Uniform price countries) | Fuel | `https://openvan.camp/api/fuel/prices` | CC BY 4.0 (Reference prices) |
+| **OpenVan.camp** | Europe (Official references) | Fuel | `https://openvan.camp/api/fuel/prices` | CC BY 4.0 (PT, IT, SE, DK, FI, LU, BE...) |
 | **DataGouv IRVE** | France | IRVE (EV) | `https://odre.opendatasoft.com/api/explore/v2.1/catalog/datasets/bornes-irve` | Licence Ouverte 2.0 |
 | **Open Charge Map** | Global / Europe | IRVE (EV) | `https://api.openchargemap.io/v3/poi` | CC BY 4.0 |
 | **Chargy** | Luxembourg | IRVE (EV) | `https://my.chargy.lu/b2bev-external-services/resources/kml` | Chargy Luxembourg |
