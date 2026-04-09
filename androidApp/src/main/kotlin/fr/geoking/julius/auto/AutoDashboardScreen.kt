@@ -45,6 +45,27 @@ class AutoDashboardScreen(
 
         listBuilder.addItem(
             Row.Builder()
+                .setTitle("Search")
+                .addText("Search for gas or EV stations by name/brand")
+                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_search)).build())
+                .setOnClickListener {
+                    val mapDeps = getMapDeps()
+                    if (mapDeps != null) {
+                        screenManager.push(
+                            AutoPoiSearchScreen(
+                                carContext = carContext,
+                                poiProvider = mapDeps.poiProvider,
+                                settingsManager = settingsManager,
+                                availabilityProviderFactory = mapDeps.availabilityProviderFactory
+                            )
+                        )
+                    }
+                }
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
                 .setTitle("Fuel price outlook")
                 .addText("Local estimate from market + nearby pumps")
                 .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
