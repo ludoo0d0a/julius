@@ -37,6 +37,27 @@ class AutoPlaystoreDashboardScreen(
 
         grid.addItem(
             GridItem.Builder()
+                .setTitle("Search")
+                .setText("Name or brand")
+                .setImage(gridIcon(R.drawable.ic_search))
+                .setOnClickListener {
+                    val mapDeps = getMapDeps()
+                    if (mapDeps != null) {
+                        screenManager.push(
+                            AutoPoiSearchScreen(
+                                carContext = carContext,
+                                poiProvider = mapDeps.poiProvider,
+                                settingsManager = settingsManager,
+                                availabilityProviderFactory = mapDeps.availabilityProviderFactory
+                            )
+                        )
+                    }
+                }
+                .build()
+        )
+
+        grid.addItem(
+            GridItem.Builder()
                 .setTitle("Map")
                 .setText("All filters")
                 .setImage(gridIcon(R.drawable.ic_map))
