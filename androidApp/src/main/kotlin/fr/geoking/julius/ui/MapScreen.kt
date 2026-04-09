@@ -313,54 +313,43 @@ fun MapScreen(
 
                 try {
                     isLoading = true
-                    var lastResult: PoiSearchResult? = null
-                    var retryAttempt = 0
-                    val maxRetries = 3
-                    var finalPois: List<Poi>? = null
-
-                    while (retryAttempt < maxRetries && finalPois == null) {
-                        val searchResult = poiProvider.searchResult(
-                            PoiSearchRequest(
-                                latitude = centerLat,
-                                longitude = centerLng,
-                                viewport = viewport,
-                                categories = emptySet(),
-                                skipFilters = true
-                            )
+                    poiProvider.searchFlow(
+                        PoiSearchRequest(
+                            latitude = centerLat,
+                            longitude = centerLng,
+                            viewport = viewport,
+                            categories = emptySet(),
+                            skipFilters = true
                         )
-                        lastResult = searchResult
+                    ).collect { result ->
+                        if (result.errors.isEmpty() || result.pois.isNotEmpty()) {
+                            cachedPois = result.pois
 
-                        if (searchResult.errors.isEmpty()) {
-                            finalPois = searchResult.pois
-                        } else {
-                            val code = searchResult.errors.firstOrNull()?.httpCode
-                            if (code != null && code in 400..499 && code != 429 && code != 408) {
-                                // Client error (not rate limit or timeout): don't retry
-                                break
+                            // Availability: refresh for POIs close enough for the cards.
+                            val availabilityProvider = availabilityProviderFactory?.getProvider(centerLat, centerLng)
+                            if (availabilityProvider != null) {
+                                val availabilityRadiusKm = requiredRadiusKm.coerceAtMost(20).coerceAtLeast(10)
+                                val availabilities = availabilityProvider.getAvailability(centerLat, centerLng, availabilityRadiusKm)
+                                val poisForAvailability = cachedPois.filter { poi ->
+                                    approxDistanceKm(centerLat, centerLng, poi.latitude, poi.longitude) <= availabilityRadiusKm * 1.05
+                                }
+                                val matched = matchAvailabilityToPois(availabilities, poisForAvailability)
+                                availabilityByPoiId = availabilityByPoiId + matched
                             }
+                        }
 
-                            retryAttempt++
-                            if (retryAttempt < maxRetries) {
-                                val delayMs = (200L * (1 shl retryAttempt)) + (0..100).random()
-                                kotlinx.coroutines.delay(delayMs)
-                            }
+                        if (result.errors.isNotEmpty() && result.pois.isEmpty()) {
+                            val firstError = result.errors.first()
+                            val msg = firstError.message
+                            val code = firstError.httpCode
+
+                            mapErrorMessage = msg
+                            isErrorPaused = true
+                            store.recordError(code, "Map ($selectedProviders): $msg")
                         }
                     }
 
-                    if (finalPois == null) {
-                        val firstError = lastResult?.errors?.firstOrNull()
-                        val msg = firstError?.message ?: "Unknown error"
-                        val code = firstError?.httpCode
-
-                        mapErrorMessage = msg
-                        isErrorPaused = true
-                        store.recordError(code, "Map ($selectedProviders): $msg")
-                        return@collectLatest
-                    }
-
-                    cachedPois = finalPois
-
-                    // Availability: refresh for POIs close enough for the cards.
+                    // Traffic: updated only when a POI fetch happens.
                     val availabilityProvider = availabilityProviderFactory?.getProvider(centerLat, centerLng)
                     if (availabilityProvider != null) {
                         val availabilityRadiusKm = requiredRadiusKm.coerceAtMost(20).coerceAtLeast(10)
@@ -372,7 +361,6 @@ fun MapScreen(
                         availabilityByPoiId = availabilityByPoiId + matched
                     }
 
-                    // Traffic: updated only when a POI fetch happens.
                     val trafficProvider = trafficProviderFactory?.getProvider(centerLat, centerLng)
                     if (trafficProvider != null) {
                         val halfSpan = 0.15

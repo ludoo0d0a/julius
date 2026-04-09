@@ -84,6 +84,7 @@ import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntOffset
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -575,16 +576,14 @@ fun RoutePlanningScreen(
                 routeTraffic = null
             }
 
-            val result = routePlanner.getStationsAlongRoute(
+            routePlanner.getStationsAlongRouteFlow(
                 oLat, oLon, dLat, dLon,
                 poiProvider,
                 radiusMeters = settings.routeStationSearchRadiusMeters
-            )
-            loading = false
-            result.fold(
-                onSuccess = { stations = it },
-                onFailure = { error = it.message ?: "Route failed" }
-            )
+            ).collect { incrementalStations ->
+                stations = incrementalStations
+                loading = false // Show results as soon as first batch arrives
+            }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             loading = false

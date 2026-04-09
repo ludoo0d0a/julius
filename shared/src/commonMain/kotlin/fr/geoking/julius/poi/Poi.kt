@@ -1,6 +1,8 @@
 package fr.geoking.julius.poi
 
 import fr.geoking.julius.api.routex.RoutexSiteDetails
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 
 /**
  * Category of POI for unified search. Extensible: add new values and wire providers as needed.
@@ -294,6 +296,14 @@ object MapPoiFilter {
 interface PoiProvider {
     /** Categories this provider can return. Used by the selector to build [PoiSearchRequest]. */
     fun supportedCategories(): Set<PoiCategory> = setOf(PoiCategory.Gas)
+
+    /**
+     * Unified search: returns a [Flow] that emits [PoiSearchResult]s as they become available.
+     * Default implementation emits the result of [searchResult].
+     */
+    fun searchFlow(request: PoiSearchRequest): Flow<PoiSearchResult> = flow {
+        emit(searchResult(request))
+    }
 
     /**
      * Unified search: returns a [PoiSearchResult] containing the list of POIs and any errors encountered.

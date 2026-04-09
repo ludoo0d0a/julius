@@ -247,7 +247,7 @@ fun VectorMapScreen(
                 try {
                     isLoading = true
                     val viewport = MapViewport(zoom, mapSizePx.width, mapSizePx.height)
-                    val result = poiProvider.searchResult(
+                    poiProvider.searchFlow(
                         PoiSearchRequest(
                             latitude = centerLat,
                             longitude = centerLng,
@@ -255,25 +255,32 @@ fun VectorMapScreen(
                             categories = emptySet(),
                             skipFilters = true
                         )
-                    )
+                    ).collect { result ->
+                        if (result.errors.isEmpty() || result.pois.isNotEmpty()) {
+                            val finalPois = result.pois
+                            cachedPois = PoiMerger.mergeInto(cachedPois, finalPois)
+                            val now = System.currentTimeMillis()
+                            finalPois.forEach { poiSeenAtMs[it.id] = now }
 
-                    if (result.errors.isEmpty()) {
-                        val finalPois = result.pois
-                        cachedPois = PoiMerger.mergeInto(cachedPois, finalPois)
-                        finalPois.forEach { poiSeenAtMs[it.id] = System.currentTimeMillis() }
-                        loadedRegions.add(LoadedPoiRegion(centerLat, centerLng, requiredRadiusKm, System.currentTimeMillis()))
+                            // Only add to loadedRegions if we have at least one provider that responded successfully
+                            // or if it's the final emission (which searchFlow handles).
+                            // In this case, we add it to mark this area as covered.
+                            loadedRegions.add(LoadedPoiRegion(centerLat, centerLng, requiredRadiusKm, now))
 
-                        // Availability refresh
-                        val availabilityProvider = availabilityProviderFactory?.getProvider(centerLat, centerLng)
-                        if (availabilityProvider != null) {
-                            val availabilityRadiusKm = requiredRadiusKm.coerceAtMost(20).coerceAtLeast(10)
-                            val availabilities = availabilityProvider.getAvailability(centerLat, centerLng, availabilityRadiusKm)
-                            val matched = matchAvailabilityToPois(availabilities, finalPois)
-                            availabilityByPoiId = availabilityByPoiId + matched
+                            // Availability refresh
+                            val availabilityProvider = availabilityProviderFactory?.getProvider(centerLat, centerLng)
+                            if (availabilityProvider != null) {
+                                val availabilityRadiusKm = requiredRadiusKm.coerceAtMost(20).coerceAtLeast(10)
+                                val availabilities = availabilityProvider.getAvailability(centerLat, centerLng, availabilityRadiusKm)
+                                val matched = matchAvailabilityToPois(availabilities, finalPois)
+                                availabilityByPoiId = availabilityByPoiId + matched
+                            }
                         }
-                    } else {
-                        mapErrorMessage = result.errors.first().message
-                        isErrorPaused = true
+
+                        if (result.errors.isNotEmpty() && result.pois.isEmpty()) {
+                            mapErrorMessage = result.errors.first().message
+                            isErrorPaused = true
+                        }
                     }
                 } catch (e: Exception) {
                     mapErrorMessage = e.message
