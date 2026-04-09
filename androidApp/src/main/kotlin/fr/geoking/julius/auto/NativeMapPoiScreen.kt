@@ -10,15 +10,19 @@ import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.CarColor
 import androidx.car.app.model.CarLocation
 import androidx.car.app.model.ItemList
+import androidx.car.app.model.CarIcon
 import androidx.car.app.model.Place
 import androidx.car.app.model.PlaceMarker
 import androidx.car.app.model.Template
 import androidx.car.app.model.PlaceListMapTemplate
+import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.lifecycleScope
+import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
+import fr.geoking.julius.poi.MapPoiFilter
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiSearchRequest
 import fr.geoking.julius.poi.PoiProvider
@@ -28,6 +32,7 @@ import fr.geoking.julius.api.belib.matchAvailabilityToPois
 import fr.geoking.julius.effectiveIrvePowerLevels
 import fr.geoking.julius.effectiveMapEnergyFilterIds
 import fr.geoking.julius.feature.location.LocationHelper
+import fr.geoking.julius.shared.location.approxDistanceKm
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -48,6 +53,7 @@ class NativeMapPoiScreen(
     private var isLoading = true
     private var searchLat: Double = 48.8566
     private var searchLon: Double = 2.3522
+    private var sortByPrice: Boolean = false
 
     init {
         lifecycle.addObserver(this)
@@ -132,10 +138,63 @@ class NativeMapPoiScreen(
         val itemListBuilder = ItemList.Builder()
             .setNoItemsMessage("No POIs found")
 
+        itemListBuilder.addItem(
+            androidx.car.app.model.Row.Builder()
+                .setTitle(if (sortByPrice) "Sort: Price" else "Sort: Distance")
+                .setOnClickListener {
+                    sortByPrice = !sortByPrice
+                    invalidate()
+                }
+                .build()
+        )
+        itemListBuilder.addItem(
+            androidx.car.app.model.Row.Builder()
+                .setTitle("More Options")
+                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_settings)).build())
+                .setOnClickListener {
+                    screenManager.push(
+                        AutoMapMoreOptionsScreen(
+                            carContext = carContext,
+                            settingsManager = settingsManager,
+                            lat = searchLat,
+                            lon = searchLon,
+                            onRecenter = { loadPois() }
+                        )
+                    )
+                }
+                .build()
+        )
+
         val currentSettings = settingsManager.settings.value
         val effectiveEnergies = currentSettings.effectiveMapEnergyFilterIds()
         val effectivePowerLevels = currentSettings.effectiveIrvePowerLevels()
-        pois.take(6).forEach { poi ->
+
+        val sortedPois = if (sortByPrice) {
+            val fuelIds = effectiveEnergies - "electric"
+            if (fuelIds.isEmpty()) {
+                pois.sortedBy { approxDistanceKm(searchLat, searchLon, it.latitude, it.longitude) }
+            } else {
+                pois.sortedWith { a, b ->
+                    val pricesA = a.fuelPrices?.filter { MapPoiFilter.fuelNameToId(it.fuelName) in fuelIds }
+                    val pricesB = b.fuelPrices?.filter { MapPoiFilter.fuelNameToId(it.fuelName) in fuelIds }
+
+                    val priceA = pricesA?.minByOrNull { it.price }?.price ?: Double.MAX_VALUE
+                    val priceB = pricesB?.minByOrNull { it.price }?.price ?: Double.MAX_VALUE
+
+                    if (priceA != priceB && (priceA != Double.MAX_VALUE || priceB != Double.MAX_VALUE)) {
+                        priceA.compareTo(priceB)
+                    } else {
+                        val distA = approxDistanceKm(searchLat, searchLon, a.latitude, a.longitude)
+                        val distB = approxDistanceKm(searchLat, searchLon, b.latitude, b.longitude)
+                        distA.compareTo(distB)
+                    }
+                }
+            }
+        } else {
+            pois.sortedBy { approxDistanceKm(searchLat, searchLon, it.latitude, it.longitude) }
+        }
+
+        sortedPois.take(4).forEach { poi ->
             val availability = availabilityByPoiId[poi.id]
             itemListBuilder.addItem(
                 AutoPoiUiHelper.buildPoiRow(

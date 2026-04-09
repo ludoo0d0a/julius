@@ -29,6 +29,7 @@ import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.StationMapFilters
 import fr.geoking.julius.VehicleType
+import fr.geoking.julius.poi.MapPoiFilter
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiSearchRequest
 import fr.geoking.julius.poi.PoiProviderError
@@ -45,6 +46,7 @@ import fr.geoking.julius.effectiveIrvePowerLevels
 import fr.geoking.julius.effectiveMapEnergyFilterIds
 import fr.geoking.julius.effectiveProviders
 import fr.geoking.julius.feature.location.LocationHelper
+import fr.geoking.julius.shared.location.approxDistanceKm
 import fr.geoking.julius.toll.TollCalculator
 import kotlinx.coroutines.flow.collectLatest
 import fr.geoking.julius.api.belib.matchAvailabilityToPois
@@ -73,6 +75,8 @@ class CustomMapPoiScreen(
     private var isLoading = true
     private var searchLat: Double = 48.8566
     private var searchLon: Double = 2.3522
+    private var zoom: Int = 13
+    private var sortByPrice: Boolean = false
 
     private var surfaceRenderer: AutoSurfaceRenderer? = null
 
@@ -273,7 +277,7 @@ class CustomMapPoiScreen(
             surfaceContainer.width,
             surfaceContainer.height
         ).apply {
-            updateLocation(searchLat, searchLon)
+            updateLocation(searchLat, searchLon, zoom)
             val settings = settingsManager.settings.value
             val filteredPois = getFilteredPois(settings)
             updateUserLocation(searchLat, searchLon)
@@ -301,9 +305,29 @@ class CustomMapPoiScreen(
         surfaceRenderer = null
     }
 
+    private fun bumpZoom(delta: Int) {
+        zoom = (zoom + delta).coerceIn(4, 18)
+        surfaceRenderer?.updateLocation(searchLat, searchLon, zoom)
+        invalidate()
+    }
+
     override fun onGetTemplate(): Template {
         return try {
             val actionStrip = ActionStrip.Builder()
+                .addAction(
+                    Action.Builder()
+                        .setTitle("Zoom In")
+                        .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_add)).build())
+                        .setOnClickListener { bumpZoom(1) }
+                        .build()
+                )
+                .addAction(
+                    Action.Builder()
+                        .setTitle("Zoom Out")
+                        .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_remove)).build())
+                        .setOnClickListener { bumpZoom(-1) }
+                        .build()
+                )
                 .addAction(
                     Action.Builder()
                         .setTitle("Home")
@@ -331,33 +355,32 @@ class CustomMapPoiScreen(
             val itemListBuilder = ItemList.Builder()
                 .setNoItemsMessage("No POIs found")
 
-            // 1) Functional rows (Recenter, External Map, Settings)
+            // 1) Functional rows
+            var functionalRowCount = 2
             itemListBuilder.addItem(
                 androidx.car.app.model.Row.Builder()
-                    .setTitle("Recenter")
-                    .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
-                    .setOnClickListener { loadPois() }
-                    .build()
-            )
-
-            itemListBuilder.addItem(
-                androidx.car.app.model.Row.Builder()
-                    .setTitle("Open in External Map")
-                    .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
+                    .setTitle(if (sortByPrice) "Sort: Price" else "Sort: Distance")
                     .setOnClickListener {
-                        val intent = Intent(CarContext.ACTION_NAVIGATE).apply {
-                            data = Uri.parse("geo:$searchLat,$searchLon?q=${Uri.encode("Map")}")
-                        }
-                        carContext.startCarApp(intent)
+                        sortByPrice = !sortByPrice
+                        invalidate()
                     }
                     .build()
             )
-
             itemListBuilder.addItem(
                 androidx.car.app.model.Row.Builder()
-                    .setTitle("Settings")
+                    .setTitle("More Options")
                     .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_settings)).build())
-                    .setOnClickListener { screenManager.push(AutoMapSettingsScreen(carContext, settingsManager)) }
+                    .setOnClickListener {
+                        screenManager.push(
+                            AutoMapMoreOptionsScreen(
+                                carContext = carContext,
+                                settingsManager = settingsManager,
+                                lat = searchLat,
+                                lon = searchLon,
+                                onRecenter = { loadPois() }
+                            )
+                        )
+                    }
                     .build()
             )
 
@@ -365,6 +388,7 @@ class CustomMapPoiScreen(
             val hasRoutePlanning = routePlanner != null && routingClient != null && tollCalculator != null && geocodingClient != null
             val hasCommunity = settingsManager.settings.value.isLoggedIn && communityRepo != null
             if (hasCommunity) {
+                functionalRowCount++
                 itemListBuilder.addItem(
                     androidx.car.app.model.Row.Builder()
                         .setTitle("Add POI")
@@ -380,6 +404,7 @@ class CustomMapPoiScreen(
                         .build()
                 )
             } else if (hasRoutePlanning) {
+                functionalRowCount++
                 itemListBuilder.addItem(
                     androidx.car.app.model.Row.Builder()
                         .setTitle("Plan route")
@@ -401,20 +426,45 @@ class CustomMapPoiScreen(
             }
 
             val currentSettings = settingsManager.settings.value
+            val effectiveEnergies = currentSettings.effectiveMapEnergyFilterIds()
+            val effectivePowerLevels = currentSettings.effectiveIrvePowerLevels()
             val filteredPois = getFilteredPois(currentSettings)
 
             surfaceRenderer?.let { renderer ->
-                renderer.updateLocation(searchLat, searchLon)
+                renderer.updateLocation(searchLat, searchLon, zoom)
                 renderer.updatePois(
                     newPois = filteredPois,
-                    effectiveEnergyTypes = currentSettings.effectiveMapEnergyFilterIds(),
-                    effectivePowerLevels = currentSettings.effectiveIrvePowerLevels()
+                    effectiveEnergyTypes = effectiveEnergies,
+                    effectivePowerLevels = effectivePowerLevels
                 )
             }
 
-            val limitedPois = filteredPois.take(6)
-            val effectiveEnergies = currentSettings.effectiveMapEnergyFilterIds()
-            val effectivePowerLevels = currentSettings.effectiveIrvePowerLevels()
+            val sortedPois = if (sortByPrice) {
+                val fuelIds = effectiveEnergies - "electric"
+                if (fuelIds.isEmpty()) {
+                    filteredPois.sortedBy { approxDistanceKm(searchLat, searchLon, it.latitude, it.longitude) }
+                } else {
+                    filteredPois.sortedWith { a, b ->
+                        val pricesA = a.fuelPrices?.filter { MapPoiFilter.fuelNameToId(it.fuelName) in fuelIds }
+                        val pricesB = b.fuelPrices?.filter { MapPoiFilter.fuelNameToId(it.fuelName) in fuelIds }
+
+                        val priceA = pricesA?.minByOrNull { it.price }?.price ?: Double.MAX_VALUE
+                        val priceB = pricesB?.minByOrNull { it.price }?.price ?: Double.MAX_VALUE
+
+                        if (priceA != priceB && (priceA != Double.MAX_VALUE || priceB != Double.MAX_VALUE)) {
+                            priceA.compareTo(priceB)
+                        } else {
+                            val distA = approxDistanceKm(searchLat, searchLon, a.latitude, a.longitude)
+                            val distB = approxDistanceKm(searchLat, searchLon, b.latitude, b.longitude)
+                            distA.compareTo(distB)
+                        }
+                    }
+                }
+            } else {
+                filteredPois.sortedBy { approxDistanceKm(searchLat, searchLon, it.latitude, it.longitude) }
+            }
+
+            val limitedPois = sortedPois.take(6 - functionalRowCount)
             limitedPois.forEach { poi ->
                 val availability = availabilityByPoiId[poi.id]
                 itemListBuilder.addItem(
