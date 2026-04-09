@@ -54,6 +54,7 @@ class AutoMapTemplateScreen(carContext: CarContext) : Screen(carContext), Surfac
             tileUrl = osmUrl
         ).apply {
             updateLocation(lat, lon, zoom)
+            updateUserLocation(lat, lon)
             start()
         }
     }

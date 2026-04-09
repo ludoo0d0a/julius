@@ -39,6 +39,8 @@ class AutoSurfaceRenderer(
     private var lat: Double = 48.8566
     private var lon: Double = 2.3522
     private var zoom: Int = 13
+    private var userLat: Double? = null
+    private var userLon: Double? = null
 
     private var pois: List<Poi> = emptyList()
     private var effectiveEnergyTypes: Set<String> = emptySet()
@@ -70,6 +72,11 @@ class AutoSurfaceRenderer(
         zoom = newZoom
     }
 
+    fun updateUserLocation(newLat: Double, newLon: Double) {
+        userLat = newLat
+        userLon = newLon
+    }
+
     fun updatePois(
         newPois: List<Poi>,
         effectiveEnergyTypes: Set<String>,
@@ -86,6 +93,7 @@ class AutoSurfaceRenderer(
             try {
                 drawMap(canvas)
                 drawPois(canvas)
+                drawUserLocation(canvas)
             } finally {
                 try { surface.unlockCanvasAndPost(canvas) } catch (_: Exception) {}
             }
@@ -150,6 +158,35 @@ class AutoSurfaceRenderer(
             // Pin tip at (drawX, drawY): bottom-center of bitmap aligned to POI.
             canvas.drawBitmap(bitmap, drawX - bw / 2f, drawY - bh, null)
         }
+    }
+
+    private fun drawUserLocation(canvas: Canvas) {
+        val uLat = userLat ?: return
+        val uLon = userLon ?: return
+
+        val tileSize = 256
+        val centerX = lonToTileX(lon, zoom)
+        val centerY = latToTileY(lat, zoom)
+
+        val tileX = lonToTileX(uLon, zoom)
+        val tileY = latToTileY(uLat, zoom)
+
+        val drawX = ((tileX - centerX) * tileSize + width / 2.0).toFloat()
+        val drawY = ((tileY - centerY) * tileSize + height / 2.0).toFloat()
+
+        val radius = 16f
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.RED
+            style = Paint.Style.FILL
+        }
+        val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = Paint.Style.STROKE
+            strokeWidth = 4f
+        }
+
+        canvas.drawCircle(drawX, drawY, radius, paint)
+        canvas.drawCircle(drawX, drawY, radius, strokePaint)
     }
 
     private fun getTile(x: Int, y: Int, z: Int): Bitmap? {

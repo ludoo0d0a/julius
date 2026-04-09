@@ -7,6 +7,7 @@ import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.Action
 import androidx.car.app.model.ActionStrip
+import androidx.car.app.model.CarColor
 import androidx.car.app.model.CarLocation
 import androidx.car.app.model.ItemList
 import androidx.car.app.model.Place
@@ -114,7 +115,7 @@ class NativeMapPoiScreen(
             .build()
 
         val anchorPlace = Place.Builder(CarLocation.create(searchLat, searchLon))
-            .setMarker(PlaceMarker.Builder().build())
+            .setMarker(PlaceMarker.Builder().setColor(CarColor.RED).build())
             .build()
 
         // PlaceListMapTemplate: loading and item list are mutually exclusive (see Builder.build()).
