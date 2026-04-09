@@ -60,6 +60,7 @@ import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.poi.PoiSearchRequest
 import fr.geoking.julius.poi.PoiSearchResult
 import fr.geoking.julius.poi.PoiCategory
+import fr.geoking.julius.poi.MapPoiFilter
 import fr.geoking.julius.poi.anyProvidesElectric
 import fr.geoking.julius.poi.anyProvidesFuel
 import fr.geoking.julius.api.belib.BorneAvailabilityProviderFactory
@@ -586,10 +587,28 @@ fun MapScreen(
                     } else {
                         poisInView
                     }
+
+                    val fuelIdsForCheapest = effectiveEnergies - "electric"
+                    val minPrice = remember(poisToShow, fuelIdsForCheapest) {
+                        if (fuelIdsForCheapest.isEmpty()) null
+                        else {
+                            poisToShow.mapNotNull { poi ->
+                                poi.fuelPrices?.filter { !it.outOfStock && MapPoiFilter.fuelNameToId(it.fuelName) in fuelIdsForCheapest }
+                                    ?.minByOrNull { it.price }?.price
+                            }.minOrNull()
+                        }
+                    }
+
                     poisToShow.forEach { poi ->
                         val availability = availabilityByPoiId[poi.id]
                         val isPoiSelected = selectedPoi?.id == poi.id
-                        val markerBitmap = remember(poi, effectiveEnergies, effectivePowerLevels, isPoiSelected, sizePx, availability) {
+                        val isCheapest = remember(poi, minPrice, fuelIdsForCheapest) {
+                            if (minPrice == null) false
+                            else {
+                                poi.fuelPrices?.any { !it.outOfStock && MapPoiFilter.fuelNameToId(it.fuelName) in fuelIdsForCheapest && it.price == minPrice } == true
+                            }
+                        }
+                        val markerBitmap = remember(poi, effectiveEnergies, effectivePowerLevels, isPoiSelected, isCheapest, sizePx, availability) {
                             BitmapDescriptorFactory.fromBitmap(
                                 PoiMarkerHelper.getMarkerBitmap(
                                     context = mapContext,
@@ -597,6 +616,7 @@ fun MapScreen(
                                     effectiveEnergyTypes = effectiveEnergies,
                                     effectivePowerLevels = effectivePowerLevels,
                                     isSelected = isPoiSelected,
+                                    isCheapest = isCheapest,
                                     sizePx = sizePx,
                                     availability = availability,
                                     markerStyle = MarkerStyle.Bubble

@@ -38,6 +38,34 @@ class PoiMarkerHelperTest {
     }
 
     @Test
+    fun `getPoiLabel returns the lowest price among matching fuel filters`() {
+        val poi = Poi(
+            id = "1",
+            name = "Station 1",
+            address = "Address 1",
+            latitude = 0.0,
+            longitude = 0.0,
+            fuelPrices = listOf(FuelPrice("Gazole", 1.80), FuelPrice("sp95", 1.70))
+        )
+        val label = PoiMarkerHelper.getPoiLabel(poi, setOf("gazole", "sp95"), emptySet())
+        assertEquals("€1.70", label)
+    }
+
+    @Test
+    fun `getPoiLabel ignores out of stock fuel prices`() {
+        val poi = Poi(
+            id = "1",
+            name = "Station 1",
+            address = "Address 1",
+            latitude = 0.0,
+            longitude = 0.0,
+            fuelPrices = listOf(FuelPrice("Gazole", 1.60, outOfStock = true), FuelPrice("sp95", 1.70))
+        )
+        val label = PoiMarkerHelper.getPoiLabel(poi, setOf("gazole", "sp95"), emptySet())
+        assertEquals("€1.70", label)
+    }
+
+    @Test
     fun `getPoiLabel returns null for IRVE station when no electric filters are selected`() {
         val poi = Poi(
             id = "2",
