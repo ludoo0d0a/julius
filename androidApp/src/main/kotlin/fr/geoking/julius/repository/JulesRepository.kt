@@ -84,7 +84,7 @@ class JulesRepository(
             }
 
             // Always emit what we fetched from network
-            emit(entities)
+            emit(entities.sortedByDescending { it.lastUpdated })
 
             // Update PR statuses in parallel
             coroutineScope {
