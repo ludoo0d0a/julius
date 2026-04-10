@@ -4,11 +4,15 @@ import android.content.Intent
 import android.util.Log
 import androidx.car.app.AppManager
 import androidx.car.app.CarContext
-import androidx.car.app.CarToast
 import androidx.car.app.Screen
 import androidx.car.app.Session
+import androidx.car.app.model.Alert
+import androidx.car.app.model.CarIcon
+import androidx.car.app.model.CarText
+import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.BuildConfig
+import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.api.belib.BorneAvailabilityProviderFactory
 import fr.geoking.julius.api.geocoding.GeocodingClient
@@ -64,8 +68,11 @@ class CarAppSession : Session(), KoinComponent {
                 // Only show "welcome" if it's a real change, not the first detection
                 // Actually the user said "When app detect user enter in a new country"
                 // Usually this means crossing a border.
-                carContext.getCarService(AppManager::class.java)
-                    .showToast("welcome in \"$country\"", CarToast.LENGTH_LONG)
+                val alert = Alert.Builder(NETWORK_ALERT_ID, CarText.create("welcome in \"$country\""), 5000)
+                    .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
+                    .build()
+
+                carContext.getCarService(AppManager::class.java).showAlert(alert)
             }
             lastCountryCode = status.countryCode
         }
@@ -75,10 +82,13 @@ class CarAppSession : Session(), KoinComponent {
             if (lastIsRoaming != null) {
                 val roamingText = if (status.isRoaming) "on" else "off"
                 val networkName = status.operatorName ?: "Unknown"
-                carContext.getCarService(AppManager::class.java).showToast(
-                    "you're in \"$country\", roaming :$roamingText, network : \"$networkName\"",
-                    CarToast.LENGTH_LONG
-                )
+                val text = "you're in \"$country\", roaming :$roamingText, network : \"$networkName\""
+
+                val alert = Alert.Builder(NETWORK_ALERT_ID, CarText.create(text), 5000)
+                    .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
+                    .build()
+
+                carContext.getCarService(AppManager::class.java).showAlert(alert)
             }
             lastIsRoaming = status.isRoaming
         }
@@ -185,5 +195,6 @@ class CarAppSession : Session(), KoinComponent {
 
     companion object {
         private const val TAG = "CarAppSession"
+        private const val NETWORK_ALERT_ID = 1001
     }
 }

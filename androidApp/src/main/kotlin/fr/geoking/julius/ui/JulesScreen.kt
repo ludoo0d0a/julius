@@ -35,6 +35,8 @@ import androidx.compose.material.icons.filled.Merge
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.CircularProgressIndicator
@@ -112,6 +114,8 @@ fun JulesScreen(
     voiceManager: VoiceManager
 ) {
     val settings by settingsManager.settings.collectAsState()
+    val networkStatus by julesRepository.getNetworkService().status.collectAsState()
+    val isOnline = networkStatus.isConnected
     val apiKey = settings.julesKey
     val githubToken = settings.githubApiKey
 
@@ -124,6 +128,7 @@ fun JulesScreen(
     var refreshing by remember { mutableStateOf(false) }
     var loadingSessions by remember { mutableStateOf(false) }
     var refreshingSessions by remember { mutableStateOf(false) }
+    var hideCompleted by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var inputText by remember { mutableStateOf("") }
     var newSessionPrompt by remember { mutableStateOf("") }
@@ -192,7 +197,16 @@ fun JulesScreen(
                     sessions = list
                     // If we are in a session, update currentSession object from the list to get refreshed PR state
                     currentSession?.let { curr ->
-                        list.find { it.id == curr.id }?.let { currentSession = it }
+                    val updated = list.find { it.id == curr.id }
+                    if (updated != null) {
+                        currentSession = updated
+                    } else if (curr.id.startsWith("offline_")) {
+                        // Check if it was promoted to a real ID
+                        val promoted = list.find { it.prompt == curr.prompt && !it.id.startsWith("offline_") }
+                        if (promoted != null) {
+                            currentSession = promoted
+                        }
+                    }
                     }
                 }
             } finally {
@@ -317,6 +331,7 @@ fun JulesScreen(
                             currentSession!!.sessionState == "AWAITING_USER_FEEDBACK" -> "Waiting for you" to JulesAccent
                             currentSession!!.sessionState == "PLANNING" -> "Planning…" to JulesAccent
                             currentSession!!.sessionState == "QUEUED" -> "Queued…" to Color.White.copy(alpha = 0.6f)
+                            currentSession!!.sessionState == "QUEUED_OFFLINE" -> "Queued (Offline)" to Color.White.copy(alpha = 0.5f)
                             currentSession!!.sessionState == "PAUSED" -> "Paused" to Color.Yellow
                             else -> (if (hasOutput) "Output available" else "In progress") to (if (hasOutput) JulesAccent else Color.White.copy(alpha = 0.6f))
                         }
@@ -416,19 +431,22 @@ fun JulesScreen(
                                             (it as JulesChatItem.AgentMessage).id
                                         }
 
-                                        julesClient.sendMessage(apiKey, currentSession!!.id, prompt)
-                                        // Update lastUpdated locally/in DB when sending message
-                                        julesRepository.updateSessionLastUpdated(currentSession!!.id, System.currentTimeMillis())
+                                        julesRepository.sendMessage(apiKey, currentSession!!.id, prompt)
 
-                                        // Poll for response
-                                        repeat(10) {
-                                            kotlinx.coroutines.delay(2000)
-                                            refreshActivitiesInternal()
-                                            val newLastAgentMsg = chatItems.lastOrNull { it is JulesChatItem.AgentMessage } as? JulesChatItem.AgentMessage
-                                            if (newLastAgentMsg != null && newLastAgentMsg.id != oldLastId) {
-                                                voiceManager.speak(newLastAgentMsg.text)
-                                                return@repeat
+                                        if (isOnline && !currentSession!!.id.startsWith("offline_")) {
+                                            // Poll for response
+                                            repeat(10) {
+                                                kotlinx.coroutines.delay(2000)
+                                                refreshActivitiesInternal()
+                                                val newLastAgentMsg = chatItems.lastOrNull { it is JulesChatItem.AgentMessage } as? JulesChatItem.AgentMessage
+                                                if (newLastAgentMsg != null && newLastAgentMsg.id != oldLastId) {
+                                                    voiceManager.speak(newLastAgentMsg.text)
+                                                    return@repeat
+                                                }
                                             }
+                                        } else {
+                                            // Refresh immediately to show local user message
+                                            refreshActivitiesInternal()
                                         }
                                     } catch (e: Exception) {
                                         error = e.message ?: "Failed to send"
@@ -452,6 +470,7 @@ fun JulesScreen(
                     } else {
                         RepoAndSessionsContent(
                             apiKey = apiKey,
+                            isOnline = isOnline,
                             sessions = sessions,
                             selectedSourceName = selectedSourceName,
                             loading = loading,
@@ -465,32 +484,15 @@ fun JulesScreen(
                                     loading = true
                                     clearError()
                                     try {
-                                        val session = julesClient.createSession(
+                                        val sessionId = julesRepository.createSession(
                                             apiKey = apiKey,
                                             prompt = newSessionPrompt,
                                             source = source,
                                             title = newSessionPrompt.take(80)
                                         )
-                                        // Immediately get session to have the initial state (as createSession might have it as null or QUEUED)
-                                        val updatedSession = try {
-                                            julesClient.getSession(apiKey, session.id)
-                                        } catch (e: Exception) {
-                                            session
-                                        }
 
-                                        val entity = JulesSessionEntity(
-                                            id = updatedSession.id,
-                                            title = updatedSession.title,
-                                            prompt = updatedSession.prompt,
-                                            sourceName = source,
-                                            prUrl = updatedSession.outputs?.firstOrNull()?.pullRequest?.url,
-                                            prTitle = updatedSession.outputs?.firstOrNull()?.pullRequest?.title,
-                                            prState = null,
-                                            prMergeable = null,
-                                            sessionState = updatedSession.state,
-                                            isArchived = false,
-                                            lastUpdated = System.currentTimeMillis()
-                                        )
+                                        val entity = julesRepository.getSession(sessionId)
+
                                         newSessionPrompt = ""
                                         currentSession = entity
                                         loadSessions()
@@ -543,7 +545,9 @@ fun JulesScreen(
                             },
                             quota = quota,
                             isRefreshingSessions = refreshingSessions,
-                            onRefreshSessions = { loadSessions(isRefresh = true) }
+                            onRefreshSessions = { loadSessions(isRefresh = true) },
+                            hideCompleted = hideCompleted,
+                            onHideCompletedChange = { hideCompleted = it }
                         )
                     }
 
@@ -1226,6 +1230,7 @@ private fun InConversationContent(
 @Composable
 private fun RepoAndSessionsContent(
     apiKey: String,
+    isOnline: Boolean,
     sessions: List<JulesSessionEntity>,
     selectedSourceName: String?,
     loading: Boolean,
@@ -1240,9 +1245,22 @@ private fun RepoAndSessionsContent(
     onArchive: (JulesSessionEntity) -> Unit,
     quota: JulesQuota? = null,
     isRefreshingSessions: Boolean,
-    onRefreshSessions: () -> Unit
+    onRefreshSessions: () -> Unit,
+    hideCompleted: Boolean,
+    onHideCompletedChange: (Boolean) -> Unit
 ) {
     var showPrDetails by remember { mutableStateOf<GitHubClient.GitHubPullRequestDetail?>(null) }
+    val displaySessions = remember(sessions, hideCompleted) {
+        sessions
+            .filter { session ->
+                if (!hideCompleted) return@filter true
+                val isCompleted = session.prState == "merged" ||
+                                 session.prState == "closed" ||
+                                 session.sessionState == "COMPLETED"
+                !isCompleted
+            }
+            .sortedByDescending { it.lastUpdated }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1307,7 +1325,7 @@ private fun RepoAndSessionsContent(
                                             showNewForm = false
                                         }
                                     },
-                                    enabled = newSessionPrompt.isNotBlank() && !loading && (quota == null || quota.used < quota.limit)
+                                    enabled = newSessionPrompt.isNotBlank() && !loading && (quota == null || (isOnline && quota.used < quota.limit) || !isOnline)
                                 ) { Text("Create") }
                             }
                         }
@@ -1330,14 +1348,36 @@ private fun RepoAndSessionsContent(
                         }
                     }
 
-                    FilledTonalButton(
-                        onClick = { showNewForm = true },
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = JulesAccent.copy(alpha = 0.3f))
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
-                        Spacer(modifier = Modifier.size(8.dp))
-                        Text("New conversation")
+                        FilledTonalButton(
+                            onClick = { showNewForm = true },
+                            modifier = Modifier.weight(1f),
+                            colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = JulesAccent.copy(alpha = 0.3f))
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
+                            Spacer(modifier = Modifier.size(8.dp))
+                            Text("New conversation")
+                        }
+                        Spacer(modifier = Modifier.widthIn(8.dp))
+                        FilterChip(
+                            selected = hideCompleted,
+                            onClick = { onHideCompletedChange(!hideCompleted) },
+                            label = { Text("Hide completed", fontSize = 12.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                labelColor = Color.White.copy(alpha = 0.7f),
+                                selectedLabelColor = JulesAccent,
+                                selectedContainerColor = JulesAccent.copy(alpha = 0.1f)
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = hideCompleted,
+                                borderColor = Color.White.copy(alpha = 0.3f),
+                                selectedBorderColor = JulesAccent
+                            )
+                        )
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                 }
@@ -1347,16 +1387,17 @@ private fun RepoAndSessionsContent(
                 item {
                     Text("Loading conversations…", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
                 }
-            } else if (sessions.isEmpty()) {
+            } else if (displaySessions.isEmpty()) {
                 item {
                     Text(
-                        "No conversations yet for this repository. Tap \"New conversation\" to start.",
+                        if (hideCompleted && sessions.isNotEmpty()) "All conversations are completed."
+                        else "No conversations yet for this repository. Tap \"New conversation\" to start.",
                         color = Color.White.copy(alpha = 0.7f),
                         fontSize = 14.sp
                     )
                 }
             } else {
-                items(sessions) { session ->
+                items(displaySessions, key = { it.id }) { session ->
                     SessionRow(
                         session = session,
                         onClick = { onOpenSession(session) },
@@ -1435,6 +1476,7 @@ private fun SessionRow(
                 session.sessionState == "AWAITING_USER_FEEDBACK" -> "Waiting for you" to JulesAccent
                 session.sessionState == "PLANNING" -> "Planning…" to JulesAccent
                 session.sessionState == "QUEUED" -> "Queued…" to Color.White.copy(alpha = 0.6f)
+                session.sessionState == "QUEUED_OFFLINE" -> "Queued (Offline)" to Color.White.copy(alpha = 0.5f)
                 session.sessionState == "PAUSED" -> "Paused" to Color.Yellow
                 else -> (if (hasOutput) "Output available" else "In progress") to (if (hasOutput) JulesAccent else Color.White.copy(alpha = 0.6f))
             }

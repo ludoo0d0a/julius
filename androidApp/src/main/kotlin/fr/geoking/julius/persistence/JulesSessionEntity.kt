@@ -17,5 +17,8 @@ data class JulesSessionEntity(
     val sessionState: String?, // QUEUED, PLANNING, COMPLETED, etc.
     @ColumnInfo(defaultValue = "0")
     val isArchived: Boolean = false,
-    val lastUpdated: Long
+    val lastUpdated: Long,
+    @ColumnInfo(defaultValue = "0")
+    val isPendingOffline: Boolean = false,
+    val queuedAt: Long? = null
 )

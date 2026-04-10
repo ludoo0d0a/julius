@@ -26,6 +26,7 @@ googleid = "1.2.0"
 androidx-room = "2.8.4"
 coil = "3.4.0"
 litertlm-android = "0.10.0"
+androidx-work = "2.10.0"
 coreKtx = "1.18.0"
 robolectric = "4.16.1"
 voskAndroid = "0.3.75"
@@ -86,6 +87,7 @@ firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "fir
 firebase-auth = { module = "com.google.firebase:firebase-auth" }
 firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "androidx-work" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 vosk-android = { module = "com.alphacephei:vosk-android", version.ref = "voskAndroid" }
 

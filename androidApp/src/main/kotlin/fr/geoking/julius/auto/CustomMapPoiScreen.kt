@@ -18,6 +18,7 @@ import androidx.car.app.model.MessageTemplate
 import androidx.car.app.navigation.model.MapWithContentTemplate
 import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.Template
+import android.graphics.Rect
 import androidx.car.app.SurfaceCallback
 import androidx.car.app.SurfaceContainer
 import androidx.car.app.AppManager
@@ -81,6 +82,7 @@ class CustomMapPoiScreen(
     private var zoom: Int = 13
     private var sortByPrice: Boolean = false
     private var isDarkMode: Boolean = false
+    private var currentVisibleArea: Rect? = null
 
     private var surfaceRenderer: AutoSurfaceRenderer? = null
 
@@ -344,6 +346,7 @@ class CustomMapPoiScreen(
         ).apply {
             updateTheme(isDarkMode, getTileUrlProvider(isDarkMode))
             updateLocation(searchLat, searchLon, zoom)
+            currentVisibleArea?.let { updateVisibleArea(it) }
             val settings = settingsManager.settings.value
             val filteredPois = getFilteredPois(settings)
             updateUserLocation(searchLat, searchLon)
@@ -355,6 +358,12 @@ class CustomMapPoiScreen(
             start()
         }
         loadTraffic()
+    }
+
+    override fun onVisibleAreaChanged(visibleArea: Rect) {
+        Log.d("CustomMapPoiScreen", "onVisibleAreaChanged: $visibleArea")
+        currentVisibleArea = visibleArea
+        surfaceRenderer?.updateVisibleArea(visibleArea)
     }
 
     override fun onSurfaceDestroyed(surfaceContainer: SurfaceContainer) {
