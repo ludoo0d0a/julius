@@ -16,7 +16,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FuelPricePredictionEntity::class,
         FuelPricePredictionScoreEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -176,6 +176,14 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL(
                     "CREATE UNIQUE INDEX IF NOT EXISTS `index_fuel_price_prediction_scores_predictionId` ON `fuel_price_prediction_scores` (`predictionId`)"
                 )
+            }
+        }
+
+        val MIGRATION_7_8: Migration = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `isPendingOffline` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `queuedAt` INTEGER")
+                db.execSQL("ALTER TABLE `jules_activities` ADD COLUMN `isPendingOffline` INTEGER NOT NULL DEFAULT 0")
             }
         }
     }
