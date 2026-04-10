@@ -27,17 +27,13 @@ class AutoEnergyMenuScreen(
         listBuilder.addItem(
             Row.Builder()
                 .setTitle("Fuel")
-                .addText(if (fuels.isEmpty()) "None" else fuels.joinToString(", "))
-                .setToggle(
-                    Toggle.Builder { checked ->
-                        if (checked) {
-                            val next = if (fuels.isEmpty()) setOf("sp95") else fuels
-                            settingsManager.setMapEnergyTypes(next)
-                        }
-                        invalidate()
-                    }.setChecked(isFuelMode).build()
-                )
+                .addText(if (isFuelMode) "Selected: ${fuels.joinToString(", ")}" else "Tap to select fuel types")
                 .setOnClickListener {
+                    if (!hasFuel) {
+                        settingsManager.setMapEnergyTypes(setOf("sp95"))
+                    } else if (hasElectric) {
+                        settingsManager.setMapEnergyTypes(fuels)
+                    }
                     screenManager.push(AutoMapEnergySelectionScreen(carContext, settingsManager))
                 }
                 .build()
@@ -47,17 +43,14 @@ class AutoEnergyMenuScreen(
         listBuilder.addItem(
             Row.Builder()
                 .setTitle("Electric")
-                .addText("Power levels and connectors")
-                .setToggle(
-                    Toggle.Builder { checked ->
-                        if (checked) {
-                            settingsManager.setMapEnergyTypes(setOf("electric"))
-                        }
-                        invalidate()
-                    }.setChecked(isElectricMode).build()
-                )
+                .addText(if (isElectricMode) "Selected: Power and connectors" else "Tap for EV settings")
                 .setOnClickListener {
-                    screenManager.push(AutoMapIrvePowerSelectionScreen(carContext, settingsManager))
+                    if (!hasElectric) {
+                        settingsManager.setMapEnergyTypes(setOf("electric"))
+                    } else if (hasFuel) {
+                        settingsManager.setMapEnergyTypes(setOf("electric"))
+                    }
+                    screenManager.push(AutoMapElectricSelectionScreen(carContext, settingsManager))
                 }
                 .build()
         )
@@ -66,16 +59,12 @@ class AutoEnergyMenuScreen(
         listBuilder.addItem(
             Row.Builder()
                 .setTitle("Hybrid")
-                .addText("Fuel + Electric")
-                .setToggle(
-                    Toggle.Builder { checked ->
-                        if (checked) {
-                            val nextFuels = if (fuels.isEmpty()) setOf("sp95") else fuels
-                            settingsManager.setMapEnergyTypes(nextFuels + "electric")
-                        }
-                        invalidate()
-                    }.setChecked(isHybridMode).build()
-                )
+                .addText(if (isHybridMode) "Selected: Fuel + Electric" else "Fuel + Electric")
+                .setOnClickListener {
+                    val nextFuels = if (fuels.isEmpty()) setOf("sp95") else fuels
+                    settingsManager.setMapEnergyTypes(nextFuels + "electric")
+                    invalidate()
+                }
                 .build()
         )
 
