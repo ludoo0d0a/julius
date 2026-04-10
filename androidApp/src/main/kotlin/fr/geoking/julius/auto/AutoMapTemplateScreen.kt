@@ -1,5 +1,6 @@
 package fr.geoking.julius.auto
 
+import android.content.res.Configuration
 import android.util.Log
 import androidx.car.app.AppManager
 import androidx.car.app.CarContext
@@ -26,9 +27,18 @@ class AutoMapTemplateScreen(carContext: CarContext) : Screen(carContext), Surfac
     private val lat = 48.8566
     private val lon = 2.3522
     private var zoom = 14
+    private var isDarkMode = false
 
     init {
         lifecycle.addObserver(this)
+    }
+
+    private fun getTileUrlProvider(darkMode: Boolean): (Int, Int, Int) -> String {
+        return if (darkMode) {
+            { z, x, y -> "https://a.basemaps.cartocdn.com/rastertiles/dark_all/$z/$x/$y.png" }
+        } else {
+            { z, x, y -> "https://tile.openstreetmap.org/$z/$x/$y.png" }
+        }
     }
 
     override fun onSurfaceAvailable(surfaceContainer: SurfaceContainer) {
@@ -43,16 +53,17 @@ class AutoMapTemplateScreen(carContext: CarContext) : Screen(carContext), Surfac
             surfaceRenderer = null
             return
         }
-        val osmUrl: (Int, Int, Int) -> String = { z, x, y ->
-            "https://tile.openstreetmap.org/$z/$x/$y.png"
-        }
+
+        isDarkMode = (carContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+
         surfaceRenderer = AutoSurfaceRenderer(
             carContext,
             surface,
             surfaceContainer.width,
             surfaceContainer.height,
-            tileUrl = osmUrl
+            initialTileUrl = getTileUrlProvider(isDarkMode)
         ).apply {
+            updateTheme(isDarkMode, getTileUrlProvider(isDarkMode))
             updateLocation(lat, lon, zoom)
             updateUserLocation(lat, lon)
             start()
@@ -80,6 +91,12 @@ class AutoMapTemplateScreen(carContext: CarContext) : Screen(carContext), Surfac
     }
 
     override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoMapTemplateScreen") {
+        val currentDarkMode = (carContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        if (currentDarkMode != isDarkMode) {
+            isDarkMode = currentDarkMode
+            surfaceRenderer?.updateTheme(isDarkMode, getTileUrlProvider(isDarkMode))
+        }
+
         val actionStrip = ActionStrip.Builder()
             .addAction(
                 Action.Builder()

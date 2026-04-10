@@ -3,6 +3,7 @@ package fr.geoking.julius.auto
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
 import android.util.Log
 import androidx.car.app.CarContext
@@ -12,6 +13,7 @@ import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.CarIcon
 import androidx.car.app.model.Header
 import androidx.car.app.model.ItemList
+import androidx.car.app.model.Toggle
 import androidx.car.app.model.MessageTemplate
 import androidx.car.app.navigation.model.MapWithContentTemplate
 import androidx.car.app.model.ListTemplate
@@ -43,6 +45,7 @@ import fr.geoking.julius.api.geocoding.GeocodingClient
 import fr.geoking.julius.api.routing.RoutePlanner
 import fr.geoking.julius.api.routing.RoutingClient
 import fr.geoking.julius.api.traffic.TrafficProviderFactory
+import fr.geoking.julius.api.traffic.TrafficRequest
 import fr.geoking.julius.effectiveIrvePowerLevels
 import fr.geoking.julius.effectiveMapEnergyFilterIds
 import fr.geoking.julius.effectiveProviders
@@ -78,6 +81,7 @@ class CustomMapPoiScreen(
     private var searchLon: Double = 2.3522
     private var zoom: Int = 13
     private var sortByPrice: Boolean = false
+    private var isDarkMode: Boolean = false
     private var currentVisibleArea: Rect? = null
 
     private var surfaceRenderer: AutoSurfaceRenderer? = null
@@ -119,6 +123,15 @@ class CustomMapPoiScreen(
                     invalidate()
                 }
         }
+        lifecycleScope.launch {
+            settingsManager.settings
+                .map { it.mapTrafficEnabled }
+                .distinctUntilChanged()
+                .collectLatest { enabled ->
+                    if (enabled) loadTraffic()
+                    else surfaceRenderer?.updateTraffic(emptyList())
+                }
+        }
     }
 
     private data class PoiFetchSettings(
@@ -148,6 +161,30 @@ class CustomMapPoiScreen(
             providers = effectiveProviders,
             skipWhenOnlyOverpass = true
         )
+    }
+
+    private fun loadTraffic() {
+        val factory = trafficProviderFactory ?: return
+        val settings = settingsManager.settings.value
+        if (!settings.mapTrafficEnabled) return
+
+        lifecycleScope.launch {
+            val provider = factory.getProvider(searchLat, searchLon)
+            if (provider != null) {
+                val halfSpan = 0.15
+                val info = provider.getTraffic(
+                    TrafficRequest.Bbox(
+                        searchLat - halfSpan,
+                        searchLon - halfSpan,
+                        searchLat + halfSpan,
+                        searchLon + halfSpan
+                    )
+                )
+                surfaceRenderer?.updateTraffic(info?.events ?: emptyList())
+            } else {
+                surfaceRenderer?.updateTraffic(emptyList())
+            }
+        }
     }
 
     private fun loadPois() {
@@ -191,6 +228,7 @@ class CustomMapPoiScreen(
                 }
 
                 Log.d("CustomMapPoiScreen", "pois loaded: ${pois.size}, errors: ${errors.size}")
+                loadTraffic()
                 favoriteIds = favoritesRepo?.getFavorites()?.map { it.id }?.toSet() ?: emptySet()
                 val provider = availabilityProviderFactory.getProvider(lat, lon)
                 if (provider != null) {
@@ -251,6 +289,21 @@ class CustomMapPoiScreen(
         val builder = Header.Builder()
             .setTitle(title)
             .setStartHeaderAction(Action.BACK)
+
+        // Map controls in header to keep ActionStrip at 1 action (AA constraint)
+        builder.addEndHeaderAction(
+            Action.Builder()
+                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_add)).build())
+                .setOnClickListener { bumpZoom(1) }
+                .build()
+        )
+        builder.addEndHeaderAction(
+            Action.Builder()
+                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_remove)).build())
+                .setOnClickListener { bumpZoom(-1) }
+                .build()
+        )
+
         if (errors.isNotEmpty()) {
             builder.addEndHeaderAction(
                 Action.Builder()
@@ -260,6 +313,14 @@ class CustomMapPoiScreen(
             )
         }
         return builder
+    }
+
+    private fun getTileUrlProvider(darkMode: Boolean): (Int, Int, Int) -> String {
+        return if (darkMode) {
+            { z, x, y -> "https://a.basemaps.cartocdn.com/rastertiles/dark_all/$z/$x/$y.png" }
+        } else {
+            { z, x, y -> "https://tile.openstreetmap.org/$z/$x/$y.png" }
+        }
     }
 
     override fun onSurfaceAvailable(surfaceContainer: SurfaceContainer) {
@@ -273,12 +334,17 @@ class CustomMapPoiScreen(
             surfaceRenderer = null
             return
         }
+
+        isDarkMode = (carContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+
         surfaceRenderer = AutoSurfaceRenderer(
             carContext,
             surface,
             surfaceContainer.width,
-            surfaceContainer.height
+            surfaceContainer.height,
+            initialTileUrl = getTileUrlProvider(isDarkMode)
         ).apply {
+            updateTheme(isDarkMode, getTileUrlProvider(isDarkMode))
             updateLocation(searchLat, searchLon, zoom)
             currentVisibleArea?.let { updateVisibleArea(it) }
             val settings = settingsManager.settings.value
@@ -291,6 +357,7 @@ class CustomMapPoiScreen(
             )
             start()
         }
+        loadTraffic()
     }
 
     override fun onVisibleAreaChanged(visibleArea: Rect) {
@@ -317,26 +384,22 @@ class CustomMapPoiScreen(
     private fun bumpZoom(delta: Int) {
         zoom = (zoom + delta).coerceIn(4, 18)
         surfaceRenderer?.updateLocation(searchLat, searchLon, zoom)
+        loadTraffic()
         invalidate()
     }
 
     override fun onGetTemplate(): Template {
+        val currentDarkMode = (carContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        if (currentDarkMode != isDarkMode) {
+            isDarkMode = currentDarkMode
+            surfaceRenderer?.updateTheme(isDarkMode, getTileUrlProvider(isDarkMode))
+        }
+
+        val settings = settingsManager.settings.value
+
         return try {
+            // MapWithContentTemplate ActionStrip is restricted to exactly one action on many head units.
             val actionStrip = ActionStrip.Builder()
-                .addAction(
-                    Action.Builder()
-                        .setTitle("Zoom In")
-                        .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_add)).build())
-                        .setOnClickListener { bumpZoom(1) }
-                        .build()
-                )
-                .addAction(
-                    Action.Builder()
-                        .setTitle("Zoom Out")
-                        .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_remove)).build())
-                        .setOnClickListener { bumpZoom(-1) }
-                        .build()
-                )
                 .addAction(
                     Action.Builder()
                         .setTitle("Home")
@@ -360,14 +423,14 @@ class CustomMapPoiScreen(
                     .build()
             }
 
-            val currentSettings = settingsManager.settings.value
+            val currentSettings = settings
 
             // Build POI rows.
             val itemListBuilder = ItemList.Builder()
                 .setNoItemsMessage("No POIs found")
 
             // 1) Functional rows
-            var functionalRowCount = 3
+            var functionalRowCount = 4
             itemListBuilder.addItem(
                 androidx.car.app.model.Row.Builder()
                     .setTitle(if (sortByPrice) "Sort: Price" else "Sort: Distance")
@@ -375,6 +438,16 @@ class CustomMapPoiScreen(
                         sortByPrice = !sortByPrice
                         invalidate()
                     }
+                    .build()
+            )
+            itemListBuilder.addItem(
+                androidx.car.app.model.Row.Builder()
+                    .setTitle("Show Traffic")
+                    .setToggle(
+                        Toggle.Builder { checked: Boolean ->
+                            settingsManager.setMapTrafficEnabled(checked)
+                        }.setChecked(settings.mapTrafficEnabled).build()
+                    )
                     .build()
             )
             val energyModeLabel = when {
