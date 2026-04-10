@@ -19,7 +19,7 @@ class AutoGeneralFiltersScreen(
                 .setTitle("Energy Types")
                 .addText(settings.selectedMapEnergyTypes.joinToString(", ").take(100))
                 .setOnClickListener {
-                    screenManager.push(AutoMapEnergySelectionScreen(carContext, settingsManager))
+                    screenManager.push(AutoEnergyMenuScreen(carContext, settingsManager))
                 }
                 .build()
         )

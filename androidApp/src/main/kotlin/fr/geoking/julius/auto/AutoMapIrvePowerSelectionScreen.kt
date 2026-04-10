@@ -20,12 +20,13 @@ class AutoMapIrvePowerSelectionScreen(
             listBuilder.addItem(
                 Row.Builder()
                     .setTitle(label)
-                    .addText(if (isSelected) "Active" else "Inactive")
-                    .setOnClickListener {
-                        val newLevels = if (settings.mapPowerLevels.contains(kw)) settings.mapPowerLevels - kw else settings.mapPowerLevels + kw
-                        settingsManager.setMapPowerLevels(newLevels)
-                        invalidate()
-                    }
+                    .setToggle(
+                        Toggle.Builder { checked ->
+                            val newLevels = if (checked) settings.mapPowerLevels + kw else settings.mapPowerLevels - kw
+                            settingsManager.setMapPowerLevels(newLevels)
+                            invalidate()
+                        }.setChecked(isSelected).build()
+                    )
                     .build()
             )
         }

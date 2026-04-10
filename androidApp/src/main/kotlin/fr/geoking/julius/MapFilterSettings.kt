@@ -14,12 +14,7 @@ fun AppSettings.effectiveMapEnergyFilterIds(): Set<String> {
             else -> vehicleGasTypes
         }
     } else {
-        val base = selectedMapEnergyTypes
-        if (base.isNotEmpty() && "electric" !in base && selectedPoiProviders.anyProvidesElectric()) {
-            base + "electric"
-        } else {
-            base
-        }
+        selectedMapEnergyTypes
     }
 }
 
