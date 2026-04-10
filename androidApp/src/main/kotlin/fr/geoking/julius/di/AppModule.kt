@@ -387,7 +387,8 @@ val appModule = module {
                         AppDatabase.MIGRATION_3_4,
                         AppDatabase.MIGRATION_4_5,
                         AppDatabase.MIGRATION_5_6,
-                        AppDatabase.MIGRATION_6_7
+                        AppDatabase.MIGRATION_6_7,
+                        AppDatabase.MIGRATION_7_8
                     )
             )
         } catch (e: Throwable) {
@@ -406,7 +407,7 @@ val appModule = module {
 
     single<JulesDao> { get<AppDatabase>().julesDao() }
 
-    single { JulesRepository(get(), get(), get()) }
+    single { JulesRepository(androidContext(), get(), get(), get(), get(), get()) }
 
     single<ConversationStore> {
         val settingsManager = get<SettingsManager>()

@@ -112,6 +112,8 @@ fun JulesScreen(
     voiceManager: VoiceManager
 ) {
     val settings by settingsManager.settings.collectAsState()
+    val networkStatus by julesRepository.getNetworkService().status.collectAsState()
+    val isOnline = networkStatus.isConnected
     val apiKey = settings.julesKey
     val githubToken = settings.githubApiKey
 
@@ -192,7 +194,16 @@ fun JulesScreen(
                     sessions = list
                     // If we are in a session, update currentSession object from the list to get refreshed PR state
                     currentSession?.let { curr ->
-                        list.find { it.id == curr.id }?.let { currentSession = it }
+                    val updated = list.find { it.id == curr.id }
+                    if (updated != null) {
+                        currentSession = updated
+                    } else if (curr.id.startsWith("offline_")) {
+                        // Check if it was promoted to a real ID
+                        val promoted = list.find { it.prompt == curr.prompt && !it.id.startsWith("offline_") }
+                        if (promoted != null) {
+                            currentSession = promoted
+                        }
+                    }
                     }
                 }
             } finally {
@@ -317,6 +328,7 @@ fun JulesScreen(
                             currentSession!!.sessionState == "AWAITING_USER_FEEDBACK" -> "Waiting for you" to JulesAccent
                             currentSession!!.sessionState == "PLANNING" -> "Planning…" to JulesAccent
                             currentSession!!.sessionState == "QUEUED" -> "Queued…" to Color.White.copy(alpha = 0.6f)
+                            currentSession!!.sessionState == "QUEUED_OFFLINE" -> "Queued (Offline)" to Color.White.copy(alpha = 0.5f)
                             currentSession!!.sessionState == "PAUSED" -> "Paused" to Color.Yellow
                             else -> (if (hasOutput) "Output available" else "In progress") to (if (hasOutput) JulesAccent else Color.White.copy(alpha = 0.6f))
                         }
@@ -416,19 +428,22 @@ fun JulesScreen(
                                             (it as JulesChatItem.AgentMessage).id
                                         }
 
-                                        julesClient.sendMessage(apiKey, currentSession!!.id, prompt)
-                                        // Update lastUpdated locally/in DB when sending message
-                                        julesRepository.updateSessionLastUpdated(currentSession!!.id, System.currentTimeMillis())
+                                        julesRepository.sendMessage(apiKey, currentSession!!.id, prompt)
 
-                                        // Poll for response
-                                        repeat(10) {
-                                            kotlinx.coroutines.delay(2000)
-                                            refreshActivitiesInternal()
-                                            val newLastAgentMsg = chatItems.lastOrNull { it is JulesChatItem.AgentMessage } as? JulesChatItem.AgentMessage
-                                            if (newLastAgentMsg != null && newLastAgentMsg.id != oldLastId) {
-                                                voiceManager.speak(newLastAgentMsg.text)
-                                                return@repeat
+                                        if (isOnline && !currentSession!!.id.startsWith("offline_")) {
+                                            // Poll for response
+                                            repeat(10) {
+                                                kotlinx.coroutines.delay(2000)
+                                                refreshActivitiesInternal()
+                                                val newLastAgentMsg = chatItems.lastOrNull { it is JulesChatItem.AgentMessage } as? JulesChatItem.AgentMessage
+                                                if (newLastAgentMsg != null && newLastAgentMsg.id != oldLastId) {
+                                                    voiceManager.speak(newLastAgentMsg.text)
+                                                    return@repeat
+                                                }
                                             }
+                                        } else {
+                                            // Refresh immediately to show local user message
+                                            refreshActivitiesInternal()
                                         }
                                     } catch (e: Exception) {
                                         error = e.message ?: "Failed to send"
@@ -452,6 +467,7 @@ fun JulesScreen(
                     } else {
                         RepoAndSessionsContent(
                             apiKey = apiKey,
+                            isOnline = isOnline,
                             sessions = sessions,
                             selectedSourceName = selectedSourceName,
                             loading = loading,
@@ -465,32 +481,15 @@ fun JulesScreen(
                                     loading = true
                                     clearError()
                                     try {
-                                        val session = julesClient.createSession(
+                                        val sessionId = julesRepository.createSession(
                                             apiKey = apiKey,
                                             prompt = newSessionPrompt,
                                             source = source,
                                             title = newSessionPrompt.take(80)
                                         )
-                                        // Immediately get session to have the initial state (as createSession might have it as null or QUEUED)
-                                        val updatedSession = try {
-                                            julesClient.getSession(apiKey, session.id)
-                                        } catch (e: Exception) {
-                                            session
-                                        }
 
-                                        val entity = JulesSessionEntity(
-                                            id = updatedSession.id,
-                                            title = updatedSession.title,
-                                            prompt = updatedSession.prompt,
-                                            sourceName = source,
-                                            prUrl = updatedSession.outputs?.firstOrNull()?.pullRequest?.url,
-                                            prTitle = updatedSession.outputs?.firstOrNull()?.pullRequest?.title,
-                                            prState = null,
-                                            prMergeable = null,
-                                            sessionState = updatedSession.state,
-                                            isArchived = false,
-                                            lastUpdated = System.currentTimeMillis()
-                                        )
+                                        val entity = julesRepository.getSession(sessionId)
+
                                         newSessionPrompt = ""
                                         currentSession = entity
                                         loadSessions()
@@ -1226,6 +1225,7 @@ private fun InConversationContent(
 @Composable
 private fun RepoAndSessionsContent(
     apiKey: String,
+    isOnline: Boolean,
     sessions: List<JulesSessionEntity>,
     selectedSourceName: String?,
     loading: Boolean,
@@ -1307,7 +1307,7 @@ private fun RepoAndSessionsContent(
                                             showNewForm = false
                                         }
                                     },
-                                    enabled = newSessionPrompt.isNotBlank() && !loading && (quota == null || quota.used < quota.limit)
+                                    enabled = newSessionPrompt.isNotBlank() && !loading && (quota == null || (isOnline && quota.used < quota.limit) || !isOnline)
                                 ) { Text("Create") }
                             }
                         }
@@ -1435,6 +1435,7 @@ private fun SessionRow(
                 session.sessionState == "AWAITING_USER_FEEDBACK" -> "Waiting for you" to JulesAccent
                 session.sessionState == "PLANNING" -> "Planning…" to JulesAccent
                 session.sessionState == "QUEUED" -> "Queued…" to Color.White.copy(alpha = 0.6f)
+                session.sessionState == "QUEUED_OFFLINE" -> "Queued (Offline)" to Color.White.copy(alpha = 0.5f)
                 session.sessionState == "PAUSED" -> "Paused" to Color.Yellow
                 else -> (if (hasOutput) "Output available" else "In progress") to (if (hasOutput) JulesAccent else Color.White.copy(alpha = 0.6f))
             }

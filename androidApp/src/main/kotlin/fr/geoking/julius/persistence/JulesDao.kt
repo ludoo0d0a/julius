@@ -28,6 +28,18 @@ interface JulesDao {
     @Query("UPDATE jules_sessions SET lastUpdated = :lastUpdated WHERE id = :sessionId")
     suspend fun updateSessionLastUpdated(sessionId: String, lastUpdated: Long)
 
+    @Query("SELECT * FROM jules_sessions WHERE isPendingOffline = 1 ORDER BY queuedAt ASC")
+    suspend fun getPendingOfflineSessions(): List<JulesSessionEntity>
+
+    @Query("SELECT * FROM jules_activities WHERE isPendingOffline = 1 ORDER BY sortTimestamp ASC")
+    suspend fun getPendingOfflineActivities(): List<JulesActivityEntity>
+
+    @Query("DELETE FROM jules_sessions WHERE id = :sessionId")
+    suspend fun deleteSession(sessionId: String)
+
+    @Query("UPDATE jules_activities SET sessionId = :newSessionId WHERE sessionId = :oldSessionId")
+    suspend fun updateActivitiesSessionId(oldSessionId: String, newSessionId: String)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertActivities(activities: List<JulesActivityEntity>)
 

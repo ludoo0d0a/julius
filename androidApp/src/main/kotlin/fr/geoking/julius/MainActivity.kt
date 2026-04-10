@@ -750,6 +750,8 @@ private fun buildStartupErrorDetail(error: Throwable): String {
 @Preview(showBackground = true, backgroundColor = 0xFF0F172A)
 @Composable
 fun MainUIPreview() {
+    val context = LocalContext.current
+    val mockSettingsManager = rememberMockSettingsManager()
     val mockState = ConversationState(
         messages = emptyList(),
         status = VoiceEvent.Silence,
@@ -757,9 +759,6 @@ fun MainUIPreview() {
         lastError = null
     )
     val mockStore = rememberMockStore()
-    val mockSettingsManager = rememberMockSettingsManager()
-
-    val context = LocalContext.current
         val mockAuthManager = GoogleAuthManager(context, mockSettingsManager, { mockStore }, FirebaseAuth.getInstance())
 
     val mapDepsFlow = remember { MutableStateFlow<MapDeps?>(null) }
@@ -773,6 +772,7 @@ fun MainUIPreview() {
         julesClient = remember { JulesClient(HttpClient(OkHttp) {}) },
         julesRepository = remember {
             JulesRepository(
+                context,
                 JulesClient(HttpClient(OkHttp) {}),
                 GitHubClient(HttpClient(OkHttp) {}),
                 object : JulesDao {
@@ -783,10 +783,19 @@ fun MainUIPreview() {
                     override suspend fun updateSessionPrStatus(sessionId: String, state: String, mergeable: Boolean?) {}
                     override suspend fun updateSessionState(sessionId: String, state: String?) {}
                     override suspend fun updateSessionLastUpdated(sessionId: String, lastUpdated: Long) {}
+                    override suspend fun getPendingOfflineSessions(): List<JulesSessionEntity> = emptyList()
+                    override suspend fun getPendingOfflineActivities(): List<JulesActivityEntity> = emptyList()
+                    override suspend fun deleteSession(sessionId: String) {}
+                    override suspend fun updateActivitiesSessionId(oldSessionId: String, newSessionId: String) {}
                     override suspend fun insertActivities(activities: List<JulesActivityEntity>) {}
                     override suspend fun getActivitiesBySession(sessionId: String): List<JulesActivityEntity> = emptyList()
                     override suspend fun clearActivitiesBySession(sessionId: String) {}
-                }
+                },
+                object : NetworkService {
+                    override val status = MutableStateFlow(NetworkStatus())
+                    override suspend fun getCurrentStatus() = status.value
+                },
+                mockSettingsManager
             )
         },
         voiceManager = mockStore.voiceManager,
