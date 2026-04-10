@@ -127,13 +127,15 @@ class NativeMapPoiScreen(
         // PlaceListMapTemplate: loading and item list are mutually exclusive (see Builder.build()).
         if (isLoading) {
             return@safeCarTemplate PlaceListMapTemplate.Builder()
-                .setTitle("Nearby POIs")
+                .setTitle("Nearby Stations")
                 .setHeaderAction(Action.BACK)
                 .setActionStrip(actionStrip)
                 .setLoading(true)
                 .setAnchor(anchorPlace)
                 .build()
         }
+
+        val currentSettings = settingsManager.settings.value
 
         val itemListBuilder = ItemList.Builder()
             .setNoItemsMessage("No POIs found")
@@ -144,6 +146,20 @@ class NativeMapPoiScreen(
                 .setOnClickListener {
                     sortByPrice = !sortByPrice
                     invalidate()
+                }
+                .build()
+        )
+        val energyModeLabel = when {
+            currentSettings.selectedMapEnergyTypes.contains("electric") && (currentSettings.selectedMapEnergyTypes - "electric").isNotEmpty() -> "Hybrid"
+            currentSettings.selectedMapEnergyTypes.contains("electric") -> "Electric"
+            else -> "Fuel"
+        }
+        itemListBuilder.addItem(
+            androidx.car.app.model.Row.Builder()
+                .setTitle("Energy")
+                .addText(energyModeLabel)
+                .setOnClickListener {
+                    screenManager.push(AutoEnergyMenuScreen(carContext, settingsManager))
                 }
                 .build()
         )
@@ -164,8 +180,6 @@ class NativeMapPoiScreen(
                 }
                 .build()
         )
-
-        val currentSettings = settingsManager.settings.value
         val effectiveEnergies = currentSettings.effectiveMapEnergyFilterIds()
         val effectivePowerLevels = currentSettings.effectiveIrvePowerLevels()
 
@@ -218,7 +232,7 @@ class NativeMapPoiScreen(
         }
 
         PlaceListMapTemplate.Builder()
-            .setTitle("Nearby POIs")
+            .setTitle("Nearby Stations")
             .setHeaderAction(Action.BACK)
             .setActionStrip(actionStrip)
             .setLoading(false)

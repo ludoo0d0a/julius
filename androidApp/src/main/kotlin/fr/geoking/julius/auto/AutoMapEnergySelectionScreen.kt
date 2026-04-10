@@ -20,10 +20,14 @@ class AutoMapEnergySelectionScreen(
             listBuilder.addItem(
                 Row.Builder()
                     .setTitle(label)
-                    .addText(if (isSelected) "Enabled" else "Disabled")
                     .setToggle(
                         Toggle.Builder { checked ->
-                            val next = if (checked) setOf(id) else emptySet()
+                            val isHybrid = settings.selectedMapEnergyTypes.contains("electric")
+                            val next = if (checked) {
+                                if (isHybrid) setOf(id, "electric") else setOf(id)
+                            } else {
+                                if (isHybrid) setOf("electric") else emptySet()
+                            }
                             settingsManager.setMapEnergyTypes(next)
                             invalidate()
                         }.setChecked(isSelected).build()

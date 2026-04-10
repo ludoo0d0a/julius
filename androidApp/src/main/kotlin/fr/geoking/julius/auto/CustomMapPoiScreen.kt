@@ -337,7 +337,7 @@ class CustomMapPoiScreen(
                 )
                 .build()
 
-            val title = "Nearby POIs (Custom)"
+            val title = "Nearby Stations"
 
             if (isLoading) {
                 return MapWithContentTemplate.Builder()
@@ -351,18 +351,34 @@ class CustomMapPoiScreen(
                     .build()
             }
 
+            val currentSettings = settingsManager.settings.value
+
             // Build POI rows.
             val itemListBuilder = ItemList.Builder()
                 .setNoItemsMessage("No POIs found")
 
             // 1) Functional rows
-            var functionalRowCount = 2
+            var functionalRowCount = 3
             itemListBuilder.addItem(
                 androidx.car.app.model.Row.Builder()
                     .setTitle(if (sortByPrice) "Sort: Price" else "Sort: Distance")
                     .setOnClickListener {
                         sortByPrice = !sortByPrice
                         invalidate()
+                    }
+                    .build()
+            )
+            val energyModeLabel = when {
+                currentSettings.selectedMapEnergyTypes.contains("electric") && (currentSettings.selectedMapEnergyTypes - "electric").isNotEmpty() -> "Hybrid"
+                currentSettings.selectedMapEnergyTypes.contains("electric") -> "Electric"
+                else -> "Fuel"
+            }
+            itemListBuilder.addItem(
+                androidx.car.app.model.Row.Builder()
+                    .setTitle("Energy")
+                    .addText(energyModeLabel)
+                    .setOnClickListener {
+                        screenManager.push(AutoEnergyMenuScreen(carContext, settingsManager))
                     }
                     .build()
             )
@@ -385,7 +401,6 @@ class CustomMapPoiScreen(
             )
 
             // 2) Optional rows
-            val hasRoutePlanning = routePlanner != null && routingClient != null && tollCalculator != null && geocodingClient != null
             val hasCommunity = settingsManager.settings.value.isLoggedIn && communityRepo != null
             if (hasCommunity) {
                 functionalRowCount++
@@ -403,29 +418,7 @@ class CustomMapPoiScreen(
                         }
                         .build()
                 )
-            } else if (hasRoutePlanning) {
-                functionalRowCount++
-                itemListBuilder.addItem(
-                    androidx.car.app.model.Row.Builder()
-                        .setTitle("Plan route")
-                        .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_swap_horiz)).build())
-                        .setOnClickListener {
-                            screenManager.push(
-                                AutoRoutePlanningScreen(
-                                    carContext = carContext,
-                                    routePlanner = routePlanner,
-                                    routingClient = routingClient,
-                                    poiProvider = poiProvider,
-                                    geocodingClient = geocodingClient,
-                                    settingsManager = settingsManager
-                                )
-                            )
-                        }
-                        .build()
-                )
             }
-
-            val currentSettings = settingsManager.settings.value
             val effectiveEnergies = currentSettings.effectiveMapEnergyFilterIds()
             val effectivePowerLevels = currentSettings.effectiveIrvePowerLevels()
             val filteredPois = getFilteredPois(currentSettings)
