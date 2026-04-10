@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.content.Context
 import android.graphics.Paint
+import android.graphics.Rect
 import android.util.Log
 import android.util.LruCache
 import android.view.Surface
@@ -41,6 +42,13 @@ class AutoSurfaceRenderer(
     private var zoom: Int = 13
     private var userLat: Double? = null
     private var userLon: Double? = null
+    private var visibleArea: Rect? = null
+
+    private val centerPxX: Double
+        get() = visibleArea?.let { (it.left + it.right) / 2.0 } ?: (width / 2.0)
+
+    private val centerPxY: Double
+        get() = visibleArea?.let { (it.top + it.bottom) / 2.0 } ?: (height / 2.0)
 
     private var pois: List<Poi> = emptyList()
     private var effectiveEnergyTypes: Set<String> = emptySet()
@@ -77,6 +85,10 @@ class AutoSurfaceRenderer(
         userLon = newLon
     }
 
+    fun updateVisibleArea(area: Rect) {
+        visibleArea = area
+    }
+
     fun updatePois(
         newPois: List<Poi>,
         effectiveEnergyTypes: Set<String>,
@@ -108,17 +120,17 @@ class AutoSurfaceRenderer(
         val centerX = lonToTileX(lon, zoom)
         val centerY = latToTileY(lat, zoom)
 
-        val startTileX = floor(centerX - (width / 2.0) / tileSize).toInt()
-        val endTileX = ceil(centerX + (width / 2.0) / tileSize).toInt()
-        val startTileY = floor(centerY - (height / 2.0) / tileSize).toInt()
-        val endTileY = ceil(centerY + (height / 2.0) / tileSize).toInt()
+        val startTileX = floor(centerX - centerPxX / tileSize).toInt()
+        val endTileX = ceil(centerX + (width - centerPxX) / tileSize).toInt()
+        val startTileY = floor(centerY - centerPxY / tileSize).toInt()
+        val endTileY = ceil(centerY + (height - centerPxY) / tileSize).toInt()
 
         for (x in startTileX..endTileX) {
             for (y in startTileY..endTileY) {
                 val bitmap = getTile(x, y, zoom)
                 if (bitmap != null) {
-                    val drawX = ((x - centerX) * tileSize + width / 2.0).toFloat()
-                    val drawY = ((y - centerY) * tileSize + height / 2.0).toFloat()
+                    val drawX = ((x - centerX) * tileSize + centerPxX).toFloat()
+                    val drawY = ((y - centerY) * tileSize + centerPxY).toFloat()
                     canvas.drawBitmap(bitmap, drawX, drawY, null)
                 }
             }
@@ -136,8 +148,8 @@ class AutoSurfaceRenderer(
             val tileX = lonToTileX(poi.longitude, zoom)
             val tileY = latToTileY(poi.latitude, zoom)
 
-            val drawX = ((tileX - centerX) * tileSize + width / 2.0).toFloat()
-            val drawY = ((tileY - centerY) * tileSize + height / 2.0).toFloat()
+            val drawX = ((tileX - centerX) * tileSize + centerPxX).toFloat()
+            val drawY = ((tileY - centerY) * tileSize + centerPxY).toFloat()
 
             val bitmap = PoiMarkerHelper.getMarkerBitmap(
                 context = context,
@@ -171,8 +183,8 @@ class AutoSurfaceRenderer(
         val tileX = lonToTileX(uLon, zoom)
         val tileY = latToTileY(uLat, zoom)
 
-        val drawX = ((tileX - centerX) * tileSize + width / 2.0).toFloat()
-        val drawY = ((tileY - centerY) * tileSize + height / 2.0).toFloat()
+        val drawX = ((tileX - centerX) * tileSize + centerPxX).toFloat()
+        val drawY = ((tileY - centerY) * tileSize + centerPxY).toFloat()
 
         val radius = 16f
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
