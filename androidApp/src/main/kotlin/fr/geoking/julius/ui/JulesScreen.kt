@@ -35,6 +35,8 @@ import androidx.compose.material.icons.filled.Merge
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.CircularProgressIndicator
@@ -126,6 +128,7 @@ fun JulesScreen(
     var refreshing by remember { mutableStateOf(false) }
     var loadingSessions by remember { mutableStateOf(false) }
     var refreshingSessions by remember { mutableStateOf(false) }
+    var hideCompleted by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var inputText by remember { mutableStateOf("") }
     var newSessionPrompt by remember { mutableStateOf("") }
@@ -542,7 +545,9 @@ fun JulesScreen(
                             },
                             quota = quota,
                             isRefreshingSessions = refreshingSessions,
-                            onRefreshSessions = { loadSessions(isRefresh = true) }
+                            onRefreshSessions = { loadSessions(isRefresh = true) },
+                            hideCompleted = hideCompleted,
+                            onHideCompletedChange = { hideCompleted = it }
                         )
                     }
 
@@ -1240,9 +1245,22 @@ private fun RepoAndSessionsContent(
     onArchive: (JulesSessionEntity) -> Unit,
     quota: JulesQuota? = null,
     isRefreshingSessions: Boolean,
-    onRefreshSessions: () -> Unit
+    onRefreshSessions: () -> Unit,
+    hideCompleted: Boolean,
+    onHideCompletedChange: (Boolean) -> Unit
 ) {
     var showPrDetails by remember { mutableStateOf<GitHubClient.GitHubPullRequestDetail?>(null) }
+    val displaySessions = remember(sessions, hideCompleted) {
+        sessions
+            .filter { session ->
+                if (!hideCompleted) return@filter true
+                val isCompleted = session.prState == "merged" ||
+                                 session.prState == "closed" ||
+                                 session.sessionState == "COMPLETED"
+                !isCompleted
+            }
+            .sortedByDescending { it.lastUpdated }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1330,14 +1348,36 @@ private fun RepoAndSessionsContent(
                         }
                     }
 
-                    FilledTonalButton(
-                        onClick = { showNewForm = true },
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = JulesAccent.copy(alpha = 0.3f))
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
-                        Spacer(modifier = Modifier.size(8.dp))
-                        Text("New conversation")
+                        FilledTonalButton(
+                            onClick = { showNewForm = true },
+                            modifier = Modifier.weight(1f),
+                            colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = JulesAccent.copy(alpha = 0.3f))
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
+                            Spacer(modifier = Modifier.size(8.dp))
+                            Text("New conversation")
+                        }
+                        Spacer(modifier = Modifier.widthIn(8.dp))
+                        FilterChip(
+                            selected = hideCompleted,
+                            onClick = { onHideCompletedChange(!hideCompleted) },
+                            label = { Text("Hide completed", fontSize = 12.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                labelColor = Color.White.copy(alpha = 0.7f),
+                                selectedLabelColor = JulesAccent,
+                                selectedContainerColor = JulesAccent.copy(alpha = 0.1f)
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = hideCompleted,
+                                borderColor = Color.White.copy(alpha = 0.3f),
+                                selectedBorderColor = JulesAccent
+                            )
+                        )
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                 }
@@ -1347,16 +1387,17 @@ private fun RepoAndSessionsContent(
                 item {
                     Text("Loading conversations…", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
                 }
-            } else if (sessions.isEmpty()) {
+            } else if (displaySessions.isEmpty()) {
                 item {
                     Text(
-                        "No conversations yet for this repository. Tap \"New conversation\" to start.",
+                        if (hideCompleted && sessions.isNotEmpty()) "All conversations are completed."
+                        else "No conversations yet for this repository. Tap \"New conversation\" to start.",
                         color = Color.White.copy(alpha = 0.7f),
                         fontSize = 14.sp
                     )
                 }
             } else {
-                items(sessions) { session ->
+                items(displaySessions, key = { it.id }) { session ->
                     SessionRow(
                         session = session,
                         onClick = { onOpenSession(session) },
