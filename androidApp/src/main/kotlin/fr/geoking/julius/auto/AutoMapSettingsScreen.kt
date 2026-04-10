@@ -42,7 +42,7 @@ class AutoMapSettingsScreen(
         listBuilder.addItem(
             Row.Builder()
                 .setTitle("Show Traffic")
-                .addText("Google traffic layer")
+                .addText("Google & Custom maps")
                 .setToggle(
                     Toggle.Builder { checked ->
                         settingsManager.setMapTrafficEnabled(checked)

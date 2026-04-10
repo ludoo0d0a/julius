@@ -9,6 +9,8 @@ import android.graphics.Paint
 import android.util.Log
 import android.util.LruCache
 import android.view.Surface
+import fr.geoking.julius.api.traffic.TrafficEvent
+import fr.geoking.julius.api.traffic.TrafficSeverity
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.ui.map.MarkerStyle
 import fr.geoking.julius.ui.map.PoiMarkerHelper
@@ -30,10 +32,13 @@ class AutoSurfaceRenderer(
     private val width: Int,
     private val height: Int,
     /** XYZ raster tile URL; default is OSM. Lab screens may pass another template for contrast. */
-    private val tileUrl: (z: Int, x: Int, y: Int) -> String = { z, x, y ->
+    initialTileUrl: (z: Int, x: Int, y: Int) -> String = { z, x, y ->
         "https://tile.openstreetmap.org/$z/$x/$y.png"
     }
 ) {
+    @Volatile
+    private var tileUrl = initialTileUrl
+
     @Volatile
     private var running = true
     private var lat: Double = 48.8566
@@ -42,9 +47,14 @@ class AutoSurfaceRenderer(
     private var userLat: Double? = null
     private var userLon: Double? = null
 
+    @Volatile
     private var pois: List<Poi> = emptyList()
+    @Volatile
     private var effectiveEnergyTypes: Set<String> = emptySet()
+    @Volatile
     private var effectivePowerLevels: Set<Int> = emptySet()
+    @Volatile
+    private var trafficEvents: List<TrafficEvent> = emptyList()
 
     // Cache up to 50 tile bitmaps (approx 50 * 256*256*4 bytes ~ 12MB)
     private val tileCache = LruCache<String, Bitmap>(50)
@@ -54,6 +64,9 @@ class AutoSurfaceRenderer(
     private val executor = Executors.newFixedThreadPool(4)
 
     private val backgroundPaint = Paint().apply { color = Color.LTGRAY }
+    @Volatile
+    private var isDarkMode: Boolean = false
+
     private val drawThread = Thread(::runDrawLoop, "AutoSurfaceRenderer")
 
     fun start() {
@@ -87,17 +100,76 @@ class AutoSurfaceRenderer(
         this.effectivePowerLevels = effectivePowerLevels
     }
 
+    fun updateTraffic(events: List<TrafficEvent>) {
+        this.trafficEvents = events
+    }
+
+    fun updateTheme(isDarkMode: Boolean, newTileUrl: (z: Int, x: Int, y: Int) -> String) {
+        this.isDarkMode = isDarkMode
+        this.backgroundPaint.color = if (isDarkMode) Color.BLACK else Color.LTGRAY
+        this.tileUrl = newTileUrl
+        synchronized(tileCache) {
+            tileCache.evictAll()
+        }
+    }
+
     private fun runDrawLoop() {
         while (running) {
             val canvas = try { surface.lockCanvas(null) } catch (_: Exception) { null } ?: break
             try {
                 drawMap(canvas)
+                drawTraffic(canvas)
                 drawPois(canvas)
                 drawUserLocation(canvas)
             } finally {
                 try { surface.unlockCanvasAndPost(canvas) } catch (_: Exception) {}
             }
             try { Thread.sleep(100) } catch (_: InterruptedException) { break }
+        }
+    }
+
+    private fun drawTraffic(canvas: Canvas) {
+        val tileSize = 256
+        val centerX = lonToTileX(lon, zoom)
+        val centerY = latToTileY(lat, zoom)
+
+        trafficEvents.forEach { event ->
+            val bbox = event.bbox ?: return@forEach
+            val eLat = (bbox.latMin + bbox.latMax) / 2.0
+            val eLon = (bbox.lonMin + bbox.lonMax) / 2.0
+
+            val tileX = lonToTileX(eLon, zoom)
+            val tileY = latToTileY(eLat, zoom)
+
+            val drawX = ((tileX - centerX) * tileSize + width / 2.0).toFloat()
+            val drawY = ((tileY - centerY) * tileSize + height / 2.0).toFloat()
+
+            val pad = 40f
+            if (drawX < -pad || drawX > width + pad || drawY < -pad || drawY > height + pad) {
+                return@forEach
+            }
+
+            val color = when (event.severity) {
+                TrafficSeverity.Closure, TrafficSeverity.Accident -> Color.RED
+                TrafficSeverity.Congestion -> Color.rgb(255, 165, 0) // Orange
+                TrafficSeverity.Roadworks -> Color.YELLOW
+                TrafficSeverity.Normal -> Color.GREEN
+                else -> Color.GRAY
+            }
+
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                this.color = color
+                this.alpha = 180
+                this.style = Paint.Style.FILL
+            }
+            canvas.drawCircle(drawX, drawY, 12f, paint)
+
+            val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                this.color = Color.WHITE
+                this.style = Paint.Style.STROKE
+                this.strokeWidth = 2f
+            }
+            canvas.drawCircle(drawX, drawY, 12f, strokePaint)
         }
     }
 

@@ -3,6 +3,7 @@ package fr.geoking.julius.auto
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
 import android.util.Log
 import androidx.car.app.AppManager
@@ -38,6 +39,7 @@ class AutoLibreMapLabScreen(carContext: CarContext) : Screen(carContext), Surfac
     private var zoom = 12
     private var surfaceRenderer: AutoSurfaceRenderer? = null
     private var isLoading = true
+    private var isDarkMode = false
 
     init {
         lifecycle.addObserver(this)
@@ -73,6 +75,15 @@ class AutoLibreMapLabScreen(carContext: CarContext) : Screen(carContext), Surfac
         invalidate()
     }
 
+    private fun getTileUrlProvider(darkMode: Boolean): (Int, Int, Int) -> String {
+        return if (darkMode) {
+            { z, x, y -> "https://a.basemaps.cartocdn.com/rastertiles/dark_all/$z/$x/$y.png" }
+        } else {
+            // Carto Voyager raster — visually distinct from the OSM tiles used by [CustomMapPoiScreen].
+            { z, x, y -> "https://a.basemaps.cartocdn.com/rastertiles/voyager/$z/$x/$y.png" }
+        }
+    }
+
     override fun onSurfaceAvailable(surfaceContainer: SurfaceContainer) {
         surfaceRenderer?.stop()
         val surface = surfaceContainer.surface
@@ -86,17 +97,17 @@ class AutoLibreMapLabScreen(carContext: CarContext) : Screen(carContext), Surfac
             surfaceRenderer = null
             return
         }
-        // Carto Voyager raster — visually distinct from the OSM tiles used by [CustomMapPoiScreen].
-        val cartoVoyager: (Int, Int, Int) -> String = { z, x, y ->
-            "https://a.basemaps.cartocdn.com/rastertiles/voyager/$z/$x/$y.png"
-        }
+
+        isDarkMode = (carContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+
         surfaceRenderer = AutoSurfaceRenderer(
             carContext,
             surface,
             surfaceContainer.width,
             surfaceContainer.height,
-            tileUrl = cartoVoyager
+            initialTileUrl = getTileUrlProvider(isDarkMode)
         ).apply {
+            updateTheme(isDarkMode, getTileUrlProvider(isDarkMode))
             updateLocation(searchLat, searchLon, zoom)
             updateUserLocation(searchLat, searchLon)
             updatePois(emptyList(), emptySet(), emptySet())
@@ -119,6 +130,12 @@ class AutoLibreMapLabScreen(carContext: CarContext) : Screen(carContext), Surfac
     }
 
     override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoLibreMapLabScreen") {
+        val currentDarkMode = (carContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        if (currentDarkMode != isDarkMode) {
+            isDarkMode = currentDarkMode
+            surfaceRenderer?.updateTheme(isDarkMode, getTileUrlProvider(isDarkMode))
+        }
+
         val actionStrip = ActionStrip.Builder()
             .addAction(
                 Action.Builder()
