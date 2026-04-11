@@ -1,19 +1,26 @@
 package fr.geoking.julius.ui.components
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.LocalGasStation
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,13 +28,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import fr.geoking.julius.repository.DailyPricePoint
 import fr.geoking.julius.repository.FuelForecastUiState
+import fr.geoking.julius.repository.PredictionInfo
 import java.util.Locale
 import kotlin.math.max
 
@@ -52,7 +63,7 @@ fun FuelForecastCompactCard(
             if (isLoading && state.historyPoints.isEmpty()) {
                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
             } else {
-                androidx.compose.foundation.layout.Row(
+                Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -134,18 +145,37 @@ fun FuelForecastChartCard(
                     ForecastSparkline(
                         history = state.historyPoints,
                         forecast = state.forecastPoints,
+                        national = state.nationalHistoryPoints,
+                        market = state.marketHistoryPoints,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(140.dp)
+                            .height(180.dp)
                             .padding(top = 12.dp)
                     )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        LegendItem("Local", MaterialTheme.colorScheme.primary)
+                        LegendItem("National", MaterialTheme.colorScheme.secondary, isDashed = true)
+                        LegendItem("Brent (Trend)", Color(0xFFFFA000))
+                    }
+
+                    HorizontalDivider(Modifier.padding(vertical = 12.dp))
+
+                    TomorrowOutlook(state.nextDayPrediction)
+
                     val dir = state.directionUp
                     val score = state.marketScore
                     if (dir != null && score != null) {
                         Text(
-                            "Signal: ${if (dir) "upward pressure" else "no strong upward signal"} " +
+                            "Market signal: ${if (dir) "upward pressure" else "no strong upward signal"} " +
                                 "(score ${String.format(Locale.US, "%+.4f", score)})",
                             style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 8.dp)
                         )
                     }
@@ -156,19 +186,10 @@ fun FuelForecastChartCard(
                             String.format(Locale.US, "%.3f", mae)
                         } else "—"
                         Text(
-                            "7d accuracy (when targets realized): hit rate ${String.format(Locale.US, "%.0f", hit * 100)}% · MAE $maeStr €/L",
+                            "7d accuracy: hit rate ${String.format(Locale.US, "%.0f", hit * 100)}% · MAE $maeStr €/L",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                             modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                    val last = state.lastScoreDirectionCorrect
-                    if (last != null) {
-                        Text(
-                            "Last scored prediction: ${if (last) "direction OK" else "direction miss"}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 2.dp)
                         )
                     }
                 }
@@ -178,67 +199,187 @@ fun FuelForecastChartCard(
 }
 
 @Composable
+private fun LegendItem(label: String, color: Color, isDashed: Boolean = false) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(width = 16.dp, height = 2.dp)
+                .clip(MaterialTheme.shapes.extraSmall)
+                .background(color)
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun TomorrowOutlook(prediction: PredictionInfo?) {
+    Column {
+        Text(
+            "Tomorrow's Outlook",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Bold
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(top = 4.dp)
+        ) {
+            if (prediction != null) {
+                val color = if (prediction.directionUp) Color(0xFFE53935) else Color(0xFF43A047)
+                Icon(
+                    imageVector = if (prediction.directionUp) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "€%.3f".format(prediction.predictedPrice),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    text = "%+.2f%%".format(prediction.changePercentage),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = color,
+                    fontWeight = FontWeight.Medium
+                )
+            } else {
+                Text(
+                    "Prediction pending...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun ForecastSparkline(
     history: List<DailyPricePoint>,
     forecast: List<DailyPricePoint>,
+    national: List<DailyPricePoint>,
+    market: List<DailyPricePoint>,
     modifier: Modifier = Modifier
 ) {
     val histColor = MaterialTheme.colorScheme.primary
-    val foreColor = MaterialTheme.colorScheme.tertiary
-    val gridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+    val foreColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+    val natColor = MaterialTheme.colorScheme.secondary
+    val mktColor = Color(0xFFFFA000)
+    val gridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
 
     val histSorted = history.sortedBy { it.day }
     val foreSorted = forecast.sortedBy { it.day }
-    val allPrices = histSorted.map { it.priceEurPerL } + foreSorted.map { it.priceEurPerL }
+    val natSorted = national.sortedBy { it.day }
+    val mktSorted = market.sortedBy { it.day }
+
+    // All unique dates across all series (including history, forecast, and others)
+    val allDays = (histSorted.map { it.day } +
+            foreSorted.map { it.day } +
+            natSorted.map { it.day } +
+            mktSorted.map { it.day }).distinct().sorted()
+
+    if (allDays.isEmpty()) return
+
+    val allPrices = (histSorted + foreSorted + natSorted).map { it.priceEurPerL }
     val yMin = allPrices.minOrNull() ?: 1.5
     val yMax = allPrices.maxOrNull() ?: 2.0
-    val pad = max(0.02, (yMax - yMin) * 0.12)
+    val pad = max(0.02, (yMax - yMin) * 0.15)
     val ymin = yMin - pad
     val ymax = yMax + pad
+
+    // Brent scaling: fit market series into the same Y range as fuel prices
+    val mktPrices = mktSorted.map { it.priceEurPerL }
+    val mktMin = mktPrices.minOrNull() ?: 0.0
+    val mktMax = mktPrices.maxOrNull() ?: 1.0
+    val mktRange = (mktMax - mktMin).coerceAtLeast(0.001)
 
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
-        val total = histSorted.size + foreSorted.size
-        val denom = (max(2, total) - 1).coerceAtLeast(1)
+        val denom = (max(2, allDays.size) - 1).coerceAtLeast(1)
 
-        fun xFor(globalIndex: Int): Float {
-            if (total <= 1) return w / 2f
-            return w * (globalIndex / denom.toFloat()).coerceIn(0f, 1f)
+        fun xForDay(day: String): Float {
+            val i = allDays.indexOf(day)
+            if (i < 0) return 0f
+            return w * (i / denom.toFloat()).coerceIn(0f, 1f)
         }
         fun yFor(p: Double): Float {
             val t = ((p - ymin) / (ymax - ymin)).coerceIn(0.0, 1.0)
             return h - t.toFloat() * h
         }
+        fun yForMarket(p: Double): Float {
+            val normalized = (p - mktMin) / mktRange
+            // Use 80% of the chart height for the market trend to avoid overlap with edges
+            val t = 0.1 + normalized * 0.8
+            return h - t.toFloat() * h
+        }
 
-        drawLine(gridColor, Offset(0f, h * 0.5f), Offset(w, h * 0.5f), strokeWidth = 1f)
+        // Grid
+        for (i in 0..4) {
+            val y = h * (i / 4f)
+            drawLine(gridColor, Offset(0f, y), Offset(w, y), strokeWidth = 1f)
+        }
 
-        if (histSorted.size >= 2) {
+        // 1. Market (Brent) - Orange, subtle trend
+        if (mktSorted.size >= 2) {
             val path = Path()
-            histSorted.forEachIndexed { i, pt ->
-                val x = xFor(i)
+            mktSorted.forEachIndexed { i, pt ->
+                val x = xForDay(pt.day)
+                val y = yForMarket(pt.priceEurPerL)
+                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            drawPath(path, mktColor, alpha = 0.6f, style = Stroke(width = 4f, cap = StrokeCap.Round))
+        }
+
+        // 2. National Average - Dashed secondary
+        if (natSorted.size >= 2) {
+            val path = Path()
+            natSorted.forEachIndexed { i, pt ->
+                val x = xForDay(pt.day)
                 val y = yFor(pt.priceEurPerL)
                 if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
             }
-            drawPath(path, histColor, style = Stroke(width = 3f, cap = StrokeCap.Round))
-            histSorted.forEachIndexed { i, pt ->
-                drawCircle(histColor, radius = 4f, center = Offset(xFor(i), yFor(pt.priceEurPerL)))
-            }
-        } else if (histSorted.size == 1) {
-            drawCircle(histColor, radius = 5f, center = Offset(xFor(0), yFor(histSorted[0].priceEurPerL)))
+            drawPath(
+                path, natColor,
+                style = Stroke(
+                    width = 3f,
+                    cap = StrokeCap.Round,
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+                )
+            )
         }
 
+        // 3. Local History - Solid primary
+        if (histSorted.size >= 2) {
+            val path = Path()
+            histSorted.forEachIndexed { i, pt ->
+                val x = xForDay(pt.day)
+                val y = yFor(pt.priceEurPerL)
+                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            drawPath(path, histColor, style = Stroke(width = 6f, cap = StrokeCap.Round))
+            histSorted.forEach { pt ->
+                drawCircle(histColor, radius = 5f, center = Offset(xForDay(pt.day), yFor(pt.priceEurPerL)))
+            }
+        } else if (histSorted.size == 1) {
+            drawCircle(histColor, radius = 6f, center = Offset(xForDay(histSorted[0].day), yFor(histSorted[0].priceEurPerL)))
+        }
+
+        // 4. Forecast - Thinner or dotted primary
         if (foreSorted.isNotEmpty()) {
             val pathF = Path()
             var started = false
-            val startG = max(0, histSorted.size - 1)
             if (histSorted.isNotEmpty()) {
-                pathF.moveTo(xFor(startG), yFor(histSorted.last().priceEurPerL))
+                pathF.moveTo(xForDay(histSorted.last().day), yFor(histSorted.last().priceEurPerL))
                 started = true
             }
             foreSorted.forEachIndexed { i, pt ->
-                val g = histSorted.size + i
-                val x = xFor(g)
+                val x = xForDay(pt.day)
                 val y = yFor(pt.priceEurPerL)
                 if (!started) {
                     pathF.moveTo(x, y)
@@ -247,10 +388,9 @@ private fun ForecastSparkline(
                     pathF.lineTo(x, y)
                 }
             }
-            drawPath(pathF, foreColor, style = Stroke(width = 3f, cap = StrokeCap.Round))
-            foreSorted.forEachIndexed { i, pt ->
-                val g = histSorted.size + i
-                drawCircle(foreColor, radius = 5f, center = Offset(xFor(g), yFor(pt.priceEurPerL)))
+            drawPath(pathF, foreColor, style = Stroke(width = 4f, cap = StrokeCap.Round))
+            foreSorted.forEach { pt ->
+                drawCircle(foreColor, radius = 4f, center = Offset(xForDay(pt.day), yFor(pt.priceEurPerL)))
             }
         }
     }
