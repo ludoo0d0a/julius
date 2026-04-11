@@ -204,11 +204,57 @@ class DataGouvPrixCarburantClient(
         return list
     }
 
+    /**
+     * Fetches national fuel price averages per day for the last [days] days.
+     * Uses the "Prix des carburants en France - Flux quotidien" dataset.
+     * Returns a map of fuel name to a list of daily average points.
+     */
+    suspend fun getNationalAverages(days: Int = 30): Map<String, List<DataGouvNationalAvgPoint>> {
+        val baseUrl = "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-carburants-quotidien"
+        val limit = (days * 7).coerceAtMost(100) // approx 7 fuel types
+        val url = "$baseUrl/records?group_by=year(prix_maj),month(prix_maj),day(prix_maj),prix_nom" +
+                "&select=avg(prix_valeur)" +
+                "&where=prix_maj%20%3C%20now()" +
+                "&order_by=year(prix_maj)%20desc,month(prix_maj)%20desc,day(prix_maj)%20desc" +
+                "&limit=$limit"
+
+        val response = client.get(url)
+        val body = response.bodyAsText()
+        if (response.status.value != 200) {
+            throw NetworkException(response.status.value, "National averages API error: $body")
+        }
+
+        val element = json.parseToJsonElement(body)
+        val results = element.jsonObject["results"]?.jsonArray ?: return emptyMap()
+
+        val out = mutableMapOf<String, MutableList<DataGouvNationalAvgPoint>>()
+        for (item in results) {
+            val obj = item.jsonObject
+            val y = obj["year(prix_maj)"]?.jsonPrimitive?.contentOrNull ?: continue
+            val m = obj["month(prix_maj)"]?.jsonPrimitive?.contentOrNull ?: continue
+            val d = obj["day(prix_maj)"]?.jsonPrimitive?.contentOrNull ?: continue
+            val fuel = obj["prix_nom"]?.jsonPrimitive?.contentOrNull ?: continue
+            val avg = obj["avg(prix_valeur)"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull() ?: continue
+
+            val monthStr = m.toInt().toString().let { if (it.length == 1) "0$it" else it }
+            val dayStr = d.toInt().toString().let { if (it.length == 1) "0$it" else it }
+            val date = "$y-$monthStr-$dayStr"
+            out.getOrPut(fuel) { mutableListOf() }.add(DataGouvNationalAvgPoint(date, avg))
+        }
+        return out.mapValues { it.value.sortedBy { p -> p.day } }
+    }
+
     companion object {
         const val DEFAULT_BASE_URL =
             "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2"
     }
 }
+
+@Serializable
+data class DataGouvNationalAvgPoint(
+    val day: String,
+    val avgPrice: Double
+)
 
 @Serializable
 data class DataGouvPrixCarburantStation(

@@ -1,5 +1,6 @@
 package fr.geoking.julius.repository
 
+import fr.geoking.julius.api.datagouv.DataGouvNationalAvgPoint
 import fr.geoking.julius.api.datagouv.DataGouvPrixCarburantClient
 import fr.geoking.julius.api.datagouv.DataGouvPrixCarburantStation
 import fr.geoking.julius.fuelforecast.DailyClose
@@ -134,6 +135,12 @@ class FuelForecastRepository(
             }
         }
 
+        val nationalAvgs = try {
+            prix.getNationalAverages(14)
+        } catch (_: Exception) {
+            emptyMap()
+        }
+
         scorePendingPredictions(today)
 
         val resultMap = mutableMapOf<String, FuelForecastUiState>()
@@ -154,12 +161,34 @@ class FuelForecastRepository(
                 DailyPricePoint(day = p.targetDay, priceEurPerL = p.predictedPrice, isForecast = true)
             }
 
+            val nextDayPred = predictions.find { it.horizonDays == 1 }
+            val predictionInfo = if (nextDayPred != null && baseline != null) {
+                val diff = nextDayPred.predictedPrice - baseline
+                val pct = (diff / baseline) * 100.0
+                PredictionInfo(
+                    predictedPrice = nextDayPred.predictedPrice,
+                    changePercentage = pct,
+                    directionUp = nextDayPred.predictedUp
+                )
+            } else null
+
             val score = predictions.firstOrNull()?.marketScore
             val up = predictions.firstOrNull()?.predictedUp
 
             val accFrom = LocalDate.parse(today).minusDays(7).toString()
             val accRow = scoreDao.accuracySince(fuel, locKey, accFrom)
             val lastScore = scoreDao.latestScoreForLocation(fuel, locKey)
+
+            val nationalHistory = nationalAvgs[fuelIdToNationalName(fuel)]?.map {
+                DailyPricePoint(day = it.day, priceEurPerL = it.avgPrice, isForecast = false)
+            } ?: emptyList()
+
+            val brentHistory = brent.map {
+                // Approximate Brent in EUR/L for scale comparison, though we scale in UI too
+                val rate = fx.lastOrNull()?.close ?: 1.08
+                // 1 bbl = 159 liters. Price is in USD.
+                DailyPricePoint(day = it.day, priceEurPerL = (it.close / rate) / 159.0, isForecast = false)
+            }
 
             val error = if (stationPricesForFuel(stations, fuel).isEmpty()) {
                 "No pump prices for $fuel nearby. Try again later."
@@ -172,6 +201,9 @@ class FuelForecastRepository(
                 locationKey = locKey,
                 historyPoints = history,
                 forecastPoints = forecastPoints,
+                nationalHistoryPoints = nationalHistory,
+                marketHistoryPoints = brentHistory,
+                nextDayPrediction = predictionInfo,
                 marketScore = score,
                 directionUp = up,
                 accuracyHitRate7d = accRow?.hitRate,
@@ -182,6 +214,16 @@ class FuelForecastRepository(
         }
 
         return resultMap
+    }
+
+    private fun fuelIdToNationalName(id: String) = when (id) {
+        "gazole" -> "Gazole"
+        "sp95" -> "SP95"
+        "sp98" -> "SP98"
+        "gplc" -> "GPLc"
+        "e85" -> "E85"
+        "e10" -> "E10"
+        else -> id
     }
 
     private suspend fun persistPredictions(
@@ -286,11 +328,20 @@ data class DailyPricePoint(
     val isForecast: Boolean
 )
 
+data class PredictionInfo(
+    val predictedPrice: Double,
+    val changePercentage: Double,
+    val directionUp: Boolean
+)
+
 data class FuelForecastUiState(
     val fuelId: String,
     val locationKey: String,
     val historyPoints: List<DailyPricePoint> = emptyList(),
     val forecastPoints: List<DailyPricePoint> = emptyList(),
+    val nationalHistoryPoints: List<DailyPricePoint> = emptyList(),
+    val marketHistoryPoints: List<DailyPricePoint> = emptyList(),
+    val nextDayPrediction: PredictionInfo? = null,
     val marketScore: Double? = null,
     val directionUp: Boolean? = null,
     val accuracyHitRate7d: Double? = null,
