@@ -1,5 +1,6 @@
 package fr.geoking.julius
 
+import fr.geoking.julius.parking.ParkingRegion
 import fr.geoking.julius.poi.MapPoiFilter
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiProviderType
@@ -50,7 +51,30 @@ fun AppSettings.effectiveIrveOperatorFilter(): Set<String> {
     }
 }
 
-fun AppSettings.effectiveProviders(): Set<PoiProviderType> = selectedPoiProviders
+fun AppSettings.effectiveProviders(
+    latitude: Double? = null,
+    longitude: Double? = null,
+    zoom: Float? = null
+): Set<PoiProviderType> {
+    if (!autoPoiProvidersEnabled) return selectedPoiProviders
+
+    // If zoom is too high (zoomed out), avoid loading too many POIs.
+    // Zoom 11 is approximately 20-40km wide on a phone, seems like a good limit.
+    if (zoom != null && zoom < 11f) return emptySet()
+
+    if (latitude == null || longitude == null) return selectedPoiProviders
+
+    // Tolerance: 50km radius to catch cross-border stations
+    val nearbyRegions = ParkingRegion.regionsInRadius(latitude, longitude, 50.0)
+    val nearbyCountryCodes = nearbyRegions.map { it.countryCode }.toSet()
+
+    return PoiProviderType.entries.filter { type ->
+        type.eligibleToAuto && (
+            type.supportedCountries.isEmpty() || // Global providers
+            type.supportedCountries.any { it in nearbyCountryCodes }
+        )
+    }.toSet()
+}
 
 fun Set<PoiProviderType>.isOnlyOverpass(): Boolean =
     isNotEmpty() && all { it == PoiProviderType.Overpass }

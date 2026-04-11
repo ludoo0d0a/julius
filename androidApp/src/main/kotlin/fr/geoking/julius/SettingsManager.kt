@@ -226,7 +226,9 @@ data class AppSettings(
     /** Radius in meters to search for stations along a route. */
     val routeStationSearchRadiusMeters: Int = 2000,
     /** When true, only show stations explicitly marked as on highway/autoroute. */
-    val filterOnlyHighwayStations: Boolean = false
+    val filterOnlyHighwayStations: Boolean = false,
+    /** When true, providers are automatically selected based on user location. */
+    val autoPoiProvidersEnabled: Boolean = true
 )
 
 open class SettingsManager(
@@ -283,6 +285,7 @@ open class SettingsManager(
         }
         val routeStationSearchRadiusMeters = prefs.getInt("route_station_search_radius_meters", 2000).coerceIn(0, 2000)
         val filterOnlyHighwayStations = prefs.getBoolean("filter_only_highway_stations", false)
+        val autoPoiProvidersEnabled = prefs.getBoolean("auto_poi_providers_enabled", true)
 
         // Persist build-time keys (from env/local.properties) when prefs were empty so they show in settings and are reused
         persistBuildTimeKeysIfUsed(
@@ -538,7 +541,8 @@ open class SettingsManager(
             isLoggedIn = isLoggedIn,
             routeHistory = routeHistory,
             routeStationSearchRadiusMeters = routeStationSearchRadiusMeters,
-            filterOnlyHighwayStations = filterOnlyHighwayStations
+            filterOnlyHighwayStations = filterOnlyHighwayStations,
+            autoPoiProvidersEnabled = autoPoiProvidersEnabled
         )
     }
 
@@ -755,6 +759,11 @@ open class SettingsManager(
         _settings.value = _settings.value.copy(filterOnlyHighwayStations = value)
     }
 
+    open fun setAutoPoiProvidersEnabled(value: Boolean) {
+        prefs.edit().putBoolean("auto_poi_providers_enabled", value).apply()
+        _settings.value = _settings.value.copy(autoPoiProvidersEnabled = value)
+    }
+
     /** Local rating for a POI (1–5). No backend; stored in SharedPreferences. */
     open fun getPoiRating(poiId: String): Int? {
         val v = prefs.getInt("poi_rating_$poiId", -1)
@@ -875,6 +884,7 @@ open class SettingsManager(
             .putString("route_history", Json.encodeToString(settings.routeHistory))
             .putInt("route_station_search_radius_meters", settings.routeStationSearchRadiusMeters.coerceIn(0, 2000))
             .putBoolean("filter_only_highway_stations", settings.filterOnlyHighwayStations)
+            .putBoolean("auto_poi_providers_enabled", settings.autoPoiProvidersEnabled)
             .apply()
 
         // Update StateFlow immediately with the new values to ensure UI and agent switching update right away
@@ -994,7 +1004,8 @@ open class SettingsManager(
             isLoggedIn = _settings.value.isLoggedIn,
             routeHistory = _settings.value.routeHistory,
             routeStationSearchRadiusMeters = _settings.value.routeStationSearchRadiusMeters,
-            filterOnlyHighwayStations = _settings.value.filterOnlyHighwayStations
+            filterOnlyHighwayStations = _settings.value.filterOnlyHighwayStations,
+            autoPoiProvidersEnabled = _settings.value.autoPoiProvidersEnabled
         )
         saveSettings(newSettings)
     }

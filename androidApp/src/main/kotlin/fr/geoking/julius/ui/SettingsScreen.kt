@@ -52,6 +52,7 @@ import fr.geoking.julius.feature.auth.GoogleAuthManager
 import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.poi.anyProvidesElectric
 import fr.geoking.julius.poi.isUserSelectablePoiDataSource
+import androidx.compose.foundation.Canvas
 import fr.geoking.julius.TextAnimation
 import fr.geoking.julius.CacheManager
 import fr.geoking.julius.BuildConfig
@@ -344,7 +345,36 @@ private fun MapConfig(
 
         // Data Sources
         Column {
-            Text("Data Sources", color = Lavender, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Data Sources", color = Lavender, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Auto mode", color = Lavender, fontSize = 14.sp, modifier = Modifier.padding(end = 8.dp))
+                    Switch(
+                        checked = settings.autoPoiProvidersEnabled,
+                        onCheckedChange = { onUpdate(settings.copy(autoPoiProvidersEnabled = it)) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Lavender,
+                            checkedTrackColor = DeepPurple,
+                            uncheckedThumbColor = Color.Gray,
+                            uncheckedTrackColor = Color.DarkGray
+                        )
+                    )
+                }
+            }
+            if (settings.autoPoiProvidersEnabled) {
+                Text(
+                    "Providers are selected automatically based on your location.",
+                    color = Lavender.copy(alpha = 0.7f),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                )
+            } else {
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             Text("Electric", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
             FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -354,18 +384,31 @@ private fun MapConfig(
                     PoiProviderType.OpenChargeMap to "OpenChargeMap"
                 ).forEach { (type, label) ->
                     FilterChip(
-                        selected = settings.selectedPoiProviders.contains(type),
+                        selected = if (settings.autoPoiProvidersEnabled) type.eligibleToAuto else settings.selectedPoiProviders.contains(type),
                         onClick = {
-                            val next = if (settings.selectedPoiProviders.contains(type)) settings.selectedPoiProviders - type else settings.selectedPoiProviders + type
-                            onUpdate(settings.copy(selectedPoiProviders = next))
+                            if (!settings.autoPoiProvidersEnabled) {
+                                val next = if (settings.selectedPoiProviders.contains(type)) settings.selectedPoiProviders - type else settings.selectedPoiProviders + type
+                                onUpdate(settings.copy(selectedPoiProviders = next))
+                            }
                         },
-                        label = { Text(label) },
+                        label = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(label)
+                                if (type.eligibleToAuto) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Canvas(modifier = Modifier.size(6.dp)) {
+                                        drawCircle(color = if (settings.autoPoiProvidersEnabled) DeepPurple else Lavender)
+                                    }
+                                }
+                            }
+                        },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = Lavender,
                             selectedLabelColor = DeepPurple,
                             labelColor = Color.White,
                             containerColor = Color.White.copy(alpha = 0.1f)
-                        )
+                        ),
+                        enabled = !settings.autoPoiProvidersEnabled || type.eligibleToAuto
                     )
                 }
             }
@@ -385,18 +428,31 @@ private fun MapConfig(
                     PoiProviderType.BelgiumOfficial to "Belgium (official)"
                 ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }.forEach { (type, label) ->
                     FilterChip(
-                        selected = settings.selectedPoiProviders.contains(type),
+                        selected = if (settings.autoPoiProvidersEnabled) type.eligibleToAuto else settings.selectedPoiProviders.contains(type),
                         onClick = {
-                            val next = if (settings.selectedPoiProviders.contains(type)) settings.selectedPoiProviders - type else settings.selectedPoiProviders + type
-                            onUpdate(settings.copy(selectedPoiProviders = next))
+                            if (!settings.autoPoiProvidersEnabled) {
+                                val next = if (settings.selectedPoiProviders.contains(type)) settings.selectedPoiProviders - type else settings.selectedPoiProviders + type
+                                onUpdate(settings.copy(selectedPoiProviders = next))
+                            }
                         },
-                        label = { Text(label) },
+                        label = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(label)
+                                if (type.eligibleToAuto) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Canvas(modifier = Modifier.size(6.dp)) {
+                                        drawCircle(color = if (settings.autoPoiProvidersEnabled) DeepPurple else Lavender)
+                                    }
+                                }
+                            }
+                        },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = Lavender,
                             selectedLabelColor = DeepPurple,
                             labelColor = Color.White,
                             containerColor = Color.White.copy(alpha = 0.1f)
-                        )
+                        ),
+                        enabled = !settings.autoPoiProvidersEnabled || type.eligibleToAuto
                     )
                 }
             }

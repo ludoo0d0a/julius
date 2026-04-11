@@ -72,26 +72,28 @@ enum class PoiCategory {
 enum class PoiProviderType(
     val providesFuel: Boolean = false,
     val providesElectric: Boolean = false,
+    val eligibleToAuto: Boolean = true,
+    val supportedCountries: Set<String> = emptySet(),
 ) {
-    Routex(providesFuel = true),
-    Etalab(providesFuel = true),
-    GasApi(providesFuel = true),
-    DataGouv(providesFuel = true),
-    DataGouvElec(providesElectric = true),
+    Routex(providesFuel = true, eligibleToAuto = false),
+    Etalab(providesFuel = true, eligibleToAuto = false),
+    GasApi(providesFuel = true, supportedCountries = setOf("FR")),
+    DataGouv(providesFuel = true, supportedCountries = setOf("FR")),
+    DataGouvElec(providesElectric = true, supportedCountries = setOf("FR")),
     OpenChargeMap(providesElectric = true),
-    Chargy(providesElectric = true),
+    Chargy(providesElectric = true, supportedCountries = setOf("LU")),
     /** Luxembourg OSM fuel + OpenVan.camp weekly reference prices (CC BY 4.0). */
-    OpenVanCamp(providesFuel = true),
+    OpenVanCamp(providesFuel = true, supportedCountries = setOf("LU", "ME", "MK", "HR", "SI", "BE")),
     /** Spanish government fuel prices (Minetur). */
-    SpainMinetur(providesFuel = true),
+    SpainMinetur(providesFuel = true, supportedCountries = setOf("ES")),
     /** German fuel prices via Tankerkönig (MTS-K). */
-    GermanyTankerkoenig(providesFuel = true),
+    GermanyTankerkoenig(providesFuel = true, supportedCountries = setOf("DE")),
     /** Austrian fuel prices via E-Control. */
-    AustriaEControl(providesFuel = true),
+    AustriaEControl(providesFuel = true, supportedCountries = setOf("AT")),
     /** Belgian official maximum fuel prices. */
-    BelgiumOfficial(providesFuel = true),
+    BelgiumOfficial(providesFuel = true, supportedCountries = setOf("BE")),
     Overpass,
-    Hybrid(providesFuel = true, providesElectric = true),
+    Hybrid(providesFuel = true, providesElectric = true, supportedCountries = setOf("FR")),
 }
 
 private val POI_DATA_SOURCES_DISABLED_FOR_USER_SELECTION: Set<PoiProviderType> = emptySet()
