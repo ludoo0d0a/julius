@@ -121,6 +121,10 @@ enum class ParkingRegion(
     fun contains(lat: Double, lon: Double): Boolean =
         lat in latMin..latMax && lon in lonMin..lonMax
 
+    fun intersects(latMin: Double, latMax: Double, lonMin: Double, lonMax: Double): Boolean {
+        return !(latMax < this.latMin || latMin > this.latMax || lonMax < this.lonMin || lonMin > this.lonMax)
+    }
+
     companion object {
         /** Order: smaller / more specific regions first so e.g. Luxembourg is chosen over Germany. */
         private val bySpecificity = listOf(
@@ -132,5 +136,18 @@ enum class ParkingRegion(
         /** Returns the region containing (lat, lon), or null if none. */
         fun containing(lat: Double, lon: Double): ParkingRegion? =
             bySpecificity.firstOrNull { it.contains(lat, lon) }
+
+        /** Returns all regions within [radiusKm] of ([lat], [lon]). Uses a simple bounding box for efficiency. */
+        fun regionsInRadius(lat: Double, lon: Double, radiusKm: Double): List<ParkingRegion> {
+            val latDelta = radiusKm / 111.0
+            val lonDelta = radiusKm / (111.0 * kotlin.math.cos(lat * kotlin.math.PI / 180.0))
+
+            val minLat = lat - latDelta
+            val maxLat = lat + latDelta
+            val minLon = lon - lonDelta
+            val maxLon = lon + lonDelta
+
+            return entries.filter { it.intersects(minLat, maxLat, minLon, maxLon) }
+        }
     }
 }
