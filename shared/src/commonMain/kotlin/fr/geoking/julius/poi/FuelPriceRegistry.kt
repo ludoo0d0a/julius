@@ -22,8 +22,20 @@ object FuelPriceRegistry {
      * - SE: Sweden (official reference prices)
      * - DK: Denmark (official reference prices)
      * - FI: Finland (official reference prices)
+     * - NO: Norway (official reference prices)
+     * - PL: Poland (official reference prices)
+     * - HU: Hungary (official reference prices)
+     * - IE: Ireland (official reference prices)
+     * - GR: Greece (official reference prices)
+     * - RO: Romania (official reference prices)
+     * - CZ: Czechia (official reference prices)
+     * - SK: Slovakia (official reference prices)
+     * - BG: Bulgaria (official reference prices)
      */
-    val REFERENCE_PRICE_COUNTRIES = setOf("LU", "ME", "MK", "HR", "SI", "BE", "PT", "PT-MA", "PT-AC", "IT", "SE", "DK", "FI")
+    val REFERENCE_PRICE_COUNTRIES = setOf(
+        "LU", "ME", "MK", "HR", "SI", "BE", "PT", "PT-MA", "PT-AC", "IT", "SE", "DK", "FI",
+        "NO", "PL", "HU", "IE", "GR", "RO", "CZ", "SK", "BG"
+    )
 
     /**
      * Returns true if the given country code has a reference fuel price available.

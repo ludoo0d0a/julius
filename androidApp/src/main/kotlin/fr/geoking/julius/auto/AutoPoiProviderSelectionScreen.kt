@@ -20,7 +20,7 @@ class AutoPoiProviderSelectionScreen(
         PoiProviderType.DataGouvElec to "data.gouv.fr (EV)",
         PoiProviderType.OpenChargeMap to "Open Charge Map",
         PoiProviderType.Chargy to "Chargy (Luxembourg)",
-        PoiProviderType.OpenVanCamp to "OpenVan.camp (LU, HR, SI...)",
+        PoiProviderType.OpenVanCamp to "OpenVan.camp (Europe-wide)",
         PoiProviderType.SpainMinetur to "Spain Minetur (official)",
         PoiProviderType.GermanyTankerkoenig to "Tankerkönig (Germany)",
         PoiProviderType.AustriaEControl to "E-Control (Austria)",

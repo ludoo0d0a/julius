@@ -421,7 +421,7 @@ private fun MapConfig(
                     PoiProviderType.Etalab to "Prix carburant (France official)",
                     PoiProviderType.GasApi to "gas-api.ovh",
                     PoiProviderType.DataGouv to "data.gouv (France official)",
-                    PoiProviderType.OpenVanCamp to "OpenVan.camp (LU, HR, SI...)",
+                    PoiProviderType.OpenVanCamp to "OpenVan.camp (Europe-wide)",
                     PoiProviderType.SpainMinetur to "Spain Minetur (official)",
                     PoiProviderType.GermanyTankerkoenig to "Tankerkönig (Germany)",
                     PoiProviderType.AustriaEControl to "E-Control (Austria)",

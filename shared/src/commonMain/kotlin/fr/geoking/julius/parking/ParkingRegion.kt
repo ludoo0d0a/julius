@@ -137,6 +137,83 @@ enum class ParkingRegion(
         lonMin = -31.35,
         lonMax = -24.95,
         countryCode = "PT-AC"
+    ),
+    Norway(
+        latMin = 57.90,
+        latMax = 71.20,
+        lonMin = 4.90,
+        lonMax = 31.30,
+        countryCode = "NO"
+    ),
+    Sweden(
+        latMin = 55.30,
+        latMax = 69.20,
+        lonMin = 11.00,
+        lonMax = 24.20,
+        countryCode = "SE"
+    ),
+    Finland(
+        latMin = 59.80,
+        latMax = 70.20,
+        lonMin = 19.10,
+        lonMax = 31.60,
+        countryCode = "FI"
+    ),
+    Poland(
+        latMin = 49.00,
+        latMax = 54.90,
+        lonMin = 14.00,
+        lonMax = 24.20,
+        countryCode = "PL"
+    ),
+    Hungary(
+        latMin = 45.70,
+        latMax = 48.70,
+        lonMin = 16.00,
+        lonMax = 22.90,
+        countryCode = "HU"
+    ),
+    Ireland(
+        latMin = 51.40,
+        latMax = 55.50,
+        lonMin = -10.70,
+        lonMax = -6.00,
+        countryCode = "IE"
+    ),
+    Greece(
+        latMin = 34.80,
+        latMax = 41.80,
+        lonMin = 19.30,
+        lonMax = 28.30,
+        countryCode = "GR"
+    ),
+    Romania(
+        latMin = 43.60,
+        latMax = 48.30,
+        lonMin = 20.20,
+        lonMax = 29.80,
+        countryCode = "RO"
+    ),
+    Czechia(
+        latMin = 48.50,
+        latMax = 51.20,
+        lonMin = 12.00,
+        lonMax = 18.90,
+        countryCode = "CZ"
+    ),
+    Slovakia(
+        latMin = 47.70,
+        latMax = 49.80,
+        lonMin = 16.80,
+        lonMax = 22.70,
+        countryCode = "SK"
+    ),
+    Bulgaria(
+        latMin = 41.20,
+        latMax = 44.30,
+        lonMin = 22.30,
+        lonMax = 28.70,
+        countryCode = "BG"
     );
 
     fun contains(lat: Double, lon: Double): Boolean =
@@ -152,6 +229,7 @@ enum class ParkingRegion(
             Luxembourg, Montenegro, NorthMacedonia, Slovenia, Croatia,
             Madeira, Azores, Portugal,
             Belgium, Switzerland, Netherlands, Denmark, Austria,
+            Norway, Sweden, Finland, Poland, Hungary, Ireland, Greece, Romania, Czechia, Slovakia, Bulgaria,
             Germany, France, UnitedKingdom, Spain, Italy
         )
 
