@@ -17,7 +17,10 @@ import fr.geoking.julius.api.tankerkoenig.GermanyTankerkoenigProvider
 import fr.geoking.julius.api.econtrol.AustriaEControlProvider
 import fr.geoking.julius.api.belgium.BelgiumPetrolPricesClient
 import fr.geoking.julius.api.belgium.BelgiumOfficialProvider
+import fr.geoking.julius.api.dgeg.PortugalDgegProvider
 import fr.geoking.julius.api.gas.GasApiClient
+import fr.geoking.julius.api.madeira.MadeiraFuelPricesClient
+import fr.geoking.julius.api.madeira.MadeiraOfficialProvider
 import fr.geoking.julius.api.gas.GasApiProvider
 import fr.geoking.julius.api.openvan.OpenVanCampClient
 import fr.geoking.julius.api.openvan.OpenVanCampProvider
@@ -83,6 +86,10 @@ val mapModule = module {
     single<PoiProvider>(named("gasapi")) {
         GasApiProvider(get(), radiusKm = 10, limit = 100)
     }
+    single { MadeiraFuelPricesClient(get()) }
+    single<PoiProvider>(named("madeiraofficial")) {
+        MadeiraOfficialProvider(madeiraClient = get(), overpassClient = get(), radiusKm = 10, limit = 50)
+    }
     single<PoiProvider>(named("datagouv")) {
         DataGouvProvider(
             client = get(),
@@ -124,6 +131,9 @@ val mapModule = module {
     single<PoiProvider>(named("belgiumofficial")) {
         BelgiumOfficialProvider(belgiumClient = get(), overpassClient = get(), radiusKm = 10, limit = 50)
     }
+    single<PoiProvider>(named("portugaldgeg")) {
+        PortugalDgegProvider(get())
+    }
     single { DataGouvCampingClient(get()) }
     single<PoiProvider>(named("datagouvcamping")) {
         DataGouvCampingProvider(get(), radiusKm = 15, limit = 50)
@@ -142,6 +152,8 @@ val mapModule = module {
             germanyTankerkoenig = get(named("germanytankerkoenig")),
             austriaEControl = get(named("austriaecontrol")),
             belgiumOfficial = get(named("belgiumofficial")),
+            portugalDgeg = get(named("portugaldgeg")),
+            madeiraOfficial = get(named("madeiraofficial")),
             openVanCampClient = get(),
             overpass = get(named("overpass")),
             dataGouvCamping = get(named("datagouvcamping")),

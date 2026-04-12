@@ -16,12 +16,14 @@ object FuelPriceRegistry {
      * - SI: Slovenia (regulated prices outside motorways)
      * - BE: Belgium (regulated maximum prices)
      * - PT: Portugal (official reference prices)
+     * - PT-MA: Madeira (regional reference prices)
+     * - PT-AC: Azores (regional reference prices)
      * - IT: Italy (official reference prices)
      * - SE: Sweden (official reference prices)
      * - DK: Denmark (official reference prices)
      * - FI: Finland (official reference prices)
      */
-    val REFERENCE_PRICE_COUNTRIES = setOf("LU", "ME", "MK", "HR", "SI", "BE", "PT", "IT", "SE", "DK", "FI")
+    val REFERENCE_PRICE_COUNTRIES = setOf("LU", "ME", "MK", "HR", "SI", "BE", "PT", "PT-MA", "PT-AC", "IT", "SE", "DK", "FI")
 
     /**
      * Returns true if the given country code has a reference fuel price available.

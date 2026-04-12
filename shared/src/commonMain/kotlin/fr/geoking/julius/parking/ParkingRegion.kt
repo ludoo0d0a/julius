@@ -116,6 +116,27 @@ enum class ParkingRegion(
         lonMin = 20.45,
         lonMax = 23.03,
         countryCode = "MK"
+    ),
+    Portugal(
+        latMin = 36.94,
+        latMax = 42.16,
+        lonMin = -9.51,
+        lonMax = -6.18,
+        countryCode = "PT"
+    ),
+    Madeira(
+        latMin = 32.35,
+        latMax = 33.15,
+        lonMin = -17.35,
+        lonMax = -16.25,
+        countryCode = "PT-MA"
+    ),
+    Azores(
+        latMin = 36.90,
+        latMax = 39.75,
+        lonMin = -31.35,
+        lonMax = -24.95,
+        countryCode = "PT-AC"
     );
 
     fun contains(lat: Double, lon: Double): Boolean =
@@ -129,6 +150,7 @@ enum class ParkingRegion(
         /** Order: smaller / more specific regions first so e.g. Luxembourg is chosen over Germany. */
         private val bySpecificity = listOf(
             Luxembourg, Montenegro, NorthMacedonia, Slovenia, Croatia,
+            Madeira, Azores, Portugal,
             Belgium, Switzerland, Netherlands, Denmark, Austria,
             Germany, France, UnitedKingdom, Spain, Italy
         )
