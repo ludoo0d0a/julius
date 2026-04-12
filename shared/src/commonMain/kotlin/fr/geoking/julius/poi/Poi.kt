@@ -102,6 +102,10 @@ enum class PoiProviderType(
     PortugalDgeg(providesFuel = true, supportedCountries = setOf("PT")),
     /** Madeira regional official maximum fuel prices. */
     MadeiraOfficial(providesFuel = true, supportedCountries = setOf("PT-MA")),
+    /** UK fuel prices via CMA open data feeds. */
+    UnitedKingdomCma(providesFuel = true, supportedCountries = setOf("GB")),
+    /** Italian fuel prices via MIMIT open data feeds. */
+    ItalyMimit(providesFuel = true, supportedCountries = setOf("IT")),
     Overpass,
     Hybrid(providesFuel = true, providesElectric = true, supportedCountries = setOf("FR")),
 }

@@ -39,6 +39,8 @@ class SelectorPoiProvider(
     private val belgiumOfficial: PoiProvider,
     private val portugalDgeg: PoiProvider,
     private val madeiraOfficial: PoiProvider,
+    private val unitedKingdomCma: PoiProvider,
+    private val italyMimit: PoiProvider,
     private val openVanCampClient: OpenVanCampClient,
     private val overpass: PoiProvider,
     private val dataGouvCamping: PoiProvider?,
@@ -76,6 +78,8 @@ class SelectorPoiProvider(
         PoiProviderType.BelgiumOfficial -> belgiumOfficial
         PoiProviderType.PortugalDgeg -> portugalDgeg
         PoiProviderType.MadeiraOfficial -> madeiraOfficial
+        PoiProviderType.UnitedKingdomCma -> unitedKingdomCma
+        PoiProviderType.ItalyMimit -> italyMimit
         PoiProviderType.Overpass -> overpass
         PoiProviderType.Hybrid -> hybridProvider
     }
@@ -581,6 +585,8 @@ class SelectorPoiProvider(
         belgiumOfficial.clearCache()
         portugalDgeg.clearCache()
         madeiraOfficial.clearCache()
+        unitedKingdomCma.clearCache()
+        italyMimit.clearCache()
         overpass.clearCache()
     }
 

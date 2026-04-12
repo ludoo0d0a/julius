@@ -21,6 +21,8 @@ import fr.geoking.julius.api.dgeg.PortugalDgegProvider
 import fr.geoking.julius.api.gas.GasApiClient
 import fr.geoking.julius.api.madeira.MadeiraFuelPricesClient
 import fr.geoking.julius.api.madeira.MadeiraOfficialProvider
+import fr.geoking.julius.api.uk.UnitedKingdomCmaProvider
+import fr.geoking.julius.api.italy.ItalyMimitProvider
 import fr.geoking.julius.api.gas.GasApiProvider
 import fr.geoking.julius.api.openvan.OpenVanCampClient
 import fr.geoking.julius.api.openvan.OpenVanCampProvider
@@ -134,6 +136,12 @@ val mapModule = module {
     single<PoiProvider>(named("portugaldgeg")) {
         PortugalDgegProvider(get())
     }
+    single<PoiProvider>(named("unitedkingdomcma")) {
+        UnitedKingdomCmaProvider(get(), radiusKm = 15, limit = 100)
+    }
+    single<PoiProvider>(named("italymimit")) {
+        ItalyMimitProvider(get(), radiusKm = 15, limit = 50)
+    }
     single { DataGouvCampingClient(get()) }
     single<PoiProvider>(named("datagouvcamping")) {
         DataGouvCampingProvider(get(), radiusKm = 15, limit = 50)
@@ -154,6 +162,8 @@ val mapModule = module {
             belgiumOfficial = get(named("belgiumofficial")),
             portugalDgeg = get(named("portugaldgeg")),
             madeiraOfficial = get(named("madeiraofficial")),
+            unitedKingdomCma = get(named("unitedkingdomcma")),
+            italyMimit = get(named("italymimit")),
             openVanCampClient = get(),
             overpass = get(named("overpass")),
             dataGouvCamping = get(named("datagouvcamping")),
