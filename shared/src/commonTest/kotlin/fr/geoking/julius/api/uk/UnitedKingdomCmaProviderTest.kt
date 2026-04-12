@@ -61,7 +61,7 @@ class UnitedKingdomCmaProviderTest {
             }
         }
         val cmaClient = UnitedKingdomCmaClient(httpClient)
-        val provider = UnitedKingdomCmaProvider(cmaClient, radiusKm = 100)
+        val provider = UnitedKingdomCmaProvider(cmaClient, radiusKm = 10)
 
         val pois = provider.getGasStations(51.5, -0.1)
 

@@ -21,6 +21,8 @@ import fr.geoking.julius.api.dgeg.PortugalDgegProvider
 import fr.geoking.julius.api.gas.GasApiClient
 import fr.geoking.julius.api.madeira.MadeiraFuelPricesClient
 import fr.geoking.julius.api.madeira.MadeiraOfficialProvider
+import fr.geoking.julius.api.uk.UnitedKingdomCmaProvider
+import fr.geoking.julius.api.italy.ItalyMimitProvider
 import fr.geoking.julius.api.gas.GasApiProvider
 import fr.geoking.julius.api.openvan.OpenVanCampClient
 import fr.geoking.julius.api.openvan.OpenVanCampProvider
@@ -146,12 +148,11 @@ val mapModule = module {
             providerName = "Fastned"
         )
     }
-    single { fr.geoking.julius.api.uk.UnitedKingdomCmaClient(get()) }
     single<PoiProvider>(named("unitedkingdomcma")) {
-        fr.geoking.julius.api.uk.UnitedKingdomCmaProvider(get())
+        UnitedKingdomCmaProvider(get(), radiusKm = 15, limit = 100)
     }
     single<PoiProvider>(named("italymimit")) {
-        fr.geoking.julius.api.italy.ItalyMimitProvider(get())
+        ItalyMimitProvider(get(), radiusKm = 15, limit = 50)
     }
     single { DataGouvCampingClient(get()) }
     single<PoiProvider>(named("datagouvcamping")) {
