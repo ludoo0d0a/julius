@@ -134,6 +134,25 @@ val mapModule = module {
     single<PoiProvider>(named("portugaldgeg")) {
         PortugalDgegProvider(get())
     }
+    single<PoiProvider>(named("ionity")) {
+        fr.geoking.julius.api.ocpi.OcpiPoiProvider(
+            client = fr.geoking.julius.api.ocpi.OcpiClient(get(), baseUrl = "https://api.ionity.eu/ocpi/2.2.1", token = ""),
+            providerName = "Ionity"
+        )
+    }
+    single<PoiProvider>(named("fastned")) {
+        fr.geoking.julius.api.ocpi.OcpiPoiProvider(
+            client = fr.geoking.julius.api.ocpi.OcpiClient(get(), baseUrl = "https://api.fastned.nl/ocpi/2.2.1", token = ""),
+            providerName = "Fastned"
+        )
+    }
+    single { fr.geoking.julius.api.uk.UnitedKingdomCmaClient(get()) }
+    single<PoiProvider>(named("unitedkingdomcma")) {
+        fr.geoking.julius.api.uk.UnitedKingdomCmaProvider(get())
+    }
+    single<PoiProvider>(named("italymimit")) {
+        fr.geoking.julius.api.italy.ItalyMimitProvider(get())
+    }
     single { DataGouvCampingClient(get()) }
     single<PoiProvider>(named("datagouvcamping")) {
         DataGouvCampingProvider(get(), radiusKm = 15, limit = 50)
@@ -154,6 +173,10 @@ val mapModule = module {
             belgiumOfficial = get(named("belgiumofficial")),
             portugalDgeg = get(named("portugaldgeg")),
             madeiraOfficial = get(named("madeiraofficial")),
+            ionity = get(named("ionity")),
+            fastned = get(named("fastned")),
+            unitedKingdomCma = get(named("unitedkingdomcma")),
+            italyMimit = get(named("italymimit")),
             openVanCampClient = get(),
             overpass = get(named("overpass")),
             dataGouvCamping = get(named("datagouvcamping")),

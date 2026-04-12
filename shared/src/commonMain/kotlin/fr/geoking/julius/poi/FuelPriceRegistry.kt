@@ -34,7 +34,7 @@ object FuelPriceRegistry {
      */
     val REFERENCE_PRICE_COUNTRIES = setOf(
         "LU", "ME", "MK", "HR", "SI", "BE", "PT", "PT-MA", "PT-AC", "IT", "SE", "DK", "FI",
-        "NO", "PL", "HU", "IE", "GR", "RO", "CZ", "SK", "BG"
+        "NO", "PL", "HU", "IE", "GR", "RO", "CZ", "SK", "BG", "GB"
     )
 
     /**
