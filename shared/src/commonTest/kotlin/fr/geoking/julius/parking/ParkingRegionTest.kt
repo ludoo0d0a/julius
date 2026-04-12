@@ -40,4 +40,19 @@ class ParkingRegionTest {
     fun containing_outsideEurope_returnsNull() {
         assertNull(ParkingRegion.containing(40.7128, -74.0060))
     }
+
+    @Test
+    fun containing_Lisbon_returnsPortugal() {
+        assertEquals(ParkingRegion.Portugal, ParkingRegion.containing(38.7223, -9.1393))
+    }
+
+    @Test
+    fun containing_Funchal_returnsMadeira() {
+        assertEquals(ParkingRegion.Madeira, ParkingRegion.containing(32.6500, -16.9080))
+    }
+
+    @Test
+    fun containing_PontaDelgada_returnsAzores() {
+        assertEquals(ParkingRegion.Azores, ParkingRegion.containing(37.7412, -25.6756))
+    }
 }

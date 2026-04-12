@@ -151,6 +151,8 @@ fun MapScaffold(
                                             PoiProviderType.GermanyTankerkoenig -> "Source: Tankerkönig (Germany)"
                                             PoiProviderType.AustriaEControl -> "Source: E-Control (Austria)"
                                             PoiProviderType.BelgiumOfficial -> "Source: Belgium (official)"
+                                            PoiProviderType.PortugalDgeg -> "Source: Portugal DGEG (official)"
+                                            PoiProviderType.MadeiraOfficial -> "Source: Madeira (official)"
                                             PoiProviderType.Overpass -> "Source: OSM + data.gouv (camping, picnic…)"
                                             PoiProviderType.Hybrid -> "Source: Hybrid (Gas + EV)"
                                         }

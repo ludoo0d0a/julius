@@ -92,6 +92,10 @@ enum class PoiProviderType(
     AustriaEControl(providesFuel = true, supportedCountries = setOf("AT")),
     /** Belgian official maximum fuel prices. */
     BelgiumOfficial(providesFuel = true, supportedCountries = setOf("BE")),
+    /** Portuguese fuel prices via DGEG (Mainland). */
+    PortugalDgeg(providesFuel = true, supportedCountries = setOf("PT")),
+    /** Madeira regional official maximum fuel prices. */
+    MadeiraOfficial(providesFuel = true, supportedCountries = setOf("PT-MA")),
     Overpass,
     Hybrid(providesFuel = true, providesElectric = true, supportedCountries = setOf("FR")),
 }

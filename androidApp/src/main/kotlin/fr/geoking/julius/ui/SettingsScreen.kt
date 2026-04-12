@@ -425,7 +425,9 @@ private fun MapConfig(
                     PoiProviderType.SpainMinetur to "Spain Minetur (official)",
                     PoiProviderType.GermanyTankerkoenig to "Tankerkönig (Germany)",
                     PoiProviderType.AustriaEControl to "E-Control (Austria)",
-                    PoiProviderType.BelgiumOfficial to "Belgium (official)"
+                    PoiProviderType.BelgiumOfficial to "Belgium (official)",
+                    PoiProviderType.PortugalDgeg to "Portugal DGEG (official)",
+                    PoiProviderType.MadeiraOfficial to "Madeira (official)"
                 ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }.forEach { (type, label) ->
                     FilterChip(
                         selected = if (settings.autoPoiProvidersEnabled) type.eligibleToAuto else settings.selectedPoiProviders.contains(type),
