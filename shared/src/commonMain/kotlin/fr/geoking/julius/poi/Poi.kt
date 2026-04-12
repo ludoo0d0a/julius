@@ -83,7 +83,13 @@ enum class PoiProviderType(
     OpenChargeMap(providesElectric = true),
     Chargy(providesElectric = true, supportedCountries = setOf("LU")),
     /** Luxembourg OSM fuel + OpenVan.camp weekly reference prices (CC BY 4.0). */
-    OpenVanCamp(providesFuel = true, supportedCountries = setOf("LU", "ME", "MK", "HR", "SI", "BE")),
+    OpenVanCamp(
+        providesFuel = true,
+        supportedCountries = setOf(
+            "LU", "ME", "MK", "HR", "SI", "BE", "PT", "PT-MA", "PT-AC", "IT", "SE", "DK", "FI",
+            "NO", "PL", "HU", "IE", "GR", "RO", "CZ", "SK", "BG"
+        )
+    ),
     /** Spanish government fuel prices (Minetur). */
     SpainMinetur(providesFuel = true, supportedCountries = setOf("ES")),
     /** German fuel prices via Tankerkönig (MTS-K). */
