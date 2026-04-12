@@ -1,8 +1,10 @@
 package fr.geoking.julius.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -81,6 +83,7 @@ import java.time.format.DateTimeFormatter
 import java.time.Duration
 import java.time.Instant
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.SettingsManager
@@ -646,132 +649,170 @@ fun JulesScreen(
     }
 }
 
-@Composable
-private fun MessageText(text: String, baseFontSize: Int) {
-    var expanded by remember { mutableStateOf(false) }
-    val isCodeReviewed = text.startsWith("Code reviewed", ignoreCase = true)
-    val isPlan = text.startsWith("**Plan", ignoreCase = true)
+private enum class MessageType {
+    PLAN, CODE_REVIEWED, SEARCHING, STANDARD
+}
 
-    Column {
-        if (isCodeReviewed) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded }
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = JulesAccent,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.size(8.dp))
-                Text(
-                    text = "Code reviewed",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = baseFontSize.sp
-                )
+private data class ParsedMessage(
+    val type: MessageType,
+    val title: String,
+    val subtitle: String
+)
+
+private fun parseMessage(text: String): ParsedMessage {
+    return when {
+        text.startsWith("**Plan", ignoreCase = true) -> {
+            val lines = text.lines()
+            val firstLine = lines.firstOrNull() ?: ""
+            val title = firstLine.replace("**", "").trim()
+            val subtitle = lines.drop(1).joinToString("\n").trim()
+            ParsedMessage(MessageType.PLAN, title, subtitle)
+        }
+        text.startsWith("Code reviewed", ignoreCase = true) -> {
+            val title = "Code reviewed"
+            val subtitle = text.removePrefix("Code reviewed").trim().removePrefix(":").trim()
+            ParsedMessage(MessageType.CODE_REVIEWED, title, subtitle)
+        }
+        text.startsWith("Searching for", ignoreCase = true) -> {
+            val lines = text.lines()
+            val title = lines.firstOrNull()?.trim() ?: ""
+            val subtitle = lines.drop(1).joinToString("\n").trim()
+            ParsedMessage(MessageType.SEARCHING, title, subtitle)
+        }
+        else -> {
+            val lines = text.lines()
+            val title = lines.firstOrNull()?.trim() ?: ""
+            val subtitle = lines.drop(1).joinToString("\n").trim()
+            ParsedMessage(MessageType.STANDARD, title, subtitle)
+        }
+    }
+}
+
+@Composable
+private fun MessageText(text: String, baseFontSize: Int, onSpeak: () -> Unit) {
+    val parsed = remember(text) { parseMessage(text) }
+    var expanded by remember { mutableStateOf(false) }
+
+    val isExpandable = parsed.type != MessageType.STANDARD
+
+    @Composable
+    fun RenderAnnotatedText(content: String, isTitle: Boolean, maxLines: Int = Int.MAX_VALUE) {
+        val annotatedString = buildAnnotatedString {
+            val style = if (isTitle) {
+                SpanStyle(color = Color.White, fontWeight = FontWeight.Bold)
+            } else {
+                SpanStyle(color = Color.White.copy(alpha = 0.6f))
+            }
+
+            withStyle(style) {
+                // Apply Markdown-like bolding for **text**
+                val parts = content.split("**")
+                parts.forEachIndexed { pIndex, part ->
+                    if (pIndex % 2 == 1) {
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.White)) {
+                            append(part)
+                        }
+                    } else {
+                        // Apply bullet point conversion
+                        val bulletedPart = part.replace(Regex("(?m)^\\s*[-*]\\s+"), " • ")
+                        append(bulletedPart)
+                    }
+                }
             }
         }
+        Text(
+            text = annotatedString,
+            fontSize = (if (isTitle && parsed.type == MessageType.PLAN) baseFontSize + 2 else baseFontSize).sp,
+            maxLines = maxLines,
+            overflow = if (maxLines != Int.MAX_VALUE) TextOverflow.Ellipsis else TextOverflow.Clip
+        )
+    }
 
-        if (isPlan) {
-            val lines = text.split("\n")
-            lines.forEach { line ->
-                if (line.startsWith("**Plan")) {
-                    Text(
-                        text = "Plan",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = (baseFontSize + 2).sp,
-                        modifier = Modifier.padding(12.dp)
-                    )
-                } else {
-                    val stepMatch = Regex("^\\d+\\.\\s+(.*)").find(line)
-                    if (stepMatch != null) {
-                        val content = stepMatch.groupValues[1]
-                        val parts = content.split(". ", limit = 2)
-                        val title = parts[0]
-                        val description = if (parts.size > 1) parts[1] else ""
-                        var stepExpanded by remember { mutableStateOf(false) }
-
-                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable(enabled = description.isNotBlank()) { stepExpanded = !stepExpanded },
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .background(JulesAccent, RoundedCornerShape(4.dp))
-                                )
-                                Spacer(modifier = Modifier.size(12.dp))
-                                Text(
-                                    text = title,
-                                    color = Color.White,
-                                    fontSize = baseFontSize.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                if (description.isNotBlank()) {
-                                    Icon(
-                                        if (stepExpanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                        contentDescription = null,
-                                        tint = Color.White.copy(alpha = 0.5f),
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-                            if (stepExpanded && description.isNotBlank()) {
-                                Text(
-                                    text = description,
-                                    color = Color.White.copy(alpha = 0.6f),
-                                    fontSize = (baseFontSize - 1).sp,
-                                    modifier = Modifier.padding(start = 20.dp, top = 4.dp, bottom = 8.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        } else if (!isCodeReviewed || expanded) {
-            val sentences = text.split(Regex("(?<=[.!?])\\s+"))
-            val annotatedString = buildAnnotatedString {
-                sentences.forEachIndexed { index, sentence ->
-                    val isFirst = index == 0 && !isCodeReviewed
-                    val style = if (isFirst) {
-                        SpanStyle(color = Color.White, fontWeight = FontWeight.Bold)
-                    } else {
-                        SpanStyle(color = Color.White.copy(alpha = 0.6f))
-                    }
-
-                    withStyle(style) {
-                        // Apply Markdown-like bolding for **text**
-                        val parts = sentence.split("**")
-                        parts.forEachIndexed { pIndex, part ->
-                            if (pIndex % 2 == 1) {
-                                withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.White)) {
-                                    append(part)
-                                }
-                            } else {
-                                // Apply bullet point conversion
-                                val bulletedPart = part.replace(Regex("(?m)^\\s*[-*]\\s+"), " • ")
-                                append(bulletedPart)
-                            }
-                        }
-                    }
-                    if (index < sentences.size - 1) append(" ")
-                }
-            }
-            Text(
-                text = annotatedString,
-                modifier = Modifier.padding(12.dp),
-                fontSize = baseFontSize.sp
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                @OptIn(ExperimentalFoundationApi::class)
+                Modifier.combinedClickable(
+                    onClick = { if (isExpandable) expanded = !expanded },
+                    onDoubleClick = onSpeak
+                )
             )
+            .padding(12.dp)
+    ) {
+        when (parsed.type) {
+            MessageType.SEARCHING -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (expanded) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            RenderAnnotatedText(parsed.title, isTitle = true)
+                            if (parsed.subtitle.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                RenderAnnotatedText(parsed.subtitle, isTitle = false)
+                            }
+                        }
+                    } else {
+                        Box(modifier = Modifier.weight(1f)) {
+                            RenderAnnotatedText(parsed.title, isTitle = true, maxLines = 1)
+                        }
+                    }
+                    if (isExpandable) {
+                        Icon(
+                            if (expanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = JulesAccent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+            MessageType.PLAN -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        RenderAnnotatedText(parsed.title, isTitle = true, maxLines = if (expanded) Int.MAX_VALUE else 1)
+                        if (expanded) {
+                            if (parsed.subtitle.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                RenderAnnotatedText(parsed.subtitle, isTitle = false)
+                            }
+                        } else {
+                            if (parsed.subtitle.isNotBlank()) {
+                                RenderAnnotatedText(parsed.subtitle, isTitle = false, maxLines = 1)
+                            }
+                        }
+                    }
+                    Icon(
+                        if (expanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = JulesAccent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            MessageType.CODE_REVIEWED -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        RenderAnnotatedText(parsed.title, isTitle = true, maxLines = if (expanded) Int.MAX_VALUE else 1)
+                        if (expanded && parsed.subtitle.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            RenderAnnotatedText(parsed.subtitle, isTitle = false)
+                        }
+                    }
+                    Icon(
+                        if (expanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = JulesAccent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            MessageType.STANDARD -> {
+                RenderAnnotatedText(parsed.title, isTitle = true)
+                if (parsed.subtitle.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    RenderAnnotatedText(parsed.subtitle, isTitle = false)
+                }
+            }
         }
     }
 }
@@ -1176,9 +1217,12 @@ private fun InConversationContent(
                             shape = RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp),
                             modifier = Modifier
                                 .widthIn(max = 280.dp)
-                                .clickable { voiceManager.speak(item.text) }
                         ) {
-                            MessageText(text = item.text, baseFontSize = 15)
+                            MessageText(
+                                text = item.text,
+                                baseFontSize = 15,
+                                onSpeak = { voiceManager.speak(item.text) }
+                            )
                         }
                     }
                     is JulesChatItem.AgentMessage -> Row(
@@ -1190,9 +1234,12 @@ private fun InConversationContent(
                             shape = RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp),
                             modifier = Modifier
                                 .widthIn(max = 320.dp)
-                                .clickable { voiceManager.speak(item.text) }
                         ) {
-                            MessageText(text = item.text, baseFontSize = 14)
+                            MessageText(
+                                text = item.text,
+                                baseFontSize = 14,
+                                onSpeak = { voiceManager.speak(item.text) }
+                            )
                         }
                     }
                 }
