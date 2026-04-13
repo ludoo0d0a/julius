@@ -277,6 +277,12 @@ open class SettingsManager(
         val openRouterModel = prefs.getString("openrouter_model", "openrouter/auto") ?: "openrouter/auto"
         val julesKey = prefs.getString("jules_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.JULES_KEY
         val githubApiKey = prefs.getString("github_api_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.GITHUB_TOKEN
+        val openChargeMapKey = prefs.getString("openchargemap_key", "")?.takeIf { it.isNotEmpty() }
+            ?: fr.geoking.julius.BuildConfig.OPENCHARGEMAP_KEY
+        val ecoMovementUrl = prefs.getString("eco_movement_url", "")?.takeIf { it.isNotEmpty() }
+            ?: fr.geoking.julius.BuildConfig.ECO_MOVEMENT_URL
+        val ecoMovementToken = prefs.getString("eco_movement_token", "")?.takeIf { it.isNotEmpty() }
+            ?: fr.geoking.julius.BuildConfig.ECO_MOVEMENT_TOKEN
         val lastJulesRepoId = prefs.getString("last_jules_repo_id", "") ?: ""
         val lastJulesRepoName = prefs.getString("last_jules_repo_name", "") ?: ""
         val googleUserName = prefs.getString("google_user_name", null)
@@ -348,12 +354,6 @@ open class SettingsManager(
         val evConsumptionKwhPer100km = if (prefs.contains("ev_consumption_kwh_100")) {
             prefs.getFloat("ev_consumption_kwh_100", 18f).takeIf { it > 0f }
         } else null
-        val openChargeMapKey = prefs.getString("openchargemap_key", "")?.takeIf { it.isNotEmpty() }
-            ?: fr.geoking.julius.BuildConfig.OPENCHARGEMAP_KEY
-        val ecoMovementUrl = prefs.getString("eco_movement_url", "")?.takeIf { it.isNotEmpty() }
-            ?: fr.geoking.julius.BuildConfig.ECO_MOVEMENT_URL
-        val ecoMovementToken = prefs.getString("eco_movement_token", "")?.takeIf { it.isNotEmpty() }
-            ?: fr.geoking.julius.BuildConfig.ECO_MOVEMENT_TOKEN
         val mobiliteitLuxembourgKey = prefs.getString("mobiliteit_luxembourg_key", "")?.takeIf { it.isNotEmpty() }
             ?: fr.geoking.julius.BuildConfig.MOBILITEIT_LUXEMBOURG_KEY
         val overpassAmenityStr = prefs.getString("overpass_amenity_types", "toilets,drinking_water") ?: "toilets,drinking_water"
