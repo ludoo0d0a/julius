@@ -362,6 +362,7 @@ class JulesClient(
                             if (d.isNullOrBlank()) t else "$t\n$d"
                         }
                         a.sessionCompleted != null -> "Session completed."
+                        a.messageSent != null -> a.messageSent.prompt
                         else -> null
                     }
                     if (text != null) {

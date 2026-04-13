@@ -1353,101 +1353,6 @@ private fun InConversationContent(
     Column(modifier = Modifier.fillMaxSize()) {
         MiniProgressBar(currentStep = progressStep)
 
-        // PR Status Bar
-        if (currentSession.prUrl != null || currentSession.sessionState != null) {
-            val (statusText, statusColor) = when {
-                currentSession.prState == "merged" -> "Merged" to Color.Magenta
-                currentSession.prState == "closed" -> "Closed" to Color.Red
-                currentSession.prState == "open" -> "Open PR" to Color.Green
-                currentSession.sessionState == "COMPLETED" -> "Completed" to Color.Green
-                currentSession.sessionState == "FAILED" -> "Failed" to Color.Red
-                currentSession.sessionState == "AWAITING_PLAN_APPROVAL" -> "Waiting for approval" to JulesAccent
-                currentSession.sessionState == "AWAITING_USER_FEEDBACK" -> "Waiting for you" to JulesAccent
-                currentSession.sessionState == "PLANNING" -> "Planning…" to JulesAccent
-                currentSession.sessionState == "QUEUED" -> "Queued…" to Color.White.copy(alpha = 0.6f)
-                currentSession.sessionState == "PAUSED" -> "Paused" to Color.Yellow
-                else -> (if (!currentSession.prUrl.isNullOrBlank()) "Output available" else "In progress") to (if (!currentSession.prUrl.isNullOrBlank()) JulesAccent else Color.White.copy(alpha = 0.6f))
-            }
-
-            val mergeabilityText = when (currentSession.prMergeable) {
-                true -> " • Ready to merge"
-                false -> " • Conflicts"
-                else -> ""
-            }
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                colors = CardDefaults.cardColors(containerColor = JulesHeaderBg),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = currentSession.prTitle ?: "Pull Request",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.size(6.dp).background(statusColor, RoundedCornerShape(3.dp)))
-                            Spacer(modifier = Modifier.size(6.dp))
-                            Text(
-                                text = "$statusText$mergeabilityText",
-                                color = statusColor,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-
-                    if (!currentSession.prUrl.isNullOrBlank()) {
-                        IconButton(onClick = { uriHandler.openUri(currentSession.prUrl) }) {
-                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open PR", tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(20.dp))
-                        }
-                    }
-
-                    if (currentSession.prState == "open") {
-                        if (currentSession.prMergeable == true) {
-                            FilledTonalButton(
-                                onClick = onMergePr,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                modifier = Modifier.height(32.dp),
-                                colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = Color.Green.copy(alpha = 0.2f))
-                            ) {
-                                Icon(Icons.Default.Merge, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Green)
-                                Spacer(modifier = Modifier.size(4.dp))
-                                Text("Merge", color = Color.Green, fontSize = 12.sp)
-                            }
-                        } else if (currentSession.prMergeable == false) {
-                            Row {
-                                FilledTonalButton(
-                                    onClick = onAutoSolveConflicts,
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                                    modifier = Modifier.height(32.dp),
-                                    colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = JulesAccent.copy(alpha = 0.2f))
-                                ) {
-                                    Text("Auto", color = JulesAccent, fontSize = 11.sp)
-                                }
-                                Spacer(modifier = Modifier.size(4.dp))
-                                FilledTonalButton(
-                                    onClick = onSolveConflicts,
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                                    modifier = Modifier.height(32.dp),
-                                    colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = Color.Red.copy(alpha = 0.2f))
-                                ) {
-                                    Text("Solve", color = Color.Red, fontSize = 11.sp)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
         val nowInstant = remember { Instant.now() }
 
@@ -1532,6 +1437,60 @@ private fun InConversationContent(
                                 baseFontSize = 14,
                                 onSpeak = { voiceManager.speak(item.text) }
                             )
+                        }
+                    }
+                }
+            }
+
+            if (currentSession.prState == "open") {
+                item {
+                    val mergeable = currentSession.prMergeable
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp, bottom = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        if (mergeable == true) {
+                            Text(
+                                "Conflicts resolved. Ready to merge! 🚀",
+                                color = Color.Green,
+                                fontSize = 14.sp,
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            )
+                            FilledTonalButton(
+                                onClick = onMergePr,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = Color.Green.copy(alpha = 0.2f))
+                            ) {
+                                Icon(Icons.Default.Merge, contentDescription = null, tint = Color.Green)
+                                Spacer(modifier = Modifier.size(8.dp))
+                                Text("Merge Pull Request", color = Color.Green)
+                            }
+                        } else if (mergeable == false) {
+                            Text(
+                                "This PR has merge conflicts.",
+                                color = Color.Red,
+                                fontSize = 14.sp,
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            )
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                FilledTonalButton(
+                                    onClick = onAutoSolveConflicts,
+                                    modifier = Modifier.weight(1f),
+                                    colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = JulesAccent.copy(alpha = 0.2f))
+                                ) {
+                                    Text("Auto solve", color = JulesAccent)
+                                }
+                                Spacer(modifier = Modifier.size(8.dp))
+                                FilledTonalButton(
+                                    onClick = onSolveConflicts,
+                                    modifier = Modifier.weight(1f),
+                                    colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = Color.Red.copy(alpha = 0.2f))
+                                ) {
+                                    Text("Solve manually", color = Color.Red)
+                                }
+                            }
                         }
                     }
                 }
