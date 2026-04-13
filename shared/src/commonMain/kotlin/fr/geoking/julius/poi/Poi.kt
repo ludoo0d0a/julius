@@ -108,6 +108,8 @@ enum class PoiProviderType(
     /** Italian fuel prices via MIMIT open data feeds. */
     ItalyMimit(providesFuel = true, supportedCountries = setOf("IT")),
     Overpass,
+    Ionity(providesElectric = true),
+    Fastned(providesElectric = true),
     Hybrid(providesFuel = true, providesElectric = true, supportedCountries = setOf("FR")),
 }
 
