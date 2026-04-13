@@ -32,7 +32,6 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Merge
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -140,6 +139,8 @@ fun JulesScreen(
     var sourcesLoaded by remember { mutableStateOf(false) }
     var showRepoSheet by remember { mutableStateOf(false) }
     var showActivitiesSheet by remember { mutableStateOf(false) }
+    var showConflictSheet by remember { mutableStateOf(false) }
+    var conflictingFiles by remember { mutableStateOf<List<String>>(emptyList()) }
     var rawActivities by remember { mutableStateOf<List<JulesClient.JulesActivity>>(emptyList()) }
     val sheetState = rememberModalBottomSheetState()
     val activitiesSheetState = rememberModalBottomSheetState()
@@ -457,6 +458,31 @@ fun JulesScreen(
                                     loading = false
                                 }
                             },
+                            onSolveConflicts = {
+                                scope.launch {
+                                    loading = true
+                                    val res = julesRepository.getConflictingFiles(githubToken, currentSession!!.prUrl!!)
+                                    if (res.isSuccess) {
+                                        conflictingFiles = res.getOrDefault(emptyList())
+                                        showConflictSheet = true
+                                    } else {
+                                        error = "Could not find conflicting files: ${res.exceptionOrNull()?.message}"
+                                    }
+                                    loading = false
+                                }
+                            },
+                            onAutoSolveConflicts = {
+                                scope.launch {
+                                    loading = true
+                                    try {
+                                        julesRepository.sendMessage(apiKey, currentSession!!.id, "@jules resolve the conflicts in this PR")
+                                        currentSession?.let { refreshActivities() }
+                                    } catch (e: Exception) {
+                                        error = "Auto solve failed: ${e.message}"
+                                    }
+                                    loading = false
+                                }
+                            },
                             loading = loading,
                             onMergePr = {
                                 scope.launch {
@@ -520,6 +546,20 @@ fun JulesScreen(
                                     loading = false
                                 }
                             },
+                            onSolveConflicts = { session ->
+                                scope.launch {
+                                    loading = true
+                                    val res = julesRepository.getConflictingFiles(githubToken, session.prUrl!!)
+                                    if (res.isSuccess) {
+                                        currentSession = session
+                                        conflictingFiles = res.getOrDefault(emptyList())
+                                        showConflictSheet = true
+                                    } else {
+                                        error = "Could not find conflicting files: ${res.exceptionOrNull()?.message}"
+                                    }
+                                    loading = false
+                                }
+                            },
                             onClosePr = { session ->
                                 scope.launch {
                                     loading = true
@@ -569,6 +609,27 @@ fun JulesScreen(
             contentColor = Color.White
         ) {
             ActivitiesSheet(activities = rawActivities)
+        }
+    }
+
+    if (showConflictSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showConflictSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = JulesBg,
+            contentColor = Color.White,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            ConflictResolutionSheet(
+                session = currentSession!!,
+                files = conflictingFiles,
+                githubToken = githubToken,
+                julesRepository = julesRepository,
+                onDismiss = {
+                    showConflictSheet = false
+                    loadSessions()
+                }
+            )
         }
     }
 
@@ -881,6 +942,213 @@ private fun MiniProgressBar(currentStep: ProgressStep?) {
 }
 
 @Composable
+private fun ConflictResolutionSheet(
+    session: JulesSessionEntity,
+    files: List<String>,
+    githubToken: String,
+    julesRepository: JulesRepository,
+    onDismiss: () -> Unit
+) {
+    var selectedFile by remember { mutableStateOf<String?>(null) }
+    var fileContent by remember { mutableStateOf("") }
+    var fileSha by remember { mutableStateOf("") }
+    var conflicts by remember { mutableStateOf<List<JulesRepository.Conflict>>(emptyList()) }
+    var currentConflictIndex by remember { mutableStateOf(0) }
+    var loading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Resolve Conflicts",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+            }
+        }
+
+        if (error != null) {
+            ErrorCard(title = "Error", message = error!!, onDismiss = { error = null })
+        }
+
+        if (loading) {
+            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = JulesAccent)
+            }
+        } else if (selectedFile == null) {
+            Text(
+                "Conflicting files:",
+                color = Color.White.copy(alpha = 0.7f),
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            LazyColumn {
+                items(files) { file ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                scope.launch {
+                                    loading = true
+                                    val res = julesRepository.getFileContent(githubToken, session.prUrl!!, file)
+                                    if (res.isSuccess) {
+                                        val (content, sha) = res.getOrThrow()
+                                        selectedFile = file
+                                        fileContent = content
+                                        fileSha = sha
+                                        conflicts = julesRepository.parseConflicts(content)
+                                        currentConflictIndex = 0
+                                    } else {
+                                        error = "Failed to load file: ${res.exceptionOrNull()?.message}"
+                                    }
+                                    loading = false
+                                }
+                            }
+                            .padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = JulesHeaderBg)
+                    ) {
+                        Text(file, color = Color.White, modifier = Modifier.padding(16.dp))
+                    }
+                }
+            }
+        } else {
+            // File conflict resolution view
+            val conflict = conflicts.getOrNull(currentConflictIndex)
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { selectedFile = null }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    }
+                    Text(selectedFile!!, color = JulesAccent, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                    if (conflicts.isNotEmpty()) {
+                        Text(
+                            "Conflict ${currentConflictIndex + 1} of ${conflicts.size}",
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+
+                if (conflict != null) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        ConflictBlock("Mine (PR Branch)", conflict.mine, JulesAccent) {
+                            val newContent = fileContent.replace(conflict.fullMatch, conflict.mine + "\n")
+                            fileContent = newContent
+                            conflicts = julesRepository.parseConflicts(newContent)
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        ConflictBlock("Incoming (Base Branch)", conflict.incoming, Color.Green) {
+                            val newContent = fileContent.replace(conflict.fullMatch, conflict.incoming + "\n")
+                            fileContent = newContent
+                            conflicts = julesRepository.parseConflicts(newContent)
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        ConflictBlock("Both", conflict.mine + "\n" + conflict.incoming, Color.Yellow) {
+                            val newContent = fileContent.replace(conflict.fullMatch, conflict.mine + "\n" + conflict.incoming + "\n")
+                            fileContent = newContent
+                            conflicts = julesRepository.parseConflicts(newContent)
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text("Current Result:", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                        OutlinedTextField(
+                            value = conflict.fullMatch, // This is just for display, editing should happen on the whole file or specifically here
+                            onValueChange = { newValue ->
+                                val newContent = fileContent.replace(conflict.fullMatch, newValue)
+                                fileContent = newContent
+                                conflicts = julesRepository.parseConflicts(newContent)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = androidx.compose.ui.text.TextStyle(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 12.sp),
+                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        OutlinedButton(
+                            onClick = { currentConflictIndex-- },
+                            enabled = currentConflictIndex > 0
+                        ) {
+                            Text("Previous")
+                        }
+                        OutlinedButton(
+                            onClick = { currentConflictIndex++ },
+                            enabled = currentConflictIndex < conflicts.size - 1
+                        ) {
+                            Text("Next")
+                        }
+                    }
+                } else {
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        Text("All conflicts resolved in this file!", color = Color.Green)
+                    }
+                }
+
+                FilledTonalButton(
+                    onClick = {
+                        scope.launch {
+                            loading = true
+                            val res = julesRepository.saveResolvedFile(githubToken, session.prUrl!!, selectedFile!!, fileContent, fileSha)
+                            if (res.isSuccess) {
+                                selectedFile = null
+                            } else {
+                                error = "Failed to save: ${res.exceptionOrNull()?.message}"
+                            }
+                            loading = false
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = conflicts.isEmpty() && !loading,
+                    colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = Color.Green.copy(alpha = 0.2f))
+                ) {
+                    Text("Save Resolved File", color = Color.Green)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConflictBlock(title: String, content: String, color: Color, onSelect: () -> Unit) {
+    Column {
+        Text(title, color = color, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onSelect)
+                .padding(vertical = 4.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.3f)),
+            border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.5f))
+        ) {
+            Text(
+                content,
+                color = Color.White,
+                fontSize = 11.sp,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                modifier = Modifier.padding(8.dp)
+            )
+        }
+    }
+}
+
+@Composable
 private fun ActivitiesSheet(activities: List<JulesClient.JulesActivity>) {
     Column(
         modifier = Modifier
@@ -1072,6 +1340,8 @@ private fun InConversationContent(
     onSend: () -> Unit,
     loading: Boolean,
     onMergePr: () -> Unit,
+    onSolveConflicts: () -> Unit,
+    onAutoSolveConflicts: () -> Unit,
     isRefreshing: Boolean,
     onRefresh: () -> Unit
 ) {
@@ -1140,16 +1410,38 @@ private fun InConversationContent(
                         }
                     }
 
-                    if (currentSession.prState == "open" && currentSession.prMergeable == true) {
-                        FilledTonalButton(
-                            onClick = onMergePr,
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier.height(32.dp),
-                            colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = Color.Green.copy(alpha = 0.2f))
-                        ) {
-                            Icon(Icons.Default.Merge, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Green)
-                            Spacer(modifier = Modifier.size(4.dp))
-                            Text("Merge", color = Color.Green, fontSize = 12.sp)
+                    if (currentSession.prState == "open") {
+                        if (currentSession.prMergeable == true) {
+                            FilledTonalButton(
+                                onClick = onMergePr,
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp),
+                                colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = Color.Green.copy(alpha = 0.2f))
+                            ) {
+                                Icon(Icons.Default.Merge, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Green)
+                                Spacer(modifier = Modifier.size(4.dp))
+                                Text("Merge", color = Color.Green, fontSize = 12.sp)
+                            }
+                        } else if (currentSession.prMergeable == false) {
+                            Row {
+                                FilledTonalButton(
+                                    onClick = onAutoSolveConflicts,
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                    modifier = Modifier.height(32.dp),
+                                    colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = JulesAccent.copy(alpha = 0.2f))
+                                ) {
+                                    Text("Auto", color = JulesAccent, fontSize = 11.sp)
+                                }
+                                Spacer(modifier = Modifier.size(4.dp))
+                                FilledTonalButton(
+                                    onClick = onSolveConflicts,
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                    modifier = Modifier.height(32.dp),
+                                    colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = Color.Red.copy(alpha = 0.2f))
+                                ) {
+                                    Text("Solve", color = Color.Red, fontSize = 11.sp)
+                                }
+                            }
                         }
                     }
                 }
@@ -1287,6 +1579,7 @@ private fun RepoAndSessionsContent(
     onCreateSession: () -> Unit,
     onOpenSession: (JulesSessionEntity) -> Unit,
     onMergePr: (JulesSessionEntity) -> Unit,
+    onSolveConflicts: (JulesSessionEntity) -> Unit,
     onClosePr: (JulesSessionEntity) -> Unit,
     onGetPrDetails: (JulesSessionEntity, (GitHubClient.GitHubPullRequestDetail?) -> Unit) -> Unit,
     onArchive: (JulesSessionEntity) -> Unit,
@@ -1449,6 +1742,7 @@ private fun RepoAndSessionsContent(
                         session = session,
                         onClick = { onOpenSession(session) },
                         onMerge = { onMergePr(session) },
+                        onSolve = { onSolveConflicts(session) },
                         onClose = { onClosePr(session) },
                         onArchive = { onArchive(session) },
                         onDetails = {
@@ -1488,6 +1782,7 @@ private fun SessionRow(
     session: JulesSessionEntity,
     onClick: () -> Unit,
     onMerge: () -> Unit,
+    onSolve: () -> Unit,
     onClose: () -> Unit,
     onArchive: () -> Unit,
     onDetails: () -> Unit
@@ -1564,6 +1859,11 @@ private fun SessionRow(
                         Spacer(modifier = Modifier.size(4.dp))
                         IconButton(onClick = onMerge, modifier = Modifier.size(24.dp)) {
                             Icon(Icons.Default.Merge, contentDescription = "Merge", tint = Color.Green, modifier = Modifier.size(16.dp))
+                        }
+                    } else if (session.prMergeable == false) {
+                        Spacer(modifier = Modifier.size(4.dp))
+                        IconButton(onClick = onSolve, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Merge, contentDescription = "Solve", tint = Color.Red, modifier = Modifier.size(16.dp))
                         }
                     }
                     Spacer(modifier = Modifier.size(4.dp))

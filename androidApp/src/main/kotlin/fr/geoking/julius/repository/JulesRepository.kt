@@ -424,6 +424,98 @@ class JulesRepository(
         }
     }
 
+    suspend fun getConflictingFiles(githubToken: String, prUrl: String): Result<List<String>> {
+        val prRef = parseGitHubPullRequestUrl(prUrl) ?: return Result.failure(Exception("Invalid PR URL"))
+        return try {
+            val files = githubClient.getPullRequestFiles(githubToken, prRef.owner, prRef.repo, prRef.number)
+            val detail = githubClient.getPullRequest(githubToken, prRef.owner, prRef.repo, prRef.number)
+            val headRef = detail.head?.ref ?: return Result.failure(Exception("Head ref not found"))
+
+            val conflictingFiles = mutableListOf<String>()
+            for (file in files) {
+                val contentResp = githubClient.getFileContent(githubToken, prRef.owner, prRef.repo, file.filename, headRef)
+                val content = contentResp.content?.let {
+                    if (contentResp.encoding == "base64") {
+                        android.util.Base64.decode(it.replace("\n", ""), android.util.Base64.DEFAULT).decodeToString()
+                    } else it
+                } ?: ""
+
+                if (content.contains("<<<<<<<") && content.contains("=======") && content.contains(">>>>>>>")) {
+                    conflictingFiles.add(file.filename)
+                }
+            }
+            Result.success(conflictingFiles)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    data class Conflict(
+        val fullMatch: String,
+        val mine: String,
+        val incoming: String,
+        val startIndex: Int,
+        val endIndex: Int
+    )
+
+    fun parseConflicts(content: String): List<Conflict> {
+        val regex = Regex("<<<<<<< .*?\\r?\\n(.*?)\\r?\\n=======?\\r?\\n(.*?)\\r?\\n>>>>>>> .*?\\r?\\n", RegexOption.DOT_MATCHES_ALL)
+        return regex.findAll(content).map { match ->
+            Conflict(
+                fullMatch = match.value,
+                mine = match.groupValues[1],
+                incoming = match.groupValues[2],
+                startIndex = match.range.first,
+                endIndex = match.range.last + 1
+            )
+        } .toList()
+    }
+
+    suspend fun getFileContent(githubToken: String, prUrl: String, path: String): Result<Pair<String, String>> {
+        val prRef = parseGitHubPullRequestUrl(prUrl) ?: return Result.failure(Exception("Invalid PR URL"))
+        return try {
+            val detail = githubClient.getPullRequest(githubToken, prRef.owner, prRef.repo, prRef.number)
+            val headRef = detail.head?.ref ?: return Result.failure(Exception("Head ref not found"))
+            val contentResp = githubClient.getFileContent(githubToken, prRef.owner, prRef.repo, path, headRef)
+            val content = contentResp.content?.let {
+                if (contentResp.encoding == "base64") {
+                    android.util.Base64.decode(it.replace("\n", ""), android.util.Base64.DEFAULT).decodeToString()
+                } else it
+            } ?: ""
+            Result.success(content to contentResp.sha)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun saveResolvedFile(
+        githubToken: String,
+        prUrl: String,
+        path: String,
+        content: String,
+        sha: String
+    ): Result<Unit> {
+        val prRef = parseGitHubPullRequestUrl(prUrl) ?: return Result.failure(Exception("Invalid PR URL"))
+        return try {
+            val detail = githubClient.getPullRequest(githubToken, prRef.owner, prRef.repo, prRef.number)
+            val headRef = detail.head?.ref ?: return Result.failure(Exception("Head ref not found"))
+            val contentBase64 = android.util.Base64.encodeToString(content.toByteArray(), android.util.Base64.NO_WRAP)
+            githubClient.updateFileContent(
+                githubToken,
+                prRef.owner,
+                prRef.repo,
+                path,
+                contentBase64,
+                "Resolve conflicts in $path",
+                sha,
+                headRef
+            )
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun closePr(githubToken: String, prUrl: String): Result<Unit> {
         val prRef = parseGitHubPullRequestUrl(prUrl) ?: return Result.failure(Exception("Invalid PR URL"))
         return try {
