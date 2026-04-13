@@ -7,8 +7,7 @@ import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.poi.anyProvidesElectric
 
 fun AppSettings.effectiveMapEnergyFilterIds(): Set<String> {
-    val useVehicle = useVehicleFilter || (selectedMapEnergyTypes.isEmpty() && vehicleBrand.isNotEmpty())
-    return if (useVehicle) {
+    return if (useVehicleFilter) {
         when (vehicleEnergy) {
             "electric" -> setOf("electric")
             "hybrid" -> vehicleGasTypes + "electric"
@@ -20,8 +19,7 @@ fun AppSettings.effectiveMapEnergyFilterIds(): Set<String> {
 }
 
 fun AppSettings.effectiveFuelBrandFilterIds(): Set<String> {
-    val useVehicle = useVehicleFilter || (mapBrands.isEmpty() && vehicleBrand.isNotEmpty())
-    return if (useVehicle) {
+    return if (useVehicleFilter) {
         if (fuelCard == FuelCard.Routex && (vehicleEnergy == "gas" || vehicleEnergy == "hybrid")) {
             // Official Routex alliance partners and common partners
             setOf("esso", "eni", "total", "shell", "aral", "totalenergies", "bp", "omv", "circle k", "texaco", "g&v", "avia")
@@ -34,8 +32,7 @@ fun AppSettings.effectiveFuelBrandFilterIds(): Set<String> {
 }
 
 fun AppSettings.effectiveIrvePowerLevels(): Set<Int> {
-    val useVehicle = useVehicleFilter || (mapPowerLevels.isEmpty() && vehicleBrand.isNotEmpty())
-    return if (useVehicle && (vehicleEnergy == "electric" || vehicleEnergy == "hybrid")) {
+    return if (useVehicleFilter && (vehicleEnergy == "electric" || vehicleEnergy == "hybrid")) {
         vehiclePowerLevels
     } else {
         mapPowerLevels
@@ -43,8 +40,7 @@ fun AppSettings.effectiveIrvePowerLevels(): Set<Int> {
 }
 
 fun AppSettings.effectiveIrveOperatorFilter(): Set<String> {
-    val useVehicle = useVehicleFilter || (mapIrveOperators.isEmpty() && vehicleBrand.isNotEmpty())
-    return if (useVehicle && (vehicleEnergy == "electric" || vehicleEnergy == "hybrid")) {
+    return if (useVehicleFilter && (vehicleEnergy == "electric" || vehicleEnergy == "hybrid")) {
         emptySet()
     } else {
         mapIrveOperators

@@ -5,7 +5,8 @@ package fr.geoking.julius.api.belib
  * For now only Belib (Paris) is supported; more providers can be added with their geographic bounds.
  */
 class BorneAvailabilityProviderFactory(
-    private val belibProvider: BorneAvailabilityProvider
+    private val belibProvider: BorneAvailabilityProvider,
+    private val ecoMovementProvider: BorneAvailabilityProvider
 ) {
     /** Paris bounding box (approximate). */
     private val parisLatMin = 48.81
@@ -20,6 +21,7 @@ class BorneAvailabilityProviderFactory(
         if (latitude in parisLatMin..parisLatMax && longitude in parisLonMin..parisLonMax) {
             return belibProvider
         }
-        return null
+        // As a simple start, fallback to ecoMovement if not in Paris
+        return ecoMovementProvider
     }
 }
