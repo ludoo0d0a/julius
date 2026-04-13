@@ -5,6 +5,7 @@ import fr.geoking.julius.poi.PoiCategory
 import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.IrveDetails
+import fr.geoking.julius.poi.MapViewport
 
 /**
  * [PoiProvider] implementation for OCPI-compliant CPOs (Ionity, Fastned, etc.).
