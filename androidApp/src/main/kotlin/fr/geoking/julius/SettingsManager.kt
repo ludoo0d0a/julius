@@ -162,6 +162,10 @@ data class AppSettings(
     val evConsumptionKwhPer100km: Float? = null,
     /** Optional API key for Open Charge Map (api.openchargemap.io). */
     val openChargeMapKey: String = "",
+    /** Base URL for Eco-Movement OCPI endpoint. */
+    val ecoMovementUrl: String = "",
+    /** Authentication token for Eco-Movement. */
+    val ecoMovementToken: String = "",
     /** When POI provider is Overpass: which amenity types to show (toilets, drinking_water, truck_stop, rest_area). */
     val selectedOverpassAmenityTypes: Set<String> = setOf("toilets", "drinking_water"),
     /** Map engine to use on the phone (Google or MapLibre). */
@@ -294,7 +298,8 @@ open class SettingsManager(
             completionsMeKey, completionsMeModel, apifreellmKey,
             deepSeekKey, deepSeekModel, groqKey, groqModel,
             openRouterKey, openRouterModel,
-            julesKey, githubApiKey
+            julesKey, githubApiKey,
+            openChargeMapKey, ecoMovementUrl, ecoMovementToken
         )
 
         val speakingInterruptMode = loadSpeakingInterruptMode()
@@ -343,7 +348,12 @@ open class SettingsManager(
         val evConsumptionKwhPer100km = if (prefs.contains("ev_consumption_kwh_100")) {
             prefs.getFloat("ev_consumption_kwh_100", 18f).takeIf { it > 0f }
         } else null
-        val openChargeMapKey = prefs.getString("openchargemap_key", "") ?: ""
+        val openChargeMapKey = prefs.getString("openchargemap_key", "")?.takeIf { it.isNotEmpty() }
+            ?: fr.geoking.julius.BuildConfig.OPENCHARGEMAP_KEY
+        val ecoMovementUrl = prefs.getString("eco_movement_url", "")?.takeIf { it.isNotEmpty() }
+            ?: fr.geoking.julius.BuildConfig.ECO_MOVEMENT_URL
+        val ecoMovementToken = prefs.getString("eco_movement_token", "")?.takeIf { it.isNotEmpty() }
+            ?: fr.geoking.julius.BuildConfig.ECO_MOVEMENT_TOKEN
         val mobiliteitLuxembourgKey = prefs.getString("mobiliteit_luxembourg_key", "")?.takeIf { it.isNotEmpty() }
             ?: fr.geoking.julius.BuildConfig.MOBILITEIT_LUXEMBOURG_KEY
         val overpassAmenityStr = prefs.getString("overpass_amenity_types", "toilets,drinking_water") ?: "toilets,drinking_water"
@@ -438,6 +448,8 @@ open class SettingsManager(
             evRangeKm = evRangeKm,
             evConsumptionKwhPer100km = evConsumptionKwhPer100km,
             openChargeMapKey = openChargeMapKey,
+            ecoMovementUrl = ecoMovementUrl,
+            ecoMovementToken = ecoMovementToken,
             selectedOverpassAmenityTypes = selectedOverpassAmenityTypes,
             phoneMapEngine = phoneMapEngine,
             mapTheme = mapTheme,
@@ -583,7 +595,10 @@ open class SettingsManager(
         openRouterKey: String,
         openRouterModel: String,
         julesKey: String,
-        githubApiKey: String
+        githubApiKey: String,
+        openChargeMapKey: String = "",
+        ecoMovementUrl: String = "",
+        ecoMovementToken: String = ""
     ) {
         val edit = prefs.edit()
         if (prefs.getString("openai_key", "")?.isEmpty() != false && openAiKey.isNotEmpty()) edit.putString("openai_key", openAiKey)
@@ -606,6 +621,9 @@ open class SettingsManager(
         if (prefs.getString("openrouter_model", "")?.isEmpty() != false && openRouterModel.isNotEmpty()) edit.putString("openrouter_model", openRouterModel)
         if (prefs.getString("jules_key", "")?.isEmpty() != false && julesKey.isNotEmpty()) edit.putString("jules_key", julesKey)
         if (prefs.getString("github_api_key", "")?.isEmpty() != false && githubApiKey.isNotEmpty()) edit.putString("github_api_key", githubApiKey)
+        if (prefs.getString("openchargemap_key", "")?.isEmpty() != false && openChargeMapKey.isNotEmpty()) edit.putString("openchargemap_key", openChargeMapKey)
+        if (prefs.getString("eco_movement_url", "")?.isEmpty() != false && ecoMovementUrl.isNotEmpty()) edit.putString("eco_movement_url", ecoMovementUrl)
+        if (prefs.getString("eco_movement_token", "")?.isEmpty() != false && ecoMovementToken.isNotEmpty()) edit.putString("eco_movement_token", ecoMovementToken)
         edit.apply()
     }
 
@@ -832,6 +850,8 @@ open class SettingsManager(
             .putInt("ev_range_km", settings.evRangeKm.coerceIn(50, 1000))
             .apply { settings.evConsumptionKwhPer100km?.let { putFloat("ev_consumption_kwh_100", it) } ?: remove("ev_consumption_kwh_100") }
             .putString("openchargemap_key", settings.openChargeMapKey)
+            .putString("eco_movement_url", settings.ecoMovementUrl)
+            .putString("eco_movement_token", settings.ecoMovementToken)
             .putString("mobiliteit_luxembourg_key", settings.mobiliteitLuxembourgKey)
             .putString("overpass_amenity_types", settings.selectedOverpassAmenityTypes.joinToString(","))
             .putString("vehicle_type", settings.vehicleType.name)

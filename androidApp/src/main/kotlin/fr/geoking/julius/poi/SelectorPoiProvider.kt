@@ -31,6 +31,7 @@ class SelectorPoiProvider(
     private val dataGouv: PoiProvider,
     private val dataGouvElec: PoiProvider,
     private val openChargeMap: PoiProvider,
+    private val ecoMovement: PoiProvider,
     private val chargy: PoiProvider,
     private val openVanCamp: PoiProvider,
     private val spainMinetur: PoiProvider,
@@ -70,6 +71,7 @@ class SelectorPoiProvider(
         PoiProviderType.DataGouv -> dataGouv
         PoiProviderType.DataGouvElec -> dataGouvElec
         PoiProviderType.OpenChargeMap -> openChargeMap
+        PoiProviderType.EcoMovement -> ecoMovement
         PoiProviderType.Chargy -> chargy
         PoiProviderType.OpenVanCamp -> openVanCamp
         PoiProviderType.SpainMinetur -> spainMinetur
@@ -577,6 +579,7 @@ class SelectorPoiProvider(
         dataGouv.clearCache()
         dataGouvElec.clearCache()
         openChargeMap.clearCache()
+        ecoMovement.clearCache()
         chargy.clearCache()
         openVanCamp.clearCache()
         spainMinetur.clearCache()

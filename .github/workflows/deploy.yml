@@ -81,6 +81,9 @@ jobs:
           JULES_KEY: ${{ secrets.JULES_KEY }}
           GOOGLE_MAPS_KEY: ${{ secrets.GOOGLE_MAPS_KEY }}
           GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+          OPENCHARGEMAP_KEY: ${{ secrets.OPENCHARGEMAP_KEY }}
+          ECO_MOVEMENT_URL: ${{ secrets.ECO_MOVEMENT_URL }}
+          ECO_MOVEMENT_TOKEN: ${{ secrets.ECO_MOVEMENT_TOKEN }}
         run: |
           ./gradlew :androidApp:bundlePlaystoreRelease \
             -Pandroid.injected.signing.store.file=${{ github.workspace }}/release.keystore \
