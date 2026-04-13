@@ -85,7 +85,15 @@ class GitHubClient(
         val draft: Boolean = false,
         val merged: Boolean = false,
         val mergeable: Boolean? = null,
-        @SerialName("mergeable_state") val mergeableState: String? = null
+        @SerialName("mergeable_state") val mergeableState: String? = null,
+        val head: GitHubRef? = null,
+        val base: GitHubRef? = null
+    )
+
+    @Serializable
+    data class GitHubRef(
+        val ref: String = "",
+        val sha: String = ""
     )
 
     suspend fun getPullRequest(token: String, owner: String, repo: String, number: Int): GitHubPullRequestDetail {
@@ -98,6 +106,75 @@ class GitHubClient(
             throw NetworkException(response.status.value, "GitHub get PR: $body")
         }
         return json.decodeFromString(GitHubPullRequestDetail.serializer(), body)
+    }
+
+    @Serializable
+    data class GitHubFile(
+        val filename: String = "",
+        val status: String = "",
+        val sha: String = "",
+        @SerialName("raw_url") val rawUrl: String = ""
+    )
+
+    suspend fun getPullRequestFiles(token: String, owner: String, repo: String, number: Int): List<GitHubFile> {
+        requireToken(token)
+        val response = client.get("$baseUrl/repos/$owner/$repo/pulls/$number/files") {
+            githubHeaders(token)
+        }
+        val body = response.bodyAsText()
+        if (response.status.value != 200) {
+            throw NetworkException(response.status.value, "GitHub list PR files: $body")
+        }
+        return json.decodeFromString(ListSerializer(GitHubFile.serializer()), body)
+    }
+
+    @Serializable
+    data class GitHubContent(
+        val content: String? = null,
+        val sha: String = "",
+        val encoding: String? = null
+    )
+
+    suspend fun getFileContent(token: String, owner: String, repo: String, path: String, ref: String): GitHubContent {
+        requireToken(token)
+        val response = client.get("$baseUrl/repos/$owner/$repo/contents/$path") {
+            githubHeaders(token)
+            parameter("ref", ref)
+        }
+        val body = response.bodyAsText()
+        if (response.status.value != 200) {
+            throw NetworkException(response.status.value, "GitHub get file content: $body")
+        }
+        return json.decodeFromString(GitHubContent.serializer(), body)
+    }
+
+    @Serializable
+    private data class UpdateFileBody(
+        val message: String,
+        val content: String,
+        val sha: String,
+        val branch: String
+    )
+
+    suspend fun updateFileContent(
+        token: String,
+        owner: String,
+        repo: String,
+        path: String,
+        contentBase64: String,
+        message: String,
+        sha: String,
+        branch: String
+    ) {
+        requireToken(token)
+        val response = client.put("$baseUrl/repos/$owner/$repo/contents/$path") {
+            githubHeaders(token)
+            contentType(ContentType.Application.Json)
+            setBody(UpdateFileBody(message, contentBase64, sha, branch))
+        }
+        if (response.status.value !in 200..299) {
+            throw NetworkException(response.status.value, "GitHub update file: ${response.bodyAsText()}")
+        }
     }
 
     @Serializable
