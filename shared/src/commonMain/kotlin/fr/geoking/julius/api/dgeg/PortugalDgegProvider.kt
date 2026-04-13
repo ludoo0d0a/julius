@@ -8,10 +8,8 @@ import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.shared.logging.log
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
+import io.ktor.client.request.get
+import io.ktor.client.request.parameter
 import kotlinx.serialization.Serializable
 
 /**
@@ -50,12 +48,31 @@ class PortugalDgegProvider(
         }
 
         return try {
-            val response: List<DgegStation> = httpClient.post("https://precoscombustiveis.dgeg.gov.pt/api/PrecoComb/PesquisarPostos") {
-                contentType(ContentType.Application.Json)
-                setBody(DgegRequest())
+            val fuelIds = listOf(2101, 2105, 3201, 3205, 3400, 3405, 1120).joinToString(",")
+            val response: DgegEnvelope = httpClient.get("https://precoscombustiveis.dgeg.gov.pt/api/PrecoComb/PesquisarPostos") {
+                parameter("idsTiposComb", fuelIds)
             }.body()
 
-            val pois = response.mapNotNull { it.toPoi() }
+            val pois = response.resultado
+                .groupBy { it.Id }
+                .mapNotNull { (id, stations) ->
+                    val first = stations.first()
+                    if (first.Latitude == 0.0 || first.Longitude == 0.0) return@mapNotNull null
+
+                    val prices = stations.mapNotNull { it.toFuelPrice() }
+
+                    Poi(
+                        id = "dgeg:$id",
+                        name = first.Nome,
+                        address = listOfNotNull(first.Morada, first.Localidade).joinToString(", "),
+                        latitude = first.Latitude,
+                        longitude = first.Longitude,
+                        brand = first.Marca,
+                        poiCategory = PoiCategory.Gas,
+                        fuelPrices = prices.ifEmpty { null },
+                        source = "DGEG (Portugal)"
+                    )
+                }
             cache = pois
             lastFetch = now
             pois
@@ -73,68 +90,35 @@ class PortugalDgegProvider(
     private fun currentTimeMillis(): Long = io.ktor.util.date.getTimeMillis()
 
     @Serializable
-    private data class DgegRequest(
-        val idCombustivel: String? = null,
-        val idTipoPosto: String? = null,
-        val idMunicipio: String? = null,
-        val idDistrito: String? = null,
-        val idMarca: String? = null
+    private data class DgegEnvelope(
+        val status: Boolean,
+        val resultado: List<DgegStation>
     )
 
     @Serializable
     private data class DgegStation(
         val Id: Int,
         val Nome: String,
+        val Preco: String? = null,
+        val Combustivel: String? = null,
+        val Marca: String? = null,
         val Morada: String? = null,
         val Localidade: String? = null,
         val Latitude: Double,
-        val Longitude: Double,
-        val Marca: String? = null,
-        val Preco: String? = null, // Sometimes used in specific searches, but we want all fuels
-        val Combustiveis: List<DgegFuel>? = null
-    ) {
-        fun toPoi(): Poi? {
-            if (Latitude == 0.0 || Longitude == 0.0) return null
-
-            val prices = Combustiveis?.mapNotNull { it.toFuelPrice() } ?: emptyList()
-
-            return Poi(
-                id = "dgeg:$Id",
-                name = Nome,
-                address = listOfNotNull(Morada, Localidade).joinToString(", "),
-                latitude = Latitude,
-                longitude = Longitude,
-                brand = Marca,
-                poiCategory = PoiCategory.Gas,
-                fuelPrices = prices.ifEmpty { null },
-                source = "DGEG (Portugal)"
-            )
-        }
-    }
-
-    @Serializable
-    private data class DgegFuel(
-        val IdCombustivel: Int,
-        val Descritivo: String,
-        val Preco: String? = null
+        val Longitude: Double
     ) {
         fun toFuelPrice(): FuelPrice? {
-            val priceValue = Preco?.replace(",", ".")?.toDoubleOrNull() ?: return null
+            val priceString = Preco?.split(" ")?.firstOrNull() ?: return null
+            val priceValue = priceString.replace(",", ".").toDoubleOrNull() ?: return null
 
-            // Fuel IDs mapping based on DGEG API observation:
-            // 2101: Gasóleo rodoviário (Diesel)
-            // 2105: Gasóleo especial (Premium Diesel)
-            // 3201: Gasolina IO95 (SP95)
-            // 3205: Gasolina especial IO95 (Premium SP95)
-            // 3400: Gasolina IO98 (SP98)
-            // 3405: Gasolina especial IO98 (Premium SP98)
-            // 1120: GPL Auto (LPG)
-
-            val fuelType = when (IdCombustivel) {
-                2101, 2105 -> "Gazole"
-                3201, 3205 -> "SP95"
-                3400, 3405 -> "SP98"
-                1120 -> "GPLc"
+            val fuelType = when {
+                Combustivel?.contains("Gasóleo simples", ignoreCase = true) == true -> "Gazole"
+                Combustivel?.contains("Gasóleo especial", ignoreCase = true) == true -> "Gazole"
+                Combustivel?.contains("Gasolina simples 95", ignoreCase = true) == true -> "SP95"
+                Combustivel?.contains("Gasolina especial 95", ignoreCase = true) == true -> "SP95"
+                Combustivel?.contains("Gasolina 98", ignoreCase = true) == true -> "SP98"
+                Combustivel?.contains("Gasolina especial 98", ignoreCase = true) == true -> "SP98"
+                Combustivel?.contains("GPL Auto", ignoreCase = true) == true -> "GPLc"
                 else -> return null
             }
 

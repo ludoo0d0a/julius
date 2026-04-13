@@ -56,7 +56,7 @@ class UnitedKingdomCmaProviderTest {
         }
 
         val httpClient = HttpClient(mockEngine) {
-            install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
+            install(ContentNegotiation) {
                 json(json)
             }
         }
