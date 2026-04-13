@@ -121,7 +121,7 @@ val mapModule = module {
         )
     }
     single<PoiProvider>(named("ecomovement")) {
-        OcpiPoiProvider(get(named("ecomovement_client")), sourceName = "Eco-Movement")
+        OcpiPoiProvider(get(named("ecomovement_client")), providerName = "Eco-Movement")
     }
     single<PoiProvider>(named("chargy")) {
         ChargyProvider(get(), radiusKm = 15, limit = 100)
@@ -217,8 +217,7 @@ val mapModule = module {
     }
     single<BorneAvailabilityProviderFactory> {
         BorneAvailabilityProviderFactory(
-            belibProvider = get(named("belib")),
-            ecoMovementProvider = get(named("ecomovement_availability"))
+            belibProvider = get(named("belib"))
         )
     }
 

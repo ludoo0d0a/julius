@@ -13,5 +13,7 @@ data class JulesActivityEntity(
     val timestamp: String,
     val sortTimestamp: Long,
     @ColumnInfo(defaultValue = "0")
-    val isPendingOffline: Boolean = false
+    val isPendingOffline: Boolean = false,
+    val type: String? = null,
+    val artifactsJson: String? = null
 )
