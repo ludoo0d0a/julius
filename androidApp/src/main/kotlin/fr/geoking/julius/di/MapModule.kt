@@ -121,7 +121,7 @@ val mapModule = module {
         )
     }
     single<PoiProvider>(named("ecomovement")) {
-        OcpiPoiProvider(get(named("ecomovement_client")), sourceName = "Eco-Movement")
+        OcpiPoiProvider(get(named("ecomovement_client")), providerName = "Eco-Movement")
     }
     single<PoiProvider>(named("chargy")) {
         ChargyProvider(get(), radiusKm = 15, limit = 100)

@@ -7,18 +7,6 @@ import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.IrveDetails
 
 /**
- * [PoiProvider] implementation for OCPI-compliant CPOs (e.g. Eco-Movement).
- */
-class OcpiPoiProvider(
-    private val client: OcpiClient,
-    private val sourceName: String = "OCPI"
-import fr.geoking.julius.poi.IrveDetails
-import fr.geoking.julius.poi.MapViewport
-import fr.geoking.julius.poi.Poi
-import fr.geoking.julius.poi.PoiCategory
-import fr.geoking.julius.poi.PoiProvider
-
-/**
  * [PoiProvider] implementation for OCPI-compliant CPOs (Ionity, Fastned, etc.).
  * Uses [OcpiClient] to fetch locations and maps them to [Poi].
  */
