@@ -72,6 +72,9 @@ configure<ApplicationExtension> {
         val ecoMovementUrl = sanitizeBuildConfigString(prop("ECO_MOVEMENT_URL"))
         val ecoMovementToken = sanitizeBuildConfigString(prop("ECO_MOVEMENT_TOKEN"))
         val tomtomKey = sanitizeBuildConfigString(prop("TOMTOM_KEY"))
+        val fuelpricesDkKey = sanitizeBuildConfigString(prop("FUELPRICES_DK_KEY"))
+        val nswFuelCheckApiKey = sanitizeBuildConfigString(prop("NSW_FUELCHECK_API_KEY"))
+        val nswFuelCheckApiSecret = sanitizeBuildConfigString(prop("NSW_FUELCHECK_API_SECRET"))
         val mapsApiKey = prop("GOOGLE_MAPS_KEY")
         manifestPlaceholders["googleMapsApiKey"] = mapsApiKey
 
@@ -96,6 +99,9 @@ configure<ApplicationExtension> {
         buildConfigField("String", "ECO_MOVEMENT_URL", "\"$ecoMovementUrl\"")
         buildConfigField("String", "ECO_MOVEMENT_TOKEN", "\"$ecoMovementToken\"")
         buildConfigField("String", "TOMTOM_KEY", "\"$tomtomKey\"")
+        buildConfigField("String", "FUELPRICES_DK_KEY", "\"$fuelpricesDkKey\"")
+        buildConfigField("String", "NSW_FUELCHECK_API_KEY", "\"$nswFuelCheckApiKey\"")
+        buildConfigField("String", "NSW_FUELCHECK_API_SECRET", "\"$nswFuelCheckApiSecret\"")
 
         // Required for Google Play Services Maps (references legacy Apache HTTP classes removed from Android 9+)
         useLibrary("org.apache.http.legacy")

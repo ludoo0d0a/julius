@@ -445,7 +445,7 @@ private fun MapConfig(
                     PoiProviderType.MexicoCRE to "Mexico (CRE)",
                     PoiProviderType.MoldovaAnre to "Moldova (ANRE)",
                     PoiProviderType.AustraliaFuel to "Australia (FuelWatch/Check)",
-                    PoiProviderType.IrelandPickAPump to "Ireland (Pick A Pump)"
+                    PoiProviderType.IrelandPickAPump to "Ireland (Pick A Pump)",
                     PoiProviderType.UnitedKingdomCma to "United Kingdom (CMA)",
                     PoiProviderType.ItalyMimit to "Italy (MIMIT)"
                 ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }.forEach { (type, label) ->
