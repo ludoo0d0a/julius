@@ -14,154 +14,163 @@ The application features an **Auto Mode** that intelligently manages data source
 
 ---
 
+## ⚡ EV Charging & OCPI
+
+To provide real-time availability and accurate technical data for EV charging stations, Julius leverages the **OCPI (Open Charge Point Interface)** protocol.
+
+- **OCPI (Open Charge Point Interface):** An open-source protocol that allows for automated roaming between EV charging networks. It enables Julius to receive real-time updates on charger status (Available, Occupied, Out of Order), technical specifications (connector types, power in kW), and dynamic pricing.
+- **Eco-Movement:** A premier global aggregator of EV charging station data. Eco-Movement sources data directly from hundreds of Charge Point Operators (CPOs) worldwide, validating and normalizing it to ensure the highest data quality. In Julius, Eco-Movement acts as a comprehensive global source for IRVE (Infrastructures de Recharge pour Véhicules Électriques) data via its OCPI-compliant API.
+
+---
+
 ## 🌍 Global & Multi-Country Providers
 
 These providers cover multiple regions or provide fallback data when specific local APIs are unavailable.
 
-| Provider | Format | Access | Source Type | Scope | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **OpenStreetMap** | JSON (Overpass) | Free | Community | Global | Real-time (Community) |
-| **OpenVanCamp** | JSON | Free | Community / Aggregator | Europe | Weekly Reference Prices |
-| **OpenChargeMap** | JSON | API Key | Community | Global | Real-time (Community) |
-| **Eco-Movement** | JSON (OCPI) | API Key | Private | Global | Real-time |
-| **Routex** | JSON | Free | Multinational | Europe | Daily |
-| **Fuelo.net** | HTML (Scraped) | Free | Private | Balkans / Central Europe | Daily |
-| **DrivstoffAppen** | JSON | Free | Private | Nordics | ~1 hour cache |
-| **Ionity / Fastned** | JSON (OCPI) | Free | Private | Europe | Real-time |
+| Provider | Format | Access | Source Type | Scope | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **OpenStreetMap** | JSON (Overpass) | Free | Community | Global | No | Real-time (Community) |
+| **OpenVanCamp** | JSON | Free | Community / Aggregator | Europe | No | Weekly Reference Prices |
+| **OpenChargeMap** | JSON | API Key | Community | Global | No | Real-time (Community) |
+| **Eco-Movement** | JSON (OCPI) | API Key | Private | Global | **Yes** | Real-time |
+| **Routex** | JSON | Free | Multinational | Europe | No | Daily |
+| **Fuelo.net** | HTML (Scraped) | Free | Private | Balkans / Central Europe | No | Daily |
+| **DrivstoffAppen** | JSON | Free | Private | Nordics | No | ~1 hour cache |
+| **Ionity / Fastned** | JSON (OCPI) | Free | Private | Europe | **Yes** | Real-time |
 
 ---
 
 ## 📍 Country-Specific Coverage
 
 ### 🇦🇷 Argentina
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Secretaría de Energía** | CSV | Free | Government | No | Daily |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Secretaría de Energía** | CSV | Free | Government | No | No | Daily |
 
 ### 🇦🇺 Australia
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **NSW FuelCheck** | JSON | API Key | Government | No | Real-time |
-| **FuelWatch** | XML/RSS | Free | Government | No | Daily |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **NSW FuelCheck** | JSON | API Key | Government | No | No | Real-time |
+| **FuelWatch** | XML/RSS | Free | Government | No | No | Daily |
 
 ### 🇦🇹 Austria
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **E-Control** | JSON | Free | Government | No | Real-time |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **E-Control** | JSON | Free | Government | No | No | Real-time |
 
 ### 🇧🇪 Belgium
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Official Scraper** | HTML | Free | Government | No | Daily (Max Prices) |
-| **STIB/MIVB** | JSON | Free | Government | No | Real-time (Transit) |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Official Scraper** | HTML | Free | Government | No | No | Daily (Max Prices) |
+| **STIB/MIVB** | JSON | Free | Government | No | No | Real-time (Transit) |
 
 ### 🇭🇷 Croatia
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **MZOE** | JSON | Free | Government | No | Daily |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **MZOE** | JSON | Free | Government | No | No | Daily |
 
 ### 🇩🇰 Denmark
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Fuelprices.dk** | JSON | API Key | Private | No | ~1 hour cache |
-| **DrivstoffAppen** | JSON | Free | Private | Yes | ~1 hour cache |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Fuelprices.dk** | JSON | API Key | Private | No | No | ~1 hour cache |
+| **DrivstoffAppen** | JSON | Free | Private | Yes | No | ~1 hour cache |
 
 ### 🇫🇮 Finland
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Polttoaine.net** | HTML | Free | Private | No | Daily |
-| **DrivstoffAppen** | JSON | Free | Private | Yes | ~1 hour cache |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Polttoaine.net** | HTML | Free | Private | No | No | Daily |
+| **DrivstoffAppen** | JSON | Free | Private | Yes | No | ~1 hour cache |
 
 ### 🇫🇷 France
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **DataGouv (Flux Instantané)** | JSON | Free | Government | No | 10 minutes |
-| **GasAPI** | JSON | Free | Community (Mirror) | No | 10 minutes |
-| **DataGouv IRVE** | JSON | Free | Government | No | Daily |
-| **Belib' (Paris)** | JSON | Free | Government | No | Real-time (Availability) |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **DataGouv (Flux Instantané)** | JSON | Free | Government | No | No | 10 minutes |
+| **GasAPI** | JSON | Free | Community (Mirror) | No | No | 10 minutes |
+| **DataGouv IRVE** | JSON | Free | Government | No | No | Daily |
+| **Belib' (Paris)** | JSON | Free | Government | No | No | Real-time (Availability) |
 
 ### 🇩🇪 Germany
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Tankerkönig (MTS-K)** | JSON | API Key | Government | No | Real-time |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Tankerkönig (MTS-K)** | JSON | API Key | Government | No | No | Real-time |
 
 ### 🇬🇷 Greece
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **FuelGR** | JSON | Free | Private | No | Daily |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **FuelGR** | JSON | Free | Private | No | No | Daily |
 
 ### 🇮🇪 Ireland
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Pick A Pump** | JSON | Free | Private | No | Daily |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Pick A Pump** | JSON | Free | Private | No | No | Daily |
 
 ### 🇮🇹 Italy
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **MIMIT** | CSV | Free | Government | No | Daily |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **MIMIT** | CSV | Free | Government | No | No | Daily |
 
 ### 🇱🇺 Luxembourg
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Chargy** | KML/JSON | Free | Government | No | Real-time |
-| **Mobiliteit.lu** | JSON | API Key | Government | No | Real-time (Transit) |
-| **ANWB / OpenVanCamp** | JSON | Free | Private/Comm | Yes | Weekly fallback |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Chargy** | KML/JSON | Free | Government | No | No | Real-time |
+| **Mobiliteit.lu** | JSON | API Key | Government | No | No | Real-time (Transit) |
+| **ANWB / OpenVanCamp** | JSON | Free | Private/Comm | Yes | No | Weekly fallback |
 
 ### 🇲🇽 Mexico
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **CRE** | XML | Free | Government | No | Daily |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **CRE** | XML | Free | Government | No | No | Daily |
 
 ### 🇲🇩 Moldova
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **ANRE** | JSON | Free | Government | No | Daily |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **ANRE** | JSON | Free | Government | No | No | Daily |
 
 ### 🇳🇱 Netherlands
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **ANWB** | JSON | Free | Private | No | ~1 hour cache |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **ANWB** | JSON | Free | Private | No | No | ~1 hour cache |
 
 ### 🇳🇴 Norway
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **DrivstoffAppen** | JSON | Free | Private | Yes | ~1 hour cache |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **DrivstoffAppen** | JSON | Free | Private | Yes | No | ~1 hour cache |
 
 ### 🇵🇹 Portugal
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **DGEG (Mainland)** | JSON | Free | Government | No | ~1 hour cache |
-| **Madeira Official** | HTML | Free | Government | No | 24 hour cache |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **DGEG (Mainland)** | JSON | Free | Government | No | No | ~1 hour cache |
+| **Madeira Official** | HTML | Free | Government | No | No | 24 hour cache |
 
 ### 🇷🇴 Romania
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Peco Online** | JSON | Free | Private | No | Daily |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Peco Online** | JSON | Free | Private | No | No | Daily |
 
 ### 🇷🇸 Serbia
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **NIS / Cenagoriva** | JSON/HTML | Free | Private | No | Daily |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **NIS / Cenagoriva** | JSON/HTML | Free | Private | No | No | Daily |
 
 ### 🇸🇮 Slovenia
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Goriva.si** | JSON | Free | Government | No | Daily |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Goriva.si** | JSON | Free | Government | No | No | Daily |
 
 ### 🇪🇸 Spain
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Minetur** | JSON | Free | Government | No | ~1 hour cache |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Minetur** | JSON | Free | Government | No | No | ~1 hour cache |
 
 ### 🇸🇪 Sweden
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **DrivstoffAppen** | JSON | Free | Private | Yes | ~1 hour cache |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **DrivstoffAppen** | JSON | Free | Private | Yes | No | ~1 hour cache |
 
 ### 🇬🇧 United Kingdom
-| Provider | Format | Access | Source Type | Multinational | Update Time |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **CMA Open Data** | JSON | Free | Government | No | ~1 hour cache |
+| Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **CMA Open Data** | JSON | Free | Government | No | No | ~1 hour cache |
 
 ---
 
