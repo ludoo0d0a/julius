@@ -153,6 +153,7 @@ fun MapScaffold(
                                             PoiProviderType.BelgiumOfficial -> "Source: Belgium (official)"
                                             PoiProviderType.PortugalDgeg -> "Source: Portugal DGEG (official)"
                                             PoiProviderType.MadeiraOfficial -> "Source: Madeira (official)"
+                                            PoiProviderType.SwedenOfficial -> "Source: Sweden (official)"
                                             PoiProviderType.Overpass -> "Source: OSM + data.gouv (camping, picnic…)"
                                             PoiProviderType.Hybrid -> "Source: Hybrid (Gas + EV)"
                                             else -> "Source: ${selectedProviders.first()}"

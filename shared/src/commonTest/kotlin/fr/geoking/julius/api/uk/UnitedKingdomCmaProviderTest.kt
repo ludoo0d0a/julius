@@ -60,15 +60,14 @@ class UnitedKingdomCmaProviderTest {
                 json(json)
             }
         }
-        val cmaClient = UnitedKingdomCmaClient(httpClient)
-        val provider = UnitedKingdomCmaProvider(cmaClient, radiusKm = 10)
+        val provider = UnitedKingdomCmaProvider(httpClient, radiusKm = 10)
 
         val pois = provider.getGasStations(51.5, -0.1)
 
         assertEquals(1, pois.size)
         val poi = pois[0]
-        assertEquals("SITE1", poi.id)
-        assertEquals("Asda London", poi.name)
+        assertEquals("uk_cma:SITE1", poi.id)
+        assertEquals("Asda", poi.name)
         assertEquals(2, poi.fuelPrices?.size)
 
         val sp95 = poi.fuelPrices?.find { it.fuelName == "SP95" }

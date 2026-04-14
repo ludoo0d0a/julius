@@ -292,6 +292,9 @@ open class SettingsManager(
         val autoPoiProvidersEnabled = prefs.getBoolean("auto_poi_providers_enabled", true)
 
         // Persist build-time keys (from env/local.properties) when prefs were empty so they show in settings and are reused
+        val openChargeMapKey = prefs.getString("openchargemap_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.OPENCHARGEMAP_KEY
+        val ecoMovementUrl = prefs.getString("eco_movement_url", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.ECO_MOVEMENT_URL
+        val ecoMovementToken = prefs.getString("eco_movement_token", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.ECO_MOVEMENT_TOKEN
         persistBuildTimeKeysIfUsed(
             openAiKey, elevenLabsKey, perplexityKey, geminiKey, deepgramKey,
             firebaseAiKey, firebaseAiModel, opencodeZenKey, opencodeZenModel,
@@ -348,14 +351,7 @@ open class SettingsManager(
         val evConsumptionKwhPer100km = if (prefs.contains("ev_consumption_kwh_100")) {
             prefs.getFloat("ev_consumption_kwh_100", 18f).takeIf { it > 0f }
         } else null
-        val openChargeMapKey = prefs.getString("openchargemap_key", "")?.takeIf { it.isNotEmpty() }
-            ?: fr.geoking.julius.BuildConfig.OPENCHARGEMAP_KEY
-        val ecoMovementUrl = prefs.getString("eco_movement_url", "")?.takeIf { it.isNotEmpty() }
-            ?: fr.geoking.julius.BuildConfig.ECO_MOVEMENT_URL
-        val ecoMovementToken = prefs.getString("eco_movement_token", "")?.takeIf { it.isNotEmpty() }
-            ?: fr.geoking.julius.BuildConfig.ECO_MOVEMENT_TOKEN
-        val mobiliteitLuxembourgKey = prefs.getString("mobiliteit_luxembourg_key", "")?.takeIf { it.isNotEmpty() }
-            ?: fr.geoking.julius.BuildConfig.MOBILITEIT_LUXEMBOURG_KEY
+        val mobiliteitLuxembourgKey = prefs.getString("mobiliteit_luxembourg_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.MOBILITEIT_LUXEMBOURG_KEY
         val overpassAmenityStr = prefs.getString("overpass_amenity_types", "toilets,drinking_water") ?: "toilets,drinking_water"
         val selectedOverpassAmenityTypes = overpassAmenityStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
             .ifEmpty { setOf("toilets", "drinking_water") }

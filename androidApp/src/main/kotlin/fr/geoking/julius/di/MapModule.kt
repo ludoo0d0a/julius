@@ -23,6 +23,8 @@ import fr.geoking.julius.api.madeira.MadeiraFuelPricesClient
 import fr.geoking.julius.api.madeira.MadeiraOfficialProvider
 import fr.geoking.julius.api.uk.UnitedKingdomCmaProvider
 import fr.geoking.julius.api.italy.ItalyMimitProvider
+import fr.geoking.julius.api.sweden.SwedenFuelPricesClient
+import fr.geoking.julius.api.sweden.SwedenOfficialProvider
 import fr.geoking.julius.api.gas.GasApiProvider
 import fr.geoking.julius.api.openvan.OpenVanCampClient
 import fr.geoking.julius.api.openvan.OpenVanCampProvider
@@ -121,7 +123,7 @@ val mapModule = module {
         )
     }
     single<PoiProvider>(named("ecomovement")) {
-        OcpiPoiProvider(get(named("ecomovement_client")), sourceName = "Eco-Movement")
+        OcpiPoiProvider(get(named("ecomovement_client")), providerName = "Eco-Movement")
     }
     single<PoiProvider>(named("chargy")) {
         ChargyProvider(get(), radiusKm = 15, limit = 100)
@@ -168,6 +170,10 @@ val mapModule = module {
     single<PoiProvider>(named("italymimit")) {
         ItalyMimitProvider(get(), radiusKm = 15, limit = 50)
     }
+    single { SwedenFuelPricesClient(get()) }
+    single<PoiProvider>(named("swedenofficial")) {
+        SwedenOfficialProvider(swedenClient = get(), overpassClient = get(), radiusKm = 10, limit = 50)
+    }
     single { DataGouvCampingClient(get()) }
     single<PoiProvider>(named("datagouvcamping")) {
         DataGouvCampingProvider(get(), radiusKm = 15, limit = 50)
@@ -193,6 +199,7 @@ val mapModule = module {
             fastned = get(named("fastned")),
             unitedKingdomCma = get(named("unitedkingdomcma")),
             italyMimit = get(named("italymimit")),
+            swedenOfficial = get(named("swedenofficial")),
             openVanCampClient = get(),
             overpass = get(named("overpass")),
             dataGouvCamping = get(named("datagouvcamping")),

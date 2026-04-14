@@ -107,6 +107,8 @@ enum class PoiProviderType(
     UnitedKingdomCma(providesFuel = true, supportedCountries = setOf("GB")),
     /** Italian fuel prices via MIMIT open data feeds. */
     ItalyMimit(providesFuel = true, supportedCountries = setOf("IT")),
+    /** Swedish official list fuel prices from Circle K. */
+    SwedenOfficial(providesFuel = true, supportedCountries = setOf("SE")),
     Overpass,
     Ionity(providesElectric = true),
     Fastned(providesElectric = true),

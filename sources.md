@@ -39,7 +39,7 @@ The application aims for exact station-by-station prices. Where not yet "cracked
 | **Croatia** | HR | Regulated Max | OpenVan.camp | ⚠️ National Max Fallback |
 | **Netherlands** | NL | Reference Avg | OpenVan.camp | ⚠️ Average Fallback |
 | **Denmark** | DK | Reference Avg | OpenVan.camp | ⚠️ Average Fallback |
-| **Sweden** | SE | Reference Avg | OpenVan.camp | ⚠️ Average Fallback |
+| **Sweden** | SE | Station-specific | Circle K / OSM | ✅ Cracked (Official List Price) |
 | **Norway** | NO | Reference Avg | OpenVan.camp | ⚠️ Average Fallback |
 | **Finland** | FI | Reference Avg | OpenVan.camp | ⚠️ Average Fallback |
 | **Poland** | PL | Reference Avg | OpenVan.camp | ⚠️ Average Fallback |

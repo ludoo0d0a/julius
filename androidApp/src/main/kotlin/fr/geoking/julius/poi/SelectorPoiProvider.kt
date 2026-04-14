@@ -44,6 +44,7 @@ class SelectorPoiProvider(
     private val fastned: PoiProvider,
     private val unitedKingdomCma: PoiProvider,
     private val italyMimit: PoiProvider,
+    private val swedenOfficial: PoiProvider,
     private val openVanCampClient: OpenVanCampClient,
     private val overpass: PoiProvider,
     private val dataGouvCamping: PoiProvider?,
@@ -86,6 +87,7 @@ class SelectorPoiProvider(
         PoiProviderType.Fastned -> fastned
         PoiProviderType.UnitedKingdomCma -> unitedKingdomCma
         PoiProviderType.ItalyMimit -> italyMimit
+        PoiProviderType.SwedenOfficial -> swedenOfficial
         PoiProviderType.Overpass -> overpass
         PoiProviderType.Hybrid -> hybridProvider
     }
@@ -596,6 +598,7 @@ class SelectorPoiProvider(
         fastned.clearCache()
         unitedKingdomCma.clearCache()
         italyMimit.clearCache()
+        swedenOfficial.clearCache()
         overpass.clearCache()
     }
 
