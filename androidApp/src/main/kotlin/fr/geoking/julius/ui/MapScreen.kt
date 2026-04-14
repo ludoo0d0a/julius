@@ -46,6 +46,7 @@ import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.*
 import fr.geoking.julius.CacheManager
 import fr.geoking.julius.R
@@ -86,6 +87,8 @@ import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
 import fr.geoking.julius.ui.map.PoiMarkerHelper
 import fr.geoking.julius.ui.map.MarkerStyle
 import fr.geoking.julius.ui.map.DebugLogOverlay
+import fr.geoking.julius.ui.map.GoogleMapStyles
+import fr.geoking.julius.MapTheme
 import fr.geoking.julius.poi.PoiMerger
 import fr.geoking.julius.StationMapFilters
 import fr.geoking.julius.effectiveIrvePowerLevels
@@ -141,6 +144,7 @@ fun MapScreen(
     palette: AnimationPalette,
     initialCenter: LatLng? = null,
     onBack: () -> Unit,
+    onShowSettings: () -> Unit,
     onPlanRoute: (() -> Unit)? = null,
     communityRepo: CommunityPoiRepository? = null,
     favoritesRepo: FavoritesRepository? = null
@@ -155,7 +159,6 @@ fun MapScreen(
     var mapErrorMessage by remember(selectedProviders) { mutableStateOf<String?>(null) }
     var isErrorPaused by remember(selectedProviders) { mutableStateOf(false) }
     var retryCount by remember { mutableStateOf(0) }
-    var showMapSettings by remember { mutableStateOf(false) }
     var showAddPoiSheet by remember { mutableStateOf(false) }
     var addPoiLinkedOfficialId by remember { mutableStateOf<String?>(null) }
     var addPoiInitialName by remember { mutableStateOf("") }
@@ -403,17 +406,6 @@ fun MapScreen(
             }
     }
 
-    if (showMapSettings) {
-        SettingsScreen(
-            settingsManager = settingsManager,
-            authManager = authManager,
-            errorLog = store.state.value.errorLog,
-            onDismiss = { showMapSettings = false },
-            initialScreenStack = listOf(SettingsScreenPage.MapConfig)
-        )
-        return
-    }
-
     MapScaffold(
         title = "Gas Stations",
         settingsManager = settingsManager,
@@ -443,7 +435,7 @@ fun MapScreen(
                 }
             }
         },
-        onShowSettings = { showMapSettings = true },
+        onShowSettings = onShowSettings,
         onPlanRoute = onPlanRoute,
         showFavoritesOnly = showFavoritesOnly,
         onShowFavoritesOnlyChange = { showFavoritesOnly = it },
@@ -564,13 +556,18 @@ fun MapScreen(
                 val configuration = LocalConfiguration.current
                 val mapPaddingBottom = if (selectedPoi != null) (configuration.screenHeightDp * 0.4f).dp else 0.dp
 
+                val mapProperties = remember(hasLocationPermission, settings.mapTrafficEnabled, settings.mapTheme) {
+                    MapProperties(
+                        isMyLocationEnabled = hasLocationPermission,
+                        isTrafficEnabled = settings.mapTrafficEnabled,
+                        mapStyleOptions = if (settings.mapTheme == MapTheme.Dark) MapStyleOptions(GoogleMapStyles.Dark) else null
+                    )
+                }
+
                 GoogleMap(
                     modifier = Modifier.fillMaxSize(),
                     cameraPositionState = cameraPositionState,
-                    properties = MapProperties(
-                        isMyLocationEnabled = hasLocationPermission,
-                        isTrafficEnabled = settings.mapTrafficEnabled
-                    ),
+                    properties = mapProperties,
                     uiSettings = MapUiSettings(myLocationButtonEnabled = hasLocationPermission),
                     contentPadding = PaddingValues(bottom = mapPaddingBottom)
                 ) {
@@ -914,6 +911,7 @@ private fun MapScreenPreview() {
         authManager = fr.geoking.julius.feature.auth.GoogleAuthManager(context, fakeSettingsManager, { fakeStore }, com.google.firebase.auth.FirebaseAuth.getInstance()),
         store = fakeStore,
         palette = AnimationPalettes.paletteFor(0),
-        onBack = {}
+        onBack = {},
+        onShowSettings = {}
     )
 }

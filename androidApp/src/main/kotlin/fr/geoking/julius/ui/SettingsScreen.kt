@@ -322,24 +322,22 @@ private fun MapConfig(
             }
         }
 
-        if (settings.phoneMapEngine == MapEngine.MapLibre) {
-            // Map Theme (for MapLibre)
-            Column {
-                Text("Map Theme", color = Lavender, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    MapTheme.entries.forEach { theme ->
-                        FilterChip(
-                            selected = settings.mapTheme == theme,
-                            onClick = { onUpdate(settings.copy(mapTheme = theme)) },
-                            label = { Text(theme.name) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Lavender,
-                                selectedLabelColor = DeepPurple,
-                                labelColor = Color.White,
-                                containerColor = Color.White.copy(alpha = 0.1f)
-                            )
+        // Map Theme (for both Google and MapLibre)
+        Column {
+            Text("Map Theme", color = Lavender, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                MapTheme.entries.forEach { theme ->
+                    FilterChip(
+                        selected = settings.mapTheme == theme,
+                        onClick = { onUpdate(settings.copy(mapTheme = theme)) },
+                        label = { Text(theme.name) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Lavender,
+                            selectedLabelColor = DeepPurple,
+                            labelColor = Color.White,
+                            containerColor = Color.White.copy(alpha = 0.1f)
                         )
-                    }
+                    )
                 }
             }
         }
