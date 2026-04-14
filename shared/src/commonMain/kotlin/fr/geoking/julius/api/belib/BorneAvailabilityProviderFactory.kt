@@ -21,6 +21,7 @@ class BorneAvailabilityProviderFactory(
         if (latitude in parisLatMin..parisLatMax && longitude in parisLonMin..parisLonMax) {
             return belibProvider
         }
+        // As a simple start, fallback to ecoMovement if not in Paris
         return ecoMovementProvider
     }
 }

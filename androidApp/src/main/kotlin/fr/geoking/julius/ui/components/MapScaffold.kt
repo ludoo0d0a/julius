@@ -163,8 +163,8 @@ fun MapScaffold(
                         )
                     }
 
-                    if (selectedProviders.anyProvidesFuel()) {
-                        items(MAP_ENERGY_OPTIONS.filter { it.first != "electric" }) { (id, label) ->
+                    if (selectedProviders.anyProvidesFuel() || selectedProviders.anyProvidesElectric()) {
+                        items(MAP_ENERGY_OPTIONS) { (id, label) ->
                             val isSelected = settings.effectiveMapEnergyFilterIds().contains(id)
                             val color = ColorHelper.getFuelColor(id) ?: MaterialTheme.colorScheme.primary
                             FilterChip(
