@@ -4,6 +4,7 @@ import android.location.Address
 import android.location.Geocoder
 import android.os.Build
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,20 +27,27 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.EvStation
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SignalCellular4Bar
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -48,6 +56,8 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -68,7 +78,11 @@ import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.StationMapFilters
 import fr.geoking.julius.effectiveMapEnergyFilterIds
 import fr.geoking.julius.effectiveIrvePowerLevels
+import com.google.android.gms.maps.model.LatLng
 import fr.geoking.julius.effectiveProviders
+import fr.geoking.julius.api.geocoding.GeocodedPlace
+import fr.geoking.julius.api.geocoding.GeocodingClient
+import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.ui.ColorHelper
 import fr.geoking.julius.ui.MAP_ENERGY_OPTIONS
@@ -90,6 +104,7 @@ import fr.geoking.julius.repository.FuelForecastUiState
 import fr.geoking.julius.ui.components.CheapestStationsCard
 import fr.geoking.julius.ui.components.FuelForecastChartCard
 import fr.geoking.julius.ui.components.FuelForecastCompactCard
+import fr.geoking.julius.ui.map.NavigationHelper
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -153,10 +168,12 @@ private data class DashboardRow(
 fun PhoneDashboardScreen(
     settingsManager: SettingsManager,
     poiProvider: PoiProvider?,
+    geocodingClient: GeocodingClient? = null,
+    favoritesRepo: FavoritesRepository? = null,
     hasLocationPermission: Boolean,
     mapDepsReady: Boolean,
     fuelForecastRepository: FuelForecastRepository? = null,
-    onOpenMap: () -> Unit,
+    onOpenMap: (LatLng?) -> Unit,
     onOpenRoutes: () -> Unit,
     onOpenJules: () -> Unit,
     onOpenNetworkDiagnostics: () -> Unit,
@@ -177,6 +194,37 @@ fun PhoneDashboardScreen(
         )
     }
     var fuelForecastLoading by remember { mutableStateOf(false) }
+
+    var searchQuery by remember { mutableStateOf("") }
+    var suggestions by remember { mutableStateOf<List<GeocodedPlace>>(emptyList()) }
+    var isSearching by remember { mutableStateOf(false) }
+    var favorites by remember { mutableStateOf<List<Poi>>(emptyList()) }
+    var favoriteIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(favoritesRepo) {
+        if (favoritesRepo != null) {
+            val favs = favoritesRepo.getFavorites()
+            favorites = favs
+            favoriteIds = favs.map { it.id }.toSet()
+        }
+    }
+
+    LaunchedEffect(searchQuery) {
+        if (searchQuery.length < 3 || geocodingClient == null) {
+            suggestions = emptyList()
+            return@LaunchedEffect
+        }
+        delay(500)
+        isSearching = true
+        try {
+            suggestions = geocodingClient.geocode(searchQuery, limit = 5)
+        } catch (e: Exception) {
+            android.util.Log.e("PhoneDashboardScreen", "Geocoding failed", e)
+        } finally {
+            isSearching = false
+        }
+    }
 
     val energyFilterIds = settings.effectiveMapEnergyFilterIds()
     val providers = settings.effectiveProviders()
@@ -423,7 +471,78 @@ fun PhoneDashboardScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // 0. Chips Selector
+                // 0. Search Bar
+                item {
+                    Column {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Find destination…") },
+                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                            trailingIcon = {
+                                if (isSearching) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                } else if (searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { searchQuery = "" }) {
+                                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                                    }
+                                }
+                            },
+                            singleLine = true,
+                            shape = MaterialTheme.shapes.medium
+                        )
+
+                        if (suggestions.isNotEmpty()) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
+                            ) {
+                                Column {
+                                    suggestions.forEach { place ->
+                                        val placeId = "geo:${place.latitude},${place.longitude}"
+                                        val isFav = placeId in favoriteIds
+                                        ListItem(
+                                            headlineContent = { Text(place.label) },
+                                            leadingContent = { Icon(Icons.Default.Place, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                                            trailingContent = {
+                                                if (favoritesRepo != null) {
+                                                    IconButton(onClick = {
+                                                        scope.launch {
+                                                            val poi = Poi(
+                                                                id = placeId,
+                                                                name = place.label,
+                                                                address = place.label,
+                                                                latitude = place.latitude,
+                                                                longitude = place.longitude
+                                                            )
+                                                            favoritesRepo.toggleFavorite(poi)
+                                                            val updatedFavs = favoritesRepo.getFavorites()
+                                                            favorites = updatedFavs
+                                                            favoriteIds = updatedFavs.map { it.id }.toSet()
+                                                        }
+                                                    }) {
+                                                        Icon(
+                                                            if (isFav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                                            contentDescription = "Favorite",
+                                                            tint = if (isFav) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier.clickable {
+                                                onOpenMap(LatLng(place.latitude, place.longitude))
+                                            },
+                                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 0.5 Chips Selector
                 item {
                     LazyRow(
                         modifier = Modifier.fillMaxWidth(),
@@ -492,10 +611,54 @@ fun PhoneDashboardScreen(
                         userLongitude = userLon,
                         selectedEnergyIds = energyFilterIds,
                         onClick = { poiForDetails = it },
-                        onMapClick = onOpenMap,
+                        onMapClick = { onOpenMap(null) },
                         isLoading = isLoadingPois && showLoaderByDelay,
                         emptyMessage = searchError
                     )
+                }
+
+                // 1.5 Favorites Card
+                if (favorites.isNotEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = "Favorites",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+                                favorites.take(3).forEachIndexed { index, poi ->
+                                    ListItem(
+                                        headlineContent = { Text(poi.name, fontWeight = FontWeight.SemiBold) },
+                                        supportingContent = { Text(poi.address, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                        leadingContent = {
+                                            Icon(
+                                                Icons.Default.Place,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        },
+                                        modifier = Modifier.clickable {
+                                            onOpenMap(LatLng(poi.latitude, poi.longitude))
+                                        },
+                                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                                    )
+                                    if (index < favorites.take(3).size - 1) {
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(vertical = 4.dp),
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // 2. Quick Actions Row (Fuel, EV, Hybrid)
@@ -607,6 +770,9 @@ fun PhoneDashboardScreen(
     poiForDetails?.let { poi ->
         PoiDetailsFullscreenDialog(
             poi = poi,
+            onNavigate = {
+                NavigationHelper.navigateToPoi(context, poi)
+            },
             onDismiss = { poiForDetails = null }
         )
     }

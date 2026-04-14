@@ -81,6 +81,7 @@ import fr.geoking.julius.community.isCommunityPoiId
 import fr.geoking.julius.ui.components.MapScaffold
 import fr.geoking.julius.ui.ColorHelper
 import fr.geoking.julius.ui.map.AddPoiSheet
+import fr.geoking.julius.ui.map.NavigationHelper
 import fr.geoking.julius.ui.map.PoiDetailCard
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
 import fr.geoking.julius.ui.map.PoiMarkerHelper
@@ -141,6 +142,7 @@ fun MapScreen(
     authManager: fr.geoking.julius.feature.auth.GoogleAuthManager,
     store: ConversationStore,
     palette: AnimationPalette,
+    initialCenter: LatLng? = null,
     onBack: () -> Unit,
     onShowSettings: () -> Unit,
     onPlanRoute: (() -> Unit)? = null,
@@ -189,18 +191,28 @@ fun MapScreen(
     val defaultLng = 2.3522
 
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(LatLng(defaultLat, defaultLng), 12f)
+        position = CameraPosition.fromLatLngZoom(initialCenter ?: LatLng(defaultLat, defaultLng), 12f)
     }
 
-    var didInitialCenter by remember { mutableStateOf(false) }
+    var didInitialCenter by remember { mutableStateOf(initialCenter != null) }
+
+    LaunchedEffect(initialCenter) {
+        if (initialCenter != null) {
+            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(initialCenter, 12f))
+            didInitialCenter = true
+        }
+    }
 
     LaunchedEffect(hasLocationPermission) {
+
         if (hasLocationPermission && !didInitialCenter) {
             val location = LocationHelper.getCurrentLocation(context)
             if (location != null) {
-                cameraPositionState.position = CameraPosition.fromLatLngZoom(
-                    LatLng(location.latitude, location.longitude),
-                    12f
+                cameraPositionState.animate(
+                    CameraUpdateFactory.newLatLngZoom(
+                        LatLng(location.latitude, location.longitude),
+                        12f
+                    )
                 )
                 didInitialCenter = true
             }
@@ -737,8 +749,7 @@ fun MapScreen(
                         highlightedFuelIds = settings.effectiveMapEnergyFilterIds(),
                         highlightedPowerLevels = settings.effectiveIrvePowerLevels(),
                         onNavigate = {
-                            val uri = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${Uri.encode(poi.name)}")
-                            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                            NavigationHelper.navigateToPoi(context, poi)
                         },
                         onLocate = {
                             scope.launch {
@@ -845,6 +856,9 @@ fun MapScreen(
                     scope.launch { sheetState.hide() }
                 }
             } else null,
+            onNavigate = {
+                NavigationHelper.navigateToPoi(context, poi)
+            },
             onDismiss = { poiForDetailsDialog = null }
         )
     }

@@ -8,14 +8,23 @@ class LocalFavoritesRepository(
     private val storage: FavoritePoiStorage
 ) : FavoritesRepository {
 
+    private suspend fun getFavoritesInternal(): List<FavoritePoiEntity> {
+        var list = storage.getFavorites()
+        if (list.isEmpty()) {
+            list = DEFAULT_FAVORITES
+            storage.saveFavorites(list)
+        }
+        return list
+    }
+
     override suspend fun getFavorites(): List<Poi> =
-        storage.getFavorites().map { it.toPoi() }
+        getFavoritesInternal().map { it.toPoi() }
 
     override suspend fun isFavorite(poiId: String): Boolean =
-        storage.getFavorites().any { it.poiId == poiId }
+        getFavoritesInternal().any { it.poiId == poiId }
 
     override suspend fun addFavorite(poi: Poi) {
-        val list = storage.getFavorites().toMutableList()
+        val list = getFavoritesInternal().toMutableList()
         list.removeAll { it.poiId == poi.id }
         list.add(
             FavoritePoiEntity(
@@ -33,7 +42,7 @@ class LocalFavoritesRepository(
     }
 
     override suspend fun removeFavorite(poiId: String) {
-        val list = storage.getFavorites().filter { it.poiId != poiId }
+        val list = getFavoritesInternal().filter { it.poiId != poiId }
         storage.saveFavorites(list)
     }
 
@@ -56,4 +65,33 @@ private fun FavoritePoiEntity.toPoi(): Poi = Poi(
     longitude = longitude,
     brand = brand,
     isElectric = isElectric
+)
+
+private val DEFAULT_FAVORITES = listOf(
+    FavoritePoiEntity(
+        poiId = "fav_total_metz",
+        name = "TotalEnergies Express",
+        address = "Saint-Julien-lès-Metz, France",
+        latitude = 49.1271714,
+        longitude = 6.1892563,
+        brand = "total",
+        createdAt = 1700000000000L
+    ),
+    FavoritePoiEntity(
+        poiId = "fav_madrid",
+        name = "Madrid",
+        address = "Comunidad de Madrid, España",
+        latitude = 40.416782,
+        longitude = -3.703507,
+        createdAt = 1700000000001L
+    ),
+    FavoritePoiEntity(
+        poiId = "fav_esso_paris",
+        name = "Esso Express",
+        address = "19 Bd des Frères Voisin, 75015 Paris, France",
+        latitude = 48.8279527,
+        longitude = 2.2719314,
+        brand = "esso",
+        createdAt = 1700000000002L
+    )
 )

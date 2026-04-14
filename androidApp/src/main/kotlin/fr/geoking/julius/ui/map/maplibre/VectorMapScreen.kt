@@ -59,6 +59,7 @@ import fr.geoking.julius.community.isCommunityPoiId
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.ui.SettingsScreenPage
 import fr.geoking.julius.ui.components.MapScaffold
+import fr.geoking.julius.ui.map.*
 import fr.geoking.julius.ui.map.PoiMarkerHelper
 import fr.geoking.julius.ui.map.MarkerStyle
 import fr.geoking.julius.ui.map.PoiDetailCard
@@ -113,6 +114,7 @@ fun VectorMapScreen(
     authManager: GoogleAuthManager,
     store: ConversationStore,
     palette: AnimationPalette,
+    initialCenter: LatLng? = null,
     onBack: () -> Unit,
     onShowSettings: () -> Unit,
     onPlanRoute: (() -> Unit)? = null,
@@ -162,7 +164,7 @@ fun VectorMapScreen(
 
     val initialCameraPosition = remember {
         CameraPosition.Builder()
-            .target(LatLng(48.8566, 2.3522))
+            .target(initialCenter ?: LatLng(48.8566, 2.3522))
             .zoom(12.0)
             .build()
     }
@@ -196,6 +198,13 @@ fun VectorMapScreen(
     val loadedRegions = remember { mutableListOf<LoadedPoiRegion>() }
     val poiSeenAtMs = remember { mutableStateMapOf<String, Long>() }
     var lastCacheKey by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(mapLibreMap, initialCenter) {
+        val map = mapLibreMap ?: return@LaunchedEffect
+        if (initialCenter != null) {
+            map.animateCamera(CameraUpdateFactory.newLatLngZoom(initialCenter, 12.0))
+        }
+    }
 
     LaunchedEffect(poiFetchKey, mapSizePx, retryCount, mapLibreMap) {
         val map = mapLibreMap ?: return@LaunchedEffect
@@ -560,8 +569,7 @@ fun VectorMapScreen(
                         highlightedFuelIds = settings.effectiveMapEnergyFilterIds(),
                         highlightedPowerLevels = settings.effectiveIrvePowerLevels(),
                         onNavigate = {
-                            val uri = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${Uri.encode(poi.name)}")
-                            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                            NavigationHelper.navigateToPoi(context, poi)
                         },
                         onLocate = {
                             scope.launch {
@@ -640,6 +648,9 @@ fun VectorMapScreen(
                     scope.launch { sheetState.hide() }
                 }
             } else null,
+            onNavigate = {
+                NavigationHelper.navigateToPoi(context, poi)
+            },
             onDismiss = { poiForDetailsDialog = null }
         )
     }
