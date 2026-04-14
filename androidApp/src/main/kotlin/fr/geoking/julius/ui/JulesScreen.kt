@@ -227,8 +227,21 @@ fun JulesScreen(
         clearError()
         try {
             julesRepository.getActivities(apiKey, session.id).collectLatest { list ->
-                chatItems.clear()
-                chatItems.addAll(list)
+                // Don't clear if list is already populated from cache to avoid flicker
+                if (chatItems.isEmpty() || isRefresh) {
+                    chatItems.clear()
+                    chatItems.addAll(list)
+                } else {
+                    // Smart update: add only new items
+                    val existingIds = chatItems.map { if (it is JulesChatItem.UserMessage) it.id else (it as JulesChatItem.AgentMessage).id }.toSet()
+                    val newItems = list.filter {
+                        val id = if (it is JulesChatItem.UserMessage) it.id else (it as JulesChatItem.AgentMessage).id
+                        !existingIds.contains(id)
+                    }
+                    if (newItems.isNotEmpty()) {
+                        chatItems.addAll(newItems)
+                    }
+                }
                 if (chatItems.isNotEmpty()) {
                     listState.animateScrollToItem(chatItems.size - 1)
                 }
@@ -720,8 +733,11 @@ private data class ParsedMessage(
     val subtitle: String
 )
 
-private fun parseMessage(text: String): ParsedMessage {
+private fun parseMessage(text: String, overrideTitle: String? = null): ParsedMessage {
     return when {
+        overrideTitle != null -> {
+            ParsedMessage(MessageType.STANDARD, overrideTitle, text)
+        }
         text.startsWith("**Plan", ignoreCase = true) -> {
             val lines = text.lines()
             val firstLine = lines.firstOrNull() ?: ""
@@ -750,19 +766,30 @@ private fun parseMessage(text: String): ParsedMessage {
 }
 
 @Composable
-private fun MessageText(text: String, baseFontSize: Int, onSpeak: () -> Unit) {
-    val parsed = remember(text) { parseMessage(text) }
+private fun MessageText(
+    item: JulesChatItem,
+    baseFontSize: Int,
+    onSpeak: () -> Unit
+) {
+    val text = when (item) {
+        is JulesChatItem.UserMessage -> item.text
+        is JulesChatItem.AgentMessage -> if (item.subItems.size == 1) item.subItems.first().text else item.text
+    }
+    val titleOverride = (item as? JulesChatItem.AgentMessage)?.let { if (it.subItems.size > 1) it.title else null }
+    val parsed = remember(text, titleOverride) { parseMessage(text, titleOverride) }
     var expanded by remember { mutableStateOf(false) }
 
-    val isExpandable = parsed.type != MessageType.STANDARD
+    val isExpandable = parsed.type != MessageType.STANDARD || (item is JulesChatItem.AgentMessage && item.subItems.size > 1)
+
+    val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
 
     @Composable
-    fun RenderAnnotatedText(content: String, isTitle: Boolean, maxLines: Int = Int.MAX_VALUE) {
+    fun RenderAnnotatedText(content: String, isTitle: Boolean, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VALUE, colorAlpha: Float = if (isTitle) 1f else 0.6f) {
         val annotatedString = buildAnnotatedString {
             val style = if (isTitle) {
                 SpanStyle(color = Color.White, fontWeight = FontWeight.Bold)
             } else {
-                SpanStyle(color = Color.White.copy(alpha = 0.6f))
+                SpanStyle(color = Color.White.copy(alpha = colorAlpha))
             }
 
             withStyle(style) {
@@ -783,6 +810,7 @@ private fun MessageText(text: String, baseFontSize: Int, onSpeak: () -> Unit) {
         }
         Text(
             text = annotatedString,
+            modifier = modifier,
             fontSize = (if (isTitle && parsed.type == MessageType.PLAN) baseFontSize + 2 else baseFontSize).sp,
             maxLines = maxLines,
             overflow = if (maxLines != Int.MAX_VALUE) TextOverflow.Ellipsis else TextOverflow.Clip
@@ -799,25 +827,96 @@ private fun MessageText(text: String, baseFontSize: Int, onSpeak: () -> Unit) {
                     onDoubleClick = onSpeak
                 )
             )
-            .padding(12.dp)
+            .padding(vertical = 8.dp, horizontal = 12.dp)
     ) {
-        when (parsed.type) {
-            MessageType.SEARCHING -> {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (expanded) {
+        if (item is JulesChatItem.AgentMessage && item.subItems.size > 1) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RenderAnnotatedText(parsed.title, isTitle = true, maxLines = 1, modifier = Modifier.weight(1f))
+                Icon(
+                    if (expanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = JulesAccent,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            if (expanded) {
+                item.subItems.forEach { sub ->
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.weight(1f)) {
-                            RenderAnnotatedText(parsed.title, isTitle = true)
-                            if (parsed.subtitle.isNotBlank()) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                RenderAnnotatedText(parsed.subtitle, isTitle = false)
+                            RenderAnnotatedText(sub.text, isTitle = false)
+                            val subTime = remember(sub.createTime) {
+                                try { OffsetDateTime.parse(sub.createTime).format(timeFormatter) } catch (e: Exception) { "" }
+                            }
+                            if (subTime.isNotBlank()) {
+                                Text(subTime, color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
                             }
                         }
-                    } else {
-                        Box(modifier = Modifier.weight(1f)) {
-                            RenderAnnotatedText(parsed.title, isTitle = true, maxLines = 1)
+                    }
+                }
+            } else {
+                val lastSub = item.subItems.last()
+                RenderAnnotatedText(lastSub.text, isTitle = false, maxLines = 1)
+            }
+        } else {
+            val itemTime = when (item) {
+                is JulesChatItem.UserMessage -> item.createTime
+                is JulesChatItem.AgentMessage -> item.createTime
+            }
+            val displayTime = remember(itemTime) {
+                try { OffsetDateTime.parse(itemTime).format(timeFormatter) } catch (e: Exception) { "" }
+            }
+
+            when (parsed.type) {
+                MessageType.SEARCHING -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (expanded) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                RenderAnnotatedText(parsed.title, isTitle = true)
+                                if (parsed.subtitle.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    RenderAnnotatedText(parsed.subtitle, isTitle = false)
+                                }
+                                if (displayTime.isNotBlank()) {
+                                    Text(displayTime, color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
+                                }
+                            }
+                        } else {
+                            Column(modifier = Modifier.weight(1f)) {
+                                RenderAnnotatedText(parsed.title, isTitle = true, maxLines = 1)
+                                if (displayTime.isNotBlank()) {
+                                    Text(displayTime, color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
+                                }
+                            }
+                        }
+                        if (isExpandable) {
+                            Icon(
+                                if (expanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = JulesAccent,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
-                    if (isExpandable) {
+                }
+                MessageType.PLAN -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            RenderAnnotatedText(parsed.title, isTitle = true, maxLines = if (expanded) Int.MAX_VALUE else 1)
+                            if (expanded) {
+                                if (parsed.subtitle.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    RenderAnnotatedText(parsed.subtitle, isTitle = false)
+                                }
+                            } else {
+                                if (parsed.subtitle.isNotBlank()) {
+                                    RenderAnnotatedText(parsed.subtitle, isTitle = false, maxLines = 1)
+                                }
+                            }
+                            if (displayTime.isNotBlank()) {
+                                Text(displayTime, color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
+                            }
+                        }
                         Icon(
                             if (expanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             contentDescription = null,
@@ -826,52 +925,35 @@ private fun MessageText(text: String, baseFontSize: Int, onSpeak: () -> Unit) {
                         )
                     }
                 }
-            }
-            MessageType.PLAN -> {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        RenderAnnotatedText(parsed.title, isTitle = true, maxLines = if (expanded) Int.MAX_VALUE else 1)
-                        if (expanded) {
-                            if (parsed.subtitle.isNotBlank()) {
-                                Spacer(modifier = Modifier.height(4.dp))
+                MessageType.CODE_REVIEWED -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            RenderAnnotatedText(parsed.title, isTitle = true, maxLines = if (expanded) Int.MAX_VALUE else 1)
+                            if (expanded && parsed.subtitle.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(2.dp))
                                 RenderAnnotatedText(parsed.subtitle, isTitle = false)
                             }
-                        } else {
-                            if (parsed.subtitle.isNotBlank()) {
-                                RenderAnnotatedText(parsed.subtitle, isTitle = false, maxLines = 1)
+                            if (displayTime.isNotBlank()) {
+                                Text(displayTime, color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
                             }
                         }
+                        Icon(
+                            if (expanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = JulesAccent,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
-                    Icon(
-                        if (expanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = JulesAccent,
-                        modifier = Modifier.size(20.dp)
-                    )
                 }
-            }
-            MessageType.CODE_REVIEWED -> {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        RenderAnnotatedText(parsed.title, isTitle = true, maxLines = if (expanded) Int.MAX_VALUE else 1)
-                        if (expanded && parsed.subtitle.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            RenderAnnotatedText(parsed.subtitle, isTitle = false)
-                        }
+                MessageType.STANDARD -> {
+                    RenderAnnotatedText(parsed.title, isTitle = true)
+                    if (parsed.subtitle.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        RenderAnnotatedText(parsed.subtitle, isTitle = false)
                     }
-                    Icon(
-                        if (expanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = JulesAccent,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-            MessageType.STANDARD -> {
-                RenderAnnotatedText(parsed.title, isTitle = true)
-                if (parsed.subtitle.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    RenderAnnotatedText(parsed.subtitle, isTitle = false)
+                    if (displayTime.isNotBlank()) {
+                        Text(displayTime, color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
+                    }
                 }
             }
         }
@@ -1353,101 +1435,6 @@ private fun InConversationContent(
     Column(modifier = Modifier.fillMaxSize()) {
         MiniProgressBar(currentStep = progressStep)
 
-        // PR Status Bar
-        if (currentSession.prUrl != null || currentSession.sessionState != null) {
-            val (statusText, statusColor) = when {
-                currentSession.prState == "merged" -> "Merged" to Color.Magenta
-                currentSession.prState == "closed" -> "Closed" to Color.Red
-                currentSession.prState == "open" -> "Open PR" to Color.Green
-                currentSession.sessionState == "COMPLETED" -> "Completed" to Color.Green
-                currentSession.sessionState == "FAILED" -> "Failed" to Color.Red
-                currentSession.sessionState == "AWAITING_PLAN_APPROVAL" -> "Waiting for approval" to JulesAccent
-                currentSession.sessionState == "AWAITING_USER_FEEDBACK" -> "Waiting for you" to JulesAccent
-                currentSession.sessionState == "PLANNING" -> "Planning…" to JulesAccent
-                currentSession.sessionState == "QUEUED" -> "Queued…" to Color.White.copy(alpha = 0.6f)
-                currentSession.sessionState == "PAUSED" -> "Paused" to Color.Yellow
-                else -> (if (!currentSession.prUrl.isNullOrBlank()) "Output available" else "In progress") to (if (!currentSession.prUrl.isNullOrBlank()) JulesAccent else Color.White.copy(alpha = 0.6f))
-            }
-
-            val mergeabilityText = when (currentSession.prMergeable) {
-                true -> " • Ready to merge"
-                false -> " • Conflicts"
-                else -> ""
-            }
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                colors = CardDefaults.cardColors(containerColor = JulesHeaderBg),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = currentSession.prTitle ?: "Pull Request",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.size(6.dp).background(statusColor, RoundedCornerShape(3.dp)))
-                            Spacer(modifier = Modifier.size(6.dp))
-                            Text(
-                                text = "$statusText$mergeabilityText",
-                                color = statusColor,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-
-                    if (!currentSession.prUrl.isNullOrBlank()) {
-                        IconButton(onClick = { uriHandler.openUri(currentSession.prUrl) }) {
-                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open PR", tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(20.dp))
-                        }
-                    }
-
-                    if (currentSession.prState == "open") {
-                        if (currentSession.prMergeable == true) {
-                            FilledTonalButton(
-                                onClick = onMergePr,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                modifier = Modifier.height(32.dp),
-                                colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = Color.Green.copy(alpha = 0.2f))
-                            ) {
-                                Icon(Icons.Default.Merge, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Green)
-                                Spacer(modifier = Modifier.size(4.dp))
-                                Text("Merge", color = Color.Green, fontSize = 12.sp)
-                            }
-                        } else if (currentSession.prMergeable == false) {
-                            Row {
-                                FilledTonalButton(
-                                    onClick = onAutoSolveConflicts,
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                                    modifier = Modifier.height(32.dp),
-                                    colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = JulesAccent.copy(alpha = 0.2f))
-                                ) {
-                                    Text("Auto", color = JulesAccent, fontSize = 11.sp)
-                                }
-                                Spacer(modifier = Modifier.size(4.dp))
-                                FilledTonalButton(
-                                    onClick = onSolveConflicts,
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                                    modifier = Modifier.height(32.dp),
-                                    colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = Color.Red.copy(alpha = 0.2f))
-                                ) {
-                                    Text("Solve", color = Color.Red, fontSize = 11.sp)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
         val nowInstant = remember { Instant.now() }
 
@@ -1468,37 +1455,6 @@ private fun InConversationContent(
                     is JulesChatItem.AgentMessage -> it.id
                 }
             }) { item ->
-                val createTime = when (item) {
-                    is JulesChatItem.UserMessage -> item.createTime
-                    is JulesChatItem.AgentMessage -> item.createTime
-                }
-
-                val itemTime = remember(createTime) {
-                    try {
-                        OffsetDateTime.parse(createTime)
-                    } catch (e: Exception) {
-                        null
-                    }
-                }
-
-                if (itemTime != null) {
-                    val isOlderThanOneHour = remember(itemTime, nowInstant) {
-                        Duration.between(itemTime.toInstant(), nowInstant).toHours() >= 1
-                    }
-
-                    if (isOlderThanOneHour) {
-                        Text(
-                            text = itemTime.format(timeFormatter),
-                            color = Color.White.copy(alpha = 0.5f),
-                            fontSize = 11.sp,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 4.dp),
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-
                 when (item) {
                     is JulesChatItem.UserMessage -> Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1511,7 +1467,7 @@ private fun InConversationContent(
                                 .widthIn(max = 280.dp)
                         ) {
                             MessageText(
-                                text = item.text,
+                                item = item,
                                 baseFontSize = 15,
                                 onSpeak = { voiceManager.speak(item.text) }
                             )
@@ -1528,10 +1484,64 @@ private fun InConversationContent(
                                 .widthIn(max = 320.dp)
                         ) {
                             MessageText(
-                                text = item.text,
+                                item = item,
                                 baseFontSize = 14,
                                 onSpeak = { voiceManager.speak(item.text) }
                             )
+                        }
+                    }
+                }
+            }
+
+            if (currentSession.prState == "open") {
+                item {
+                    val mergeable = currentSession.prMergeable
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp, bottom = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        if (mergeable == true) {
+                            Text(
+                                "Conflicts resolved. Ready to merge! 🚀",
+                                color = Color.Green,
+                                fontSize = 14.sp,
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            )
+                            FilledTonalButton(
+                                onClick = onMergePr,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = Color.Green.copy(alpha = 0.2f))
+                            ) {
+                                Icon(Icons.Default.Merge, contentDescription = null, tint = Color.Green)
+                                Spacer(modifier = Modifier.size(8.dp))
+                                Text("Merge Pull Request", color = Color.Green)
+                            }
+                        } else if (mergeable == false) {
+                            Text(
+                                "This PR has merge conflicts.",
+                                color = Color.Red,
+                                fontSize = 14.sp,
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            )
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                FilledTonalButton(
+                                    onClick = onAutoSolveConflicts,
+                                    modifier = Modifier.weight(1f),
+                                    colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = JulesAccent.copy(alpha = 0.2f))
+                                ) {
+                                    Text("Auto solve", color = JulesAccent)
+                                }
+                                Spacer(modifier = Modifier.size(8.dp))
+                                FilledTonalButton(
+                                    onClick = onSolveConflicts,
+                                    modifier = Modifier.weight(1f),
+                                    colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = Color.Red.copy(alpha = 0.2f))
+                                ) {
+                                    Text("Solve manually", color = Color.Red)
+                                }
+                            }
                         }
                     }
                 }

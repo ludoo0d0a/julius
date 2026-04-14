@@ -217,8 +217,7 @@ val mapModule = module {
     }
     single<BorneAvailabilityProviderFactory> {
         BorneAvailabilityProviderFactory(
-            belibProvider = get(named("belib")),
-            ecoMovementProvider = get(named("ecomovement_availability"))
+            belibProvider = get(named("belib"))
         )
     }
 

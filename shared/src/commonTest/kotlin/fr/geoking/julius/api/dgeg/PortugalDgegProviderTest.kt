@@ -19,21 +19,34 @@ import kotlin.test.assertNotNull
 class PortugalDgegProviderTest {
 
     private val mockJsonResponse = """
-    [
-      {
-        "Id": 123,
-        "Nome": "GALP LISBOA",
-        "Morada": "Av. Liberdade",
-        "Localidade": "Lisboa",
-        "Latitude": 38.7223,
-        "Longitude": -9.1393,
-        "Marca": "Galp",
-        "Combustiveis": [
-          { "IdCombustivel": 2101, "Descritivo": "Gasóleo rodoviário", "Preco": "1,549" },
-          { "IdCombustivel": 3201, "Descritivo": "Gasolina IO95", "Preco": "1,749" }
-        ]
-      }
-    ]
+    {
+      "status": true,
+      "mensagem": "sucesso",
+      "resultado": [
+        {
+          "Id": 123,
+          "Nome": "GALP LISBOA",
+          "Morada": "Av. Liberdade",
+          "Localidade": "Lisboa",
+          "Latitude": 38.7223,
+          "Longitude": -9.1393,
+          "Marca": "Galp",
+          "Combustivel": "Gasóleo simples",
+          "Preco": "1,549 €/litro"
+        },
+        {
+          "Id": 123,
+          "Nome": "GALP LISBOA",
+          "Morada": "Av. Liberdade",
+          "Localidade": "Lisboa",
+          "Latitude": 38.7223,
+          "Longitude": -9.1393,
+          "Marca": "Galp",
+          "Combustivel": "Gasolina simples 95",
+          "Preco": "1,749 €/litro"
+        }
+      ]
+    }
     """.trimIndent()
 
     @Test

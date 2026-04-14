@@ -277,6 +277,12 @@ open class SettingsManager(
         val openRouterModel = prefs.getString("openrouter_model", "openrouter/auto") ?: "openrouter/auto"
         val julesKey = prefs.getString("jules_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.JULES_KEY
         val githubApiKey = prefs.getString("github_api_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.GITHUB_TOKEN
+        val openChargeMapKey = prefs.getString("openchargemap_key", "")?.takeIf { it.isNotEmpty() }
+            ?: fr.geoking.julius.BuildConfig.OPENCHARGEMAP_KEY
+        val ecoMovementUrl = prefs.getString("eco_movement_url", "")?.takeIf { it.isNotEmpty() }
+            ?: fr.geoking.julius.BuildConfig.ECO_MOVEMENT_URL
+        val ecoMovementToken = prefs.getString("eco_movement_token", "")?.takeIf { it.isNotEmpty() }
+            ?: fr.geoking.julius.BuildConfig.ECO_MOVEMENT_TOKEN
         val lastJulesRepoId = prefs.getString("last_jules_repo_id", "") ?: ""
         val lastJulesRepoName = prefs.getString("last_jules_repo_name", "") ?: ""
         val googleUserName = prefs.getString("google_user_name", null)

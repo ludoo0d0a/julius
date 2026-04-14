@@ -353,10 +353,48 @@ class JulesRepository(
         try {
             val cached = julesDao.getActivitiesBySession(sessionId)
             if (cached.isNotEmpty()) {
-                emit(cached.map {
-                    if (it.originator == "user") JulesChatItem.UserMessage(it.id, it.timestamp, it.text)
-                    else JulesChatItem.AgentMessage(it.id, it.timestamp, it.text)
-                })
+                // Re-apply grouping logic on cached entities if needed, but for now we reconstruct from flattened entities
+                val items = mutableListOf<JulesChatItem>()
+                var currentAgentGroup: JulesChatItem.AgentMessage? = null
+
+                fun flush() {
+                    currentAgentGroup?.let { items.add(it) }
+                    currentAgentGroup = null
+                }
+
+                for (a in cached.sortedBy { it.timestamp }) {
+                    if (a.originator == "user") {
+                        flush()
+                        items.add(JulesChatItem.UserMessage(a.id, a.timestamp, a.text))
+                    } else {
+                        val subItem = JulesChatItem.AgentSubItem(a.id, a.timestamp, a.text, a.type)
+                        if (a.type == "progress") {
+                            if (currentAgentGroup != null && currentAgentGroup!!.title == "Progress") {
+                                currentAgentGroup = currentAgentGroup!!.copy(
+                                    subItems = currentAgentGroup!!.subItems + subItem
+                                )
+                            } else {
+                                flush()
+                                currentAgentGroup = JulesChatItem.AgentMessage(
+                                    id = a.id,
+                                    createTime = a.timestamp,
+                                    title = "Progress",
+                                    subItems = listOf(subItem)
+                                )
+                            }
+                        } else {
+                            flush()
+                            items.add(JulesChatItem.AgentMessage(
+                                id = a.id,
+                                createTime = a.timestamp,
+                                title = a.text,
+                                subItems = listOf(subItem)
+                            ))
+                        }
+                    }
+                }
+                flush()
+                emit(items)
             }
         } catch (e: Exception) {
             // Ignore cache error
@@ -367,38 +405,28 @@ class JulesRepository(
             val resp = julesClient.listActivities(apiKey, sessionId, pageSize = 50)
             val items = julesClient.activitiesToChatItems(resp.activities)
 
-            val entities = items.map { item ->
-                val id: String
-                val ts: String
-                val text: String
-                val originator: String
-
-                when (item) {
-                    is JulesChatItem.UserMessage -> {
-                        id = item.id
-                        ts = item.createTime
-                        text = item.text
-                        originator = "user"
-                    }
-                    is JulesChatItem.AgentMessage -> {
-                        id = item.id
-                        ts = item.createTime
-                        text = item.text
-                        originator = "agent"
-                    }
+            val entities = mutableListOf<JulesActivityEntity>()
+            for (activity in resp.activities) {
+                val a = activity
+                val text = julesClient.extractText(a)
+                val type = when {
+                    a.planGenerated != null -> "plan"
+                    a.progressUpdated != null -> "progress"
+                    a.sessionCompleted != null -> "completion"
+                    else -> "other"
                 }
-
+                val ts = a.createTime
                 val sortTs = try { OffsetDateTime.parse(ts).toInstant().toEpochMilli() } catch (e: Exception) { 0L }
-                val finalId = id.takeIf { it.isNotBlank() } ?: "act_${sessionId}_${sortTs}_${text.hashCode()}"
 
-                JulesActivityEntity(
-                    id = finalId,
+                entities.add(JulesActivityEntity(
+                    id = a.id,
                     sessionId = sessionId,
-                    originator = originator,
+                    originator = a.originator,
                     text = text,
                     timestamp = ts,
-                    sortTimestamp = sortTs
-                )
+                    sortTimestamp = sortTs,
+                    type = type
+                ))
             }
 
             try {
