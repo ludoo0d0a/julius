@@ -44,6 +44,22 @@ class SelectorPoiProvider(
     private val fastned: PoiProvider,
     private val unitedKingdomCma: PoiProvider,
     private val italyMimit: PoiProvider,
+    private val netherlandsAnwb: PoiProvider,
+    private val sloveniaGoriva: PoiProvider,
+    private val romaniaPeco: PoiProvider,
+    private val fuelo: PoiProvider,
+    private val greeceFuelGR: PoiProvider,
+    private val serbiaNis: PoiProvider,
+    private val croatiaMzoe: PoiProvider,
+    private val drivstoffAppen: PoiProvider,
+    private val denmarkFuelprices: PoiProvider,
+    private val finlandPolttoaine: PoiProvider,
+    private val argentinaEnergia: PoiProvider,
+    private val mexicoCRE: PoiProvider,
+    private val moldovaAnre: PoiProvider,
+    private val australiaFuelWatch: PoiProvider,
+    private val australiaFuelCheck: PoiProvider,
+    private val irelandPickAPump: PoiProvider,
     private val openVanCampClient: OpenVanCampClient,
     private val overpass: PoiProvider,
     private val dataGouvCamping: PoiProvider?,
@@ -86,6 +102,21 @@ class SelectorPoiProvider(
         PoiProviderType.Fastned -> fastned
         PoiProviderType.UnitedKingdomCma -> unitedKingdomCma
         PoiProviderType.ItalyMimit -> italyMimit
+        PoiProviderType.NetherlandsAnwb -> netherlandsAnwb
+        PoiProviderType.SloveniaGoriva -> sloveniaGoriva
+        PoiProviderType.RomaniaPeco -> romaniaPeco
+        PoiProviderType.Fuelo -> fuelo
+        PoiProviderType.GreeceFuelGR -> greeceFuelGR
+        PoiProviderType.SerbiaNis -> serbiaNis
+        PoiProviderType.CroatiaMzoe -> croatiaMzoe
+        PoiProviderType.DrivstoffAppen -> drivstoffAppen
+        PoiProviderType.DenmarkFuelprices -> denmarkFuelprices
+        PoiProviderType.FinlandPolttoaine -> finlandPolttoaine
+        PoiProviderType.ArgentinaEnergia -> argentinaEnergia
+        PoiProviderType.MexicoCRE -> mexicoCRE
+        PoiProviderType.MoldovaAnre -> moldovaAnre
+        PoiProviderType.AustraliaFuel -> HybridAustraliaProvider(australiaFuelWatch, australiaFuelCheck)
+        PoiProviderType.IrelandPickAPump -> irelandPickAPump
         PoiProviderType.Overpass -> overpass
         PoiProviderType.Hybrid -> hybridProvider
     }
@@ -596,7 +627,33 @@ class SelectorPoiProvider(
         fastned.clearCache()
         unitedKingdomCma.clearCache()
         italyMimit.clearCache()
+        netherlandsAnwb.clearCache()
+        sloveniaGoriva.clearCache()
+        romaniaPeco.clearCache()
+        fuelo.clearCache()
+        greeceFuelGR.clearCache()
+        serbiaNis.clearCache()
+        croatiaMzoe.clearCache()
+        drivstoffAppen.clearCache()
+        denmarkFuelprices.clearCache()
+        finlandPolttoaine.clearCache()
+        argentinaEnergia.clearCache()
+        mexicoCRE.clearCache()
+        moldovaAnre.clearCache()
+        australiaFuelWatch.clearCache()
+        australiaFuelCheck.clearCache()
+        irelandPickAPump.clearCache()
         overpass.clearCache()
+    }
+
+    private class HybridAustraliaProvider(
+        private val watch: PoiProvider,
+        private val check: PoiProvider
+    ) : PoiProvider {
+        override suspend fun getGasStations(latitude: Double, longitude: Double, viewport: MapViewport?): List<Poi> {
+            return watch.getGasStations(latitude, longitude, viewport) +
+                   check.getGasStations(latitude, longitude, viewport)
+        }
     }
 
     // POI deduplication/merge is centralized in `PoiMerger` so the map cache and selectors
