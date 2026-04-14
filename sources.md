@@ -1,62 +1,172 @@
-# Free API Source Providers for Fuel and IRVE
+# Data Sources and Fuel Price Coverage
 
-This document lists the free API source providers integrated into the Julius station finder and the status of fuel price coverage across Europe.
+Julius aggregates data from a wide variety of official and community sources to provide the most accurate and up-to-date information on fuel prices and EV charging stations across the globe.
 
-## Integrated Station-Specific Providers (Exact Prices)
+---
 
-| Provider Name | Region / Country | Category | Source Type | Status / Notes |
-|---------------|------------------|----------|-------------|----------------|
-| **DataGouv / Gas API** | France | Fuel | REST API | **Cracked**: Official JSON feeds from prix-carburants.gouv.fr |
-| **UK CMA Open Data** | United Kingdom | Fuel | JSON Feeds | **Cracked**: Multiple retailer-specific JSON endpoints (Asda, BP, Shell, etc.) |
-| **Italy MIMIT** | Italy | Fuel | CSV Export | **Cracked**: Daily CSV export from Ministero delle Imprese |
-| **Spain Minetur** | Spain | Fuel | REST API | **Cracked**: Official government REST API |
-| **Germany Tankerkönig** | Germany | Fuel | REST API | **Cracked**: MTS-K official data via Tankerkönig API |
-| **Austria E-Control** | Austria | Fuel | REST API | **Cracked**: Official E-Control Spritpreis API |
-| **Portugal DGEG** | Portugal (Mainland) | Fuel | REST API | **Cracked**: Official DGEG JSON API |
-| **Belgium Official** | Belgium | Fuel | Scraper | **Cracked**: Official national max prices scraped & applied to OSM |
-| **Madeira Official** | Madeira, Portugal | Fuel | Scraper | **Cracked**: Regional max prices scraped & applied to OSM |
-| **Chargy** | Luxembourg | IRVE (EV) | KML Feed | Official real-time status |
-| **DataGouv IRVE** | France | IRVE (EV) | REST API | Official French open data |
-| **Open Charge Map** | Global / Europe | IRVE (EV) | REST API | Community-driven global data |
-| **OpenStreetMap** | Global / Europe | Both | Overpass API | Base station locations and metadata |
+## 🚀 Auto Mode
 
-## European Fuel Price Coverage Status
+The application features an **Auto Mode** that intelligently manages data sources to provide a seamless experience without manual configuration.
 
-The application aims for exact station-by-station prices. Where not yet "cracked" via a direct API, it uses official national/regional averages or regulated maximums as a fallback.
+- **Location-Aware:** Julius automatically identifies the country you are in using your current coordinates. It maintains a **50km cross-border tolerance** to ensure you see nearby stations even when close to a frontier.
+- **Zoom Logic:** To optimize performance and data usage, POI loading is bypassed when the map is zoomed out (zoom level < 11).
+- **Intelligent Selection:** "Eligible" providers (official government sources) are prioritized and automatically enabled. Some sources (like Routex or Etalab) are excluded from auto-selection to avoid clutter or redundant data unless manually picked by the user.
 
-| Country | Code | Coverage Level | Source / Method | Status |
-|---------|------|----------------|-----------------|--------|
-| **France** | FR | Station-specific | DataGouv / Gas API | ✅ Cracked (Official API) |
-| **United Kingdom** | GB | Station-specific | CMA Open Data | ✅ Cracked (JSON Feeds) |
-| **Italy** | IT | Station-specific | MIMIT Open Data | ✅ Cracked (CSV) |
-| **Spain** | ES | Station-specific | Minetur | ✅ Cracked (Official API) |
-| **Germany** | DE | Station-specific | Tankerkönig | ✅ Cracked (Official API) |
-| **Austria** | AT | Station-specific | E-Control | ✅ Cracked (Official API) |
-| **Portugal** | PT | Station-specific | DGEG / Madeira Gov | ✅ Cracked (Official API) |
-| **Belgium** | BE | Regulated Max | PetrolPrices FGOV | ✅ Cracked (Scraper) |
-| **Luxembourg** | LU | Regulated Max | OpenVan.camp | ⚠️ National Max Fallback |
-| **Slovenia** | SI | Regulated Max | OpenVan.camp | ⚠️ National Max Fallback |
-| **Croatia** | HR | Regulated Max | OpenVan.camp | ⚠️ National Max Fallback |
-| **Netherlands** | NL | Reference Avg | OpenVan.camp | ⚠️ Average Fallback |
-| **Denmark** | DK | Reference Avg | OpenVan.camp | ⚠️ Average Fallback |
-| **Sweden** | SE | Reference Avg | OpenVan.camp | ⚠️ Average Fallback |
-| **Norway** | NO | Reference Avg | OpenVan.camp | ⚠️ Average Fallback |
-| **Finland** | FI | Reference Avg | OpenVan.camp | ⚠️ Average Fallback |
-| **Poland** | PL | Reference Avg | OpenVan.camp | ⚠️ Average Fallback |
-| **Hungary** | HU | Reference Avg | OpenVan.camp | ⚠️ Average Fallback |
-| **Ireland** | IE | Reference Avg | OpenVan.camp | ⚠️ Average Fallback |
-| **Greece** | GR | Reference Avg | OpenVan.camp | ⚠️ Average Fallback |
-| **Romania** | RO | Reference Avg | OpenVan.camp | ⚠️ Average Fallback |
-| **Czechia** | CZ | Reference Avg | OpenVan.camp | ⚠️ Average Fallback |
-| **Slovakia** | SK | Reference Avg | OpenVan.camp | ⚠️ Average Fallback |
-| **Bulgaria** | BG | Reference Avg | OpenVan.camp | ⚠️ Average Fallback |
+---
 
-## Implementation Details
+## 🌍 Global & Multi-Country Providers
 
-The application uses a unified `PoiProvider` interface to query these different sources. For fuel prices, it attempts to normalize fuel names (e.g., Gazole, SP95, SP98) to provide a consistent filtering experience across different countries.
+These providers cover multiple regions or provide fallback data when specific local APIs are unavailable.
 
-### "Cracking" Methodology
-- **JSON/REST APIs**: Preferred for real-time, low-overhead access.
-- **CSV/Bulk Data**: Used for large datasets (like Italy), cached for 6-24 hours.
-- **Scrapers**: Used when official data is only available on web portals (like Belgium or Madeira).
-- **OSM Enrichment**: For countries without a public station list, we fetch stations from OpenStreetMap and "enrich" them with official price data.
+| Provider | Format | Access | Source Type | Scope | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **OpenStreetMap** | JSON (Overpass) | Free | Community | Global | Real-time (Community) |
+| **OpenVanCamp** | JSON | Free | Community / Aggregator | Europe | Weekly Reference Prices |
+| **OpenChargeMap** | JSON | API Key | Community | Global | Real-time (Community) |
+| **Eco-Movement** | JSON (OCPI) | API Key | Private | Global | Real-time |
+| **Routex** | JSON | Free | Multinational | Europe | Daily |
+| **Fuelo.net** | HTML (Scraped) | Free | Private | Balkans / Central Europe | Daily |
+| **DrivstoffAppen** | JSON | Free | Private | Nordics | ~1 hour cache |
+| **Ionity / Fastned** | JSON (OCPI) | Free | Private | Europe | Real-time |
+
+---
+
+## 📍 Country-Specific Coverage
+
+### 🇦🇷 Argentina
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Secretaría de Energía** | CSV | Free | Government | No | Daily |
+
+### 🇦🇺 Australia
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **NSW FuelCheck** | JSON | API Key | Government | No | Real-time |
+| **FuelWatch** | XML/RSS | Free | Government | No | Daily |
+
+### 🇦🇹 Austria
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **E-Control** | JSON | Free | Government | No | Real-time |
+
+### 🇧🇪 Belgium
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Official Scraper** | HTML | Free | Government | No | Daily (Max Prices) |
+| **STIB/MIVB** | JSON | Free | Government | No | Real-time (Transit) |
+
+### 🇭🇷 Croatia
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **MZOE** | JSON | Free | Government | No | Daily |
+
+### 🇩🇰 Denmark
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Fuelprices.dk** | JSON | API Key | Private | No | ~1 hour cache |
+| **DrivstoffAppen** | JSON | Free | Private | Yes | ~1 hour cache |
+
+### 🇫🇮 Finland
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Polttoaine.net** | HTML | Free | Private | No | Daily |
+| **DrivstoffAppen** | JSON | Free | Private | Yes | ~1 hour cache |
+
+### 🇫🇷 France
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **DataGouv (Flux Instantané)** | JSON | Free | Government | No | 10 minutes |
+| **GasAPI** | JSON | Free | Community (Mirror) | No | 10 minutes |
+| **DataGouv IRVE** | JSON | Free | Government | No | Daily |
+| **Belib' (Paris)** | JSON | Free | Government | No | Real-time (Availability) |
+
+### 🇩🇪 Germany
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Tankerkönig (MTS-K)** | JSON | API Key | Government | No | Real-time |
+
+### 🇬🇷 Greece
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **FuelGR** | JSON | Free | Private | No | Daily |
+
+### 🇮🇪 Ireland
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Pick A Pump** | JSON | Free | Private | No | Daily |
+
+### 🇮🇹 Italy
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **MIMIT** | CSV | Free | Government | No | Daily |
+
+### 🇱🇺 Luxembourg
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Chargy** | KML/JSON | Free | Government | No | Real-time |
+| **Mobiliteit.lu** | JSON | API Key | Government | No | Real-time (Transit) |
+| **ANWB / OpenVanCamp** | JSON | Free | Private/Comm | Yes | Weekly fallback |
+
+### 🇲🇽 Mexico
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **CRE** | XML | Free | Government | No | Daily |
+
+### 🇲🇩 Moldova
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **ANRE** | JSON | Free | Government | No | Daily |
+
+### 🇳🇱 Netherlands
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **ANWB** | JSON | Free | Private | No | ~1 hour cache |
+
+### 🇳🇴 Norway
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **DrivstoffAppen** | JSON | Free | Private | Yes | ~1 hour cache |
+
+### 🇵🇹 Portugal
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **DGEG (Mainland)** | JSON | Free | Government | No | ~1 hour cache |
+| **Madeira Official** | HTML | Free | Government | No | 24 hour cache |
+
+### 🇷🇴 Romania
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Peco Online** | JSON | Free | Private | No | Daily |
+
+### 🇷🇸 Serbia
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **NIS / Cenagoriva** | JSON/HTML | Free | Private | No | Daily |
+
+### 🇸🇮 Slovenia
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Goriva.si** | JSON | Free | Government | No | Daily |
+
+### 🇪🇸 Spain
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Minetur** | JSON | Free | Government | No | ~1 hour cache |
+
+### 🇸🇪 Sweden
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **DrivstoffAppen** | JSON | Free | Private | Yes | ~1 hour cache |
+
+### 🇬🇧 United Kingdom
+| Provider | Format | Access | Source Type | Multinational | Update Time |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **CMA Open Data** | JSON | Free | Government | No | ~1 hour cache |
+
+---
+
+## 💡 Notes on Methodology
+
+- **Official vs Scraped:** Official APIs are always preferred for reliability. When unavailable, Julius uses high-quality scrapers or community-driven data (OSM enrichment).
+- **Fallbacks:** For countries not listed above, Julius relies on **OpenStreetMap** for station locations and **OpenVanCamp** for national reference price averages.
+- **Multinational Providers:** Sources like **Fuelo** and **DrivstoffAppen** provide coverage for numerous countries in their respective regions using a unified interface.
