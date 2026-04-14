@@ -67,7 +67,7 @@ class AutoPoiProviderSelectionScreen(
                         .build()
                 )
             }
-            templateBuilder.addList(listBuilder.build(), group)
+            templateBuilder.addSectionedList(SectionedItemList.create(listBuilder.build(), group))
         }
 
         return templateBuilder

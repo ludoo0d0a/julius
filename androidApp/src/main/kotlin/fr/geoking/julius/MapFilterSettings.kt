@@ -50,9 +50,16 @@ fun AppSettings.effectiveIrveOperatorFilter(): Set<String> {
 fun AppSettings.effectiveProviders(
     latitude: Double? = null,
     longitude: Double? = null,
-    zoom: Float? = null
+    zoom: Float? = null,
+    requirePrices: Boolean = false,
+    requireLocation: Boolean = false
 ): Set<PoiProviderType> {
-    if (!autoPoiProvidersEnabled) return selectedPoiProviders
+    if (!autoPoiProvidersEnabled) {
+        return selectedPoiProviders.filter { type ->
+            (!requirePrices || type.providesPrices) &&
+            (!requireLocation || type.providesLocation)
+        }.toSet()
+    }
 
     // If zoom is too high (zoomed out), avoid loading too many POIs.
     // Zoom 11 is approximately 20-40km wide on a phone, seems like a good limit.
@@ -68,7 +75,9 @@ fun AppSettings.effectiveProviders(
         type.eligibleToAuto && (
             type.supportedCountries.isEmpty() || // Global providers
             type.supportedCountries.any { it in nearbyCountryCodes }
-        )
+        ) &&
+        (!requirePrices || type.providesPrices) &&
+        (!requireLocation || type.providesLocation)
     }.toSet()
 }
 

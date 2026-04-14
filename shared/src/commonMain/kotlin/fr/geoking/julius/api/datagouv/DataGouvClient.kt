@@ -6,7 +6,12 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.encodeURLParameter
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.buildClassSerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -15,16 +20,6 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-
-/** Safely get results as a list; API may return results as array or single object. */
-private fun resultsAsList(obj: JsonObject): List<JsonElement> {
-    val results = obj["results"] ?: return emptyList()
-    return when (results) {
-        is JsonArray -> results
-        is JsonObject -> listOf(results)
-        else -> emptyList()
-    }
-}
 
 /**
  * Client for the French open data "Prix des carburants en France - Flux quotidien"
@@ -68,11 +63,14 @@ class DataGouvClient(
     }
 
     internal fun parseRecords(body: String): List<DataGouvStation> {
-        val element = json.parseToJsonElement(body)
-        val obj = element.jsonObject
-        val results = resultsAsList(obj)
+        val response = try {
+            json.decodeFromString<DataGouvOdsResponse>(body)
+        } catch (e: Exception) {
+            return emptyList()
+        }
+
         val stations = mutableMapOf<String, DataGouvStation>()
-        for (item in results) {
+        for (item in response.results) {
             val record = item as? JsonObject ?: continue
             val fields = record["fields"]?.let { f -> (f as? JsonObject) } ?: record
             parseStationFromRecord(fields)?.let { station ->
@@ -189,6 +187,31 @@ class DataGouvClient(
             }
         }
         return list
+    }
+}
+
+@Serializable
+internal data class DataGouvOdsResponse(
+    @Serializable(with = OdsResultsSerializer::class)
+    val results: List<JsonElement> = emptyList()
+)
+
+internal object OdsResultsSerializer : KSerializer<List<JsonElement>> {
+    override val descriptor: SerialDescriptor = buildClassSerialDescriptor("OdsResults")
+
+    override fun deserialize(decoder: Decoder): List<JsonElement> {
+        val input = decoder as? kotlinx.serialization.json.JsonDecoder ?: return emptyList()
+        val element = input.decodeJsonElement()
+        return when (element) {
+            is JsonArray -> element.toList()
+            is JsonObject -> listOf(element)
+            else -> emptyList()
+        }
+    }
+
+    override fun serialize(encoder: Encoder, value: List<JsonElement>) {
+        val output = encoder as? kotlinx.serialization.json.JsonEncoder ?: return
+        output.encodeJsonElement(JsonArray(value))
     }
 }
 

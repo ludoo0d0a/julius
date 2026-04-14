@@ -72,13 +72,15 @@ enum class PoiCategory {
 enum class PoiProviderType(
     val providesFuel: Boolean = false,
     val providesElectric: Boolean = false,
+    val providesPrices: Boolean = false,
+    val providesLocation: Boolean = true,
     val eligibleToAuto: Boolean = true,
     val supportedCountries: Set<String> = emptySet(),
 ) {
-    Routex(providesFuel = true, eligibleToAuto = false),
-    Etalab(providesFuel = true, supportedCountries = setOf("FR"), eligibleToAuto = false),
-    GasApi(providesFuel = true, supportedCountries = setOf("FR")),
-    DataGouv(providesFuel = true, supportedCountries = setOf("FR")),
+    Routex(providesFuel = true, providesPrices = true, eligibleToAuto = false),
+    Etalab(providesFuel = true, providesPrices = true, supportedCountries = setOf("FR"), eligibleToAuto = false),
+    GasApi(providesFuel = true, providesPrices = true, supportedCountries = setOf("FR")),
+    DataGouv(providesFuel = true, providesPrices = true, supportedCountries = setOf("FR")),
     DataGouvElec(providesElectric = true, supportedCountries = setOf("FR")),
     OpenChargeMap(providesElectric = true),
     EcoMovement(providesElectric = true),
@@ -86,61 +88,62 @@ enum class PoiProviderType(
     /** Luxembourg OSM fuel + OpenVan.camp weekly reference prices (CC BY 4.0). */
     OpenVanCamp(
         providesFuel = true,
+        providesPrices = true,
         supportedCountries = setOf(
             "LU", "ME", "MK", "HR", "SI", "BE", "PT", "PT-MA", "PT-AC", "IT", "SE", "DK", "FI",
             "NO", "PL", "HU", "IE", "GR", "RO", "CZ", "SK", "BG"
         )
     ),
     /** Spanish government fuel prices (Minetur). */
-    SpainMinetur(providesFuel = true, supportedCountries = setOf("ES")),
+    SpainMinetur(providesFuel = true, providesPrices = true, supportedCountries = setOf("ES")),
     /** German fuel prices via Tankerkönig (MTS-K). */
-    GermanyTankerkoenig(providesFuel = true, supportedCountries = setOf("DE")),
+    GermanyTankerkoenig(providesFuel = true, providesPrices = true, supportedCountries = setOf("DE")),
     /** Austrian fuel prices via E-Control. */
-    AustriaEControl(providesFuel = true, supportedCountries = setOf("AT")),
+    AustriaEControl(providesFuel = true, providesPrices = true, supportedCountries = setOf("AT")),
     /** Netherlands and Luxembourg fuel prices via ANWB. */
-    NetherlandsAnwb(providesFuel = true, supportedCountries = setOf("NL", "LU")),
+    NetherlandsAnwb(providesFuel = true, providesPrices = true, supportedCountries = setOf("NL", "LU")),
     /** Belgian official maximum fuel prices. */
-    BelgiumOfficial(providesFuel = true, supportedCountries = setOf("BE")),
+    BelgiumOfficial(providesFuel = true, providesPrices = true, supportedCountries = setOf("BE")),
     /** Portuguese fuel prices via DGEG (Mainland). */
-    PortugalDgeg(providesFuel = true, supportedCountries = setOf("PT")),
+    PortugalDgeg(providesFuel = true, providesPrices = true, supportedCountries = setOf("PT")),
     /** Madeira regional official maximum fuel prices. */
-    MadeiraOfficial(providesFuel = true, supportedCountries = setOf("PT-MA")),
+    MadeiraOfficial(providesFuel = true, providesPrices = true, supportedCountries = setOf("PT-MA")),
     /** UK fuel prices via CMA open data feeds. */
-    UnitedKingdomCma(providesFuel = true, supportedCountries = setOf("GB")),
+    UnitedKingdomCma(providesFuel = true, providesPrices = true, supportedCountries = setOf("GB")),
     /** Italian fuel prices via MIMIT open data feeds. */
-    ItalyMimit(providesFuel = true, supportedCountries = setOf("IT")),
+    ItalyMimit(providesFuel = true, providesPrices = true, supportedCountries = setOf("IT")),
     /** Slovenia fuel prices via Goriva.si. */
-    SloveniaGoriva(providesFuel = true, supportedCountries = setOf("SI")),
+    SloveniaGoriva(providesFuel = true, providesPrices = true, supportedCountries = setOf("SI")),
     /** Romania fuel prices via Peco Online. */
-    RomaniaPeco(providesFuel = true, supportedCountries = setOf("RO")),
+    RomaniaPeco(providesFuel = true, providesPrices = true, supportedCountries = setOf("RO")),
     /** Fuel prices via Fuelo.net (BG, CZ, HU, PL, SK, EE, LV, LT, CH, BA, TR, MK). */
-    Fuelo(providesFuel = true, supportedCountries = setOf("BG", "CZ", "HU", "PL", "SK", "EE", "LV", "LT", "CH", "BA", "TR", "MK")),
+    Fuelo(providesFuel = true, providesPrices = true, supportedCountries = setOf("BG", "CZ", "HU", "PL", "SK", "EE", "LV", "LT", "CH", "BA", "TR", "MK")),
     /** Greece fuel prices via FuelGR. */
-    GreeceFuelGR(providesFuel = true, supportedCountries = setOf("GR")),
+    GreeceFuelGR(providesFuel = true, providesPrices = true, supportedCountries = setOf("GR")),
     /** Serbia fuel prices via NIS / Cenagoriva. */
-    SerbiaNis(providesFuel = true, supportedCountries = setOf("RS")),
+    SerbiaNis(providesFuel = true, providesPrices = true, supportedCountries = setOf("RS")),
     /** Croatia fuel prices via MZOE. */
-    CroatiaMzoe(providesFuel = true, supportedCountries = setOf("HR")),
+    CroatiaMzoe(providesFuel = true, providesPrices = true, supportedCountries = setOf("HR")),
     /** DrivstoffAppen (Norway, Sweden, Denmark, Finland). */
-    DrivstoffAppen(providesFuel = true, supportedCountries = setOf("NO", "SE", "DK", "FI")),
+    DrivstoffAppen(providesFuel = true, providesPrices = true, supportedCountries = setOf("NO", "SE", "DK", "FI")),
     /** Denmark fuel prices via Fuelprices.dk. */
-    DenmarkFuelprices(providesFuel = true, supportedCountries = setOf("DK")),
+    DenmarkFuelprices(providesFuel = true, providesPrices = true, supportedCountries = setOf("DK")),
     /** Finland fuel prices via Polttoaine.net. */
-    FinlandPolttoaine(providesFuel = true, supportedCountries = setOf("FI")),
+    FinlandPolttoaine(providesFuel = true, providesPrices = true, supportedCountries = setOf("FI")),
     /** Argentina fuel prices via Secretaría de Energía. */
-    ArgentinaEnergia(providesFuel = true, supportedCountries = setOf("AR")),
+    ArgentinaEnergia(providesFuel = true, providesPrices = true, supportedCountries = setOf("AR")),
     /** Mexico fuel prices via CRE. */
-    MexicoCRE(providesFuel = true, supportedCountries = setOf("MX")),
+    MexicoCRE(providesFuel = true, providesPrices = true, supportedCountries = setOf("MX")),
     /** Moldova fuel prices via ANRE. */
-    MoldovaAnre(providesFuel = true, supportedCountries = setOf("MD")),
+    MoldovaAnre(providesFuel = true, providesPrices = true, supportedCountries = setOf("MD")),
     /** Australia fuel prices via FuelWatch and FuelCheck. */
-    AustraliaFuel(providesFuel = true, supportedCountries = setOf("AU")),
+    AustraliaFuel(providesFuel = true, providesPrices = true, supportedCountries = setOf("AU")),
     /** Ireland fuel prices via Pick A Pump. */
-    IrelandPickAPump(providesFuel = true, supportedCountries = setOf("IE")),
+    IrelandPickAPump(providesFuel = true, providesPrices = true, supportedCountries = setOf("IE")),
     Overpass,
     Ionity(providesElectric = true),
     Fastned(providesElectric = true),
-    Hybrid(providesFuel = true, providesElectric = true, supportedCountries = setOf("FR")),
+    Hybrid(providesFuel = true, providesElectric = true, providesPrices = true, supportedCountries = setOf("FR")),
 }
 
 private val POI_DATA_SOURCES_DISABLED_FOR_USER_SELECTION: Set<PoiProviderType> = emptySet()
