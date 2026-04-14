@@ -192,6 +192,9 @@ val mapModule = module {
     single<PoiProvider>(named("moldovaanre")) {
         fr.geoking.julius.api.moldova.MoldovaAnreProvider(get())
     }
+    single<PoiProvider>(named("australiafuelwatch")) {
+        fr.geoking.julius.poi.MockPoiProvider()
+    }
     single<PoiProvider>(named("australiafuelcheck")) {
         fr.geoking.julius.api.australia.AustraliaNswFuelCheckProvider(
             client = get(),
