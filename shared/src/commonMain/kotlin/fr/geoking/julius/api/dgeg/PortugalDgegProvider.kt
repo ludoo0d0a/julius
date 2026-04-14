@@ -6,6 +6,9 @@ import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiCategory
 import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.shared.logging.log
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.pow
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -33,12 +36,33 @@ class PortugalDgegProvider(
     ): List<Poi> {
         val allStations = getAllStations()
 
+        if (viewport != null) {
+            // Precise filtering based on viewport
+            // the SelectorPoiProvider already applies its own distance filter based on viewport.
+            // But we still want to return a sensible subset here for performance.
+            val radiusDeg = (radiusKmFromViewport(viewport, latitude) / 111.0).coerceAtLeast(0.1)
+
+            return allStations.filter {
+                it.latitude in (latitude - radiusDeg)..(latitude + radiusDeg) &&
+                it.longitude in (longitude - radiusDeg)..(longitude + radiusDeg)
+            }
+        }
+
         // Filtering by proximity (simple bounding box for performance)
-        val radiusDeg = 0.2 // ~22km
+        val radiusDeg = 0.5 // ~55km (increased from 0.2 to avoid missing POIs)
         return allStations.filter {
             it.latitude in (latitude - radiusDeg)..(latitude + radiusDeg) &&
             it.longitude in (longitude - radiusDeg)..(longitude + radiusDeg)
         }
+    }
+
+    private fun radiusKmFromViewport(viewport: MapViewport, lat: Double): Double {
+        // Approximate radius in km from zoom and map size
+        val worldSize = 40075.0 // Earth circumference in km
+        val pixelsPerTile = 256.0
+        val numTiles = 2.0.pow(viewport.zoom.toDouble())
+        val kmPerPixel = (worldSize * cos(lat * PI / 180.0)) / (numTiles * pixelsPerTile)
+        return (maxOf(viewport.mapWidthPx, viewport.mapHeightPx) * kmPerPixel) / 2.0
     }
 
     private suspend fun getAllStations(): List<Poi> {
@@ -57,7 +81,18 @@ class PortugalDgegProvider(
                 .groupBy { it.Id }
                 .mapNotNull { (id, stations) ->
                     val first = stations.first()
-                    if (first.Latitude == 0.0 || first.Longitude == 0.0) return@mapNotNull null
+                    var lat = first.Latitude
+                    var lon = first.Longitude
+
+                    if (lat == 0.0 || lon == 0.0) {
+                        val fallback = first.Location?.split(Regex("[,\\s]+"))
+                        if (fallback?.size == 2) {
+                            lat = fallback[0].toDoubleOrNull() ?: 0.0
+                            lon = fallback[1].toDoubleOrNull() ?: 0.0
+                        }
+                    }
+
+                    if (lat == 0.0 || lon == 0.0) return@mapNotNull null
 
                     val prices = stations.mapNotNull { it.toFuelPrice() }
 
@@ -65,8 +100,8 @@ class PortugalDgegProvider(
                         id = "dgeg:$id",
                         name = first.Nome,
                         address = listOfNotNull(first.Morada, first.Localidade).joinToString(", "),
-                        latitude = first.Latitude,
-                        longitude = first.Longitude,
+                        latitude = lat,
+                        longitude = lon,
                         brand = first.Marca,
                         poiCategory = PoiCategory.Gas,
                         fuelPrices = prices.ifEmpty { null },
@@ -101,24 +136,27 @@ class PortugalDgegProvider(
         val Nome: String,
         val Preco: String? = null,
         val Combustivel: String? = null,
+        val Combustive1: String? = null, // Fallback fuel type
         val Marca: String? = null,
         val Morada: String? = null,
         val Localidade: String? = null,
         val Latitude: Double,
-        val Longitude: Double
+        val Longitude: Double,
+        val Location: String? = null // Fallback location "lat,lon"
     ) {
         fun toFuelPrice(): FuelPrice? {
-            val priceString = Preco?.split(" ")?.firstOrNull() ?: return null
+            val priceString = Preco?.trim()?.split(" ")?.firstOrNull() ?: return null
             val priceValue = priceString.replace(",", ".").toDoubleOrNull() ?: return null
 
+            val type = Combustivel ?: Combustive1
             val fuelType = when {
-                Combustivel?.contains("Gasóleo simples", ignoreCase = true) == true -> "Gazole"
-                Combustivel?.contains("Gasóleo especial", ignoreCase = true) == true -> "Gazole"
-                Combustivel?.contains("Gasolina simples 95", ignoreCase = true) == true -> "SP95"
-                Combustivel?.contains("Gasolina especial 95", ignoreCase = true) == true -> "SP95"
-                Combustivel?.contains("Gasolina 98", ignoreCase = true) == true -> "SP98"
-                Combustivel?.contains("Gasolina especial 98", ignoreCase = true) == true -> "SP98"
-                Combustivel?.contains("GPL Auto", ignoreCase = true) == true -> "GPLc"
+                type?.contains("Gasóleo simples", ignoreCase = true) == true -> "Gazole"
+                type?.contains("Gasóleo especial", ignoreCase = true) == true -> "Gazole"
+                type?.contains("Gasolina simples 95", ignoreCase = true) == true -> "SP95"
+                type?.contains("Gasolina especial 95", ignoreCase = true) == true -> "SP95"
+                type?.contains("Gasolina 98", ignoreCase = true) == true -> "SP98"
+                type?.contains("Gasolina especial 98", ignoreCase = true) == true -> "SP98"
+                type?.contains("GPL Auto", ignoreCase = true) == true -> "GPLc"
                 else -> return null
             }
 
