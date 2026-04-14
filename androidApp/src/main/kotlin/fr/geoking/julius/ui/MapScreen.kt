@@ -408,6 +408,7 @@ fun MapScreen(
         onBack = onBack,
         onRefresh = {
             scope.launch {
+                isLoading = true
                 CacheManager.clearAllCaches(context)
                 cachedPois = emptyList()
                 availabilityByPoiId = emptyMap()

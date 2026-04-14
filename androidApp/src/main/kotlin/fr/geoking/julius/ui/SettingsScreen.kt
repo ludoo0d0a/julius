@@ -381,7 +381,10 @@ private fun MapConfig(
                 listOf(
                     PoiProviderType.DataGouvElec to "data.gouv (France official)",
                     PoiProviderType.Chargy to "Chargy (Luxembourg)",
-                    PoiProviderType.OpenChargeMap to "OpenChargeMap"
+                    PoiProviderType.OpenChargeMap to "OpenChargeMap",
+                    PoiProviderType.Ionity to "Ionity",
+                    PoiProviderType.Fastned to "Fastned",
+                    PoiProviderType.EcoMovement to "Eco-Movement"
                 ).forEach { (type, label) ->
                     FilterChip(
                         selected = if (settings.autoPoiProvidersEnabled) type.eligibleToAuto else settings.selectedPoiProviders.contains(type),
@@ -443,6 +446,44 @@ private fun MapConfig(
                     PoiProviderType.MoldovaAnre to "Moldova (ANRE)",
                     PoiProviderType.AustraliaFuel to "Australia (FuelWatch/Check)",
                     PoiProviderType.IrelandPickAPump to "Ireland (Pick A Pump)"
+                    PoiProviderType.UnitedKingdomCma to "United Kingdom (CMA)",
+                    PoiProviderType.ItalyMimit to "Italy (MIMIT)"
+                ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }.forEach { (type, label) ->
+                    FilterChip(
+                        selected = if (settings.autoPoiProvidersEnabled) type.eligibleToAuto else settings.selectedPoiProviders.contains(type),
+                        onClick = {
+                            if (!settings.autoPoiProvidersEnabled) {
+                                val next = if (settings.selectedPoiProviders.contains(type)) settings.selectedPoiProviders - type else settings.selectedPoiProviders + type
+                                onUpdate(settings.copy(selectedPoiProviders = next))
+                            }
+                        },
+                        label = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(label)
+                                if (type.eligibleToAuto) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Canvas(modifier = Modifier.size(6.dp)) {
+                                        drawCircle(color = if (settings.autoPoiProvidersEnabled) DeepPurple else Lavender)
+                                    }
+                                }
+                            }
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Lavender,
+                            selectedLabelColor = DeepPurple,
+                            labelColor = Color.White,
+                            containerColor = Color.White.copy(alpha = 0.1f)
+                        ),
+                        enabled = !settings.autoPoiProvidersEnabled || type.eligibleToAuto
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("Other", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+            FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    PoiProviderType.Overpass to "OSM (toilets, water, parking…)"
                 ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }.forEach { (type, label) ->
                     FilterChip(
                         selected = if (settings.autoPoiProvidersEnabled) type.eligibleToAuto else settings.selectedPoiProviders.contains(type),
@@ -525,7 +566,7 @@ private fun MapConfig(
 
             Text("Fuel Types", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
             FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MAP_ENERGY_OPTIONS.filter { it.first != "electric" }.forEach { (id, label) ->
+                MAP_ENERGY_OPTIONS.forEach { (id, label) ->
                     FilterChip(
                         selected = settings.selectedMapEnergyTypes.contains(id),
                         onClick = {
@@ -1961,7 +2002,7 @@ private fun VehicleConfig(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                MAP_ENERGY_OPTIONS.filter { it.first != "electric" }.forEach { (id, label) ->
+                MAP_ENERGY_OPTIONS.forEach { (id, label) ->
                     FilterChip(
                         selected = settings.vehicleGasTypes.contains(id),
                         onClick = {

@@ -297,6 +297,13 @@ open class SettingsManager(
         val filterOnlyHighwayStations = prefs.getBoolean("filter_only_highway_stations", false)
         val autoPoiProvidersEnabled = prefs.getBoolean("auto_poi_providers_enabled", true)
 
+        val openChargeMapKey = prefs.getString("openchargemap_key", "")?.takeIf { it.isNotEmpty() }
+            ?: fr.geoking.julius.BuildConfig.OPENCHARGEMAP_KEY
+        val ecoMovementUrl = prefs.getString("eco_movement_url", "")?.takeIf { it.isNotEmpty() }
+            ?: fr.geoking.julius.BuildConfig.ECO_MOVEMENT_URL
+        val ecoMovementToken = prefs.getString("eco_movement_token", "")?.takeIf { it.isNotEmpty() }
+            ?: fr.geoking.julius.BuildConfig.ECO_MOVEMENT_TOKEN
+
         // Persist build-time keys (from env/local.properties) when prefs were empty so they show in settings and are reused
         persistBuildTimeKeysIfUsed(
             openAiKey, elevenLabsKey, perplexityKey, geminiKey, deepgramKey,
