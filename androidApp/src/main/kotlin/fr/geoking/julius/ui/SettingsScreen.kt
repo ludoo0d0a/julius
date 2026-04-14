@@ -52,6 +52,7 @@ import fr.geoking.julius.feature.auth.GoogleAuthManager
 import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.poi.anyProvidesElectric
 import fr.geoking.julius.poi.isUserSelectablePoiDataSource
+import fr.geoking.julius.poi.getDisplayGroup
 import androidx.compose.foundation.Canvas
 import fr.geoking.julius.TextAnimation
 import fr.geoking.julius.CacheManager
@@ -418,64 +419,76 @@ private fun MapConfig(
 
             Spacer(modifier = Modifier.height(12.dp))
             Text("Fuel", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
-            FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(
-                    PoiProviderType.Routex to "Routex",
-                    PoiProviderType.Etalab to "Prix carburant (France official)",
-                    PoiProviderType.GasApi to "gas-api.ovh",
-                    PoiProviderType.DataGouv to "data.gouv (France official)",
-                    PoiProviderType.OpenVanCamp to "OpenVan.camp (Europe-wide)",
-                    PoiProviderType.SpainMinetur to "Spain Minetur (official)",
-                    PoiProviderType.GermanyTankerkoenig to "Tankerkönig (Germany)",
-                    PoiProviderType.AustriaEControl to "E-Control (Austria)",
-                    PoiProviderType.BelgiumOfficial to "Belgium (official)",
-                    PoiProviderType.PortugalDgeg to "Portugal DGEG (official)",
-                    PoiProviderType.MadeiraOfficial to "Madeira (official)",
-                    PoiProviderType.NetherlandsAnwb to "Netherlands/Luxembourg (ANWB)",
-                    PoiProviderType.SloveniaGoriva to "Slovenia (Goriva.si)",
-                    PoiProviderType.RomaniaPeco to "Romania (Peco Online)",
-                    PoiProviderType.Fuelo to "CEE / Turkey (Fuelo.net)",
-                    PoiProviderType.GreeceFuelGR to "Greece (FuelGR)",
-                    PoiProviderType.SerbiaNis to "Serbia (NIS)",
-                    PoiProviderType.CroatiaMzoe to "Croatia (MZOE)",
-                    PoiProviderType.DrivstoffAppen to "Nordics (DrivstoffAppen)",
-                    PoiProviderType.DenmarkFuelprices to "Denmark (Fuelprices.dk)",
-                    PoiProviderType.FinlandPolttoaine to "Finland (Polttoaine.net)",
-                    PoiProviderType.ArgentinaEnergia to "Argentina (Energia)",
-                    PoiProviderType.MexicoCRE to "Mexico (CRE)",
-                    PoiProviderType.MoldovaAnre to "Moldova (ANRE)",
-                    PoiProviderType.AustraliaFuel to "Australia (FuelWatch/Check)",
-                    PoiProviderType.IrelandPickAPump to "Ireland (Pick A Pump)",
-                    PoiProviderType.UnitedKingdomCma to "United Kingdom (CMA)",
-                    PoiProviderType.ItalyMimit to "Italy (MIMIT)"
-                ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }.forEach { (type, label) ->
-                    FilterChip(
-                        selected = if (settings.autoPoiProvidersEnabled) type.eligibleToAuto else settings.selectedPoiProviders.contains(type),
-                        onClick = {
-                            if (!settings.autoPoiProvidersEnabled) {
-                                val next = if (settings.selectedPoiProviders.contains(type)) settings.selectedPoiProviders - type else settings.selectedPoiProviders + type
-                                onUpdate(settings.copy(selectedPoiProviders = next))
-                            }
-                        },
-                        label = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(label)
-                                if (type.eligibleToAuto) {
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Canvas(modifier = Modifier.size(6.dp)) {
-                                        drawCircle(color = if (settings.autoPoiProvidersEnabled) DeepPurple else Lavender)
+            val fuelOptions = listOf(
+                PoiProviderType.Routex to "Routex",
+                PoiProviderType.Etalab to "Prix carburant (official)",
+                PoiProviderType.GasApi to "gas-api.ovh",
+                PoiProviderType.DataGouv to "data.gouv (official)",
+                PoiProviderType.OpenVanCamp to "OpenVan.camp (Reference)",
+                PoiProviderType.SpainMinetur to "Spain Minetur (official)",
+                PoiProviderType.GermanyTankerkoenig to "Tankerkönig (Germany)",
+                PoiProviderType.AustriaEControl to "E-Control (Austria)",
+                PoiProviderType.BelgiumOfficial to "Belgium (official)",
+                PoiProviderType.PortugalDgeg to "Portugal DGEG (official)",
+                PoiProviderType.MadeiraOfficial to "Madeira (official)",
+                PoiProviderType.NetherlandsAnwb to "Netherlands/Luxembourg (ANWB)",
+                PoiProviderType.SloveniaGoriva to "Slovenia (Goriva.si)",
+                PoiProviderType.RomaniaPeco to "Romania (Peco Online)",
+                PoiProviderType.Fuelo to "CEE / Turkey (Fuelo.net)",
+                PoiProviderType.GreeceFuelGR to "Greece (FuelGR)",
+                PoiProviderType.SerbiaNis to "Serbia (NIS)",
+                PoiProviderType.CroatiaMzoe to "Croatia (MZOE)",
+                PoiProviderType.DrivstoffAppen to "Nordics (DrivstoffAppen)",
+                PoiProviderType.DenmarkFuelprices to "Denmark (Fuelprices.dk)",
+                PoiProviderType.FinlandPolttoaine to "Finland (Polttoaine.net)",
+                PoiProviderType.ArgentinaEnergia to "Argentina (Energia)",
+                PoiProviderType.MexicoCRE to "Mexico (CRE)",
+                PoiProviderType.MoldovaAnre to "Moldova (ANRE)",
+                PoiProviderType.AustraliaFuel to "Australia (FuelWatch/Check)",
+                PoiProviderType.IrelandPickAPump to "Ireland (Pick A Pump)",
+                PoiProviderType.UnitedKingdomCma to "United Kingdom (CMA)",
+                PoiProviderType.ItalyMimit to "Italy (MIMIT)",
+                PoiProviderType.Hybrid to "Hybrid (Gas + EV)"
+            ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }
+
+            val groupedFuel = fuelOptions.groupBy { (type, _) -> type.getDisplayGroup() }
+            groupedFuel.forEach { (group, providers) ->
+                Text(
+                    text = group,
+                    color = Lavender.copy(alpha = 0.5f),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                )
+                FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    providers.forEach { (type, label) ->
+                        FilterChip(
+                            selected = if (settings.autoPoiProvidersEnabled) type.eligibleToAuto else settings.selectedPoiProviders.contains(type),
+                            onClick = {
+                                if (!settings.autoPoiProvidersEnabled) {
+                                    val next = if (settings.selectedPoiProviders.contains(type)) settings.selectedPoiProviders - type else settings.selectedPoiProviders + type
+                                    onUpdate(settings.copy(selectedPoiProviders = next))
+                                }
+                            },
+                            label = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(label)
+                                    if (type.eligibleToAuto) {
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Canvas(modifier = Modifier.size(6.dp)) {
+                                            drawCircle(color = if (settings.autoPoiProvidersEnabled) DeepPurple else Lavender)
+                                        }
                                     }
                                 }
-                            }
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Lavender,
-                            selectedLabelColor = DeepPurple,
-                            labelColor = Color.White,
-                            containerColor = Color.White.copy(alpha = 0.1f)
-                        ),
-                        enabled = !settings.autoPoiProvidersEnabled || type.eligibleToAuto
-                    )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Lavender,
+                                selectedLabelColor = DeepPurple,
+                                labelColor = Color.White,
+                                containerColor = Color.White.copy(alpha = 0.1f)
+                            ),
+                            enabled = !settings.autoPoiProvidersEnabled || type.eligibleToAuto
+                        )
+                    }
                 }
             }
 

@@ -6,6 +6,7 @@ import androidx.car.app.model.*
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.poi.isUserSelectablePoiDataSource
+import fr.geoking.julius.poi.getDisplayGroup
 
 class AutoPoiProviderSelectionScreen(
     carContext: CarContext,
@@ -48,24 +49,28 @@ class AutoPoiProviderSelectionScreen(
 
     override fun onGetTemplate(): Template {
         val settings = settingsManager.settings.value
-        val listBuilder = ItemList.Builder()
+        val templateBuilder = ListTemplate.Builder()
 
-        options.forEach { (type, label) ->
-            val isSelected = settings.selectedPoiProviders.contains(type)
-            val displayLabel = if (isSelected) "$label (Selected)" else label
-            listBuilder.addItem(
-                Row.Builder()
-                    .setTitle(displayLabel)
-                    .setOnClickListener {
-                        settingsManager.togglePoiProviderType(type)
-                        invalidate()
-                    }
-                    .build()
-            )
+        val grouped = options.groupBy { (type, _) -> type.getDisplayGroup() }
+        grouped.forEach { (group, providers) ->
+            val listBuilder = ItemList.Builder()
+            providers.forEach { (type, label) ->
+                val isSelected = settings.selectedPoiProviders.contains(type)
+                val displayLabel = if (isSelected) "$label (Selected)" else label
+                listBuilder.addItem(
+                    Row.Builder()
+                        .setTitle(displayLabel)
+                        .setOnClickListener {
+                            settingsManager.togglePoiProviderType(type)
+                            invalidate()
+                        }
+                        .build()
+                )
+            }
+            templateBuilder.addList(listBuilder.build(), group)
         }
 
-        return ListTemplate.Builder()
-            .setSingleList(listBuilder.build())
+        return templateBuilder
             .setHeader(Header.Builder().setTitle("Data Source").setStartHeaderAction(Action.BACK).build())
             .build()
     }

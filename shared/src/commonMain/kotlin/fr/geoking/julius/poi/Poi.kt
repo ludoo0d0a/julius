@@ -76,7 +76,7 @@ enum class PoiProviderType(
     val supportedCountries: Set<String> = emptySet(),
 ) {
     Routex(providesFuel = true, eligibleToAuto = false),
-    Etalab(providesFuel = true, eligibleToAuto = false),
+    Etalab(providesFuel = true, supportedCountries = setOf("FR"), eligibleToAuto = false),
     GasApi(providesFuel = true, supportedCountries = setOf("FR")),
     DataGouv(providesFuel = true, supportedCountries = setOf("FR")),
     DataGouvElec(providesElectric = true, supportedCountries = setOf("FR")),
@@ -160,6 +160,54 @@ fun Iterable<PoiProviderType>.anyProvidesFuel(): Boolean = any { it.providesFuel
 
 /** True if any selected provider can supply electric / IRVE POIs. */
 fun Iterable<PoiProviderType>.anyProvidesElectric(): Boolean = any { it.providesElectric }
+
+/**
+ * Returns a display group name for the provider (e.g. flag + country name).
+ */
+fun PoiProviderType.getDisplayGroup(): String {
+    if (this == PoiProviderType.Routex) return "🌍 International"
+    if (this == PoiProviderType.OpenChargeMap || this == PoiProviderType.EcoMovement) return "🌍 Global"
+    if (this == PoiProviderType.OpenVanCamp) return "🇪🇺 Europe (Reference)"
+    if (this == PoiProviderType.Overpass) return "🌍 General"
+
+    val countries = supportedCountries
+    if (countries.isEmpty()) return "🌍 Other"
+    if (countries.size > 1) return "🇪🇺 Multi-country"
+
+    return when (val code = countries.first()) {
+        "FR" -> "🇫🇷 France"
+        "LU" -> "🇱🇺 Luxembourg"
+        "BE" -> "🇧🇪 Belgium"
+        "NL" -> "🇳🇱 Netherlands"
+        "DE" -> "🇩🇪 Germany"
+        "AT" -> "🇦🇹 Austria"
+        "ES" -> "🇪🇸 Spain"
+        "PT" -> "🇵🇹 Portugal"
+        "PT-MA" -> "🇵🇹 Madeira"
+        "IT" -> "🇮🇹 Italy"
+        "GB" -> "🇬🇧 United Kingdom"
+        "IE" -> "🇮🇪 Ireland"
+        "DK" -> "🇩🇰 Denmark"
+        "FI" -> "🇫🇮 Finland"
+        "NO" -> "🇳🇴 Norway"
+        "SE" -> "🇸🇪 Sweden"
+        "SI" -> "🇸🇮 Slovenia"
+        "HR" -> "🇭🇷 Croatia"
+        "RO" -> "🇷🇴 Romania"
+        "BG" -> "🇧🇬 Bulgaria"
+        "GR" -> "🇬🇷 Greece"
+        "HU" -> "🇭🇺 Hungary"
+        "PL" -> "🇵🇱 Poland"
+        "CZ" -> "🇨🇿 Czechia"
+        "SK" -> "🇸🇰 Slovakia"
+        "RS" -> "🇷🇸 Serbia"
+        "AR" -> "🇦🇷 Argentina"
+        "MX" -> "🇲🇽 Mexico"
+        "MD" -> "🇲🇩 Moldova"
+        "AU" -> "🇦🇺 Australia"
+        else -> "🌍 $code"
+    }
+}
 
 /**
  * IRVE-only details: connector types, tarification (free text), opening hours, payment, etc.
