@@ -427,7 +427,22 @@ private fun MapConfig(
                     PoiProviderType.AustriaEControl to "E-Control (Austria)",
                     PoiProviderType.BelgiumOfficial to "Belgium (official)",
                     PoiProviderType.PortugalDgeg to "Portugal DGEG (official)",
-                    PoiProviderType.MadeiraOfficial to "Madeira (official)"
+                    PoiProviderType.MadeiraOfficial to "Madeira (official)",
+                    PoiProviderType.NetherlandsAnwb to "Netherlands/Luxembourg (ANWB)",
+                    PoiProviderType.SloveniaGoriva to "Slovenia (Goriva.si)",
+                    PoiProviderType.RomaniaPeco to "Romania (Peco Online)",
+                    PoiProviderType.Fuelo to "CEE / Turkey (Fuelo.net)",
+                    PoiProviderType.GreeceFuelGR to "Greece (FuelGR)",
+                    PoiProviderType.SerbiaNis to "Serbia (NIS)",
+                    PoiProviderType.CroatiaMzoe to "Croatia (MZOE)",
+                    PoiProviderType.DrivstoffAppen to "Nordics (DrivstoffAppen)",
+                    PoiProviderType.DenmarkFuelprices to "Denmark (Fuelprices.dk)",
+                    PoiProviderType.FinlandPolttoaine to "Finland (Polttoaine.net)",
+                    PoiProviderType.ArgentinaEnergia to "Argentina (Energia)",
+                    PoiProviderType.MexicoCRE to "Mexico (CRE)",
+                    PoiProviderType.MoldovaAnre to "Moldova (ANRE)",
+                    PoiProviderType.AustraliaFuel to "Australia (FuelWatch/Check)",
+                    PoiProviderType.IrelandPickAPump to "Ireland (Pick A Pump)"
                 ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }.forEach { (type, label) ->
                     FilterChip(
                         selected = if (settings.autoPoiProvidersEnabled) type.eligibleToAuto else settings.selectedPoiProviders.contains(type),
