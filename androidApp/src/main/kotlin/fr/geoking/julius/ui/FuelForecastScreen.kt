@@ -99,6 +99,14 @@ fun FuelForecastScreen(
                         )
                     }
 
+                    item {
+                        val brentState = states["brent"] ?: FuelForecastUiState(fuelId = "brent", locationKey = "")
+                        FuelForecastChartCard(
+                            state = brentState,
+                            isLoading = isLoading && states.isEmpty()
+                        )
+                    }
+
                     val sortedFuels = listOf("gazole", "sp95", "sp98", "gplc", "e85")
                     items(sortedFuels) { fuelId ->
                         val state = states[fuelId] ?: FuelForecastUiState(fuelId = fuelId, locationKey = "")

@@ -145,6 +145,38 @@ class FuelForecastRepository(
 
         val resultMap = mutableMapOf<String, FuelForecastUiState>()
 
+        // 1. Brent Crude special entry
+        if (brent.isNotEmpty()) {
+            val brentHistory = brent.map {
+                DailyPricePoint(day = it.day, priceEurPerL = it.close, isForecast = false)
+            }
+            val brentTomorrow = if (brent.size >= 2) {
+                val last = brent.last()
+                val prev = brent[brent.size - 2]
+                val dailyReturn = (last.close - prev.close) / prev.close
+                val predictedPrice = last.close * (1.0 + dailyReturn)
+                PredictionInfo(
+                    predictedPrice = predictedPrice,
+                    changePercentage = dailyReturn * 100.0,
+                    directionUp = dailyReturn > 0
+                )
+            } else null
+
+            val brentForecast = brentTomorrow?.let {
+                val lastDay = brent.last().day
+                val targetDay = try { LocalDate.parse(lastDay).plusDays(1).toString() } catch (_: Exception) { today }
+                listOf(DailyPricePoint(day = targetDay, priceEurPerL = it.predictedPrice, isForecast = true))
+            } ?: emptyList()
+
+            resultMap["brent"] = FuelForecastUiState(
+                fuelId = "brent",
+                locationKey = locKey,
+                historyPoints = brentHistory,
+                forecastPoints = brentForecast,
+                nextDayPrediction = brentTomorrow
+            )
+        }
+
         for (fuel in effectiveFuels) {
             val baseline = localAvgDao.getDay(locKey, fuel, today)?.avgPrice
             if (baseline != null && brent.size >= 4) {
