@@ -376,12 +376,26 @@ class JulesClient(
                 } else {
                     group.subItems.firstOrNull()?.text ?: group.title
                 }
-
-                // If only one item in a generic "Progress" group, use its text as title directly for a cleaner UI
-                val title = if (group.subItems.size == 1 && group.title == "Progress") {
-                    group.subItems.first().text
-                } else {
-                    group.title
+                a.originator == "agent" -> {
+                    val text = when {
+                        a.planGenerated != null -> {
+                            val plan = a.planGenerated.plan
+                            if (plan != null && plan.steps.isNotEmpty()) {
+                                "**Plan:**\n" + plan.steps.sortedBy { it.index ?: 0 }.joinToString("\n") { "${it.index?.plus(1) ?: ""}. ${it.title}" }
+                            } else "Plan generated."
+                        }
+                        a.progressUpdated != null -> {
+                            val t = a.progressUpdated.title
+                            val d = a.progressUpdated.description
+                            if (d.isNullOrBlank()) t else "$t\n$d"
+                        }
+                        a.sessionCompleted != null -> "Session completed."
+                        a.messageSent != null -> a.messageSent.prompt
+                        else -> null
+                    }
+                    if (text != null) {
+                        items.add(JulesChatItem.AgentMessage(a.id, a.createTime, text))
+                    }
                 }
 
                 items.add(group.copy(title = title, text = text))
