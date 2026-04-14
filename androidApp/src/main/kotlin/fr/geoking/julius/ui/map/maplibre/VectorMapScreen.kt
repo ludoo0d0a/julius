@@ -59,6 +59,7 @@ import fr.geoking.julius.community.isCommunityPoiId
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.ui.SettingsScreenPage
 import fr.geoking.julius.ui.components.MapScaffold
+import fr.geoking.julius.ui.map.*
 import fr.geoking.julius.ui.map.PoiMarkerHelper
 import fr.geoking.julius.ui.map.MarkerStyle
 import fr.geoking.julius.ui.map.PoiDetailCard
@@ -561,8 +562,7 @@ fun VectorMapScreen(
                         highlightedFuelIds = settings.effectiveMapEnergyFilterIds(),
                         highlightedPowerLevels = settings.effectiveIrvePowerLevels(),
                         onNavigate = {
-                            val uri = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${Uri.encode(poi.name)}")
-                            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                            NavigationHelper.navigateToPoi(context, poi)
                         },
                         onLocate = {
                             scope.launch {
@@ -641,6 +641,9 @@ fun VectorMapScreen(
                     scope.launch { sheetState.hide() }
                 }
             } else null,
+            onNavigate = {
+                NavigationHelper.navigateToPoi(context, poi)
+            },
             onDismiss = { poiForDetailsDialog = null }
         )
     }

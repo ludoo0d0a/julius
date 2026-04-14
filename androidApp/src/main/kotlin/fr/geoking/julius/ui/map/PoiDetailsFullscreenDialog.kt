@@ -6,6 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
@@ -40,6 +41,7 @@ fun PoiDetailsFullscreenDialog(
     onRemove: (() -> Unit)? = null,
     onHide: (() -> Unit)? = null,
     onSuggestCorrection: (() -> Unit)? = null,
+    onNavigate: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val brandInfo = BrandHelper.getBrandInfo(poi.brand)
@@ -88,6 +90,17 @@ fun PoiDetailsFullscreenDialog(
                             )
                         }
                     },
+                    actions = {
+                        onNavigate?.let {
+                            IconButton(onClick = it) {
+                                Icon(
+                                    imageVector = Icons.Default.Directions,
+                                    contentDescription = "Navigate",
+                                    tint = Color.White
+                                )
+                            }
+                        }
+                    },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0F172A))
                 )
                 Column(
@@ -97,12 +110,36 @@ fun PoiDetailsFullscreenDialog(
                         .padding(20.dp)
                 ) {
                     // Header Info
-                    Text(
-                        text = poi.name.ifBlank { "Station" },
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = poi.name.ifBlank { "Station" },
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            brandInfo?.let {
+                                Text(it.displayName, color = Color.White.copy(alpha = 0.7f), fontSize = 16.sp)
+                            }
+                        }
+                        onNavigate?.let {
+                            Button(
+                                onClick = it,
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                                modifier = Modifier.height(40.dp)
+                            ) {
+                                Icon(Icons.Default.Directions, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Navigate", fontSize = 14.sp)
+                            }
+                        }
+                    }
+
                     if (isMergedPoi) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -121,9 +158,6 @@ fun PoiDetailsFullscreenDialog(
                                 fontSize = 13.sp
                             )
                         }
-                    }
-                    brandInfo?.let {
-                        Text(it.displayName, color = Color.White.copy(alpha = 0.7f), fontSize = 16.sp)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     addressLines.forEach { line ->

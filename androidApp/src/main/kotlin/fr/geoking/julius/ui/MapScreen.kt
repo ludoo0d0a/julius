@@ -80,6 +80,7 @@ import fr.geoking.julius.community.isCommunityPoiId
 import fr.geoking.julius.ui.components.MapScaffold
 import fr.geoking.julius.ui.ColorHelper
 import fr.geoking.julius.ui.map.AddPoiSheet
+import fr.geoking.julius.ui.map.NavigationHelper
 import fr.geoking.julius.ui.map.PoiDetailCard
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
 import fr.geoking.julius.ui.map.PoiMarkerHelper
@@ -740,8 +741,7 @@ fun MapScreen(
                         highlightedFuelIds = settings.effectiveMapEnergyFilterIds(),
                         highlightedPowerLevels = settings.effectiveIrvePowerLevels(),
                         onNavigate = {
-                            val uri = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${Uri.encode(poi.name)}")
-                            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                            NavigationHelper.navigateToPoi(context, poi)
                         },
                         onLocate = {
                             scope.launch {
@@ -848,6 +848,9 @@ fun MapScreen(
                     scope.launch { sheetState.hide() }
                 }
             } else null,
+            onNavigate = {
+                NavigationHelper.navigateToPoi(context, poi)
+            },
             onDismiss = { poiForDetailsDialog = null }
         )
     }
