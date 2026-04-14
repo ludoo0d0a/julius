@@ -34,4 +34,26 @@ class PoiTest {
         val names = pois.map { it.name }
         assertTrue(names.any { it.contains("BP") }, "One name should contain BP")
     }
+
+    @Test
+    fun testGetDisplayGroup() {
+        assertEquals("🌍 International", PoiProviderType.Routex.getDisplayGroup())
+        assertEquals("🇫🇷 France", PoiProviderType.Etalab.getDisplayGroup())
+        assertEquals("🇫🇷 France", PoiProviderType.GasApi.getDisplayGroup())
+        assertEquals("🌍 Global", PoiProviderType.OpenChargeMap.getDisplayGroup())
+        assertEquals("🌍 Global", PoiProviderType.EcoMovement.getDisplayGroup())
+        assertEquals("🇪🇺 Europe (Reference)", PoiProviderType.OpenVanCamp.getDisplayGroup())
+        assertEquals("🌍 General", PoiProviderType.Overpass.getDisplayGroup())
+        assertEquals("🇪🇸 Spain", PoiProviderType.SpainMinetur.getDisplayGroup())
+        assertEquals("🇩🇪 Germany", PoiProviderType.GermanyTankerkoenig.getDisplayGroup())
+        assertEquals("🇦🇹 Austria", PoiProviderType.AustriaEControl.getDisplayGroup())
+        assertEquals("🇧🇪 Belgium", PoiProviderType.BelgiumOfficial.getDisplayGroup())
+        assertEquals("🇵🇹 Portugal", PoiProviderType.PortugalDgeg.getDisplayGroup())
+        assertEquals("🇬🇧 United Kingdom", PoiProviderType.UnitedKingdomCma.getDisplayGroup())
+        assertEquals("🇮🇹 Italy", PoiProviderType.ItalyMimit.getDisplayGroup())
+        assertEquals("🇪🇺 Multi-country", PoiProviderType.Fuelo.getDisplayGroup())
+        assertEquals("🇪🇺 Multi-country", PoiProviderType.DrivstoffAppen.getDisplayGroup())
+        assertEquals("🇦🇺 Australia", PoiProviderType.AustraliaFuel.getDisplayGroup())
+        assertEquals("🇫🇷 France", PoiProviderType.Hybrid.getDisplayGroup())
+    }
 }
