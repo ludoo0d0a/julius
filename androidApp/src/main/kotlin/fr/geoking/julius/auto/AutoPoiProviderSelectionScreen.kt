@@ -49,17 +49,17 @@ class AutoPoiProviderSelectionScreen(
 
     override fun onGetTemplate(): Template {
         val settings = settingsManager.settings.value
-        val templateBuilder = ListTemplate.Builder()
+        val listBuilder = ItemList.Builder()
 
         val grouped = options.groupBy { (type, _) -> type.getDisplayGroup() }
         grouped.forEach { (group, providers) ->
-            val listBuilder = ItemList.Builder()
             providers.forEach { (type, label) ->
                 val isSelected = settings.selectedPoiProviders.contains(type)
                 val displayLabel = if (isSelected) "$label (Selected)" else label
                 listBuilder.addItem(
                     Row.Builder()
                         .setTitle(displayLabel)
+                        .addText(group)
                         .setOnClickListener {
                             settingsManager.togglePoiProviderType(type)
                             invalidate()
@@ -67,10 +67,10 @@ class AutoPoiProviderSelectionScreen(
                         .build()
                 )
             }
-            templateBuilder.addList(listBuilder.build(), group)
         }
 
-        return templateBuilder
+        return ListTemplate.Builder()
+            .setSingleList(listBuilder.build())
             .setHeader(Header.Builder().setTitle("Data Source").setStartHeaderAction(Action.BACK).build())
             .build()
     }
