@@ -21,7 +21,7 @@ data class ArgentinaCSVRow(
 )
 
 class ArgentinaEnergiaClient(private val client: HttpClient) {
-    private val csvUrl = "http://datos.energia.gob.ar/dataset/1c181390-5045-475e-94dc-410429be4b17/resource/80ac25de-a44a-4445-9215-090cf55cfda5/download/precios-en-surtidor-resolucin-3142016.csv"
+    private val csvUrl = "https://datos.energia.gob.ar/dataset/1c181390-5045-475e-94dc-410429be4b17/resource/80ac25de-a44a-4445-9215-090cf55cfda5/download/precios-en-surtidor-resolucin-3142016.csv"
 
     suspend fun fetchAllData(): List<ArgentinaCSVRow> {
         val response = client.get(csvUrl) {

@@ -31,6 +31,8 @@ class OcpiClient(
         longitude: Double? = null,
         radiusKm: Int? = null
     ): List<OcpiLocation> {
+        if (baseUrl.isBlank()) return emptyList()
+
         // OCPI /locations typically supports date_from, date_to for delta.
         // Some implementations might support lat/lon/dist as query params (extension).
         val url = if (latitude != null && longitude != null && radiusKm != null) {
