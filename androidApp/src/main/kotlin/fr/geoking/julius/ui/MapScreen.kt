@@ -138,6 +138,7 @@ fun MapScreen(
     authManager: fr.geoking.julius.feature.auth.GoogleAuthManager,
     store: ConversationStore,
     palette: AnimationPalette,
+    initialCenter: LatLng? = null,
     onBack: () -> Unit,
     onPlanRoute: (() -> Unit)? = null,
     communityRepo: CommunityPoiRepository? = null,
@@ -186,18 +187,28 @@ fun MapScreen(
     val defaultLng = 2.3522
 
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(LatLng(defaultLat, defaultLng), 12f)
+        position = CameraPosition.fromLatLngZoom(initialCenter ?: LatLng(defaultLat, defaultLng), 12f)
     }
 
-    var didInitialCenter by remember { mutableStateOf(false) }
+    var didInitialCenter by remember { mutableStateOf(initialCenter != null) }
+
+    LaunchedEffect(initialCenter) {
+        if (initialCenter != null) {
+            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(initialCenter, 12f))
+            didInitialCenter = true
+        }
+    }
 
     LaunchedEffect(hasLocationPermission) {
+
         if (hasLocationPermission && !didInitialCenter) {
             val location = LocationHelper.getCurrentLocation(context)
             if (location != null) {
-                cameraPositionState.position = CameraPosition.fromLatLngZoom(
-                    LatLng(location.latitude, location.longitude),
-                    12f
+                cameraPositionState.animate(
+                    CameraUpdateFactory.newLatLngZoom(
+                        LatLng(location.latitude, location.longitude),
+                        12f
+                    )
                 )
                 didInitialCenter = true
             }

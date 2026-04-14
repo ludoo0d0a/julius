@@ -112,6 +112,7 @@ fun VectorMapScreen(
     authManager: GoogleAuthManager,
     store: ConversationStore,
     palette: AnimationPalette,
+    initialCenter: LatLng? = null,
     onBack: () -> Unit,
     onPlanRoute: (() -> Unit)? = null,
     communityRepo: CommunityPoiRepository? = null,
@@ -161,7 +162,7 @@ fun VectorMapScreen(
 
     val initialCameraPosition = remember {
         CameraPosition.Builder()
-            .target(LatLng(48.8566, 2.3522))
+            .target(initialCenter ?: LatLng(48.8566, 2.3522))
             .zoom(12.0)
             .build()
     }
@@ -195,6 +196,13 @@ fun VectorMapScreen(
     val loadedRegions = remember { mutableListOf<LoadedPoiRegion>() }
     val poiSeenAtMs = remember { mutableStateMapOf<String, Long>() }
     var lastCacheKey by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(mapLibreMap, initialCenter) {
+        val map = mapLibreMap ?: return@LaunchedEffect
+        if (initialCenter != null) {
+            map.animateCamera(CameraUpdateFactory.newLatLngZoom(initialCenter, 12.0))
+        }
+    }
 
     LaunchedEffect(poiFetchKey, mapSizePx, retryCount, mapLibreMap) {
         val map = mapLibreMap ?: return@LaunchedEffect
