@@ -32,6 +32,7 @@ fun CheapestStationsCard(
     onClick: (Poi) -> Unit,
     onMapClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
     emptyMessage: String? = null
 ) {
     Card(
@@ -65,7 +66,15 @@ fun CheapestStationsCard(
                 }
             }
 
-            if (stations.isEmpty()) {
+            if (isLoading) {
+                Box(Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.height(8.dp))
+                        Text("Searching nearby...", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            } else if (stations.isEmpty()) {
                 Text(
                     text = emptyMessage ?: "No stations found nearby. Try opening the map to search elsewhere.",
                     style = MaterialTheme.typography.bodyMedium,
