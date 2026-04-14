@@ -26,7 +26,8 @@ class PortugalDgegRealApiTests {
         // Lisbon coordinates
         val stations = provider.getGasStations(38.7223, -9.1393, null)
 
-        assertTrue(stations.isNotEmpty(), "Should return at least one station in Lisbon")
+        // With the increased page size, we should get many stations
+        assertTrue(stations.size > 10, "Should return many stations in Lisbon area (got ${stations.size})")
         val stationWithPrices = stations.find { it.fuelPrices?.isNotEmpty() == true }
         assertTrue(stationWithPrices != null, "Should return at least one station with fuel prices")
 

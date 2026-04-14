@@ -5,6 +5,7 @@ import fr.geoking.julius.poi.MapViewport
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiCategory
 import fr.geoking.julius.poi.PoiProvider
+import fr.geoking.julius.shared.logging.DebugLogStore
 import fr.geoking.julius.shared.logging.log
 import kotlin.math.PI
 import kotlin.math.cos
@@ -12,7 +13,9 @@ import kotlin.math.pow
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.parameter
+import io.ktor.http.HttpHeaders
 import kotlinx.serialization.Serializable
 
 /**
@@ -73,9 +76,18 @@ class PortugalDgegProvider(
 
         return try {
             val fuelIds = listOf(2101, 2105, 3201, 3205, 3400, 3405, 1120).joinToString(",")
-            val response: DgegEnvelope = httpClient.get("https://precoscombustiveis.dgeg.gov.pt/api/PrecoComb/PesquisarPostos") {
+            val url = "https://precoscombustiveis.dgeg.gov.pt/api/PrecoComb/PesquisarPostos"
+            val response: DgegEnvelope = httpClient.get(url) {
+                header(HttpHeaders.UserAgent, "Pumperly/1.0")
                 parameter("idsTiposComb", fuelIds)
+                parameter("qtdPorPagina", 15000)
+                parameter("pagina", 1)
             }.body()
+
+            DebugLogStore.updateLogMetadata(
+                url = url,
+                metadata = mapOf("Parsed" to "${response.resultado.size} items")
+            )
 
             val pois = response.resultado
                 .groupBy { it.Id }
@@ -152,11 +164,14 @@ class PortugalDgegProvider(
             val fuelType = when {
                 type?.contains("Gasóleo simples", ignoreCase = true) == true -> "Gazole"
                 type?.contains("Gasóleo especial", ignoreCase = true) == true -> "Gazole"
+                type?.contains("Gasóleo", ignoreCase = true) == true -> "Gazole"
                 type?.contains("Gasolina simples 95", ignoreCase = true) == true -> "SP95"
                 type?.contains("Gasolina especial 95", ignoreCase = true) == true -> "SP95"
+                type?.contains("Gasolina 95", ignoreCase = true) == true -> "SP95"
                 type?.contains("Gasolina 98", ignoreCase = true) == true -> "SP98"
                 type?.contains("Gasolina especial 98", ignoreCase = true) == true -> "SP98"
                 type?.contains("GPL Auto", ignoreCase = true) == true -> "GPLc"
+                type?.contains("GPL", ignoreCase = true) == true -> "GPLc"
                 else -> return null
             }
 

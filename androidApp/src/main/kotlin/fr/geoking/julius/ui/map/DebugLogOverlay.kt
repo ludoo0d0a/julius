@@ -223,6 +223,26 @@ private fun LogItem(log: NetworkLog, onClick: () -> Unit) {
                 fontSize = 10.sp
             )
         }
+
+        if (log.metadata.isNotEmpty()) {
+            Row(
+                modifier = Modifier.padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                log.metadata.forEach { (key, value) ->
+                    Text(
+                        text = "$key: $value",
+                        color = Color(0xFF2DD4BF),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .background(Color(0xFF2DD4BF).copy(alpha = 0.1f), RoundedCornerShape(2.dp))
+                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                    )
+                }
+            }
+        }
+
         Text(
             text = log.url,
             color = Color.White.copy(alpha = 0.8f),
@@ -266,6 +286,14 @@ private fun LogDetailsDialog(log: NetworkLog, onDismiss: () -> Unit) {
                         DetailSection("Request Headers")
                         log.requestHeaders.forEach { (k, v) ->
                             DetailItem(k, v.joinToString(", "))
+                        }
+
+                        if (log.metadata.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            DetailSection("Metadata")
+                            log.metadata.forEach { (k, v) ->
+                                DetailItem(k, v)
+                            }
                         }
 
                         val reqBody = log.safeRequestBody
@@ -466,8 +494,13 @@ private fun JsonNodeRow(
     when (value) {
         is JsonObject, is JsonArray -> {
             val label = when (value) {
-                is JsonObject -> if (value.isEmpty()) "{ }" else "{ ... }"
-                else -> if ((value as JsonArray).isEmpty()) "[ ]" else "[ ... ]"
+                is JsonObject -> {
+                    if (value.isEmpty()) "{ }" else "{ ${value.size} keys }"
+                }
+                else -> {
+                    val array = value as JsonArray
+                    if (array.isEmpty()) "[ ]" else "[ ${array.size} items ]"
+                }
             }
             ExpandableNode(
                 indent = indent,

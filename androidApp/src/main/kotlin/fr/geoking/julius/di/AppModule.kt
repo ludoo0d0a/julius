@@ -316,6 +316,7 @@ val appModule = module {
                 json(Json {
                     ignoreUnknownKeys = true
                     encodeDefaults = true
+                    coerceInputValues = true
                 })
             }
         }
