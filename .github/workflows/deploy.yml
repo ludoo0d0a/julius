@@ -15,6 +15,13 @@ on:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    env:
+      CHANGES_NOT_SENT_FOR_REVIEW: >-
+        ${{
+          (github.event.inputs.changesNotSentForReview != null && (github.event.inputs.changesNotSentForReview == 'true' || github.event.inputs.changesNotSentForReview == true)) ||
+          (github.event.inputs.changesNotSentForReview == null && (vars.CHANGES_NOT_SENT_FOR_REVIEW == 'true' || vars.CHANGES_NOT_SENT_FOR_REVIEW == true)) ||
+          false
+        }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -105,4 +112,4 @@ jobs:
           track: internal
           status: completed
           whatsNewDirectory: .github/play-release-notes
-          changesNotSentForReview: ${{ github.event.inputs.changesNotSentForReview == 'true' || github.event.inputs.changesNotSentForReview == true }}
+          changesNotSentForReview: ${{ env.CHANGES_NOT_SENT_FOR_REVIEW == 'true' || env.CHANGES_NOT_SENT_FOR_REVIEW == true }}
