@@ -104,6 +104,7 @@ import fr.geoking.julius.repository.FuelForecastUiState
 import fr.geoking.julius.ui.components.CheapestStationsCard
 import fr.geoking.julius.ui.components.FuelForecastChartCard
 import fr.geoking.julius.ui.components.FuelForecastCompactCard
+import fr.geoking.julius.ui.map.NavigationHelper
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -769,6 +770,9 @@ fun PhoneDashboardScreen(
     poiForDetails?.let { poi ->
         PoiDetailsFullscreenDialog(
             poi = poi,
+            onNavigate = {
+                NavigationHelper.navigateToPoi(context, poi)
+            },
             onDismiss = { poiForDetails = null }
         )
     }
