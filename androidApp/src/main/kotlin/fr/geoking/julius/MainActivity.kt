@@ -366,19 +366,17 @@ fun MainUI(
     val mapDeps by mapDepsState.collectAsState()
     val networkStatus by networkService.status.collectAsState()
     var showSettings by remember { mutableStateOf(false) }
+    var settingsInitialStack by remember { mutableStateOf<List<SettingsScreenPage>?>(null) }
     var showHistory by remember { mutableStateOf(false) }
     /** Play Store flavor uses a dashboard home first; full flavor starts on the voice screen. */
     var showMap by remember { mutableStateOf(false) }
     var showPlaystoreNetworkInfo by remember { mutableStateOf(false) }
-    var showPlaystoreSettings by remember { mutableStateOf(false) }
-    var playstoreSettingsInitialStack by remember { mutableStateOf<List<SettingsScreenPage>?>(null) }
     var showRoutePlanning by remember { mutableStateOf(false) }
     var showDirectionsMap by remember { mutableStateOf(false) }
     var showFuelForecast by remember { mutableStateOf(false) }
     var routeForDirections by remember { mutableStateOf<RouteResult?>(null) }
     var stationsForDirections by remember { mutableStateOf<List<Poi>>(emptyList()) }
     var initialNavDestination by remember { mutableStateOf<NavDestination?>(null) }
-    var settingsInitialStack by remember { mutableStateOf<List<SettingsScreenPage>?>(null) }
 
     val context = LocalContext.current
 
@@ -464,22 +462,21 @@ fun MainUI(
     MaterialTheme(colorScheme = darkColorScheme(background = Color(0xFF0F172A))) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when {
+                showSettings -> {
+                    SettingsScreen(
+                        settingsManager = settingsManager,
+                        authManager = authManager,
+                        errorLog = state.errorLog,
+                        onDismiss = { showSettings = false },
+                        initialScreenStack = settingsInitialStack,
+                        onInitialRouteConsumed = { settingsInitialStack = null }
+                    )
+                }
                 isPlaystoreDistribution && showPlaystoreNetworkInfo -> {
                     BackHandler { showPlaystoreNetworkInfo = false }
                     PhoneNetworkLocationScreen(
                         networkService = networkService,
                         onBack = { showPlaystoreNetworkInfo = false }
-                    )
-                }
-                isPlaystoreDistribution && showPlaystoreSettings -> {
-                    BackHandler { showPlaystoreSettings = false }
-                    SettingsScreen(
-                        settingsManager = settingsManager,
-                        authManager = authManager,
-                        errorLog = state.errorLog,
-                        onDismiss = { showPlaystoreSettings = false },
-                        initialScreenStack = playstoreSettingsInitialStack,
-                        onInitialRouteConsumed = { playstoreSettingsInitialStack = null }
                     )
                 }
                 isPlaystoreDistribution && showFuelForecast -> {
@@ -495,7 +492,11 @@ fun MainUI(
                         route = routeForDirections,
                         pois = stationsForDirections,
                         settingsManager = settingsManager,
-                        onBack = { showDirectionsMap = false }
+                        onBack = { showDirectionsMap = false },
+                        onShowSettings = {
+                            settingsInitialStack = listOf(SettingsScreenPage.MapConfig)
+                            showSettings = true
+                        }
                     )
                 }
                 isPlaystoreDistribution && showMap && showRoutePlanning && mapDeps != null -> {
@@ -534,6 +535,10 @@ fun MainUI(
                             palette = palette,
                             onBack = { showMap = false },
                             onPlanRoute = { showRoutePlanning = true },
+                            onShowSettings = {
+                                settingsInitialStack = listOf(SettingsScreenPage.MapConfig)
+                                showSettings = true
+                            },
                             communityRepo = mapDeps!!.communityRepo,
                             favoritesRepo = mapDeps!!.favoritesRepo
                         )
@@ -548,6 +553,10 @@ fun MainUI(
                             palette = palette,
                             onBack = { showMap = false },
                             onPlanRoute = { showRoutePlanning = true },
+                            onShowSettings = {
+                                settingsInitialStack = listOf(SettingsScreenPage.MapConfig)
+                                showSettings = true
+                            },
                             communityRepo = mapDeps!!.communityRepo,
                             favoritesRepo = mapDeps!!.favoritesRepo
                         )
@@ -578,19 +587,9 @@ fun MainUI(
                         onOpenNetworkDiagnostics = { showPlaystoreNetworkInfo = true },
                         onOpenFuelForecast = { showFuelForecast = true },
                         onOpenSettings = { stack ->
-                            playstoreSettingsInitialStack = stack
-                            showPlaystoreSettings = true
+                            settingsInitialStack = stack
+                            showSettings = true
                         }
-                    )
-                }
-                showSettings && !isPlaystoreDistribution -> {
-                    SettingsScreen(
-                        settingsManager = settingsManager,
-                        authManager = authManager,
-                        errorLog = state.errorLog,
-                        onDismiss = { showSettings = false },
-                        initialScreenStack = settingsInitialStack,
-                        onInitialRouteConsumed = { settingsInitialStack = null }
                     )
                 }
                 showHistory && !isPlaystoreDistribution -> {
@@ -602,7 +601,11 @@ fun MainUI(
                         route = routeForDirections,
                         pois = stationsForDirections,
                         settingsManager = settingsManager,
-                        onBack = { showDirectionsMap = false }
+                        onBack = { showDirectionsMap = false },
+                        onShowSettings = {
+                            settingsInitialStack = listOf(SettingsScreenPage.MapConfig)
+                            showSettings = true
+                        }
                     )
                 }
                 showMap && showRoutePlanning && mapDeps != null -> {
@@ -637,6 +640,10 @@ fun MainUI(
                                 palette = palette,
                                 onBack = { showMap = false },
                                 onPlanRoute = { showRoutePlanning = true },
+                                onShowSettings = {
+                                    settingsInitialStack = listOf(SettingsScreenPage.MapConfig)
+                                    showSettings = true
+                                },
                                 communityRepo = mapDeps!!.communityRepo,
                                 favoritesRepo = mapDeps!!.favoritesRepo
                             )
@@ -651,6 +658,10 @@ fun MainUI(
                                 palette = palette,
                                 onBack = { showMap = false },
                                 onPlanRoute = { showRoutePlanning = true },
+                                onShowSettings = {
+                                    settingsInitialStack = listOf(SettingsScreenPage.MapConfig)
+                                    showSettings = true
+                                },
                                 communityRepo = mapDeps!!.communityRepo,
                                 favoritesRepo = mapDeps!!.favoritesRepo
                             )
@@ -826,7 +837,8 @@ private fun MapScreenPreview() {
         authManager = GoogleAuthManager(context, mockSettingsManager, { mockStore }, FirebaseAuth.getInstance()),
         store = mockStore,
         palette = AnimationPalettes.paletteFor(0),
-        onBack = {}
+        onBack = {},
+        onShowSettings = {}
     )
 }
 

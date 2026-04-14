@@ -63,6 +63,7 @@ import fr.geoking.julius.ui.map.PoiMarkerHelper
 import fr.geoking.julius.ui.map.MarkerStyle
 import fr.geoking.julius.ui.map.PoiDetailCard
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
+import fr.geoking.julius.ui.map.DebugLogOverlay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
@@ -113,6 +114,7 @@ fun VectorMapScreen(
     store: ConversationStore,
     palette: AnimationPalette,
     onBack: () -> Unit,
+    onShowSettings: () -> Unit,
     onPlanRoute: (() -> Unit)? = null,
     communityRepo: CommunityPoiRepository? = null,
     favoritesRepo: FavoritesRepository? = null
@@ -132,7 +134,6 @@ fun VectorMapScreen(
     var retryCount by remember { mutableStateOf(0) }
     var mapSizePx by remember { mutableStateOf(IntSize.Zero) }
     var selectedPoi by remember { mutableStateOf<Poi?>(null) }
-    var showMapSettings by remember { mutableStateOf(false) }
     var showFavoritesOnly by remember { mutableStateOf(false) }
     var favoriteIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var frozenPoisForSheet by remember { mutableStateOf<List<Poi>>(emptyList()) }
@@ -292,17 +293,6 @@ fun VectorMapScreen(
             }
     }
 
-    if (showMapSettings) {
-        SettingsScreen(
-            settingsManager = settingsManager,
-            authManager = authManager,
-            errorLog = store.state.value.errorLog,
-            onDismiss = { showMapSettings = false },
-            initialScreenStack = listOf(SettingsScreenPage.MapConfig)
-        )
-        return
-    }
-
     val poisInView = remember(cachedPois, mapLibreMap?.cameraPosition, mapSizePx, settings, effectiveProviders) {
         val map = mapLibreMap ?: return@remember emptyList<Poi>()
         val target = map.cameraPosition.target ?: return@remember emptyList<Poi>()
@@ -388,7 +378,7 @@ fun VectorMapScreen(
                 launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
             }
         },
-        onShowSettings = { showMapSettings = true },
+        onShowSettings = onShowSettings,
         onPlanRoute = onPlanRoute,
         showFavoritesOnly = showFavoritesOnly,
         onShowFavoritesOnlyChange = { showFavoritesOnly = it },
@@ -475,6 +465,15 @@ fun VectorMapScreen(
                     }
                 }
             )
+
+            if (settings.debugLoggingEnabled) {
+                DebugLogOverlay(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 80.dp)
+                        .zIndex(2f)
+                )
+            }
 
             if (isLoading) {
                 MapLoader(

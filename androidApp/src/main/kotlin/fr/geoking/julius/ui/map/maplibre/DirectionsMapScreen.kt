@@ -23,6 +23,8 @@ import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.ui.components.MapScaffold
 import fr.geoking.julius.ui.map.MarkerStyle
 import fr.geoking.julius.ui.map.PoiMarkerHelper
+import fr.geoking.julius.ui.map.DebugLogOverlay
+import androidx.compose.ui.zIndex
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
@@ -37,7 +39,8 @@ fun DirectionsMapScreen(
     route: RouteResult?,
     pois: List<Poi>,
     settingsManager: SettingsManager,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onShowSettings: () -> Unit
 ) {
     BackHandler { onBack() }
 
@@ -79,7 +82,7 @@ fun DirectionsMapScreen(
                 )
             }
         },
-        onShowSettings = { /* Maybe show simplified settings? */ },
+        onShowSettings = onShowSettings,
         isLoading = false
     ) { padding ->
         Box(
@@ -151,6 +154,15 @@ fun DirectionsMapScreen(
                     }
                 }
             )
+
+            if (settings.debugLoggingEnabled) {
+                DebugLogOverlay(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 80.dp)
+                        .zIndex(2f)
+                )
+            }
         }
     }
 }
