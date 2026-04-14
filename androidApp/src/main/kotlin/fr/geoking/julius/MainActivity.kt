@@ -378,6 +378,7 @@ fun MainUI(
     var routeForDirections by remember { mutableStateOf<RouteResult?>(null) }
     var stationsForDirections by remember { mutableStateOf<List<Poi>>(emptyList()) }
     var initialNavDestination by remember { mutableStateOf<NavDestination?>(null) }
+    var initialMapCenter by remember { mutableStateOf<com.google.android.gms.maps.model.LatLng?>(null) }
     var settingsInitialStack by remember { mutableStateOf<List<SettingsScreenPage>?>(null) }
 
     val context = LocalContext.current
@@ -532,7 +533,8 @@ fun MainUI(
                             authManager = authManager,
                             store = store,
                             palette = palette,
-                            onBack = { showMap = false },
+                            initialCenter = initialMapCenter?.let { org.maplibre.android.geometry.LatLng(it.latitude, it.longitude) },
+                            onBack = { showMap = false; initialMapCenter = null },
                             onPlanRoute = { showRoutePlanning = true },
                             communityRepo = mapDeps!!.communityRepo,
                             favoritesRepo = mapDeps!!.favoritesRepo
@@ -546,7 +548,8 @@ fun MainUI(
                             authManager = authManager,
                             store = store,
                             palette = palette,
-                            onBack = { showMap = false },
+                            initialCenter = initialMapCenter,
+                            onBack = { showMap = false; initialMapCenter = null },
                             onPlanRoute = { showRoutePlanning = true },
                             communityRepo = mapDeps!!.communityRepo,
                             favoritesRepo = mapDeps!!.favoritesRepo
@@ -567,9 +570,14 @@ fun MainUI(
                         settingsManager = settingsManager,
                         poiProvider = mapDeps?.poiProvider,
                         hasLocationPermission = hasLocationPermission,
+                        geocodingClient = mapDeps?.geocodingClient,
+                        favoritesRepo = mapDeps?.favoritesRepo,
                         mapDepsReady = mapDeps != null,
                         fuelForecastRepository = fuelForecastRepository,
-                        onOpenMap = { showMap = true },
+                        onOpenMap = { center ->
+                            initialMapCenter = center
+                            showMap = true
+                        },
                         onOpenRoutes = {
                             showRoutePlanning = true
                             showMap = true
@@ -635,7 +643,8 @@ fun MainUI(
                                 authManager = authManager,
                                 store = store,
                                 palette = palette,
-                                onBack = { showMap = false },
+                            initialCenter = initialMapCenter?.let { org.maplibre.android.geometry.LatLng(it.latitude, it.longitude) },
+                            onBack = { showMap = false; initialMapCenter = null },
                                 onPlanRoute = { showRoutePlanning = true },
                                 communityRepo = mapDeps!!.communityRepo,
                                 favoritesRepo = mapDeps!!.favoritesRepo
@@ -649,7 +658,8 @@ fun MainUI(
                                 authManager = authManager,
                                 store = store,
                                 palette = palette,
-                                onBack = { showMap = false },
+                            initialCenter = initialMapCenter,
+                            onBack = { showMap = false; initialMapCenter = null },
                                 onPlanRoute = { showRoutePlanning = true },
                                 communityRepo = mapDeps!!.communityRepo,
                                 favoritesRepo = mapDeps!!.favoritesRepo
