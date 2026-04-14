@@ -150,6 +150,58 @@ val mapModule = module {
     single<PoiProvider>(named("portugaldgeg")) {
         PortugalDgegProvider(get())
     }
+    single<PoiProvider>(named("netherlandsanwb")) {
+        fr.geoking.julius.api.netherlands.NetherlandsAnwbProvider(get())
+    }
+    single<PoiProvider>(named("sloveniagoriva")) {
+        fr.geoking.julius.api.slovenia.SloveniaGorivaProvider(get())
+    }
+    single<PoiProvider>(named("romaniapeco")) {
+        fr.geoking.julius.api.romania.RomaniaPecoProvider(get())
+    }
+    single<PoiProvider>(named("fuelo")) {
+        fr.geoking.julius.api.fuelo.FueloProvider(get())
+    }
+    single<PoiProvider>(named("greecefuelgr")) {
+        fr.geoking.julius.api.greece.GreeceFuelGRProvider(get())
+    }
+    single<PoiProvider>(named("serbianis")) {
+        fr.geoking.julius.api.serbia.SerbiaNisProvider(get())
+    }
+    single<PoiProvider>(named("croatiamzoe")) {
+        fr.geoking.julius.api.croatia.CroatiaMzoeProvider(get())
+    }
+    single<PoiProvider>(named("drivstoffappen")) {
+        fr.geoking.julius.api.nordic.DrivstoffAppenProvider(get())
+    }
+    single<PoiProvider>(named("denmarkfuelprices")) {
+        fr.geoking.julius.api.denmark.FuelpricesDKProvider(
+            client = get(),
+            apiKey = fr.geoking.julius.BuildConfig.FUELPRICES_DK_KEY
+        )
+    }
+    single<PoiProvider>(named("finlandpolttoaine")) {
+        fr.geoking.julius.api.finland.PolttoaineProvider(get())
+    }
+    single<PoiProvider>(named("argentinaenergia")) {
+        fr.geoking.julius.api.argentina.ArgentinaEnergiaProvider(get())
+    }
+    single<PoiProvider>(named("mexicocre")) {
+        fr.geoking.julius.api.mexico.MexicoCREProvider(get())
+    }
+    single<PoiProvider>(named("moldovaanre")) {
+        fr.geoking.julius.api.moldova.MoldovaAnreProvider(get())
+    }
+    single<PoiProvider>(named("australiafuelcheck")) {
+        fr.geoking.julius.api.australia.AustraliaNswFuelCheckProvider(
+            client = get(),
+            apiKey = fr.geoking.julius.BuildConfig.NSW_FUELCHECK_API_KEY,
+            apiSecret = fr.geoking.julius.BuildConfig.NSW_FUELCHECK_API_SECRET
+        )
+    }
+    single<PoiProvider>(named("irelandpickapump")) {
+        fr.geoking.julius.api.ireland.IrelandPickAPumpProvider(get())
+    }
     single<PoiProvider>(named("ionity")) {
         fr.geoking.julius.api.ocpi.OcpiPoiProvider(
             client = fr.geoking.julius.api.ocpi.OcpiClient(get(), baseUrl = "https://api.ionity.eu/ocpi/2.2.1", token = ""),
@@ -233,7 +285,8 @@ val mapModule = module {
     }
     single<BorneAvailabilityProviderFactory> {
         BorneAvailabilityProviderFactory(
-            belibProvider = get(named("belib"))
+            belibProvider = get(named("belib")),
+            ecoMovementProvider = get(named("ecomovement_availability"))
         )
     }
 
