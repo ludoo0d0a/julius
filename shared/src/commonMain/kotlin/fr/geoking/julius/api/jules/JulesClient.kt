@@ -331,22 +331,50 @@ class JulesClient(
     }
 
     /**
+     * Extract display text from an activity, including special handling for "Updated" actions.
+     */
+    fun extractText(a: JulesActivity): String {
+        return when {
+            a.messageSent != null -> a.messageSent.prompt ?: ""
+            a.planGenerated != null -> {
+                val plan = a.planGenerated.plan
+                if (plan != null && plan.steps.isNotEmpty()) {
+                    "**Plan:**\n" + plan.steps.sortedBy { it.index ?: 0 }.joinToString("\n") { "${it.index?.plus(1) ?: ""}. ${it.title}" }
+                } else "Plan generated."
+            }
+            a.progressUpdated != null -> {
+                val t = a.progressUpdated.title
+                val d = a.progressUpdated.description
+                if (t == "Updated") {
+                    val filenames = a.artifacts?.mapNotNull { it.changeSet?.source }?.distinct() ?: emptyList()
+                    if (filenames.isNotEmpty()) "Updated ${filenames.joinToString(", ")}" else t
+                } else {
+                    if (d.isNullOrBlank()) t else "$t\n$d"
+                }
+            }
+            a.sessionCompleted != null -> "Session completed."
+            a.planApproved != null && a.originator == "user" -> "Plan approved. 🚀"
+            else -> "Activity"
+        }
+    }
+
+    /**
      * Flatten activities into a linear list of chat-like items for UI.
-     * User messages and agent progress/plan/messages are turned into [JulesChatItem].
+     * Consecutive agent activities of the same type (like progress) are grouped.
      */
     fun activitiesToChatItems(activities: List<JulesActivity>): List<JulesChatItem> {
+        val sorted = activities.sortedBy { it.createTime }
         val items = mutableListOf<JulesChatItem>()
-        for (a in activities.sortedBy { it.createTime }) {
-            when {
-                a.originator == "user" -> {
-                    when {
-                        a.messageSent != null -> items.add(
-                            JulesChatItem.UserMessage(a.id, a.createTime, a.messageSent.prompt ?: "")
-                        )
-                        a.planApproved != null -> items.add(
-                            JulesChatItem.AgentMessage(a.id, a.createTime, "Plan approved. 🚀")
-                        )
-                    }
+
+        var currentAgentGroup: JulesChatItem.AgentMessage? = null
+
+        fun flush() {
+            currentAgentGroup?.let { group ->
+                // Ensure text is populated for TTS (concatenation of sub-items)
+                val text = if (group.subItems.size > 1) {
+                    group.subItems.joinToString("\n") { it.text }
+                } else {
+                    group.subItems.firstOrNull()?.text ?: group.title
                 }
                 a.originator == "agent" -> {
                     val text = when {
@@ -369,8 +397,66 @@ class JulesClient(
                         items.add(JulesChatItem.AgentMessage(a.id, a.createTime, text))
                     }
                 }
+
+                items.add(group.copy(title = title, text = text))
+            }
+            currentAgentGroup = null
+        }
+
+        for (a in sorted) {
+            if (a.originator == "user") {
+                flush()
+                if (a.messageSent != null) {
+                    items.add(JulesChatItem.UserMessage(a.id, a.createTime, a.messageSent.prompt ?: ""))
+                } else if (a.planApproved != null) {
+                    // Plan approved is special: show as a single agent message for now as it triggers agent work
+                    items.add(JulesChatItem.AgentMessage(
+                        id = a.id,
+                        createTime = a.createTime,
+                        title = "Plan approved. 🚀",
+                        subItems = listOf(JulesChatItem.AgentSubItem(a.id, a.createTime, "Plan approved. 🚀")),
+                        text = "Plan approved. 🚀"
+                    ))
+                }
+                continue
+            }
+
+            // Agent activity
+            val type = when {
+                a.planGenerated != null -> "plan"
+                a.progressUpdated != null -> "progress"
+                a.sessionCompleted != null -> "completion"
+                else -> "other"
+            }
+            val text = extractText(a)
+            val subItem = JulesChatItem.AgentSubItem(a.id, a.createTime, text, type)
+
+            if (type == "progress") {
+                if (currentAgentGroup != null && currentAgentGroup!!.title == "Progress") {
+                    currentAgentGroup = currentAgentGroup!!.copy(
+                        subItems = currentAgentGroup!!.subItems + subItem
+                    )
+                } else {
+                    flush()
+                    currentAgentGroup = JulesChatItem.AgentMessage(
+                        id = a.id,
+                        createTime = a.createTime,
+                        title = "Progress",
+                        subItems = listOf(subItem)
+                    )
+                }
+            } else {
+                flush()
+                items.add(JulesChatItem.AgentMessage(
+                    id = a.id,
+                    createTime = a.createTime,
+                    title = text,
+                    subItems = listOf(subItem),
+                    text = text
+                ))
             }
         }
+        flush()
         return items
     }
 }
@@ -381,5 +467,19 @@ sealed class JulesChatItem {
     data class UserMessage(val id: String, val createTime: String, val text: String) : JulesChatItem()
 
     @Serializable
-    data class AgentMessage(val id: String, val createTime: String, val text: String) : JulesChatItem()
+    data class AgentMessage(
+        val id: String,
+        val createTime: String,
+        val title: String,
+        val subItems: List<AgentSubItem> = emptyList(),
+        val text: String = ""
+    ) : JulesChatItem()
+
+    @Serializable
+    data class AgentSubItem(
+        val id: String,
+        val createTime: String,
+        val text: String,
+        val type: String? = null
+    )
 }

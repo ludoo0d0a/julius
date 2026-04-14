@@ -26,6 +26,9 @@ import fr.geoking.julius.api.italy.ItalyMimitProvider
 import fr.geoking.julius.api.gas.GasApiProvider
 import fr.geoking.julius.api.openvan.OpenVanCampClient
 import fr.geoking.julius.api.openvan.OpenVanCampProvider
+import fr.geoking.julius.api.ocpi.OcpiClient
+import fr.geoking.julius.api.ocpi.OcpiPoiProvider
+import fr.geoking.julius.api.ocpi.OcpiAvailabilityProvider
 import fr.geoking.julius.api.openchargemap.OpenChargeMapClient
 import fr.geoking.julius.api.openchargemap.OpenChargeMapProvider
 import fr.geoking.julius.api.overpass.OverpassClient
@@ -109,6 +112,17 @@ val mapModule = module {
     single<PoiProvider>(named("openchargemap")) {
         OpenChargeMapProvider(get(), radiusKm = 10, limit = 50)
     }
+    single<OcpiClient>(named("ecomovement_client")) {
+        val sm = get<fr.geoking.julius.SettingsManager>()
+        OcpiClient(
+            client = get(),
+            baseUrl = sm.settings.value.ecoMovementUrl,
+            token = sm.settings.value.ecoMovementToken
+        )
+    }
+    single<PoiProvider>(named("ecomovement")) {
+        OcpiPoiProvider(get(named("ecomovement_client")), providerName = "Eco-Movement")
+    }
     single<PoiProvider>(named("chargy")) {
         ChargyProvider(get(), radiusKm = 15, limit = 100)
     }
@@ -136,6 +150,18 @@ val mapModule = module {
     single<PoiProvider>(named("portugaldgeg")) {
         PortugalDgegProvider(get())
     }
+    single<PoiProvider>(named("ionity")) {
+        fr.geoking.julius.api.ocpi.OcpiPoiProvider(
+            client = fr.geoking.julius.api.ocpi.OcpiClient(get(), baseUrl = "https://api.ionity.eu/ocpi/2.2.1", token = ""),
+            providerName = "Ionity"
+        )
+    }
+    single<PoiProvider>(named("fastned")) {
+        fr.geoking.julius.api.ocpi.OcpiPoiProvider(
+            client = fr.geoking.julius.api.ocpi.OcpiClient(get(), baseUrl = "https://api.fastned.nl/ocpi/2.2.1", token = ""),
+            providerName = "Fastned"
+        )
+    }
     single<PoiProvider>(named("unitedkingdomcma")) {
         UnitedKingdomCmaProvider(get(), radiusKm = 15, limit = 100)
     }
@@ -154,6 +180,7 @@ val mapModule = module {
             dataGouv = get(named("datagouv")),
             dataGouvElec = get(named("datagouvelec")),
             openChargeMap = get(named("openchargemap")),
+            ecoMovement = get(named("ecomovement")),
             chargy = get(named("chargy")),
             openVanCamp = get(named("openvancamp")),
             spainMinetur = get(named("spainminetur")),
@@ -162,6 +189,8 @@ val mapModule = module {
             belgiumOfficial = get(named("belgiumofficial")),
             portugalDgeg = get(named("portugaldgeg")),
             madeiraOfficial = get(named("madeiraofficial")),
+            ionity = get(named("ionity")),
+            fastned = get(named("fastned")),
             unitedKingdomCma = get(named("unitedkingdomcma")),
             italyMimit = get(named("italymimit")),
             openVanCampClient = get(),
@@ -183,8 +212,13 @@ val mapModule = module {
     single<BorneAvailabilityProvider>(named("belib")) {
         BelibAvailabilityProvider(get(), radiusKm = 10, limit = 200)
     }
+    single<BorneAvailabilityProvider>(named("ecomovement_availability")) {
+        OcpiAvailabilityProvider(get(named("ecomovement_client")))
+    }
     single<BorneAvailabilityProviderFactory> {
-        BorneAvailabilityProviderFactory(get(named("belib")))
+        BorneAvailabilityProviderFactory(
+            belibProvider = get(named("belib"))
+        )
     }
 
     // Traffic: Luxembourg CITA GeoJSON first; TomTom incidents as global fallback (needs TOMTOM_KEY).

@@ -227,8 +227,21 @@ fun JulesScreen(
         clearError()
         try {
             julesRepository.getActivities(apiKey, session.id).collectLatest { list ->
-                chatItems.clear()
-                chatItems.addAll(list)
+                // Don't clear if list is already populated from cache to avoid flicker
+                if (chatItems.isEmpty() || isRefresh) {
+                    chatItems.clear()
+                    chatItems.addAll(list)
+                } else {
+                    // Smart update: add only new items
+                    val existingIds = chatItems.map { if (it is JulesChatItem.UserMessage) it.id else (it as JulesChatItem.AgentMessage).id }.toSet()
+                    val newItems = list.filter {
+                        val id = if (it is JulesChatItem.UserMessage) it.id else (it as JulesChatItem.AgentMessage).id
+                        !existingIds.contains(id)
+                    }
+                    if (newItems.isNotEmpty()) {
+                        chatItems.addAll(newItems)
+                    }
+                }
                 if (chatItems.isNotEmpty()) {
                     listState.animateScrollToItem(chatItems.size - 1)
                 }
@@ -720,8 +733,11 @@ private data class ParsedMessage(
     val subtitle: String
 )
 
-private fun parseMessage(text: String): ParsedMessage {
+private fun parseMessage(text: String, overrideTitle: String? = null): ParsedMessage {
     return when {
+        overrideTitle != null -> {
+            ParsedMessage(MessageType.STANDARD, overrideTitle, text)
+        }
         text.startsWith("**Plan", ignoreCase = true) -> {
             val lines = text.lines()
             val firstLine = lines.firstOrNull() ?: ""
@@ -750,19 +766,30 @@ private fun parseMessage(text: String): ParsedMessage {
 }
 
 @Composable
-private fun MessageText(text: String, baseFontSize: Int, onSpeak: () -> Unit) {
-    val parsed = remember(text) { parseMessage(text) }
+private fun MessageText(
+    item: JulesChatItem,
+    baseFontSize: Int,
+    onSpeak: () -> Unit
+) {
+    val text = when (item) {
+        is JulesChatItem.UserMessage -> item.text
+        is JulesChatItem.AgentMessage -> if (item.subItems.size == 1) item.subItems.first().text else item.text
+    }
+    val titleOverride = (item as? JulesChatItem.AgentMessage)?.let { if (it.subItems.size > 1) it.title else null }
+    val parsed = remember(text, titleOverride) { parseMessage(text, titleOverride) }
     var expanded by remember { mutableStateOf(false) }
 
-    val isExpandable = parsed.type != MessageType.STANDARD
+    val isExpandable = parsed.type != MessageType.STANDARD || (item is JulesChatItem.AgentMessage && item.subItems.size > 1)
+
+    val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
 
     @Composable
-    fun RenderAnnotatedText(content: String, isTitle: Boolean, maxLines: Int = Int.MAX_VALUE) {
+    fun RenderAnnotatedText(content: String, isTitle: Boolean, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VALUE, colorAlpha: Float = if (isTitle) 1f else 0.6f) {
         val annotatedString = buildAnnotatedString {
             val style = if (isTitle) {
                 SpanStyle(color = Color.White, fontWeight = FontWeight.Bold)
             } else {
-                SpanStyle(color = Color.White.copy(alpha = 0.6f))
+                SpanStyle(color = Color.White.copy(alpha = colorAlpha))
             }
 
             withStyle(style) {
@@ -783,6 +810,7 @@ private fun MessageText(text: String, baseFontSize: Int, onSpeak: () -> Unit) {
         }
         Text(
             text = annotatedString,
+            modifier = modifier,
             fontSize = (if (isTitle && parsed.type == MessageType.PLAN) baseFontSize + 2 else baseFontSize).sp,
             maxLines = maxLines,
             overflow = if (maxLines != Int.MAX_VALUE) TextOverflow.Ellipsis else TextOverflow.Clip
@@ -799,25 +827,96 @@ private fun MessageText(text: String, baseFontSize: Int, onSpeak: () -> Unit) {
                     onDoubleClick = onSpeak
                 )
             )
-            .padding(12.dp)
+            .padding(vertical = 8.dp, horizontal = 12.dp)
     ) {
-        when (parsed.type) {
-            MessageType.SEARCHING -> {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (expanded) {
+        if (item is JulesChatItem.AgentMessage && item.subItems.size > 1) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RenderAnnotatedText(parsed.title, isTitle = true, maxLines = 1, modifier = Modifier.weight(1f))
+                Icon(
+                    if (expanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = JulesAccent,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            if (expanded) {
+                item.subItems.forEach { sub ->
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.weight(1f)) {
-                            RenderAnnotatedText(parsed.title, isTitle = true)
-                            if (parsed.subtitle.isNotBlank()) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                RenderAnnotatedText(parsed.subtitle, isTitle = false)
+                            RenderAnnotatedText(sub.text, isTitle = false)
+                            val subTime = remember(sub.createTime) {
+                                try { OffsetDateTime.parse(sub.createTime).format(timeFormatter) } catch (e: Exception) { "" }
+                            }
+                            if (subTime.isNotBlank()) {
+                                Text(subTime, color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
                             }
                         }
-                    } else {
-                        Box(modifier = Modifier.weight(1f)) {
-                            RenderAnnotatedText(parsed.title, isTitle = true, maxLines = 1)
+                    }
+                }
+            } else {
+                val lastSub = item.subItems.last()
+                RenderAnnotatedText(lastSub.text, isTitle = false, maxLines = 1)
+            }
+        } else {
+            val itemTime = when (item) {
+                is JulesChatItem.UserMessage -> item.createTime
+                is JulesChatItem.AgentMessage -> item.createTime
+            }
+            val displayTime = remember(itemTime) {
+                try { OffsetDateTime.parse(itemTime).format(timeFormatter) } catch (e: Exception) { "" }
+            }
+
+            when (parsed.type) {
+                MessageType.SEARCHING -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (expanded) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                RenderAnnotatedText(parsed.title, isTitle = true)
+                                if (parsed.subtitle.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    RenderAnnotatedText(parsed.subtitle, isTitle = false)
+                                }
+                                if (displayTime.isNotBlank()) {
+                                    Text(displayTime, color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
+                                }
+                            }
+                        } else {
+                            Column(modifier = Modifier.weight(1f)) {
+                                RenderAnnotatedText(parsed.title, isTitle = true, maxLines = 1)
+                                if (displayTime.isNotBlank()) {
+                                    Text(displayTime, color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
+                                }
+                            }
+                        }
+                        if (isExpandable) {
+                            Icon(
+                                if (expanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = JulesAccent,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
-                    if (isExpandable) {
+                }
+                MessageType.PLAN -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            RenderAnnotatedText(parsed.title, isTitle = true, maxLines = if (expanded) Int.MAX_VALUE else 1)
+                            if (expanded) {
+                                if (parsed.subtitle.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    RenderAnnotatedText(parsed.subtitle, isTitle = false)
+                                }
+                            } else {
+                                if (parsed.subtitle.isNotBlank()) {
+                                    RenderAnnotatedText(parsed.subtitle, isTitle = false, maxLines = 1)
+                                }
+                            }
+                            if (displayTime.isNotBlank()) {
+                                Text(displayTime, color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
+                            }
+                        }
                         Icon(
                             if (expanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             contentDescription = null,
@@ -826,52 +925,35 @@ private fun MessageText(text: String, baseFontSize: Int, onSpeak: () -> Unit) {
                         )
                     }
                 }
-            }
-            MessageType.PLAN -> {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        RenderAnnotatedText(parsed.title, isTitle = true, maxLines = if (expanded) Int.MAX_VALUE else 1)
-                        if (expanded) {
-                            if (parsed.subtitle.isNotBlank()) {
-                                Spacer(modifier = Modifier.height(4.dp))
+                MessageType.CODE_REVIEWED -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            RenderAnnotatedText(parsed.title, isTitle = true, maxLines = if (expanded) Int.MAX_VALUE else 1)
+                            if (expanded && parsed.subtitle.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(2.dp))
                                 RenderAnnotatedText(parsed.subtitle, isTitle = false)
                             }
-                        } else {
-                            if (parsed.subtitle.isNotBlank()) {
-                                RenderAnnotatedText(parsed.subtitle, isTitle = false, maxLines = 1)
+                            if (displayTime.isNotBlank()) {
+                                Text(displayTime, color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
                             }
                         }
+                        Icon(
+                            if (expanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = JulesAccent,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
-                    Icon(
-                        if (expanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = JulesAccent,
-                        modifier = Modifier.size(20.dp)
-                    )
                 }
-            }
-            MessageType.CODE_REVIEWED -> {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        RenderAnnotatedText(parsed.title, isTitle = true, maxLines = if (expanded) Int.MAX_VALUE else 1)
-                        if (expanded && parsed.subtitle.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            RenderAnnotatedText(parsed.subtitle, isTitle = false)
-                        }
+                MessageType.STANDARD -> {
+                    RenderAnnotatedText(parsed.title, isTitle = true)
+                    if (parsed.subtitle.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        RenderAnnotatedText(parsed.subtitle, isTitle = false)
                     }
-                    Icon(
-                        if (expanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = JulesAccent,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-            MessageType.STANDARD -> {
-                RenderAnnotatedText(parsed.title, isTitle = true)
-                if (parsed.subtitle.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    RenderAnnotatedText(parsed.subtitle, isTitle = false)
+                    if (displayTime.isNotBlank()) {
+                        Text(displayTime, color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
+                    }
                 }
             }
         }
@@ -1373,37 +1455,6 @@ private fun InConversationContent(
                     is JulesChatItem.AgentMessage -> it.id
                 }
             }) { item ->
-                val createTime = when (item) {
-                    is JulesChatItem.UserMessage -> item.createTime
-                    is JulesChatItem.AgentMessage -> item.createTime
-                }
-
-                val itemTime = remember(createTime) {
-                    try {
-                        OffsetDateTime.parse(createTime)
-                    } catch (e: Exception) {
-                        null
-                    }
-                }
-
-                if (itemTime != null) {
-                    val isOlderThanOneHour = remember(itemTime, nowInstant) {
-                        Duration.between(itemTime.toInstant(), nowInstant).toHours() >= 1
-                    }
-
-                    if (isOlderThanOneHour) {
-                        Text(
-                            text = itemTime.format(timeFormatter),
-                            color = Color.White.copy(alpha = 0.5f),
-                            fontSize = 11.sp,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 4.dp),
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-
                 when (item) {
                     is JulesChatItem.UserMessage -> Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1416,7 +1467,7 @@ private fun InConversationContent(
                                 .widthIn(max = 280.dp)
                         ) {
                             MessageText(
-                                text = item.text,
+                                item = item,
                                 baseFontSize = 15,
                                 onSpeak = { voiceManager.speak(item.text) }
                             )
@@ -1433,7 +1484,7 @@ private fun InConversationContent(
                                 .widthIn(max = 320.dp)
                         ) {
                             MessageText(
-                                text = item.text,
+                                item = item,
                                 baseFontSize = 14,
                                 onSpeak = { voiceManager.speak(item.text) }
                             )

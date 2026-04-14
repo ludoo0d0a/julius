@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.flow
 enum class PoiCategory {
     /** Fuel / gas stations (Routex, Etalab, GasApi, DataGouv). */
     Gas,
-    /** EV charging / IRVE (DataGouvElec, OpenChargeMap). */
+    /** EV charging / IRVE (DataGouvElec, OpenChargeMap, EcoMovement). */
     Irve,
     /** Public toilets (e.g. Overpass amenity=toilets). */
     Toilet,
@@ -81,6 +81,7 @@ enum class PoiProviderType(
     DataGouv(providesFuel = true, supportedCountries = setOf("FR")),
     DataGouvElec(providesElectric = true, supportedCountries = setOf("FR")),
     OpenChargeMap(providesElectric = true),
+    EcoMovement(providesElectric = true),
     Chargy(providesElectric = true, supportedCountries = setOf("LU")),
     /** Luxembourg OSM fuel + OpenVan.camp weekly reference prices (CC BY 4.0). */
     OpenVanCamp(
@@ -107,6 +108,8 @@ enum class PoiProviderType(
     /** Italian fuel prices via MIMIT open data feeds. */
     ItalyMimit(providesFuel = true, supportedCountries = setOf("IT")),
     Overpass,
+    Ionity(providesElectric = true),
+    Fastned(providesElectric = true),
     Hybrid(providesFuel = true, providesElectric = true, supportedCountries = setOf("FR")),
 }
 
