@@ -288,14 +288,20 @@ fun VectorMapScreen(
                             }
                         }
 
-                        if (result.errors.isNotEmpty() && result.pois.isEmpty()) {
-                            mapErrorMessage = result.errors.first().message
-                            isErrorPaused = true
+                        if (result.errors.isNotEmpty()) {
+                            val msg = if (result.errors.size == 1) {
+                                result.errors.first().let { "${it.providerName}: ${it.message}" }
+                            } else {
+                                "Multiple errors: " + result.errors.joinToString { it.providerName }
+                            }
+                            mapErrorMessage = msg
+                            result.errors.forEach { err ->
+                                store.recordError(err.httpCode, "VectorMap ($selectedProviders) [${err.providerName}]: ${err.message}")
+                            }
                         }
                     }
                 } catch (e: Exception) {
                     mapErrorMessage = e.message
-                    isErrorPaused = true
                 } finally {
                     isLoading = false
                 }
