@@ -15,6 +15,7 @@ data class NetworkLog(
     val responseHeaders: Map<String, List<String>>?,
     val responseBody: String?,
     val statusCode: Int?,
+    val metadata: Map<String, String> = emptyMap(),
     val durationMs: Long,
     val timestamp: Long
 ) {
@@ -43,5 +44,17 @@ object DebugLogStore {
 
     fun clearLogs() {
         _logs.value = emptyList()
+    }
+
+    fun updateLogMetadata(url: String, metadata: Map<String, String>) {
+        _logs.update { current ->
+            current.map { log ->
+                if (log.url == url) {
+                    log.copy(metadata = log.metadata + metadata)
+                } else {
+                    log
+                }
+            }
+        }
     }
 }
