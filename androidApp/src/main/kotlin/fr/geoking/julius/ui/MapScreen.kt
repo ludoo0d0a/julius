@@ -145,7 +145,9 @@ fun MapScreen(
     store: ConversationStore,
     palette: AnimationPalette,
     initialCenter: LatLng? = null,
+    initialZoom: Float = 12f,
     onBack: () -> Unit,
+    onCameraMove: (LatLng, Float) -> Unit = { _, _ -> },
     onShowSettings: () -> Unit,
     onPlanRoute: (() -> Unit)? = null,
     communityRepo: CommunityPoiRepository? = null,
@@ -194,14 +196,14 @@ fun MapScreen(
     val defaultLng = 2.3522
 
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(initialCenter ?: LatLng(defaultLat, defaultLng), 12f)
+        position = CameraPosition.fromLatLngZoom(initialCenter ?: LatLng(defaultLat, defaultLng), initialZoom)
     }
 
     var didInitialCenter by remember { mutableStateOf(initialCenter != null) }
 
-    LaunchedEffect(initialCenter) {
+    LaunchedEffect(initialCenter, initialZoom) {
         if (initialCenter != null) {
-            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(initialCenter, 12f))
+            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(initialCenter, initialZoom))
             didInitialCenter = true
         }
     }
@@ -308,6 +310,7 @@ fun MapScreen(
         snapshotFlow { cameraPositionState.position }
             .debounce(350)
             .collectLatest { position ->
+                onCameraMove(position.target, position.zoom)
                 if (isErrorPaused || selectedPoi != null) return@collectLatest
 
                 val centerLat = position.target.latitude

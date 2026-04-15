@@ -22,6 +22,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
@@ -365,8 +366,8 @@ fun MainUI(
     val pendingNavFlow = pendingNavDestinationFlow ?: remember { MutableStateFlow<NavDestination?>(null) }
     val mapDeps by mapDepsState.collectAsState()
     val networkStatus by networkService.status.collectAsState()
-    var showSettings by remember { mutableStateOf(false) }
-    var settingsInitialStack by remember { mutableStateOf<List<SettingsScreenPage>?>(null) }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
+    var settingsInitialStack by rememberSaveable { mutableStateOf<List<SettingsScreenPage>?>(null) }
     var showHistory by remember { mutableStateOf(false) }
     /** Play Store flavor uses a dashboard home first; full flavor starts on the voice screen. */
     var showMap by remember { mutableStateOf(false) }
@@ -378,6 +379,8 @@ fun MainUI(
     var stationsForDirections by remember { mutableStateOf<List<Poi>>(emptyList()) }
     var initialNavDestination by remember { mutableStateOf<NavDestination?>(null) }
     var initialMapCenter by remember { mutableStateOf<com.google.android.gms.maps.model.LatLng?>(null) }
+    var lastMapCenter by remember { mutableStateOf<com.google.android.gms.maps.model.LatLng?>(null) }
+    var lastMapZoom by remember { mutableStateOf(12f) }
 
     val context = LocalContext.current
 
@@ -535,8 +538,14 @@ fun MainUI(
                             authManager = authManager,
                             store = store,
                             palette = palette,
-                            initialCenter = initialMapCenter?.let { org.maplibre.android.geometry.LatLng(it.latitude, it.longitude) },
+                            initialCenter = initialMapCenter?.let { org.maplibre.android.geometry.LatLng(it.latitude, it.longitude) }
+                                ?: lastMapCenter?.let { org.maplibre.android.geometry.LatLng(it.latitude, it.longitude) },
+                            initialZoom = if (initialMapCenter != null) 12.0 else lastMapZoom.toDouble(),
                             onBack = { showMap = false; initialMapCenter = null },
+                            onCameraMove = { center, zoom ->
+                                lastMapCenter = com.google.android.gms.maps.model.LatLng(center.latitude, center.longitude)
+                                lastMapZoom = zoom.toFloat()
+                            },
                             onPlanRoute = { showRoutePlanning = true },
                             onShowSettings = {
                                 settingsInitialStack = listOf(SettingsScreenPage.MapConfig)
@@ -554,8 +563,13 @@ fun MainUI(
                             authManager = authManager,
                             store = store,
                             palette = palette,
-                            initialCenter = initialMapCenter,
+                            initialCenter = initialMapCenter ?: lastMapCenter,
+                            initialZoom = if (initialMapCenter != null) 12f else lastMapZoom,
                             onBack = { showMap = false; initialMapCenter = null },
+                            onCameraMove = { center, zoom ->
+                                lastMapCenter = center
+                                lastMapZoom = zoom
+                            },
                             onPlanRoute = { showRoutePlanning = true },
                             onShowSettings = {
                                 settingsInitialStack = listOf(SettingsScreenPage.MapConfig)
@@ -661,8 +675,14 @@ fun MainUI(
                                 authManager = authManager,
                                 store = store,
                                 palette = palette,
-                            initialCenter = initialMapCenter?.let { org.maplibre.android.geometry.LatLng(it.latitude, it.longitude) },
+                            initialCenter = initialMapCenter?.let { org.maplibre.android.geometry.LatLng(it.latitude, it.longitude) }
+                                ?: lastMapCenter?.let { org.maplibre.android.geometry.LatLng(it.latitude, it.longitude) },
+                            initialZoom = if (initialMapCenter != null) 12.0 else lastMapZoom.toDouble(),
                             onBack = { showMap = false; initialMapCenter = null },
+                            onCameraMove = { center, zoom ->
+                                lastMapCenter = com.google.android.gms.maps.model.LatLng(center.latitude, center.longitude)
+                                lastMapZoom = zoom.toFloat()
+                            },
                                 onPlanRoute = { showRoutePlanning = true },
                                 onShowSettings = {
                                     settingsInitialStack = listOf(SettingsScreenPage.MapConfig)
@@ -680,8 +700,13 @@ fun MainUI(
                                 authManager = authManager,
                                 store = store,
                                 palette = palette,
-                            initialCenter = initialMapCenter,
+                            initialCenter = initialMapCenter ?: lastMapCenter,
+                            initialZoom = if (initialMapCenter != null) 12f else lastMapZoom,
                             onBack = { showMap = false; initialMapCenter = null },
+                            onCameraMove = { center, zoom ->
+                                lastMapCenter = center
+                                lastMapZoom = zoom
+                            },
                                 onPlanRoute = { showRoutePlanning = true },
                                 onShowSettings = {
                                     settingsInitialStack = listOf(SettingsScreenPage.MapConfig)

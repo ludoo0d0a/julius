@@ -120,7 +120,9 @@ fun VectorMapScreen(
     store: ConversationStore,
     palette: AnimationPalette,
     initialCenter: LatLng? = null,
+    initialZoom: Double = 12.0,
     onBack: () -> Unit,
+    onCameraMove: (LatLng, Double) -> Unit = { _, _ -> },
     onShowSettings: () -> Unit,
     onPlanRoute: (() -> Unit)? = null,
     communityRepo: CommunityPoiRepository? = null,
@@ -171,7 +173,7 @@ fun VectorMapScreen(
     val initialCameraPosition = remember {
         CameraPosition.Builder()
             .target(initialCenter ?: LatLng(48.8566, 2.3522))
-            .zoom(12.0)
+            .zoom(initialZoom)
             .build()
     }
 
@@ -205,10 +207,10 @@ fun VectorMapScreen(
     val poiSeenAtMs = remember { mutableStateMapOf<String, Long>() }
     var lastCacheKey by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(mapLibreMap, initialCenter) {
+    LaunchedEffect(mapLibreMap, initialCenter, initialZoom) {
         val map = mapLibreMap ?: return@LaunchedEffect
         if (initialCenter != null) {
-            map.animateCamera(CameraUpdateFactory.newLatLngZoom(initialCenter, 12.0))
+            map.animateCamera(CameraUpdateFactory.newLatLngZoom(initialCenter, initialZoom))
         }
     }
 
@@ -232,6 +234,7 @@ fun VectorMapScreen(
                 if (isErrorPaused || selectedPoi != null) return@collectLatest
 
                 val target = position.target ?: return@collectLatest
+
                 val centerLat = target.latitude
                 val centerLng = target.longitude
                 val zoom = position.zoom.toFloat()
@@ -415,7 +418,7 @@ fun VectorMapScreen(
             mapErrorMessage?.let { msg ->
                 val configuration = LocalConfiguration.current
                 val maxHeight = configuration.screenHeightDp.dp * 0.15f
-                val clipboard = LocalClipboard.current
+                val clipboard = androidx.compose.ui.platform.LocalClipboard.current
 
                 Surface(
                     modifier = Modifier
@@ -437,7 +440,7 @@ fun VectorMapScreen(
                             fontSize = 14.sp,
                             modifier = Modifier.weight(1f),
                             maxLines = 3,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -551,6 +554,12 @@ fun VectorMapScreen(
                         }
                     }
                 },
+                onCameraMove = { pos ->
+                    val target = pos.target
+                    if (target != null) {
+                        onCameraMove(target, pos.zoom)
+                    }
+                },
                 update = { map ->
                     map.clear()
                     poisToShow.forEach { poi ->
@@ -598,13 +607,6 @@ fun VectorMapScreen(
                 )
             }
 
-            if (isLoading) {
-                MapLoader(
-                    palette = palette,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .zIndex(1f)
-                )
             }
             }
         }
