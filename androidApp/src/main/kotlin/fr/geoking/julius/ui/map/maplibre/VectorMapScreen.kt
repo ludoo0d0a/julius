@@ -11,6 +11,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -24,8 +26,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -133,6 +138,7 @@ fun VectorMapScreen(
     var isLoading by remember { mutableStateOf(false) }
     var mapErrorMessage by remember(selectedProviders) { mutableStateOf<String?>(null) }
     var isErrorPaused by remember(selectedProviders) { mutableStateOf(false) }
+    var showErrorDetailsDialog by remember { mutableStateOf(false) }
     var retryCount by remember { mutableStateOf(0) }
     var mapSizePx by remember { mutableStateOf(IntSize.Zero) }
     var selectedPoi by remember { mutableStateOf<Poi?>(null) }
@@ -365,7 +371,7 @@ fun VectorMapScreen(
     }
 
     MapScaffold(
-        title = "Vector Map",
+        title = "Gas Stations (Vector)",
         settingsManager = settingsManager,
         onBack = onBack,
         onRefresh = {
@@ -395,12 +401,114 @@ fun VectorMapScreen(
         isLoading = isLoading,
         palette = palette
     ) { padding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .onSizeChanged { mapSizePx = it }
         ) {
+            mapErrorMessage?.let { msg ->
+                val configuration = LocalConfiguration.current
+                val maxHeight = configuration.screenHeightDp.dp * 0.15f
+                val clipboard = LocalClipboard.current
+
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = maxHeight),
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shadowElevation = 2.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = msg,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            fontSize = 14.sp,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    showErrorDetailsDialog = true
+                                },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("Details", fontSize = 12.sp)
+                            }
+                            TextButton(
+                                onClick = {
+                                    scope.launch {
+                                        clipboard.setClipEntry(ClipEntry(android.content.ClipData.newPlainText("error", msg)))
+                                    }
+                                },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("Copy", fontSize = 12.sp)
+                            }
+                            TextButton(
+                                onClick = {
+                                    mapErrorMessage = null
+                                },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("Ignore", fontSize = 12.sp)
+                            }
+                            Button(
+                                onClick = {
+                                    mapErrorMessage = null
+                                    isErrorPaused = false
+                                    retryCount++
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onError
+                                ),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("Retry", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (showErrorDetailsDialog) {
+                AlertDialog(
+                    onDismissRequest = { showErrorDetailsDialog = false },
+                    title = { Text("Error Details") },
+                    text = {
+                        Text(
+                            text = mapErrorMessage ?: "",
+                            modifier = Modifier.verticalScroll(rememberScrollState())
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showErrorDetailsDialog = false }) {
+                            Text("Close")
+                        }
+                    }
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onSizeChanged { mapSizePx = it }
+            ) {
             val effectiveEnergies = settings.effectiveMapEnergyFilterIds()
             val effectivePowerLevels = settings.effectiveIrvePowerLevels()
 
@@ -491,6 +599,7 @@ fun VectorMapScreen(
                         .align(Alignment.TopCenter)
                         .zIndex(1f)
                 )
+            }
             }
         }
     }
