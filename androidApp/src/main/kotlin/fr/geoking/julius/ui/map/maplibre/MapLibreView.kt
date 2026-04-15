@@ -25,6 +25,7 @@ fun MapLibreView(
     cameraPosition: CameraPosition? = null,
     onMapReady: (MapLibreMap) -> Unit = {},
     onMapClick: (LatLng) -> Unit = {},
+    onCameraMove: (CameraPosition) -> Unit = {},
     update: (MapLibreMap) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -43,6 +44,9 @@ fun MapLibreView(
                 map.addOnMapClickListener { point ->
                     onMapClick(point)
                     true
+                }
+                map.addOnCameraMoveListener {
+                    onCameraMove(map.cameraPosition)
                 }
                 onMapReady(map)
             }
