@@ -378,7 +378,6 @@ fun MainUI(
     var stationsForDirections by remember { mutableStateOf<List<Poi>>(emptyList()) }
     var initialNavDestination by remember { mutableStateOf<NavDestination?>(null) }
     var initialMapCenter by remember { mutableStateOf<com.google.android.gms.maps.model.LatLng?>(null) }
-    var settingsInitialStack by remember { mutableStateOf<List<SettingsScreenPage>?>(null) }
 
     val context = LocalContext.current
 
