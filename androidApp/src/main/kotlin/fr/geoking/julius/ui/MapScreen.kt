@@ -357,14 +357,16 @@ fun MapScreen(
                             }
                         }
 
-                        if (result.errors.isNotEmpty() && result.pois.isEmpty()) {
-                            val firstError = result.errors.first()
-                            val msg = firstError.message
-                            val code = firstError.httpCode
-
+                        if (result.errors.isNotEmpty()) {
+                            val msg = if (result.errors.size == 1) {
+                                result.errors.first().let { "${it.providerName}: ${it.message}" }
+                            } else {
+                                "Multiple errors: " + result.errors.joinToString { it.providerName }
+                            }
                             mapErrorMessage = msg
-                            isErrorPaused = true
-                            store.recordError(code, "Map ($selectedProviders): $msg")
+                            result.errors.forEach { err ->
+                                store.recordError(err.httpCode, "Map ($selectedProviders) [${err.providerName}]: ${err.message}")
+                            }
                         }
                     }
 
@@ -398,7 +400,6 @@ fun MapScreen(
                     if (e is kotlinx.coroutines.CancellationException) throw e
                     val msg = e.message?.takeIf { it.isNotBlank() } ?: e.toString()
                     mapErrorMessage = msg
-                    isErrorPaused = true
                     store.recordError(
                         (e as? NetworkException)?.httpCode,
                         "Map ($selectedProviders): $msg"
