@@ -98,13 +98,30 @@ fun FuelForecastChartCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    if (isBrent) "Brent Crude Market" else "Fuel price outlook (rule-based)",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                if (isBrent) {
+                    val currentPrice = state.historyPoints.lastOrNull()?.priceEurPerL
+                    if (currentPrice != null) {
+                        Text(
+                            text = "$%.2f".format(currentPrice),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
             Text(
-                if (isBrent) "Brent Crude Market" else "Fuel price outlook (rule-based)",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                if (isBrent) "Global market trend for Brent Oil (Stooq USD/bbl)." else "Near-you average vs Brent/heating oil/EUR-USD (Stooq). Not financial advice.",
+                if (isBrent) "Global market trend for Brent Oil (USD/bbl)." else "Near-you average vs Brent/heating oil/EUR-USD. Not financial advice.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,

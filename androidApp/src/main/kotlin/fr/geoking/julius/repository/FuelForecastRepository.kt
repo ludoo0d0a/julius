@@ -7,8 +7,8 @@ import fr.geoking.julius.fuelforecast.DailyClose
 import fr.geoking.julius.fuelforecast.FuelForecastResult
 import fr.geoking.julius.fuelforecast.MarketReturnInputs
 import fr.geoking.julius.fuelforecast.RuleBasedFuelPricePredictor
-import fr.geoking.julius.fuelforecast.StooqDailyClient
-import fr.geoking.julius.fuelforecast.StooqSymbols
+import fr.geoking.julius.fuelforecast.YahooFinanceClient
+import fr.geoking.julius.fuelforecast.YahooSymbols
 import fr.geoking.julius.persistence.AppDatabase
 import fr.geoking.julius.persistence.FuelPricePredictionEntity
 import fr.geoking.julius.persistence.FuelPricePredictionScoreEntity
@@ -31,14 +31,14 @@ private val PARIS: ZoneId = ZoneId.of("Europe/Paris")
 private val FUEL_PRIORITY = listOf("gazole", "sp95", "sp98", "gplc", "e85")
 
 /**
- * Local pump averages, Stooq-based market series, rule forecasts, and scoring against realized daily averages.
+ * Local pump averages, Yahoo-based market series, rule forecasts, and scoring against realized daily averages.
  */
 class FuelForecastRepository(
     private val http: HttpClient,
     private val db: AppDatabase,
     private val predictor: RuleBasedFuelPricePredictor = RuleBasedFuelPricePredictor()
 ) {
-    private val stooq = StooqDailyClient(http)
+    private val marketClient = YahooFinanceClient(http)
     private val prix = DataGouvPrixCarburantClient(http)
     private val marketDao = db.marketDailyQuoteDao()
     private val localAvgDao = db.localFuelAvgDailyDao()
@@ -116,12 +116,12 @@ class FuelForecastRepository(
         refreshMarketCacheIfStale(now)
 
         val fromDay = LocalDate.parse(today).minusDays(14).toString()
-        var brent = loadClosesFromDb(StooqSymbols.BRENT_UK, fromDay)
-        var ho = loadClosesFromDb(StooqSymbols.HEATING_OIL, fromDay)
-        var fx = loadClosesFromDb(StooqSymbols.EURUSD, fromDay)
+        var brent = loadClosesFromDb(YahooSymbols.BRENT, fromDay)
+        var ho = loadClosesFromDb(YahooSymbols.HEATING_OIL, fromDay)
+        var fx = loadClosesFromDb(YahooSymbols.EURUSD, fromDay)
         if (brent.size < 4) {
             brent = try {
-                stooq.fetchDailyCloses(StooqSymbols.BRENT_UK, 40)
+                marketClient.fetchDailyCloses(YahooSymbols.BRENT, "1mo")
             } catch (_: Exception) {
                 brent
             }
@@ -129,7 +129,7 @@ class FuelForecastRepository(
         if (ho.size < 4) ho = brent
         if (fx.size < 2) {
             fx = try {
-                stooq.fetchDailyCloses(StooqSymbols.EURUSD, 40)
+                marketClient.fetchDailyCloses(YahooSymbols.EURUSD, "1mo")
             } catch (_: Exception) {
                 fx
             }
@@ -315,18 +315,18 @@ class FuelForecastRepository(
     }
 
     private suspend fun refreshMarketCacheIfStale(nowMs: Long) {
-        val sym = StooqSymbols.BRENT_UK
+        val sym = YahooSymbols.BRENT
         val last = marketDao.latestFetchMs(sym) ?: 0L
         if (nowMs - last < MARKET_CACHE_MS) return
 
         coroutineScope {
-            val b = async { runCatching { stooq.fetchDailyCloses(StooqSymbols.BRENT_UK, 40) }.getOrElse { emptyList() } }
-            val h = async { runCatching { stooq.fetchDailyCloses(StooqSymbols.HEATING_OIL, 40) }.getOrElse { emptyList() } }
-            val e = async { runCatching { stooq.fetchDailyCloses(StooqSymbols.EURUSD, 40) }.getOrElse { emptyList() } }
+            val b = async { runCatching { marketClient.fetchDailyCloses(YahooSymbols.BRENT, "1mo") }.getOrElse { emptyList() } }
+            val h = async { runCatching { marketClient.fetchDailyCloses(YahooSymbols.HEATING_OIL, "1mo") }.getOrElse { emptyList() } }
+            val e = async { runCatching { marketClient.fetchDailyCloses(YahooSymbols.EURUSD, "1mo") }.getOrElse { emptyList() } }
             val rows = mutableListOf<MarketDailyQuoteEntity>()
-            for (d in b.await()) rows += quoteEntity(StooqSymbols.BRENT_UK, d, nowMs)
-            for (d in h.await()) rows += quoteEntity(StooqSymbols.HEATING_OIL, d, nowMs)
-            for (d in e.await()) rows += quoteEntity(StooqSymbols.EURUSD, d, nowMs)
+            for (d in b.await()) rows += quoteEntity(YahooSymbols.BRENT, d, nowMs)
+            for (d in h.await()) rows += quoteEntity(YahooSymbols.HEATING_OIL, d, nowMs)
+            for (d in e.await()) rows += quoteEntity(YahooSymbols.EURUSD, d, nowMs)
             if (rows.isNotEmpty()) marketDao.upsertAll(rows)
         }
     }

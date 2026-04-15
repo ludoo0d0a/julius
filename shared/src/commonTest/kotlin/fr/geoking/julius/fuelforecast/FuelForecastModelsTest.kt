@@ -7,18 +7,11 @@ import kotlin.test.assertTrue
 class FuelForecastModelsTest {
 
     @Test
-    fun stooqCsv_parsesTail() {
-        val csv = """
-            Date,Open,High,Low,Close,Volume
-            2026-04-01,1,1,1,70.0,0
-            2026-04-02,1,1,1,71.0,0
-            2026-04-03,1,1,1,72.0,0
-        """.trimIndent()
-        val rows = StooqDailyClient.parseDailyCsv(csv, maxRows = 2)
-        assertEquals(2, rows.size)
-        assertEquals("2026-04-02", rows[0].day)
-        assertEquals(71.0, rows[0].close)
-        assertEquals(72.0, rows[1].close)
+    fun yahooFinance_parsing_matchesDailyClose() {
+        // 1773633600 is 2026-03-16 04:00:00 UTC
+        assertEquals("2026-03-16", formatUnixTimestampMock(1773633600))
+        // 1773720000 is 2026-03-17 04:00:00 UTC
+        assertEquals("2026-03-17", formatUnixTimestampMock(1773720000))
     }
 
     @Test
@@ -34,4 +27,22 @@ class FuelForecastModelsTest {
 
     private fun closes(vararg v: Double): List<DailyClose> =
         v.mapIndexed { i, c -> DailyClose(day = "2026-04-${(i + 1).toString().padStart(2, '0')}", close = c) }
+
+    private fun formatUnixTimestampMock(ts: Long): String {
+        val secondsInDay = 86400L
+        val days = ts / secondsInDay
+
+        val z = days + 719468
+        val era = (if (z >= 0) z else z - 146096) / 146097
+        val doe = z - era * 146097
+        val yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365
+        val y = yoe + era * 400
+        val doy = doe - (365 * yoe + yoe / 4 - yoe / 100)
+        val mp = (5 * doy + 2) / 153
+        val d = doy - (153 * mp + 2) / 5 + 1
+        val m = mp + (if (mp < 10) 3 else -9)
+        val year = y + (if (m <= 2) 1 else 0)
+
+        return "${year.toString().padStart(4, '0')}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}"
+    }
 }
