@@ -143,15 +143,18 @@ fun PoiDetailsFullscreenDialog(
                     if (isMergedPoi) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            AssistChip(
-                                onClick = {},
-                                label = { Text("Merged POI", fontSize = 12.sp) },
-                                colors = AssistChipDefaults.assistChipColors(
-                                    containerColor = Color(0xFF0F172A),
-                                    labelColor = Color.White
-                                ),
-                                interactionSource = remember { MutableInteractionSource() }
-                            )
+                            Surface(
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                shape = MaterialTheme.shapes.extraSmall,
+                            ) {
+                                Text(
+                                    text = "MERGED",
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
                             Text(
                                 text = sources.joinToString(" + "),
                                 color = Color.White.copy(alpha = 0.75f),
