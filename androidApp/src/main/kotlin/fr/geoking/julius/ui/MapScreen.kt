@@ -15,6 +15,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.zIndex
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -158,6 +160,7 @@ fun MapScreen(
     var trafficInfo by remember { mutableStateOf<TrafficInfo?>(null) }
     var mapErrorMessage by remember(selectedProviders) { mutableStateOf<String?>(null) }
     var isErrorPaused by remember(selectedProviders) { mutableStateOf(false) }
+    var showErrorDetailsDialog by remember { mutableStateOf(false) }
     var retryCount by remember { mutableStateOf(0) }
     var showAddPoiSheet by remember { mutableStateOf(false) }
     var addPoiLinkedOfficialId by remember { mutableStateOf<String?>(null) }
@@ -481,6 +484,15 @@ fun MapScreen(
                         ) {
                             TextButton(
                                 onClick = {
+                                    showErrorDetailsDialog = true
+                                },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("Details", fontSize = 12.sp)
+                            }
+                            TextButton(
+                                onClick = {
                                     scope.launch {
                                         clipboard.setClipEntry(ClipEntry(android.content.ClipData.newPlainText("error", msg)))
                                     }
@@ -517,6 +529,24 @@ fun MapScreen(
                         }
                     }
                 }
+            }
+
+            if (showErrorDetailsDialog) {
+                AlertDialog(
+                    onDismissRequest = { showErrorDetailsDialog = false },
+                    title = { Text("Error Details") },
+                    text = {
+                        Text(
+                            text = mapErrorMessage ?: "",
+                            modifier = Modifier.verticalScroll(rememberScrollState())
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showErrorDetailsDialog = false }) {
+                            Text("Close")
+                        }
+                    }
+                )
             }
 
             if (settings.isLoggedIn && (communityRepo != null || favoritesRepo != null)) {
