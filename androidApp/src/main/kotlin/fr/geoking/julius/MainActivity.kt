@@ -436,6 +436,7 @@ fun MainUI(
         }
     }
     var showJules by remember { mutableStateOf(false) }
+    var showFavorites by remember { mutableStateOf(false) }
     val settings by settingsManager.settings.collectAsState()
     val llamatikModelHelper = remember(context) { LlamatikModelHelper(context.applicationContext) }
     val setupIssue = remember(settings, llamatikModelHelper, conversationalAgent) {
@@ -588,6 +589,19 @@ fun MainUI(
                         voiceManager = voiceManager
                     )
                 }
+                isPlaystoreDistribution && showFavorites && mapDeps != null -> {
+                    fr.geoking.julius.ui.FavoritesScreen(
+                        favoritesRepo = mapDeps!!.favoritesRepo,
+                        geocodingClient = mapDeps!!.geocodingClient,
+                        settingsManager = settingsManager,
+                        onBack = { showFavorites = false },
+                        onOpenMap = { center ->
+                            initialMapCenter = center
+                            showMap = true
+                            showFavorites = false
+                        }
+                    )
+                }
                 isPlaystoreDistribution && !showMap -> {
                     PhoneDashboardScreen(
                         settingsManager = settingsManager,
@@ -606,6 +620,7 @@ fun MainUI(
                             showMap = true
                         },
                         onOpenJules = { showJules = true },
+                        onOpenFavorites = { showFavorites = true },
                         onOpenNetworkDiagnostics = { showPlaystoreNetworkInfo = true },
                         onOpenFuelForecast = { showFuelForecast = true },
                         onOpenSettings = { stack ->

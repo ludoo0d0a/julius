@@ -11,4 +11,5 @@ interface FavoritesRepository {
     suspend fun addFavorite(poi: Poi)
     suspend fun removeFavorite(poiId: String)
     suspend fun toggleFavorite(poi: Poi): Boolean
+    suspend fun updateFavorite(poi: Poi)
 }

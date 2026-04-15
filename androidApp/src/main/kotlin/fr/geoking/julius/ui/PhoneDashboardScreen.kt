@@ -41,6 +41,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -152,15 +155,12 @@ fun PlaystoreLightTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = PlaystoreHomeLightScheme, content = content)
 }
 
-enum class QuickActionType { Fuel, EV, Hybrid }
-
 private data class DashboardRow(
     val title: String,
     val subtitle: String,
     val icon: ImageVector,
     val onClick: () -> Unit,
-    val enabled: Boolean = true,
-    val type: QuickActionType? = null
+    val enabled: Boolean = true
 )
 
 @OptIn(ExperimentalMaterial3Api::class, kotlinx.coroutines.FlowPreview::class)
@@ -176,6 +176,7 @@ fun PhoneDashboardScreen(
     onOpenMap: (LatLng?) -> Unit,
     onOpenRoutes: () -> Unit,
     onOpenJules: () -> Unit,
+    onOpenFavorites: () -> Unit,
     onOpenNetworkDiagnostics: () -> Unit,
     onOpenFuelForecast: () -> Unit,
     onOpenSettings: (List<SettingsScreenPage>?) -> Unit
@@ -195,34 +196,12 @@ fun PhoneDashboardScreen(
     }
     var fuelForecastLoading by remember { mutableStateOf(false) }
 
-    var searchQuery by remember { mutableStateOf("") }
-    var suggestions by remember { mutableStateOf<List<GeocodedPlace>>(emptyList()) }
-    var isSearching by remember { mutableStateOf(false) }
     var favorites by remember { mutableStateOf<List<Poi>>(emptyList()) }
-    var favoriteIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(favoritesRepo) {
         if (favoritesRepo != null) {
-            val favs = favoritesRepo.getFavorites()
-            favorites = favs
-            favoriteIds = favs.map { it.id }.toSet()
-        }
-    }
-
-    LaunchedEffect(searchQuery) {
-        if (searchQuery.length < 3 || geocodingClient == null) {
-            suggestions = emptyList()
-            return@LaunchedEffect
-        }
-        delay(500)
-        isSearching = true
-        try {
-            suggestions = geocodingClient.geocode(searchQuery, limit = 5)
-        } catch (e: Exception) {
-            android.util.Log.e("PhoneDashboardScreen", "Geocoding failed", e)
-        } finally {
-            isSearching = false
+            favorites = favoritesRepo.getFavorites()
         }
     }
 
@@ -358,58 +337,6 @@ fun PhoneDashboardScreen(
         }
     }
 
-    val quickActions = listOf(
-        DashboardRow(
-            title = "Fuel",
-            subtitle = "Gas stations",
-            icon = Icons.Default.LocalGasStation,
-            type = QuickActionType.Fuel,
-            onClick = {
-                val isSelected = !settings.useVehicleFilter && settings.selectedPoiProviders == setOf(PoiProviderType.DataGouv)
-                if (isSelected) {
-                    settingsManager.setUseVehicleFilter(true)
-                } else {
-                    settingsManager.setUseVehicleFilter(false)
-                    settingsManager.setPoiProviderTypes(setOf(PoiProviderType.DataGouv))
-                    // Preserve fuel filters but ensure 'electric' is removed for Fuel-only mode
-                    settingsManager.setMapEnergyTypes(settings.selectedMapEnergyTypes - "electric")
-                }
-            }
-        ),
-        DashboardRow(
-            title = "EV",
-            subtitle = "Charging",
-            icon = Icons.Default.EvStation,
-            type = QuickActionType.EV,
-            onClick = {
-                val isSelected = !settings.useVehicleFilter && settings.selectedPoiProviders == setOf(PoiProviderType.DataGouvElec)
-                if (isSelected) {
-                    settingsManager.setUseVehicleFilter(true)
-                } else {
-                    settingsManager.setUseVehicleFilter(false)
-                    settingsManager.setPoiProviderTypes(setOf(PoiProviderType.DataGouvElec))
-                    settingsManager.setMapEnergyTypes(setOf("electric"))
-                }
-            }
-        ),
-        DashboardRow(
-            title = "Hybrid",
-            subtitle = "Both",
-            icon = Icons.Default.Map,
-            type = QuickActionType.Hybrid,
-            onClick = {
-                val isSelected = !settings.useVehicleFilter && settings.selectedPoiProviders == setOf(PoiProviderType.Hybrid)
-                if (isSelected) {
-                    settingsManager.setUseVehicleFilter(true)
-                } else {
-                    settingsManager.setUseVehicleFilter(false)
-                    settingsManager.setPoiProviderTypes(setOf(PoiProviderType.Hybrid))
-                    // Preserve existing fuel filters; 'electric' will be injected by effective filters if needed
-                }
-            }
-        )
-    )
-
     val otherActions = listOf(
         DashboardRow(
             title = "My car settings",
@@ -452,6 +379,9 @@ fun PhoneDashboardScreen(
                                 modifier = Modifier.padding(end = 8.dp)
                             )
                         }
+                        IconButton(onClick = onOpenFavorites) {
+                            Icon(Icons.Default.FavoriteBorder, contentDescription = "Favorites")
+                        }
                         IconButton(onClick = { onOpenSettings(null) }) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings")
                         }
@@ -471,133 +401,106 @@ fun PhoneDashboardScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // 0. Search Bar
+                // 1. Energy selector (Fuel, EV, Hybrid)
                 item {
-                    Column {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("Find destination…") },
-                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                            trailingIcon = {
-                                if (isSearching) {
-                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                                } else if (searchQuery.isNotEmpty()) {
-                                    IconButton(onClick = { searchQuery = "" }) {
-                                        Icon(Icons.Default.Clear, contentDescription = "Clear")
-                                    }
-                                }
-                            },
-                            singleLine = true,
-                            shape = MaterialTheme.shapes.medium
-                        )
-
-                        if (suggestions.isNotEmpty()) {
-                            Card(
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
-                            ) {
-                                Column {
-                                    suggestions.forEach { place ->
-                                        val placeId = "geo:${place.latitude},${place.longitude}"
-                                        val isFav = placeId in favoriteIds
-                                        ListItem(
-                                            headlineContent = { Text(place.label) },
-                                            leadingContent = { Icon(Icons.Default.Place, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                                            trailingContent = {
-                                                if (favoritesRepo != null) {
-                                                    IconButton(onClick = {
-                                                        scope.launch {
-                                                            val poi = Poi(
-                                                                id = placeId,
-                                                                name = place.label,
-                                                                address = place.label,
-                                                                latitude = place.latitude,
-                                                                longitude = place.longitude
-                                                            )
-                                                            favoritesRepo.toggleFavorite(poi)
-                                                            val updatedFavs = favoritesRepo.getFavorites()
-                                                            favorites = updatedFavs
-                                                            favoriteIds = updatedFavs.map { it.id }.toSet()
-                                                        }
-                                                    }) {
-                                                        Icon(
-                                                            if (isFav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                                            contentDescription = "Favorite",
-                                                            tint = if (isFav) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant
-                                                        )
-                                                    }
-                                                }
-                                            },
-                                            modifier = Modifier.clickable {
-                                                onOpenMap(LatLng(place.latitude, place.longitude))
-                                            },
-                                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                                        )
-                                    }
-                                }
-                            }
+                    val currentMode = remember(settings.selectedPoiProviders) {
+                        val p = settings.selectedPoiProviders
+                        when {
+                            p.contains(PoiProviderType.Hybrid) -> 2
+                            p.anyProvidesElectric() -> 1
+                            else -> 0
                         }
                     }
-                }
 
-                // 0.5 Chips Selector
-                item {
-                    LazyRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (providers.anyProvidesFuel()) {
-                            items(MAP_ENERGY_OPTIONS.filter { it.first != "electric" }) { (id, label) ->
-                                val isSelected = settings.effectiveMapEnergyFilterIds().contains(id)
-                                val color = ColorHelper.getFuelColor(id) ?: MaterialTheme.colorScheme.primary
-                                androidx.compose.material3.FilterChip(
-                                    selected = isSelected,
-                                    onClick = {
-                                        val current = settings.selectedMapEnergyTypes
-                                        val next = if (current.contains(id)) current - id else current + id
-                                        settingsManager.setUseVehicleFilter(false)
-                                        settingsManager.setMapEnergyTypes(next)
-                                    },
-                                    label = { Text(label) },
-                                    colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = color,
-                                        selectedLabelColor = Color.White,
-                                        iconColor = color,
-                                        selectedLeadingIconColor = Color.White
-                                    ),
-                                    leadingIcon = {
-                                        Box(modifier = Modifier.size(12.dp).background(color, MaterialTheme.shapes.small))
-                                    }
-                                )
-                            }
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                            SegmentedButton(
+                                selected = currentMode == 0,
+                                onClick = {
+                                    settingsManager.setUseVehicleFilter(false)
+                                    settingsManager.setPoiProviderTypes(setOf(PoiProviderType.DataGouv))
+                                    settingsManager.setMapEnergyTypes(settings.selectedMapEnergyTypes - "electric")
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
+                                label = { Text("Fuel") }
+                            )
+                            SegmentedButton(
+                                selected = currentMode == 1,
+                                onClick = {
+                                    settingsManager.setUseVehicleFilter(false)
+                                    settingsManager.setPoiProviderTypes(setOf(PoiProviderType.DataGouvElec))
+                                    settingsManager.setMapEnergyTypes(setOf("electric"))
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
+                                label = { Text("EV") }
+                            )
+                            SegmentedButton(
+                                selected = currentMode == 2,
+                                onClick = {
+                                    settingsManager.setUseVehicleFilter(false)
+                                    settingsManager.setPoiProviderTypes(setOf(PoiProviderType.Hybrid))
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
+                                label = { Text("Hybrid") }
+                            )
                         }
 
-                        if (providers.anyProvidesElectric()) {
-                            items(MAP_IRVE_POWER_OPTIONS) { (kw, label) ->
-                                val isSelected = settings.effectiveIrvePowerLevels().contains(kw)
-                                val color = ColorHelper.getPowerColorByLevel(kw)
-                                androidx.compose.material3.FilterChip(
-                                    selected = isSelected,
-                                    onClick = {
-                                        val current = settings.mapPowerLevels
-                                        val next = if (current.contains(kw)) current - kw else current + kw
-                                        settingsManager.setUseVehicleFilter(false)
-                                        settingsManager.setMapPowerLevels(next)
-                                    },
-                                    label = { Text(label) },
-                                    colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = color,
-                                        selectedLabelColor = Color.White,
-                                        iconColor = color,
-                                        selectedLeadingIconColor = Color.White
-                                    ),
-                                    leadingIcon = {
-                                        Box(modifier = Modifier.size(12.dp).background(color, MaterialTheme.shapes.small))
-                                    }
-                                )
+                        // Contextual Chips
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (currentMode == 0 || currentMode == 2) {
+                                items(MAP_ENERGY_OPTIONS.filter { it.first != "electric" }) { (id, label) ->
+                                    val isSelected = settings.effectiveMapEnergyFilterIds().contains(id)
+                                    val color = ColorHelper.getFuelColor(id) ?: MaterialTheme.colorScheme.primary
+                                    androidx.compose.material3.FilterChip(
+                                        selected = isSelected,
+                                        onClick = {
+                                            val current = settings.selectedMapEnergyTypes
+                                            val next = if (current.contains(id)) current - id else current + id
+                                            settingsManager.setUseVehicleFilter(false)
+                                            settingsManager.setMapEnergyTypes(next)
+                                        },
+                                        label = { Text(label) },
+                                        colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = color,
+                                            selectedLabelColor = Color.White,
+                                            iconColor = color,
+                                            selectedLeadingIconColor = Color.White
+                                        ),
+                                        leadingIcon = {
+                                            Box(modifier = Modifier.size(12.dp).background(color, MaterialTheme.shapes.small))
+                                        }
+                                    )
+                                }
+                            }
+
+                            if (currentMode == 1 || currentMode == 2) {
+                                items(MAP_IRVE_POWER_OPTIONS) { (kw, label) ->
+                                    val isSelected = settings.effectiveIrvePowerLevels().contains(kw)
+                                    val color = ColorHelper.getPowerColorByLevel(kw)
+                                    androidx.compose.material3.FilterChip(
+                                        selected = isSelected,
+                                        onClick = {
+                                            val current = settings.mapPowerLevels
+                                            val next = if (current.contains(kw)) current - kw else current + kw
+                                            settingsManager.setUseVehicleFilter(false)
+                                            settingsManager.setMapPowerLevels(next)
+                                        },
+                                        label = { Text(label) },
+                                        colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = color,
+                                            selectedLabelColor = Color.White,
+                                            iconColor = color,
+                                            selectedLeadingIconColor = Color.White
+                                        ),
+                                        leadingIcon = {
+                                            Box(modifier = Modifier.size(12.dp).background(color, MaterialTheme.shapes.small))
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -661,59 +564,6 @@ fun PhoneDashboardScreen(
                     }
                 }
 
-                // 2. Quick Actions Row (Fuel, EV, Hybrid)
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        quickActions.forEach { action ->
-                            val isSelected = remember(settings, action.type) {
-                                !settings.useVehicleFilter && when (action.type) {
-                                    QuickActionType.Fuel -> settings.selectedPoiProviders == setOf(PoiProviderType.DataGouv)
-                                    QuickActionType.EV -> settings.selectedPoiProviders == setOf(PoiProviderType.DataGouvElec)
-                                    QuickActionType.Hybrid -> settings.selectedPoiProviders == setOf(PoiProviderType.Hybrid)
-                                    else -> false
-                                }
-                            }
-                            Card(
-                                onClick = action.onClick,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .aspectRatio(1f),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-                                ),
-                                border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
-                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                            ) {
-                                Column(
-                                    modifier = Modifier.fillMaxSize().padding(8.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        imageVector = action.icon,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(32.dp)
-                                    )
-                                    Spacer(Modifier.height(8.dp))
-                                    Text(
-                                        text = action.title,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = action.subtitle,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
 
                 // 3. Other Actions
                 item {

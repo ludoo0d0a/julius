@@ -73,13 +73,9 @@ class SloveniaGorivaProvider(
 
     private suspend fun getOrFetchStations(): List<GorivaSIStation> = mutex.withLock {
         cachedStations?.let { return@withLock it }
-        return try {
-            val stations = gorivaClient.fetchAllStations()
-            cachedStations = stations
-            stations
-        } catch (e: Exception) {
-            emptyList()
-        }
+        val stations = gorivaClient.fetchAllStations()
+        cachedStations = stations
+        return@withLock stations
     }
 
     override fun clearCache() {

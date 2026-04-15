@@ -88,4 +88,27 @@ class OcpiPoiProviderTest {
         assertEquals(setOf("combo_ccs"), poi.irveDetails?.connectorTypes)
         assertEquals(1, poi.irveDetails?.availableConnectors)
     }
+
+    @Test
+    fun testGetLocationsNotFoundGraceful() = runBlocking {
+        val mockEngine = MockEngine { request ->
+            respond(
+                content = """{"timestamp":"2026-04-15T18:25:03.099Z","path":"/ocpi/2.2.1/locations","status":404,"error":"Not Found"}""",
+                status = HttpStatusCode.NotFound,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        val httpClient = HttpClient(mockEngine) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val ocpiClient = OcpiClient(httpClient, "https://api.ionity.eu/ocpi/2.2.1", "token")
+        val provider = OcpiPoiProvider(ocpiClient, "Ionity")
+
+        val pois = provider.getGasStations(48.8, 2.3)
+
+        assertTrue(pois.isEmpty(), "Should return empty list on 404 instead of throwing exception")
+    }
 }

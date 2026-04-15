@@ -67,33 +67,27 @@ class SpainMineturProvider(
             if (dist < radiusKm / 2.0) return@withLock it
         }
 
-        val response = try {
-            client.get("https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/")
-        } catch (e: Exception) {
-            return@withLock emptyList()
-        }
+        val response = client.get("https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/")
 
         val body = response.bodyAsText()
-        if (response.status.value != 200) return@withLock emptyList()
+        if (response.status.value != 200) {
+            throw NetworkException(response.status.value, "Spain Minetur API returned ${response.status.value}")
+        }
 
         val stations = withContext(Dispatchers.Default) {
-            try {
-                val root = json.decodeFromString<MineturResponse>(body)
-                root.listaEESSPrecio?.asSequence()
-                    ?.mapNotNull { it.toCompact() }
-                    ?.map {
-                        val dLat = (it.lat - lat) * 111.0
-                        val dLon = (it.lon - lon) * 111.0 * cos(lat * PI / 180.0)
-                        val dist = sqrt(dLat * dLat + dLon * dLon)
-                        it to dist
-                    }
-                    ?.sortedBy { it.second }
-                    ?.take(1000) // Limit cache to 1000 closest stations to save memory
-                    ?.map { it.first }
-                    ?.toList() ?: emptyList()
-            } catch (e: Exception) {
-                emptyList()
-            }
+            val root = json.decodeFromString<MineturResponse>(body)
+            root.listaEESSPrecio?.asSequence()
+                ?.mapNotNull { it.toCompact() }
+                ?.map {
+                    val dLat = (it.lat - lat) * 111.0
+                    val dLon = (it.lon - lon) * 111.0 * cos(lat * PI / 180.0)
+                    val dist = sqrt(dLat * dLat + dLon * dLon)
+                    it to dist
+                }
+                ?.sortedBy { it.second }
+                ?.take(1000) // Limit cache to 1000 closest stations to save memory
+                ?.map { it.first }
+                ?.toList() ?: emptyList()
         }
 
         cachedStations = stations
