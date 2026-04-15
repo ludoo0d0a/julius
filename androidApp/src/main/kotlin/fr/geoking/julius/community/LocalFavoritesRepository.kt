@@ -55,6 +55,22 @@ class LocalFavoritesRepository(
             true
         }
     }
+
+    override suspend fun updateFavorite(poi: Poi) {
+        val list = getFavoritesInternal().toMutableList()
+        val index = list.indexOfFirst { it.poiId == poi.id }
+        if (index >= 0) {
+            list[index] = list[index].copy(
+                name = poi.name,
+                address = poi.address,
+                latitude = poi.latitude,
+                longitude = poi.longitude,
+                isElectric = poi.isElectric,
+                brand = poi.brand
+            )
+            storage.saveFavorites(list)
+        }
+    }
 }
 
 private fun FavoritePoiEntity.toPoi(): Poi = Poi(
