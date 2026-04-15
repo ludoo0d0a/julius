@@ -72,8 +72,56 @@ class PortugalDgegProviderTest {
         assertEquals("GALP LISBOA", station.name)
         assertEquals("Galp", station.brand)
         assertNotNull(station.fuelPrices)
-        assertEquals(2, station.fuelPrices?.size)
-        assertEquals(1.549, station.fuelPrices?.find { it.fuelName == "Gazole" }?.price)
-        assertEquals(1.749, station.fuelPrices?.find { it.fuelName == "SP95" }?.price)
+        assertEquals(2, station.fuelPrices.size)
+        assertEquals(1.549, station.fuelPrices.find { it.fuelName == "Gazole" }?.price)
+        assertEquals(1.749, station.fuelPrices.find { it.fuelName == "SP95" }?.price)
+    }
+
+    @Test
+    fun testProviderHandlesCombustive1AndLocation() = runBlocking {
+        val json = """
+        {
+          "status": true,
+          "mensagem": "sucesso",
+          "resultado": [
+            {
+              "Id": 456,
+              "Nome": "REPSOL FARO",
+              "Marca": "Repsol",
+              "Combustive1": "Gasolina simples 95",
+              "Preco": "1.899 €",
+              "Latitude": 0.0,
+              "Longitude": 0.0,
+              "Location": "37.017, -7.933"
+            }
+          ]
+        }
+        """.trimIndent()
+
+        val mockEngine = MockEngine { _ ->
+            respond(
+                content = json,
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            )
+        }
+
+        val client = HttpClient(mockEngine) {
+            install(ContentNegotiation) {
+                json(Json { ignoreUnknownKeys = true })
+            }
+        }
+        val provider = PortugalDgegProvider(client)
+        val stations = provider.getGasStations(37.017, -7.933, null)
+
+        assertEquals(1, stations.size)
+        val station = stations.first()
+        assertEquals("REPSOL FARO", station.name)
+        assertEquals(37.017, station.latitude)
+        assertEquals(-7.933, station.longitude)
+        assertNotNull(station.fuelPrices)
+        assertEquals(1, station.fuelPrices.size)
+        assertEquals(1.899, station.fuelPrices.first().price)
+        assertEquals("SP95", station.fuelPrices.first().fuelName)
     }
 }

@@ -91,19 +91,37 @@ fun FuelForecastChartCard(
     isLoading: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val isBrent = state.fuelId == "brent"
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    if (isBrent) "Brent Crude Market" else "Fuel price outlook (rule-based)",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                if (isBrent) {
+                    val currentPrice = state.historyPoints.lastOrNull()?.priceEurPerL
+                    if (currentPrice != null) {
+                        Text(
+                            text = "$%.2f".format(currentPrice),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
             Text(
-                "Fuel price outlook (rule-based)",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                "Near-you average vs Brent/heating oil/EUR-USD (Stooq). Not financial advice.",
+                if (isBrent) "Global market trend for Brent Oil (USD/bbl)." else "Near-you average vs Brent/heating oil/EUR-USD. Not financial advice.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
@@ -115,10 +133,11 @@ fun FuelForecastChartCard(
                 "sp98" -> "SP98"
                 "gplc" -> "GPLc"
                 "e85" -> "E85"
+                "brent" -> "Brent Crude Oil"
                 else -> state.fuelId
             }
             Text(
-                "Fuel: $fuelLabel",
+                if (isBrent) "Commodity: $fuelLabel" else "Fuel: $fuelLabel",
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.padding(top = 8.dp)
             )
@@ -145,8 +164,9 @@ fun FuelForecastChartCard(
                     ForecastSparkline(
                         history = state.historyPoints,
                         forecast = state.forecastPoints,
-                        national = state.nationalHistoryPoints,
-                        market = state.marketHistoryPoints,
+                        national = if (isBrent) emptyList() else state.nationalHistoryPoints,
+                        market = if (isBrent) emptyList() else state.marketHistoryPoints,
+                        isBrent = isBrent,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(180.dp)
@@ -159,14 +179,19 @@ fun FuelForecastChartCard(
                             .padding(top = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        LegendItem("Local", MaterialTheme.colorScheme.primary)
-                        LegendItem("National", MaterialTheme.colorScheme.secondary, isDashed = true)
-                        LegendItem("Brent (Trend)", Color(0xFFFFA000))
+                        if (isBrent) {
+                            LegendItem("Market Price", MaterialTheme.colorScheme.primary)
+                            LegendItem("Momentum Forecast", MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
+                        } else {
+                            LegendItem("Local", MaterialTheme.colorScheme.primary)
+                            LegendItem("National", MaterialTheme.colorScheme.secondary, isDashed = true)
+                            LegendItem("Brent (Trend)", Color(0xFFFFA000))
+                        }
                     }
 
                     HorizontalDivider(Modifier.padding(vertical = 12.dp))
 
-                    TomorrowOutlook(state.nextDayPrediction)
+                    TomorrowOutlook(state.nextDayPrediction, isBrent = isBrent)
 
                     val dir = state.directionUp
                     val score = state.marketScore
@@ -213,7 +238,7 @@ private fun LegendItem(label: String, color: Color, isDashed: Boolean = false) {
 }
 
 @Composable
-private fun TomorrowOutlook(prediction: PredictionInfo?) {
+private fun TomorrowOutlook(prediction: PredictionInfo?, isBrent: Boolean = false) {
     Column {
         Text(
             "Tomorrow's Outlook",
@@ -235,11 +260,19 @@ private fun TomorrowOutlook(prediction: PredictionInfo?) {
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "€%.3f".format(prediction.predictedPrice),
+                    text = if (isBrent) "$%.2f".format(prediction.predictedPrice) else "€%.3f".format(prediction.predictedPrice),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
+                if (isBrent) {
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        "bbl",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 Spacer(Modifier.width(12.dp))
                 Text(
                     text = "%+.2f%%".format(prediction.changePercentage),
@@ -264,6 +297,7 @@ private fun ForecastSparkline(
     forecast: List<DailyPricePoint>,
     national: List<DailyPricePoint>,
     market: List<DailyPricePoint>,
+    isBrent: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val histColor = MaterialTheme.colorScheme.primary
@@ -286,8 +320,8 @@ private fun ForecastSparkline(
     if (allDays.isEmpty()) return
 
     val allPrices = (histSorted + foreSorted + natSorted).map { it.priceEurPerL }
-    val yMin = allPrices.minOrNull() ?: 1.5
-    val yMax = allPrices.maxOrNull() ?: 2.0
+    val yMin = allPrices.minOrNull() ?: (if (isBrent) 70.0 else 1.5)
+    val yMax = allPrices.maxOrNull() ?: (if (isBrent) 90.0 else 2.0)
     val pad = max(0.02, (yMax - yMin) * 0.15)
     val ymin = yMin - pad
     val ymax = yMax + pad
@@ -325,8 +359,8 @@ private fun ForecastSparkline(
             drawLine(gridColor, Offset(0f, y), Offset(w, y), strokeWidth = 1f)
         }
 
-        // 1. Market (Brent) - Orange, subtle trend
-        if (mktSorted.size >= 2) {
+        // 1. Market (Brent) - Orange, subtle trend (if not already drawing Brent)
+        if (!isBrent && mktSorted.size >= 2) {
             val path = Path()
             mktSorted.forEachIndexed { i, pt ->
                 val x = xForDay(pt.day)

@@ -61,7 +61,7 @@ fun AppSettings.effectiveProviders(
         }.toSet()
     }
 
-    // If zoom is too high (zoomed out), avoid loading too many POIs.
+    // Always use country-based provider filtering when coordinates are available
     // Zoom 11 is approximately 20-40km wide on a phone, seems like a good limit.
     if (zoom != null && zoom < 11f) return emptySet()
 

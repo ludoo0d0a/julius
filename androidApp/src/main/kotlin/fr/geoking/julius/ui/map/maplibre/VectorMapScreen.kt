@@ -59,10 +59,12 @@ import fr.geoking.julius.community.isCommunityPoiId
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.ui.SettingsScreenPage
 import fr.geoking.julius.ui.components.MapScaffold
+import fr.geoking.julius.ui.map.*
 import fr.geoking.julius.ui.map.PoiMarkerHelper
 import fr.geoking.julius.ui.map.MarkerStyle
 import fr.geoking.julius.ui.map.PoiDetailCard
 import fr.geoking.julius.ui.map.PoiDetailsFullscreenDialog
+import fr.geoking.julius.ui.map.DebugLogOverlay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
@@ -112,7 +114,9 @@ fun VectorMapScreen(
     authManager: GoogleAuthManager,
     store: ConversationStore,
     palette: AnimationPalette,
+    initialCenter: LatLng? = null,
     onBack: () -> Unit,
+    onShowSettings: () -> Unit,
     onPlanRoute: (() -> Unit)? = null,
     communityRepo: CommunityPoiRepository? = null,
     favoritesRepo: FavoritesRepository? = null
@@ -132,7 +136,6 @@ fun VectorMapScreen(
     var retryCount by remember { mutableStateOf(0) }
     var mapSizePx by remember { mutableStateOf(IntSize.Zero) }
     var selectedPoi by remember { mutableStateOf<Poi?>(null) }
-    var showMapSettings by remember { mutableStateOf(false) }
     var showFavoritesOnly by remember { mutableStateOf(false) }
     var favoriteIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var frozenPoisForSheet by remember { mutableStateOf<List<Poi>>(emptyList()) }
@@ -161,7 +164,7 @@ fun VectorMapScreen(
 
     val initialCameraPosition = remember {
         CameraPosition.Builder()
-            .target(LatLng(48.8566, 2.3522))
+            .target(initialCenter ?: LatLng(48.8566, 2.3522))
             .zoom(12.0)
             .build()
     }
@@ -195,6 +198,13 @@ fun VectorMapScreen(
     val loadedRegions = remember { mutableListOf<LoadedPoiRegion>() }
     val poiSeenAtMs = remember { mutableStateMapOf<String, Long>() }
     var lastCacheKey by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(mapLibreMap, initialCenter) {
+        val map = mapLibreMap ?: return@LaunchedEffect
+        if (initialCenter != null) {
+            map.animateCamera(CameraUpdateFactory.newLatLngZoom(initialCenter, 12.0))
+        }
+    }
 
     LaunchedEffect(poiFetchKey, mapSizePx, retryCount, mapLibreMap) {
         val map = mapLibreMap ?: return@LaunchedEffect
@@ -292,17 +302,6 @@ fun VectorMapScreen(
             }
     }
 
-    if (showMapSettings) {
-        SettingsScreen(
-            settingsManager = settingsManager,
-            authManager = authManager,
-            errorLog = store.state.value.errorLog,
-            onDismiss = { showMapSettings = false },
-            initialScreenStack = listOf(SettingsScreenPage.MapConfig)
-        )
-        return
-    }
-
     val poisInView = remember(cachedPois, mapLibreMap?.cameraPosition, mapSizePx, settings, effectiveProviders) {
         val map = mapLibreMap ?: return@remember emptyList<Poi>()
         val target = map.cameraPosition.target ?: return@remember emptyList<Poi>()
@@ -388,7 +387,7 @@ fun VectorMapScreen(
                 launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
             }
         },
-        onShowSettings = { showMapSettings = true },
+        onShowSettings = onShowSettings,
         onPlanRoute = onPlanRoute,
         showFavoritesOnly = showFavoritesOnly,
         onShowFavoritesOnlyChange = { showFavoritesOnly = it },
@@ -476,6 +475,15 @@ fun VectorMapScreen(
                 }
             )
 
+            if (settings.debugLoggingEnabled) {
+                DebugLogOverlay(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 80.dp)
+                        .zIndex(2f)
+                )
+            }
+
             if (isLoading) {
                 MapLoader(
                     palette = palette,
@@ -561,8 +569,7 @@ fun VectorMapScreen(
                         highlightedFuelIds = settings.effectiveMapEnergyFilterIds(),
                         highlightedPowerLevels = settings.effectiveIrvePowerLevels(),
                         onNavigate = {
-                            val uri = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${Uri.encode(poi.name)}")
-                            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                            NavigationHelper.navigateToPoi(context, poi)
                         },
                         onLocate = {
                             scope.launch {
@@ -641,6 +648,9 @@ fun VectorMapScreen(
                     scope.launch { sheetState.hide() }
                 }
             } else null,
+            onNavigate = {
+                NavigationHelper.navigateToPoi(context, poi)
+            },
             onDismiss = { poiForDetailsDialog = null }
         )
     }
