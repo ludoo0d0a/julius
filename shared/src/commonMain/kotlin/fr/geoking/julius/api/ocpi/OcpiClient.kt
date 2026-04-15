@@ -5,7 +5,9 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.parameter
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.json.Json
 
 /**
@@ -33,18 +35,21 @@ class OcpiClient(
     ): List<OcpiLocation> {
         if (baseUrl.isBlank()) return emptyList()
 
-        // OCPI /locations typically supports date_from, date_to for delta.
-        // Some implementations might support lat/lon/dist as query params (extension).
-        val url = if (latitude != null && longitude != null && radiusKm != null) {
-            // Note: This is an example, actual OCPI 2.2.1 /locations is a list.
-            // Filtering is often done via date or by fetching the whole set.
-            "$baseUrl/locations"
-        } else {
-            "$baseUrl/locations"
-        }
+        // Ensure we don't duplicate /locations if it's already in baseUrl
+        val url = if (baseUrl.endsWith("/locations")) baseUrl else "$baseUrl/locations"
 
         val response = client.get(url) {
             header("Authorization", "Token $token")
+            // OCPI /locations typically supports date_from, date_to for delta.
+            // Some implementations support lat/lon/radius as query params (non-standard extension).
+            if (latitude != null) parameter("latitude", latitude)
+            if (longitude != null) parameter("longitude", longitude)
+            if (radiusKm != null) parameter("radius", radiusKm)
+        }
+
+        // Gracefully handle 404 (misconfigured endpoint or provider changed its URL structure)
+        if (response.status == HttpStatusCode.NotFound) {
+            return emptyList()
         }
 
         if (response.status.value != 200) {
