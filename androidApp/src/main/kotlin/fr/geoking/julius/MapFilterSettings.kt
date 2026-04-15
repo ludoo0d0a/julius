@@ -50,10 +50,15 @@ fun AppSettings.effectiveIrveOperatorFilter(): Set<String> {
 fun AppSettings.effectiveProviders(
     latitude: Double? = null,
     longitude: Double? = null,
-    zoom: Float? = null
+    zoom: Float? = null,
+    requirePrices: Boolean = false,
+    requireLocation: Boolean = false
 ): Set<PoiProviderType> {
-    if (latitude == null || longitude == null) {
-        return if (!autoPoiProvidersEnabled) selectedPoiProviders else emptySet()
+    if (!autoPoiProvidersEnabled) {
+        return selectedPoiProviders.filter { type ->
+            (!requirePrices || type.providesPrices) &&
+            (!requireLocation || type.providesLocation)
+        }.toSet()
     }
 
     // Always use country-based provider filtering when coordinates are available
@@ -70,7 +75,9 @@ fun AppSettings.effectiveProviders(
         type.eligibleToAuto && (
             type.supportedCountries.isEmpty() || // Global providers
             type.supportedCountries.any { it in nearbyCountryCodes }
-        )
+        ) &&
+        (!requirePrices || type.providesPrices) &&
+        (!requireLocation || type.providesLocation)
     }.toSet()
 }
 

@@ -51,19 +51,23 @@ class AutoPoiProviderSelectionScreen(
         val settings = settingsManager.settings.value
         val templateBuilder = ListTemplate.Builder()
 
-        val listBuilder = ItemList.Builder()
-        options.forEach { (type, label) ->
-            val isSelected = settings.selectedPoiProviders.contains(type)
-            val displayLabel = if (isSelected) "$label (Selected)" else label
-            listBuilder.addItem(
-                Row.Builder()
-                    .setTitle(displayLabel)
-                    .setOnClickListener {
-                        settingsManager.togglePoiProviderType(type)
-                        invalidate()
-                    }
-                    .build()
-            )
+        val grouped = options.groupBy { (type, _) -> type.getDisplayGroup() }
+        grouped.forEach { (group, providers) ->
+            val listBuilder = ItemList.Builder()
+            providers.forEach { (type, label) ->
+                val isSelected = settings.selectedPoiProviders.contains(type)
+                val displayLabel = if (isSelected) "$label (Selected)" else label
+                listBuilder.addItem(
+                    Row.Builder()
+                        .setTitle(displayLabel)
+                        .setOnClickListener {
+                            settingsManager.togglePoiProviderType(type)
+                            invalidate()
+                        }
+                        .build()
+                )
+            }
+            templateBuilder.addSectionedList(SectionedItemList.create(listBuilder.build(), group))
         }
         templateBuilder.setSingleList(listBuilder.build())
 

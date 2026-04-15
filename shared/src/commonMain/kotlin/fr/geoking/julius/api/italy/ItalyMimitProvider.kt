@@ -10,7 +10,9 @@ import fr.geoking.julius.shared.location.haversineKm
 import fr.geoking.julius.shared.logging.log
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
+import io.ktor.utils.io.readUTF8Line
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -65,11 +67,72 @@ class ItalyMimitProvider(
         }
 
         return try {
-            val stationsCsv = client.get("https://www.mimit.gov.it/images/exportCSV/anagrafica_impianti_attivi.csv").bodyAsText()
-            val pricesCsv = client.get("https://www.mimit.gov.it/images/exportCSV/prezzo_alle_8.csv").bodyAsText()
+            val priceMap = mutableMapOf<String, MutableList<FuelPrice>>()
 
-            val pois = withContext(Dispatchers.Default) {
-                parseMimitData(stationsCsv, pricesCsv)
+            // Parse prices first (streaming)
+            val pricesResponse = client.get("https://www.mimit.gov.it/images/exportCSV/prezzo_alle_8.csv")
+            val pricesChannel = pricesResponse.bodyAsChannel()
+            var lineCount = 0
+            while (true) {
+                val line = pricesChannel.readUTF8Line() ?: break
+                lineCount++
+                if (lineCount <= 2 || line.isEmpty()) continue
+
+                val cols = line.split("|", limit = 6)
+                if (cols.size >= 3) {
+                    val id = cols[0]
+                    val name = cols[1]
+                    val price = cols[2].toDoubleOrNull()
+                    val isSelf = cols.getOrNull(3) == "1"
+                    val updatedAt = cols.getOrNull(4)
+
+                    if (price != null) {
+                        val fuelName = when {
+                            name.contains("Benzina", true) -> if (isSelf) "SP95 (Self)" else "SP95"
+                            name.contains("Gasolio", true) -> if (isSelf) "Gazole (Self)" else "Gazole"
+                            name.contains("GPL", true) -> "GPLc"
+                            name.contains("Metano", true) -> "CNG"
+                            else -> name
+                        }
+                        priceMap.getOrPut(id) { mutableListOf() }.add(FuelPrice(fuelName, price, updatedAt))
+                    }
+                }
+            }
+
+            // Parse stations and merge (streaming)
+            val stationsResponse = client.get("https://www.mimit.gov.it/images/exportCSV/anagrafica_impianti_attivi.csv")
+            val stationsChannel = stationsResponse.bodyAsChannel()
+            val pois = mutableListOf<Poi>()
+            lineCount = 0
+            while (true) {
+                val line = stationsChannel.readUTF8Line() ?: break
+                lineCount++
+                if (lineCount <= 2 || line.isEmpty()) continue
+
+                val cols = line.split("|", limit = 11)
+                if (cols.size >= 10) {
+                    val id = cols[0]
+                    val brand = cols[2]
+                    val name = cols[4]
+                    val address = cols[5]
+                    val city = cols[6]
+                    val lat = cols[8].toDoubleOrNull()
+                    val lon = cols[9].toDoubleOrNull()
+
+                    if (lat != null && lon != null && (lat != 0.0 || lon != 0.0)) {
+                        pois.add(Poi(
+                            id = "italy_mimit:$id",
+                            name = name.takeIf { it.isNotBlank() } ?: "Gas Station",
+                            address = listOfNotNull(address, city).joinToString(", "),
+                            latitude = lat,
+                            longitude = lon,
+                            brand = brand,
+                            poiCategory = PoiCategory.Gas,
+                            fuelPrices = priceMap[id]?.ifEmpty { null },
+                            source = "MIMIT (Italy)"
+                        ))
+                    }
+                }
             }
 
             if (pois.isNotEmpty()) {
@@ -81,63 +144,6 @@ class ItalyMimitProvider(
             log.e(e) { "[ItalyMimitProvider] Failed to fetch data" }
             cachedStations ?: emptyList()
         }
-    }
-
-    private fun parseMimitData(stationsCsv: String, pricesCsv: String): List<Poi> {
-        val priceMap = mutableMapOf<String, MutableList<FuelPrice>>()
-
-        // Parse prices first
-        // format: idImpianto|descCarburante|prezzo|isSelf|dtComu
-        pricesCsv.lineSequence().drop(2).forEach { line ->
-            val cols = line.split("|")
-            if (cols.size >= 3) {
-                val id = cols[0]
-                val name = cols[1]
-                val price = cols[2].toDoubleOrNull()
-                val isSelf = cols.getOrNull(3) == "1"
-                val updatedAt = cols.getOrNull(4)
-
-                if (price != null) {
-                    val fuelName = when {
-                        name.contains("Benzina", true) -> if (isSelf) "SP95 (Self)" else "SP95"
-                        name.contains("Gasolio", true) -> if (isSelf) "Gazole (Self)" else "Gazole"
-                        name.contains("GPL", true) -> "GPLc"
-                        name.contains("Metano", true) -> "CNG"
-                        else -> name
-                    }
-                    priceMap.getOrPut(id) { mutableListOf() }.add(FuelPrice(fuelName, price, updatedAt))
-                }
-            }
-        }
-
-        // Parse stations and merge
-        // format: idImpianto|Gestore|Bandiera|Tipo Impianto|Nome Impianto|Indirizzo|Comune|Provincia|Latitudine|Longitudine
-        return stationsCsv.lineSequence().drop(2).mapNotNull { line ->
-            val cols = line.split("|")
-            if (cols.size >= 10) {
-                val id = cols[0]
-                val brand = cols[2]
-                val name = cols[4]
-                val address = cols[5]
-                val city = cols[6]
-                val lat = cols[8].toDoubleOrNull()
-                val lon = cols[9].toDoubleOrNull()
-
-                if (lat != null && lon != null && (lat != 0.0 || lon != 0.0)) {
-                    Poi(
-                        id = "italy_mimit:$id",
-                        name = name.takeIf { it.isNotBlank() } ?: "Gas Station",
-                        address = listOfNotNull(address, city).joinToString(", "),
-                        latitude = lat,
-                        longitude = lon,
-                        brand = brand,
-                        poiCategory = PoiCategory.Gas,
-                        fuelPrices = priceMap[id]?.ifEmpty { null },
-                        source = "MIMIT (Italy)"
-                    )
-                } else null
-            } else null
-        }.toList()
     }
 
     override fun clearCache() {

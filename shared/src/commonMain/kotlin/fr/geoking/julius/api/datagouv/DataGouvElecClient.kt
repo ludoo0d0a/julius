@@ -15,16 +15,6 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.math.*
 
-/** Safely get results as a list; API may return results as array or single object. */
-private fun resultsAsList(obj: JsonObject): List<JsonElement> {
-    val results = obj["results"] ?: return emptyList()
-    return when (results) {
-        is JsonArray -> results
-        is JsonObject -> listOf(results)
-        else -> emptyList()
-    }
-}
-
 /**
  * Client for the French open data IRVE (Infrastructures de Recharge pour Véhicules Électriques),
  * consolidated base from [data.gouv.fr](https://www.data.gouv.fr/datasets/base-nationale-des-irve-infrastructures-de-recharge-pour-vehicules-electriques),
@@ -148,11 +138,13 @@ class DataGouvElecClient(
     }
 
     private fun parseRecords(body: String): List<DataGouvElecStationRaw> {
-        val element = json.parseToJsonElement(body)
-        val obj = element.jsonObject
-        val results = resultsAsList(obj)
+        val response = try {
+            json.decodeFromString<DataGouvOdsResponse>(body)
+        } catch (e: Exception) {
+            return emptyList()
+        }
         val stations = mutableListOf<DataGouvElecStationRaw>()
-        for (item in results) {
+        for (item in response.results) {
             val record = item as? JsonObject ?: continue
             parseStation(record)?.let { stations.add(it) }
         }
