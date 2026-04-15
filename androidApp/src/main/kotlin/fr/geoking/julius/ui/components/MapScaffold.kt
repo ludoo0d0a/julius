@@ -292,6 +292,7 @@ fun MapScaffold(
                     palette = palette,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
+                        .padding(top = padding.calculateTopPadding())
                         .zIndex(1f)
                 )
             }

@@ -42,8 +42,8 @@ fun MapLoader(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(3.dp)
-            .blur(2.dp)
+            .height(4.dp)
+            .blur(1.dp)
             .background(
                 brush = Brush.linearGradient(
                     colors = colors,
