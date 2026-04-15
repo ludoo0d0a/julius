@@ -69,7 +69,6 @@ class AutoPoiProviderSelectionScreen(
             }
             templateBuilder.addSectionedList(SectionedItemList.create(listBuilder.build(), group))
         }
-        templateBuilder.setSingleList(listBuilder.build())
 
         return templateBuilder
             .setHeader(Header.Builder().setTitle("Data Source").setStartHeaderAction(Action.BACK).build())
