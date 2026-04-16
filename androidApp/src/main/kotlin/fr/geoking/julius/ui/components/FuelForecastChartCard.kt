@@ -23,6 +23,8 @@ import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,7 +91,8 @@ fun FuelForecastCompactCard(
 fun FuelForecastChartCard(
     state: FuelForecastUiState,
     isLoading: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onRangeSelected: (String) -> Unit = {}
 ) {
     val isBrent = state.fuelId == "brent"
     Card(
@@ -169,9 +172,31 @@ fun FuelForecastChartCard(
                         isBrent = isBrent,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(180.dp)
+                            .height(if (isBrent) 220.dp else 180.dp)
                             .padding(top = 12.dp)
                     )
+
+                    if (isBrent) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            listOf("1m", "3m", "6m", "1y").forEach { range ->
+                                FilterChip(
+                                    selected = state.brentRange == range,
+                                    onClick = { onRangeSelected(range) },
+                                    label = { Text(range.uppercase()) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                )
+                            }
+                        }
+                    }
 
                     Row(
                         modifier = Modifier
@@ -397,8 +422,10 @@ private fun ForecastSparkline(
                 if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
             }
             drawPath(path, histColor, style = Stroke(width = 6f, cap = StrokeCap.Round))
-            histSorted.forEach { pt ->
-                drawCircle(histColor, radius = 5f, center = Offset(xForDay(pt.day), yFor(pt.priceEurPerL)))
+            if (allDays.size < 50) {
+                histSorted.forEach { pt ->
+                    drawCircle(histColor, radius = 5f, center = Offset(xForDay(pt.day), yFor(pt.priceEurPerL)))
+                }
             }
         } else if (histSorted.size == 1) {
             drawCircle(histColor, radius = 6f, center = Offset(xForDay(histSorted[0].day), yFor(histSorted[0].priceEurPerL)))
@@ -423,8 +450,10 @@ private fun ForecastSparkline(
                 }
             }
             drawPath(pathF, foreColor, style = Stroke(width = 4f, cap = StrokeCap.Round))
-            foreSorted.forEach { pt ->
-                drawCircle(foreColor, radius = 4f, center = Offset(xForDay(pt.day), yFor(pt.priceEurPerL)))
+            if (allDays.size < 50) {
+                foreSorted.forEach { pt ->
+                    drawCircle(foreColor, radius = 4f, center = Offset(xForDay(pt.day), yFor(pt.priceEurPerL)))
+                }
             }
         }
     }

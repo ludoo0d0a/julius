@@ -63,9 +63,10 @@ class FuelForecastRepository(
     suspend fun refreshAndBuildUiState(
         latitude: Double,
         longitude: Double,
-        fuelIds: Set<String>
+        fuelIds: Set<String>,
+        brentRange: String = "1m"
     ): FuelForecastUiState {
-        val results = refreshAndBuildMultiUiState(latitude, longitude, fuelIds)
+        val results = refreshAndBuildMultiUiState(latitude, longitude, fuelIds, brentRange)
         val primaryFuel = FUEL_PRIORITY.firstOrNull { it in results.keys } ?: fuelIds.firstOrNull { it != "electric" } ?: "gazole"
         return results[primaryFuel] ?: FuelForecastUiState(fuelId = primaryFuel, locationKey = locationKey(latitude, longitude))
     }
@@ -73,7 +74,8 @@ class FuelForecastRepository(
     suspend fun refreshAndBuildMultiUiState(
         latitude: Double,
         longitude: Double,
-        fuelIds: Set<String>
+        fuelIds: Set<String>,
+        brentRange: String = "1m"
     ): Map<String, FuelForecastUiState> {
         val locKey = locationKey(latitude, longitude)
         val today = todayParis()
@@ -116,12 +118,20 @@ class FuelForecastRepository(
         refreshMarketCacheIfStale(now)
 
         val fromDay = LocalDate.parse(today).minusDays(14).toString()
+        val brentRangeDays = when (brentRange) {
+            "3m" -> 90L
+            "6m" -> 180L
+            "1y" -> 365L
+            else -> 30L
+        }
+        val brentFromDay = LocalDate.parse(today).minusDays(brentRangeDays).toString()
+
         var brent = loadClosesFromDb(YahooSymbols.BRENT, fromDay)
         var ho = loadClosesFromDb(YahooSymbols.HEATING_OIL, fromDay)
         var fx = loadClosesFromDb(YahooSymbols.EURUSD, fromDay)
         if (brent.size < 4) {
             brent = try {
-                marketClient.fetchDailyCloses(YahooSymbols.BRENT, "1mo")
+                marketClient.fetchDailyCloses(YahooSymbols.BRENT, "1y")
             } catch (_: Exception) {
                 brent
             }
@@ -146,13 +156,14 @@ class FuelForecastRepository(
         val resultMap = mutableMapOf<String, FuelForecastUiState>()
 
         // 1. Brent Crude special entry
-        if (brent.isNotEmpty()) {
-            val brentHistory = brent.map {
+        val brentForChart = loadClosesFromDb(YahooSymbols.BRENT, brentFromDay)
+        if (brentForChart.isNotEmpty()) {
+            val brentHistory = brentForChart.map {
                 DailyPricePoint(day = it.day, priceEurPerL = it.close, isForecast = false)
             }
-            val brentTomorrow = if (brent.size >= 2) {
-                val last = brent.last()
-                val prev = brent[brent.size - 2]
+            val brentTomorrow = if (brentForChart.size >= 2) {
+                val last = brentForChart.last()
+                val prev = brentForChart[brentForChart.size - 2]
                 val dailyReturn = (last.close - prev.close) / prev.close
                 val predictedPrice = last.close * (1.0 + dailyReturn)
                 PredictionInfo(
@@ -173,7 +184,8 @@ class FuelForecastRepository(
                 locationKey = locKey,
                 historyPoints = brentHistory,
                 forecastPoints = brentForecast,
-                nextDayPrediction = brentTomorrow
+                nextDayPrediction = brentTomorrow,
+                brentRange = brentRange
             )
         }
 
@@ -321,7 +333,7 @@ class FuelForecastRepository(
         if (nowMs - last < MARKET_CACHE_MS) return
 
         coroutineScope {
-            val b = async { runCatching { marketClient.fetchDailyCloses(YahooSymbols.BRENT, "1mo") }.getOrElse { emptyList() } }
+            val b = async { runCatching { marketClient.fetchDailyCloses(YahooSymbols.BRENT, "1y") }.getOrElse { emptyList() } }
             val h = async { runCatching { marketClient.fetchDailyCloses(YahooSymbols.HEATING_OIL, "1mo") }.getOrElse { emptyList() } }
             val e = async { runCatching { marketClient.fetchDailyCloses(YahooSymbols.EURUSD, "1mo") }.getOrElse { emptyList() } }
             val rows = mutableListOf<MarketDailyQuoteEntity>()
@@ -380,5 +392,5 @@ data class FuelForecastUiState(
     val accuracyHitRate7d: Double? = null,
     val accuracyMae7d: Double? = null,
     val lastScoreDirectionCorrect: Boolean? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null, val brentRange: String = "1m"
 )
