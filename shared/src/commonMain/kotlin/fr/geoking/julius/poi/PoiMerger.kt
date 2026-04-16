@@ -71,14 +71,17 @@ object PoiMerger {
 
         // Fast reject on approximate deltas before doing haversine.
         val latDeltaMeters = abs(a.latitude - b.latitude) * 111_000.0
-        if (latDeltaMeters > MERGE_DISTANCE_METERS * 1.2) return false
+        if (latDeltaMeters > MERGE_DISTANCE_METERS * 1.5) return false
 
         val lonDeltaMeters =
             abs(a.longitude - b.longitude) * 111_000.0 * cos(((a.latitude + b.latitude) / 2.0) * PI / 180.0)
-        if (lonDeltaMeters > MERGE_DISTANCE_METERS * 1.2) return false
+        if (lonDeltaMeters > MERGE_DISTANCE_METERS * 1.5) return false
 
         val distMeters = haversineMeters(a.latitude, a.longitude, b.latitude, b.longitude)
         if (distMeters > MERGE_DISTANCE_METERS) return false
+
+        // User requirement: if distance < 100m and from different sources, merge them.
+        if (a.source != b.source && a.source != null && b.source != null) return true
 
         return namesSimilarEnough(a, b)
     }
@@ -106,9 +109,10 @@ object PoiMerger {
     }
 
     private fun buildMatchName(p: Poi): String {
-        // Prefer siteName when available, but still include name.
+        // Prefer siteName when available, but still include name and town for better context.
         val site = p.siteName?.takeIf { it.isNotBlank() }
-        return if (site != null) "$site ${p.name}" else p.name
+        val town = p.townLocal?.takeIf { it.isNotBlank() }
+        return listOfNotNull(site, p.name, town).joinToString(" ")
     }
 
     private fun tokenSet(normalized: String): Set<String> {
@@ -361,4 +365,3 @@ object PoiMerger {
         return r * c
     }
 }
-

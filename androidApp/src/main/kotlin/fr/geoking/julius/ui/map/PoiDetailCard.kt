@@ -115,18 +115,22 @@ fun PoiDetailCard(
                         )
                         if (isMergedPoi) {
                             Row(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(vertical = 4.dp)
                             ) {
-                                AssistChip(
-                                    onClick = {},
-                                    label = { Text("Merged POI", fontSize = 11.sp) },
-                                    colors = AssistChipDefaults.assistChipColors(
-                                        containerColor = Color(0xFF0F172A),
-                                        labelColor = Color.White
-                                    ),
-                                    interactionSource = remember { MutableInteractionSource() }
-                                )
+                                Surface(
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    shape = MaterialTheme.shapes.extraSmall,
+                                ) {
+                                    Text(
+                                        text = "MERGED",
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
                                 Text(
                                     text = sources.joinToString(" + "),
                                     color = Color.White.copy(alpha = 0.7f),
