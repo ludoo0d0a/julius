@@ -42,6 +42,8 @@ fun PoiDetailsFullscreenDialog(
     onHide: (() -> Unit)? = null,
     onSuggestCorrection: (() -> Unit)? = null,
     onNavigate: (() -> Unit)? = null,
+    isFavorite: Boolean = false,
+    onToggleFavorite: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val brandInfo = BrandHelper.getBrandInfo(poi.brand)
@@ -91,12 +93,12 @@ fun PoiDetailsFullscreenDialog(
                         }
                     },
                     actions = {
-                        onNavigate?.let {
-                            IconButton(onClick = it) {
+                        if (isLoggedIn && onToggleFavorite != null) {
+                            IconButton(onClick = onToggleFavorite) {
                                 Icon(
-                                    imageVector = Icons.Default.Directions,
-                                    contentDescription = "Navigate",
-                                    tint = Color.White
+                                    imageVector = if (isFavorite) Icons.Default.Star else Icons.Outlined.StarBorder,
+                                    contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                                    tint = if (isFavorite) Color(0xFFEAB308) else Color.White
                                 )
                             }
                         }
@@ -124,18 +126,6 @@ fun PoiDetailsFullscreenDialog(
                             )
                             brandInfo?.let {
                                 Text(it.displayName, color = Color.White.copy(alpha = 0.7f), fontSize = 16.sp)
-                            }
-                        }
-                        onNavigate?.let {
-                            Button(
-                                onClick = it,
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                                modifier = Modifier.height(40.dp)
-                            ) {
-                                Icon(Icons.Default.Directions, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("Navigate", fontSize = 14.sp)
                             }
                         }
                     }
@@ -396,6 +386,20 @@ fun PoiDetailsFullscreenDialog(
                             details.openingHoursFuel.forEach { line ->
                                 Text(line, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
                             }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+                    onNavigate?.let {
+                        Button(
+                            onClick = it,
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(vertical = 12.dp)
+                        ) {
+                            Icon(Icons.Default.Directions, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Navigate", fontSize = 16.sp)
                         }
                     }
                 }
