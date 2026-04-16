@@ -789,3 +789,4 @@ fun VectorMapScreen(
         )
     }
 }
+}

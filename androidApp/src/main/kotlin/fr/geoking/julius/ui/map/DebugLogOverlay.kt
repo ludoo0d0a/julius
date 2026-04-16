@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -447,8 +448,11 @@ private fun JsonTree(
                         }
                     }
                     is JsonArray -> {
-                        value.forEachIndexed { i, v ->
+                        value.take(50).forEachIndexed { i, v ->
                             collectNodes("$path/$i", i.toString(), v, depth + 1)
+                        }
+                        if (value.size > 50) {
+                            collectNodes("$path/__more__", null, JsonPrimitive("... and ${value.size - 50} more"), depth + 1)
                         }
                     }
                     else -> {}
@@ -511,6 +515,7 @@ private fun JsonNodeRow(
             )
         }
         is JsonPrimitive -> {
+            val isMore = node.path.endsWith("__more__")
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -529,15 +534,17 @@ private fun JsonNodeRow(
                     )
                 }
                 Text(
-                    text = if (value.isString) "\"${value.content}\"" else value.content,
+                    text = if (value.isString && !isMore) "\"${value.content}\"" else value.content,
                     color = when {
+                        isMore -> Color(0xFF94A3B8)
                         value.isString -> Color(0xFF2DD4BF)
                         value.content == "true" || value.content == "false" -> Color(0xFFF472B6)
                         value.content == "null" -> Color(0xFF94A3B8)
                         else -> Color(0xFFFB923C)
                     },
                     fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
+                    fontStyle = if (isMore) FontStyle.Italic else FontStyle.Normal
                 )
             }
         }
