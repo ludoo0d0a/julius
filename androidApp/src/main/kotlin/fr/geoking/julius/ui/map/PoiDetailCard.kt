@@ -185,16 +185,18 @@ fun PoiDetailCard(
                             }
                         }
                     }
-                    IconButton(
-                        onClick = onNavigate,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Directions,
-                            contentDescription = "Navigate",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
+                    if (isLoggedIn && onToggleFavorite != null) {
+                        IconButton(
+                            onClick = onToggleFavorite,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isFavorite) Icons.Default.Star else Icons.Outlined.StarBorder,
+                                contentDescription = if (isFavorite) "Saved" else "Save",
+                                tint = if (isFavorite) Color(0xFFEAB308) else Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
 
@@ -340,21 +342,14 @@ fun PoiDetailCard(
                 }
             }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+            Button(
+                onClick = onNavigate,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                if (isLoggedIn && onToggleFavorite != null) {
-                    IconButton(onClick = onToggleFavorite) {
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Default.Star else Icons.Outlined.StarBorder,
-                            contentDescription = if (isFavorite) "Saved" else "Save",
-                            tint = if (isFavorite) Color(0xFFEAB308) else Color.White.copy(alpha = 0.7f),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
+                Icon(Icons.Default.Directions, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Navigate", fontSize = 14.sp)
             }
         }
     }

@@ -915,6 +915,15 @@ fun MapScreen(
             onNavigate = {
                 NavigationHelper.navigateToPoi(context, poi)
             },
+            isFavorite = poi.id in favoriteIds,
+            onToggleFavorite = if (settings.isLoggedIn && favoritesRepo != null) {
+                {
+                    scope.launch {
+                        favoritesRepo.toggleFavorite(poi)
+                        favoriteIds = favoritesRepo.getFavorites().map { it.id }.toSet()
+                    }
+                }
+            } else null,
             onDismiss = { poiForDetailsDialog = null }
         )
     }

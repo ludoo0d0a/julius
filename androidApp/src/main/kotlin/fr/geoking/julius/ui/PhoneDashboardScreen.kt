@@ -620,6 +620,16 @@ fun PhoneDashboardScreen(
     poiForDetails?.let { poi ->
         PoiDetailsFullscreenDialog(
             poi = poi,
+            isLoggedIn = settings.isLoggedIn,
+            isFavorite = favorites.any { it.id == poi.id },
+            onToggleFavorite = if (settings.isLoggedIn && favoritesRepo != null) {
+                {
+                    scope.launch {
+                        favoritesRepo.toggleFavorite(poi)
+                        favorites = favoritesRepo.getFavorites()
+                    }
+                }
+            } else null,
             onNavigate = {
                 NavigationHelper.navigateToPoi(context, poi)
             },
