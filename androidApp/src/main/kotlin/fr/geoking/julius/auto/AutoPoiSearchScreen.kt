@@ -11,6 +11,7 @@ import androidx.car.app.model.SearchTemplate
 import androidx.car.app.model.Template
 import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.community.FavoritesRepository
 import fr.geoking.julius.api.belib.BorneAvailabilityProviderFactory
 import fr.geoking.julius.api.belib.StationAvailabilitySummary
 import fr.geoking.julius.api.belib.matchAvailabilityToPois
@@ -29,7 +30,8 @@ class AutoPoiSearchScreen(
     carContext: CarContext,
     private val poiProvider: PoiProvider,
     private val settingsManager: SettingsManager,
-    private val availabilityProviderFactory: BorneAvailabilityProviderFactory
+    private val availabilityProviderFactory: BorneAvailabilityProviderFactory,
+    private val favoritesRepo: FavoritesRepository? = null
 ) : Screen(carContext) {
 
     private var searchText = ""
@@ -38,6 +40,7 @@ class AutoPoiSearchScreen(
     private var searchLat: Double = 48.8566
     private var searchLon: Double = 2.3522
     private var availabilityByPoiId: Map<String, StationAvailabilitySummary> = emptyMap()
+    private var favoriteIds: Set<String> = emptySet()
 
     init {
         loadNearbyPois()
@@ -62,6 +65,7 @@ class AutoPoiSearchScreen(
                     PoiSearchRequest(searchLat, searchLon, null, emptySet(), skipFilters = true)
                 )
                 allPois = result.pois
+                favoriteIds = favoritesRepo?.getFavorites()?.map { it.id }?.toSet() ?: emptySet()
 
                 val provider = availabilityProviderFactory.getProvider(searchLat, searchLon)
                 if (provider != null) {
@@ -111,7 +115,17 @@ class AutoPoiSearchScreen(
                             carContext = carContext,
                             poi = poi,
                             availabilitySummary = availability,
-                            rating = null
+                            rating = null,
+                            isFavorite = poi.id in favoriteIds,
+                            onToggleFavorite = if (favoritesRepo != null) {
+                                {
+                                    lifecycleScope.launch {
+                                        favoritesRepo.toggleFavorite(poi)
+                                        favoriteIds = favoritesRepo.getFavorites().map { it.id }.toSet()
+                                        invalidate()
+                                    }
+                                }
+                            } else null
                         )
                     )
                 }

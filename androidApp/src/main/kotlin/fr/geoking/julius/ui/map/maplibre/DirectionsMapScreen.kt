@@ -75,13 +75,6 @@ fun DirectionsMapScreen(
         settingsManager = settingsManager,
         onBack = onBack,
         onRefresh = { /* Route is fixed, but could refresh POIs if needed */ },
-        onLocateMe = {
-            route?.points?.firstOrNull()?.let { point ->
-                mapLibreMap?.animateCamera(
-                    CameraUpdateFactory.newLatLngZoom(LatLng(point.first, point.second), 15.0)
-                )
-            }
-        },
         onShowSettings = onShowSettings,
         isLoading = false
     ) { padding ->

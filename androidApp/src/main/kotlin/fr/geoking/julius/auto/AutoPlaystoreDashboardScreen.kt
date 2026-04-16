@@ -48,7 +48,8 @@ class AutoPlaystoreDashboardScreen(
                                 carContext = carContext,
                                 poiProvider = mapDeps.poiProvider,
                                 settingsManager = settingsManager,
-                                availabilityProviderFactory = mapDeps.availabilityProviderFactory
+                                availabilityProviderFactory = mapDeps.availabilityProviderFactory,
+                                favoritesRepo = mapDeps.favoritesRepo
                             )
                         )
                     }
