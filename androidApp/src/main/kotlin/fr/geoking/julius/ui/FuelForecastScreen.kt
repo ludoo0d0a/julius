@@ -46,15 +46,16 @@ fun FuelForecastScreen(
     var states by remember { mutableStateOf<Map<String, FuelForecastUiState>>(emptyMap()) }
     var isLoading by remember { mutableStateOf(false) }
     var refreshTick by remember { mutableStateOf(0) }
+var brentRange by remember { mutableStateOf("1m") }
 
     val allFuelIds = setOf("gazole", "sp95", "sp98", "gplc", "e85")
 
-    LaunchedEffect(refreshTick) {
+    LaunchedEffect(refreshTick, brentRange) {
         isLoading = true
         try {
             val loc = withContext(Dispatchers.IO) { LocationHelper.getCurrentLocation(context) }
             if (loc != null) {
-                states = repository.refreshAndBuildMultiUiState(loc.latitude, loc.longitude, allFuelIds)
+                states = repository.refreshAndBuildMultiUiState(loc.latitude, loc.longitude, allFuelIds, brentRange)
             }
         } catch (e: Exception) {
             android.util.Log.e("FuelForecastScreen", "Failed to refresh forecasts", e)
@@ -103,7 +104,7 @@ fun FuelForecastScreen(
                         val brentState = states["brent"] ?: FuelForecastUiState(fuelId = "brent", locationKey = "")
                         FuelForecastChartCard(
                             state = brentState,
-                            isLoading = isLoading && states.isEmpty()
+                            isLoading = isLoading && states.isEmpty(), onRangeSelected = { brentRange = it }
                         )
                     }
 
