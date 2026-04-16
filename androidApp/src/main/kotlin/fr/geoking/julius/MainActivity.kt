@@ -839,6 +839,7 @@ fun MainUIPreview() {
                 object : JulesDao {
                     override suspend fun insertSessions(sessions: List<JulesSessionEntity>) {}
                     override suspend fun getSessionsBySource(sourceName: String): List<JulesSessionEntity> = emptyList()
+                    override suspend fun getSessionsBySourceAndKey(sourceName: String, apiKey: String): List<JulesSessionEntity> = emptyList()
                     override suspend fun getSession(sessionId: String): JulesSessionEntity? = null
                     override suspend fun archiveSession(sessionId: String) {}
                     override suspend fun updateSessionPrStatus(sessionId: String, state: String, mergeable: Boolean?) {}

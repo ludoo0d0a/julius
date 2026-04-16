@@ -13,8 +13,10 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material3.*
@@ -1069,8 +1071,8 @@ private fun MainMenu(
         SettingsItem(
             label = "Jules & GitHub",
             value = when {
-                settings.julesKey.isNotEmpty() && settings.githubApiKey.isNotEmpty() -> "••••••••"
-                settings.julesKey.isNotEmpty() -> "Jules only"
+                settings.julesKeys.isNotEmpty() && settings.githubApiKey.isNotEmpty() -> "${settings.julesKeys.size} keys + GitHub"
+                settings.julesKeys.isNotEmpty() -> "${settings.julesKeys.size} keys"
                 settings.githubApiKey.isNotEmpty() -> "GitHub only"
                 else -> "Not set"
             },
@@ -1935,11 +1937,64 @@ private fun JulesConfig(
             .padding(24.dp)
     ) {
         ApiKeyHelpLink(
-            helpText = "Jules suggests code changes from the Jules screen. In the web app, open Settings to create an API key.",
+            helpText = "Jules suggests code changes from the Jules screen. In the web app, open Settings to create an API key. You can add multiple keys to merge projects/conversations from different accounts.",
             url = "https://jules.google.com/",
             linkLabel = "Open Jules"
         )
-        ConfigTextField("Jules API Key", settings.julesKey) { onUpdate(settings.copy(julesKey = it)) }
+
+        Text(
+            "Jules API Keys",
+            color = Lavender,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        settings.julesKeys.forEachIndexed { index, key ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            ) {
+                OutlinedTextField(
+                    value = key,
+                    onValueChange = { newValue ->
+                        val newList = settings.julesKeys.toMutableList()
+                        newList[index] = newValue
+                        onUpdate(settings.copy(julesKeys = newList))
+                    },
+                    modifier = Modifier.weight(1f),
+                    textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 16.sp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Lavender,
+                        unfocusedBorderColor = SeparatorColor,
+                        focusedContainerColor = Color.Black.copy(alpha = 0.3f),
+                        unfocusedContainerColor = Color.Black.copy(alpha = 0.2f)
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    label = { Text("Key #${index + 1}", color = Lavender.copy(alpha = 0.5f)) }
+                )
+                IconButton(onClick = {
+                    val newList = settings.julesKeys.toMutableList()
+                    newList.removeAt(index)
+                    onUpdate(settings.copy(julesKeys = newList))
+                }) {
+                    Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color.Red)
+                }
+            }
+        }
+
+        Button(
+            onClick = {
+                onUpdate(settings.copy(julesKeys = settings.julesKeys + ""))
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = Lavender.copy(alpha = 0.1f), contentColor = Lavender),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Add API Key")
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
         ApiKeyHelpLink(
             helpText = "GitHub personal access token: used on the Jules screen to list pull requests, merge, close, and post comments (with an @jules prefix). Create a classic token with repo scope (or a fine-grained token with Contents, Pull requests, and Issues for your repositories).",
@@ -2344,7 +2399,8 @@ fun SettingsScreenPreview() {
                     fractalQuality = FractalQuality.Medium,
                     fractalColorIntensity = FractalColorIntensity.Medium,
                     extendedActionsEnabled = true,
-                    textAnimation = TextAnimation.Fade
+                    textAnimation = TextAnimation.Fade,
+                    julesKeys = listOf("key1", "key2")
                 )
             )
             override val settings: StateFlow<AppSettings> = mockSettings.asStateFlow()

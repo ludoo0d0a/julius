@@ -196,7 +196,7 @@ data class AppSettings(
     val groqModel: String = "llama-3.3-70b-versatile",
     val openRouterKey: String = "",
     val openRouterModel: String = "openrouter/auto",
-    val julesKey: String = "",
+    val julesKeys: List<String> = emptyList(),
     /** Personal access token for GitHub (merge/close PRs, comments from the Jules screen). */
     val githubApiKey: String = "",
     val selectedAgent: AgentType = DEFAULT_AGENT,
@@ -275,7 +275,18 @@ open class SettingsManager(
         val groqModel = prefs.getString("groq_model", "llama-3.3-70b-versatile") ?: "llama-3.3-70b-versatile"
         val openRouterKey = prefs.getString("openrouter_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.OPENROUTER_KEY
         val openRouterModel = prefs.getString("openrouter_model", "openrouter/auto") ?: "openrouter/auto"
-        val julesKey = prefs.getString("jules_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.JULES_KEY
+        val julesKeyLegacy = prefs.getString("jules_key", "")?.takeIf { it.isNotEmpty() }
+        val julesKeysJson = prefs.getString("jules_keys", null)
+        val julesKeys = when {
+            !julesKeysJson.isNullOrBlank() -> try {
+                Json.decodeFromString<List<String>>(julesKeysJson)
+            } catch (e: Exception) {
+                emptyList()
+            }
+            julesKeyLegacy != null -> listOf(julesKeyLegacy)
+            fr.geoking.julius.BuildConfig.JULES_KEY.isNotEmpty() -> listOf(fr.geoking.julius.BuildConfig.JULES_KEY)
+            else -> emptyList()
+        }
         val githubApiKey = prefs.getString("github_api_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.GITHUB_TOKEN
         val openChargeMapKey = prefs.getString("openchargemap_key", "")?.takeIf { it.isNotEmpty() }
             ?: fr.geoking.julius.BuildConfig.OPENCHARGEMAP_KEY
@@ -304,7 +315,7 @@ open class SettingsManager(
             completionsMeKey, completionsMeModel, apifreellmKey,
             deepSeekKey, deepSeekModel, groqKey, groqModel,
             openRouterKey, openRouterModel,
-            julesKey, githubApiKey,
+            julesKeys, githubApiKey,
             openChargeMapKey, ecoMovementUrl, ecoMovementToken
         )
 
@@ -480,7 +491,7 @@ open class SettingsManager(
             groqModel = groqModel,
             openRouterKey = openRouterKey,
             openRouterModel = openRouterModel,
-            julesKey = julesKey,
+            julesKeys = julesKeys,
             githubApiKey = githubApiKey,
             selectedAgent = run {
                 val rawAgent = prefs.getString("agent", null)
@@ -594,7 +605,7 @@ open class SettingsManager(
         groqModel: String,
         openRouterKey: String,
         openRouterModel: String,
-        julesKey: String,
+        julesKeys: List<String>,
         githubApiKey: String,
         openChargeMapKey: String = "",
         ecoMovementUrl: String = "",
@@ -619,7 +630,7 @@ open class SettingsManager(
         if (prefs.getString("groq_model", "")?.isEmpty() != false && groqModel.isNotEmpty()) edit.putString("groq_model", groqModel)
         if (prefs.getString("openrouter_key", "")?.isEmpty() != false && openRouterKey.isNotEmpty()) edit.putString("openrouter_key", openRouterKey)
         if (prefs.getString("openrouter_model", "")?.isEmpty() != false && openRouterModel.isNotEmpty()) edit.putString("openrouter_model", openRouterModel)
-        if (prefs.getString("jules_key", "")?.isEmpty() != false && julesKey.isNotEmpty()) edit.putString("jules_key", julesKey)
+        if (prefs.getString("jules_keys", "")?.isEmpty() != false && julesKeys.isNotEmpty()) edit.putString("jules_keys", Json.encodeToString(julesKeys))
         if (prefs.getString("github_api_key", "")?.isEmpty() != false && githubApiKey.isNotEmpty()) edit.putString("github_api_key", githubApiKey)
         if (prefs.getString("openchargemap_key", "")?.isEmpty() != false && openChargeMapKey.isNotEmpty()) edit.putString("openchargemap_key", openChargeMapKey)
         if (prefs.getString("eco_movement_url", "")?.isEmpty() != false && ecoMovementUrl.isNotEmpty()) edit.putString("eco_movement_url", ecoMovementUrl)
@@ -879,7 +890,8 @@ open class SettingsManager(
             .putString("groq_model", settings.groqModel)
             .putString("openrouter_key", settings.openRouterKey)
             .putString("openrouter_model", settings.openRouterModel)
-            .putString("jules_key", settings.julesKey)
+            .putString("jules_keys", Json.encodeToString(settings.julesKeys))
+            .remove("jules_key")
             .putString("github_api_key", settings.githubApiKey)
             .putString("agent", settings.selectedAgent.name)
             .putString("theme", settings.selectedTheme.name)
@@ -939,7 +951,7 @@ open class SettingsManager(
         groqModel: String = "llama-3.3-70b-versatile",
         openRouterKey: String = "",
         openRouterModel: String = "openrouter/auto",
-        julesKey: String = "",
+        julesKeys: List<String> = emptyList(),
         agent: AgentType,
         theme: AppTheme,
         model: PerplexityModel,
@@ -1001,7 +1013,7 @@ open class SettingsManager(
             groqModel = groqModel,
             openRouterKey = openRouterKey,
             openRouterModel = openRouterModel,
-            julesKey = julesKey.ifBlank { _settings.value.julesKey },
+            julesKeys = julesKeys,
             githubApiKey = _settings.value.githubApiKey,
             selectedAgent = agent,
             selectedTheme = theme,

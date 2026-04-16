@@ -94,9 +94,13 @@ import fr.geoking.julius.repository.JulesQuota
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.network.NetworkException
 import fr.geoking.julius.shared.voice.VoiceManager
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 
 private val JulesBg = Color(0xFF0F172A)
 private val JulesCardUser = Color(0xFF334155)
@@ -118,7 +122,7 @@ fun JulesScreen(
     val settings by settingsManager.settings.collectAsState()
     val networkStatus by julesRepository.getNetworkService().status.collectAsState()
     val isOnline = networkStatus.isConnected
-    val apiKey = settings.julesKey
+    val apiKeys = settings.julesKeys
     val githubToken = settings.githubApiKey
 
     var sources by remember { mutableStateOf<List<JulesClient.JulesSource>>(emptyList()) }
@@ -161,18 +165,34 @@ fun JulesScreen(
     fun clearError() { error = null }
 
     fun loadSources() {
-        if (apiKey.isBlank()) return
+        if (apiKeys.isEmpty()) return
         scope.launch {
             loading = true
             clearError()
             try {
-                val resp = julesClient.listSources(apiKey)
-                sources = resp.sources
+                val allSources = mutableMapOf<String, JulesClient.JulesSource>()
+                coroutineScope {
+                    apiKeys.map { key ->
+                        async {
+                            try {
+                                val resp = julesClient.listSources(key)
+                                synchronized(allSources) {
+                                    resp.sources.forEach { src ->
+                                        allSources[src.name] = src
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("JulesScreen", "Failed to load sources for key ${key.take(8)}...", e)
+                            }
+                        }
+                    }.awaitAll()
+                }
+                sources = allSources.values.toList()
                 sourcesLoaded = true
 
                 // Update display name if we already had an ID
                 selectedSourceName?.let { id ->
-                    val found = resp.sources.find { it.name == id }
+                    val found = sources.find { it.name == id }
                     if (found != null) {
                         selectedSourceDisplayName = found.githubRepo?.let { "${it.owner}/${it.repo}" } ?: found.name
                     }
@@ -191,13 +211,13 @@ fun JulesScreen(
 
     fun loadSessions(isRefresh: Boolean = false) {
         val sourceName = selectedSourceName ?: return
-        if (apiKey.isBlank()) return
+        if (apiKeys.isEmpty()) return
         scope.launch {
             if (isRefresh) refreshingSessions = true else loadingSessions = true
             clearError()
-            quota = julesRepository.getUsageQuota(apiKey)
+            quota = julesRepository.getUsageQuota(apiKeys)
             try {
-                julesRepository.getSessions(apiKey, sourceName, githubToken).collectLatest { list ->
+                julesRepository.getSessions(apiKeys, sourceName, githubToken).collectLatest { list ->
                     sessions = list
                     // If we are in a session, update currentSession object from the list to get refreshed PR state
                     currentSession?.let { curr ->
@@ -222,11 +242,11 @@ fun JulesScreen(
 
     suspend fun refreshActivitiesInternal(isRefresh: Boolean = false) {
         val session = currentSession ?: return
-        if (apiKey.isBlank()) return
+        if (apiKeys.isEmpty()) return
         if (isRefresh) refreshing = true else loading = true
         clearError()
         try {
-            julesRepository.getActivities(apiKey, session.id).collectLatest { list ->
+            julesRepository.getActivities(session.id).collectLatest { list ->
                 // Don't clear if list is already populated from cache to avoid flicker
                 if (chatItems.isEmpty() || isRefresh) {
                     chatItems.clear()
@@ -256,13 +276,13 @@ fun JulesScreen(
         scope.launch { refreshActivitiesInternal(isRefresh) }
     }
 
-    LaunchedEffect(apiKey) {
-        if (apiKey.isNotBlank()) loadSources()
+    LaunchedEffect(apiKeys) {
+        if (apiKeys.isNotEmpty()) loadSources()
         else sourcesLoaded = true
     }
 
     LaunchedEffect(selectedSourceName) {
-        if (selectedSourceName != null && apiKey.isNotBlank()) {
+        if (selectedSourceName != null && apiKeys.isNotEmpty()) {
             loadSessions()
             // Persist selection
             val source = sources.find { it.name == selectedSourceName }
@@ -277,13 +297,13 @@ fun JulesScreen(
     }
 
     // Polling logic for PR status/creation while on Jules screen
-    LaunchedEffect(apiKey, githubToken, selectedSourceName, currentSession?.id) {
-        if (apiKey.isBlank() || selectedSourceName == null) return@LaunchedEffect
+    LaunchedEffect(apiKeys, githubToken, selectedSourceName, currentSession?.id) {
+        if (apiKeys.isEmpty() || selectedSourceName == null) return@LaunchedEffect
         while (true) {
             delay(30_000)
             val sessionToPoll = currentSession
             if (sessionToPoll != null) {
-                julesRepository.pollSessionStatus(apiKey, sessionToPoll.id, githubToken)
+                julesRepository.pollSessionStatus(sessionToPoll.id, githubToken)
                 // loadSessions will refresh the list and update currentSession in its collectLatest block
                 loadSessions()
             } else {
@@ -291,7 +311,7 @@ fun JulesScreen(
                 val inProgress = sessions.filter { it.prState == null && it.prUrl == null }
                 if (inProgress.isNotEmpty()) {
                     for (s in inProgress) {
-                        julesRepository.pollSessionStatus(apiKey, s.id, githubToken)
+                        julesRepository.pollSessionStatus(s.id, githubToken)
                     }
                     loadSessions()
                 } else {
@@ -370,9 +390,23 @@ fun JulesScreen(
                         scope.launch {
                             loading = true
                             try {
-                                val resp = julesClient.listActivities(apiKey, currentSession!!.id)
-                                rawActivities = resp.activities
-                                showActivitiesSheet = true
+                                val json = Json { ignoreUnknownKeys = true }
+                                val cached = julesRepository.getActivitiesBySession(currentSession!!.id)
+                                val activities = cached.mapNotNull {
+                                    it.activityJson?.let { aj -> json.decodeFromString(JulesClient.JulesActivity.serializer(), aj) }
+                                }
+
+                                if (activities.isNotEmpty()) {
+                                    rawActivities = activities
+                                    showActivitiesSheet = true
+                                } else {
+                                    val key = currentSession!!.apiKey ?: apiKeys.firstOrNull()
+                                    if (key != null) {
+                                        val resp = julesClient.listActivities(key, currentSession!!.id)
+                                        rawActivities = resp.activities
+                                        showActivitiesSheet = true
+                                    }
+                                }
                             } catch (e: Exception) {
                                 error = "Could not load activities: ${e.message}"
                             }
@@ -385,7 +419,7 @@ fun JulesScreen(
             }
 
             // Repository link row
-            if (apiKey.isNotBlank() && currentSession == null) {
+            if (apiKeys.isNotEmpty() && currentSession == null) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -414,7 +448,7 @@ fun JulesScreen(
             }
 
             when {
-                apiKey.isBlank() -> {
+                apiKeys.isEmpty() -> {
                     ErrorCard(
                         title = "Jules API key not set",
                         message = "Go to Settings → Jules API Key and add your key from jules.google.com Settings."
@@ -448,7 +482,7 @@ fun JulesScreen(
                                             (it as JulesChatItem.AgentMessage).id
                                         }
 
-                                        julesRepository.sendMessage(apiKey, currentSession!!.id, prompt)
+                                        julesRepository.sendMessage(currentSession!!.id, prompt)
 
                                         if (isOnline && !currentSession!!.id.startsWith("offline_")) {
                                             // Poll for response
@@ -488,7 +522,7 @@ fun JulesScreen(
                                 scope.launch {
                                     loading = true
                                     try {
-                                        julesRepository.sendMessage(apiKey, currentSession!!.id, "@jules resolve the conflicts in this PR")
+                                        julesRepository.sendMessage(currentSession!!.id, "@jules resolve the conflicts in this PR")
                                         currentSession?.let { refreshActivities() }
                                     } catch (e: Exception) {
                                         error = "Auto solve failed: ${e.message}"
@@ -511,7 +545,7 @@ fun JulesScreen(
                         )
                     } else {
                         RepoAndSessionsContent(
-                            apiKey = apiKey,
+                            apiKeys = apiKeys,
                             isOnline = isOnline,
                             sessions = sessions,
                             selectedSourceName = selectedSourceName,
@@ -527,7 +561,7 @@ fun JulesScreen(
                                     clearError()
                                     try {
                                         val sessionId = julesRepository.createSession(
-                                            apiKey = apiKey,
+                                            apiKeys = apiKeys,
                                             prompt = newSessionPrompt,
                                             source = source,
                                             title = newSessionPrompt.take(80)
@@ -594,7 +628,7 @@ fun JulesScreen(
                             onArchive = { session ->
                                 scope.launch {
                                     loading = true
-                                    julesRepository.archiveSession(apiKey, session.id)
+                                    julesRepository.archiveSession(session.id)
                                     loadSessions()
                                     loading = false
                                 }
@@ -1578,7 +1612,7 @@ private fun InConversationContent(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RepoAndSessionsContent(
-    apiKey: String,
+    apiKeys: List<String>,
     isOnline: Boolean,
     sessions: List<JulesSessionEntity>,
     selectedSourceName: String?,

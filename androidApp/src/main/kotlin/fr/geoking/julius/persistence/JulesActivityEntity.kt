@@ -15,5 +15,6 @@ data class JulesActivityEntity(
     @ColumnInfo(defaultValue = "0")
     val isPendingOffline: Boolean = false,
     val type: String? = null,
-    val artifactsJson: String? = null
+    val artifactsJson: String? = null,
+    val activityJson: String? = null
 )

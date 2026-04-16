@@ -36,12 +36,12 @@ class AutoJulesSessionScreen(
 
     private fun loadSessions() {
         val settings = settingsManager.settings.value
-        val apiKey = settings.julesKey
+        val apiKeys = settings.julesKeys
         val githubToken = settings.githubApiKey
 
         lifecycleScope.launch {
             try {
-                julesRepository.getSessions(apiKey, sourceId, githubToken).collectLatest { list ->
+                julesRepository.getSessions(apiKeys, sourceId, githubToken).collectLatest { list ->
                     sessions = list
                     loading = false
                     invalidate()

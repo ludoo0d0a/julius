@@ -5,6 +5,8 @@ import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.*
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.repository.JulesRepository
@@ -31,8 +33,8 @@ class AutoJulesSourceScreen(
     }
 
     private fun loadSources() {
-        val apiKey = settingsManager.settings.value.julesKey
-        if (apiKey.isBlank()) {
+        val apiKeys = settingsManager.settings.value.julesKeys
+        if (apiKeys.isEmpty()) {
             error = "Jules API key is missing. Set it on your phone."
             loading = false
             invalidate()
@@ -41,8 +43,24 @@ class AutoJulesSourceScreen(
 
         lifecycleScope.launch {
             try {
-                val resp = julesClient.listSources(apiKey)
-                sources = resp.sources
+                val allSources = mutableMapOf<String, JulesClient.JulesSource>()
+                kotlinx.coroutines.coroutineScope {
+                    apiKeys.map { key ->
+                        async {
+                            try {
+                                val resp = julesClient.listSources(key)
+                                synchronized(allSources) {
+                                    resp.sources.forEach { src ->
+                                        allSources[src.name] = src
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to load sources for key ${key.take(8)}...", e)
+                            }
+                        }
+                    }.awaitAll()
+                }
+                sources = allSources.values.toList()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load sources", e)
                 error = e.message ?: "Failed to load repositories"

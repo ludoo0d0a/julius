@@ -20,6 +20,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.awaitAll
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.time.OffsetDateTime
 import java.time.Instant
 
@@ -33,7 +35,7 @@ class JulesRepository(
 ) {
     private val syncSemaphore = kotlinx.coroutines.sync.Semaphore(3)
 
-    fun getSessions(apiKey: String, sourceName: String, githubToken: String): Flow<List<JulesSessionEntity>> = flow {
+    fun getSessions(apiKeys: List<String>, sourceName: String, githubToken: String): Flow<List<JulesSessionEntity>> = flow {
         // 1. Emit from cache
         try {
             val cached = julesDao.getSessionsBySource(sourceName)
@@ -42,49 +44,66 @@ class JulesRepository(
             emit(emptyList())
         }
 
-        // 2. Fetch from network
-        try {
-            val resp = julesClient.listSessions(apiKey, pageSize = 50)
-            val sessions = resp.sessions.orEmpty().filter { it.sourceContext?.source == sourceName }
+        // 2. Fetch from network for all API keys
+        var anySuccess = false
 
-            val entities = mutableListOf<JulesSessionEntity>()
-            for (session in sessions) {
-                val sessionId = session.id.takeIf { it.isNotBlank() } ?: session.name
-                if (sessionId.isBlank()) continue
+        coroutineScope {
+            apiKeys.map { key ->
+                async {
+                    try {
+                        val resp = julesClient.listSessions(key, pageSize = 50)
+                        val sessions = resp.sessions.orEmpty().filter { it.sourceContext?.source == sourceName }
+                        anySuccess = true
 
-                val pr = session.outputs?.firstOrNull()?.pullRequest
-                val existing = try { julesDao.getSession(sessionId) } catch (e: Exception) { null }
+                        val currentEntities = mutableListOf<JulesSessionEntity>()
+                        for (session in sessions) {
+                            val sessionId = session.id.takeIf { it.isNotBlank() } ?: session.name
+                            if (sessionId.isBlank()) continue
 
-                // Only update lastUpdated if PR URL changed or it's a new session
-                val newLastUpdated = if (existing == null || (pr?.url != null && existing.prUrl != pr.url)) {
-                    System.currentTimeMillis()
-                } else {
-                    existing.lastUpdated
+                            val pr = session.outputs?.firstOrNull()?.pullRequest
+                            val existing = try { julesDao.getSession(sessionId) } catch (e: Exception) { null }
+
+                            val newLastUpdated = if (existing == null || (pr?.url != null && existing.prUrl != pr.url)) {
+                                System.currentTimeMillis()
+                            } else {
+                                existing.lastUpdated
+                            }
+
+                            currentEntities.add(JulesSessionEntity(
+                                id = sessionId,
+                                title = session.title,
+                                prompt = session.prompt,
+                                sourceName = sourceName,
+                                prUrl = pr?.url,
+                                prTitle = pr?.title,
+                                prState = existing?.prState,
+                                prMergeable = existing?.prMergeable,
+                                sessionState = session.state,
+                                isArchived = existing?.isArchived ?: false,
+                                lastUpdated = newLastUpdated,
+                                apiKey = key
+                            ))
+                        }
+
+                        // Clean up deleted sessions for THIS key only
+                        val localSessionsForKey = julesDao.getSessionsBySourceAndKey(sourceName, key)
+                        val currentIds = currentEntities.map { it.id }.toSet()
+                        val toDelete = localSessionsForKey.filter { !currentIds.contains(it.id) && !it.isPendingOffline }
+
+                        toDelete.forEach { julesDao.deleteSession(it.id) }
+                        if (currentEntities.isNotEmpty()) {
+                            julesDao.insertSessions(currentEntities)
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("JulesRepository", "Failed to fetch sessions for key ${key.take(8)}...", e)
+                    }
                 }
+            }.awaitAll()
+        }
 
-                entities.add(JulesSessionEntity(
-                    id = sessionId,
-                    title = session.title,
-                    prompt = session.prompt,
-                    sourceName = sourceName,
-                    prUrl = pr?.url,
-                    prTitle = pr?.title,
-                    prState = existing?.prState,
-                    prMergeable = existing?.prMergeable,
-                    sessionState = session.state,
-                    isArchived = existing?.isArchived ?: false,
-                    lastUpdated = newLastUpdated
-                ))
-            }
-
-            try {
-                julesDao.insertSessions(entities)
-            } catch (e: Exception) {
-                // Continue even if DB insert fails
-            }
-
-            // Always emit what we fetched from network
-            emit(entities.sortedByDescending { it.lastUpdated })
+        if (anySuccess) {
+            val entities = try { julesDao.getSessionsBySource(sourceName) } catch (e: Exception) { emptyList() }
+            emit(entities)
 
             // Update PR statuses in parallel
             coroutineScope {
@@ -98,8 +117,6 @@ class JulesRepository(
             } catch (e: Exception) {
                 // Ignore
             }
-        } catch (e: Exception) {
-            // Ignore network errors for caching strategy
         }
     }
 
@@ -129,10 +146,12 @@ class JulesRepository(
         }
     }
 
-    suspend fun archiveSession(apiKey: String, sessionId: String) {
+    suspend fun archiveSession(sessionId: String) {
         try {
-            if (apiKey.isNotBlank()) {
-                julesClient.deleteSession(apiKey, sessionId)
+            val existing = julesDao.getSession(sessionId)
+            val key = existing?.apiKey ?: settingsManager.settings.value.julesKeys.firstOrNull()
+            if (key != null && !sessionId.startsWith("offline_")) {
+                julesClient.deleteSession(key, sessionId)
             }
             julesDao.archiveSession(sessionId)
         } catch (e: Exception) {
@@ -148,30 +167,47 @@ class JulesRepository(
         }
     }
 
-    suspend fun createSession(apiKey: String, prompt: String, source: String, title: String): String {
+    suspend fun createSession(apiKeys: List<String>, prompt: String, source: String, title: String): String {
         val isOnline = networkService.status.value.isConnected
-        if (isOnline) {
-            val session = julesClient.createSession(
-                apiKey = apiKey,
-                prompt = prompt,
-                source = source,
-                title = title
-            )
-            val entity = JulesSessionEntity(
-                id = session.id,
-                title = session.title,
-                prompt = session.prompt,
-                sourceName = source,
-                prUrl = session.outputs?.firstOrNull()?.pullRequest?.url,
-                prTitle = session.outputs?.firstOrNull()?.pullRequest?.title,
-                prState = null,
-                prMergeable = null,
-                sessionState = session.state,
-                isArchived = false,
-                lastUpdated = System.currentTimeMillis()
-            )
-            julesDao.insertSessions(listOf(entity))
-            return session.id
+        if (isOnline && apiKeys.isNotEmpty()) {
+            var lastError: Exception? = null
+            for (key in apiKeys) {
+                try {
+                    val session = julesClient.createSession(
+                        apiKey = key,
+                        prompt = prompt,
+                        source = source,
+                        title = title
+                    )
+                    val entity = JulesSessionEntity(
+                        id = session.id,
+                        title = session.title,
+                        prompt = session.prompt,
+                        sourceName = source,
+                        prUrl = session.outputs?.firstOrNull()?.pullRequest?.url,
+                        prTitle = session.outputs?.firstOrNull()?.pullRequest?.title,
+                        prState = null,
+                        prMergeable = null,
+                        sessionState = session.state,
+                        isArchived = false,
+                        lastUpdated = System.currentTimeMillis(),
+                        apiKey = key
+                    )
+                    julesDao.insertSessions(listOf(entity))
+                    return session.id
+                } catch (e: fr.geoking.julius.shared.network.NetworkException) {
+                    lastError = e
+                    if (e.httpCode == 429 || e.httpCode == 401) {
+                        continue // Try next key
+                    } else {
+                        throw e // Other network errors should be reported
+                    }
+                } catch (e: Exception) {
+                    lastError = e
+                    continue
+                }
+            }
+            throw lastError ?: Exception("Failed to create session with any API key")
         } else {
             val tempId = "offline_${java.util.UUID.randomUUID()}"
             val entity = JulesSessionEntity(
@@ -195,10 +231,14 @@ class JulesRepository(
         }
     }
 
-    suspend fun sendMessage(apiKey: String, sessionId: String, prompt: String) {
+    suspend fun sendMessage(sessionId: String, prompt: String) {
         val isOnline = networkService.status.value.isConnected
         if (isOnline && !sessionId.startsWith("offline_")) {
-            julesClient.sendMessage(apiKey, sessionId, prompt)
+            val existing = julesDao.getSession(sessionId)
+            val key = existing?.apiKey ?: settingsManager.settings.value.julesKeys.firstOrNull()
+                ?: throw Exception("No API key available")
+
+            julesClient.sendMessage(key, sessionId, prompt)
             julesDao.updateSessionLastUpdated(sessionId, System.currentTimeMillis())
         } else {
             val activityId = "offline_act_${java.util.UUID.randomUUID()}"
@@ -233,8 +273,8 @@ class JulesRepository(
     }
 
     suspend fun syncOfflineData() = coroutineScope {
-        val apiKey = settingsManager.settings.value.julesKey
-        if (apiKey.isBlank()) return@coroutineScope
+        val apiKeys = settingsManager.settings.value.julesKeys
+        if (apiKeys.isEmpty()) return@coroutineScope
 
         // 1. Sync pending sessions
         val pendingSessions = julesDao.getPendingOfflineSessions()
@@ -242,34 +282,53 @@ class JulesRepository(
             async {
                 syncSemaphore.withPermit {
                     try {
-                        val newSession = julesClient.createSession(
-                            apiKey = apiKey,
-                            prompt = session.prompt,
-                            source = session.sourceName,
-                            title = session.title
-                        )
-                        // Update local session ID and all associated activities
-                        val updatedEntity = JulesSessionEntity(
-                            id = newSession.id,
-                            title = newSession.title,
-                            prompt = newSession.prompt,
-                            sourceName = session.sourceName,
-                            prUrl = newSession.outputs?.firstOrNull()?.pullRequest?.url,
-                            prTitle = newSession.outputs?.firstOrNull()?.pullRequest?.title,
-                            prState = null,
-                            prMergeable = null,
-                            sessionState = newSession.state,
-                            isArchived = false,
-                            lastUpdated = System.currentTimeMillis(),
-                            isPendingOffline = false,
-                            queuedAt = null
-                        )
-                        julesDao.insertSessions(listOf(updatedEntity))
-                        julesDao.updateActivitiesSessionId(session.id, newSession.id)
-                        julesDao.deleteSession(session.id)
+                        var promoted = false
+                        var lastError: Exception? = null
+                        for (key in apiKeys) {
+                            try {
+                                val newSession = julesClient.createSession(
+                                    apiKey = key,
+                                    prompt = session.prompt,
+                                    source = session.sourceName,
+                                    title = session.title
+                                )
+                                // Update local session ID and all associated activities
+                                val updatedEntity = JulesSessionEntity(
+                                    id = newSession.id,
+                                    title = newSession.title,
+                                    prompt = newSession.prompt,
+                                    sourceName = session.sourceName,
+                                    prUrl = newSession.outputs?.firstOrNull()?.pullRequest?.url,
+                                    prTitle = newSession.outputs?.firstOrNull()?.pullRequest?.title,
+                                    prState = null,
+                                    prMergeable = null,
+                                    sessionState = newSession.state,
+                                    isArchived = false,
+                                    lastUpdated = System.currentTimeMillis(),
+                                    isPendingOffline = false,
+                                    queuedAt = null,
+                                    apiKey = key
+                                )
+                                julesDao.insertSessions(listOf(updatedEntity))
+                                julesDao.updateActivitiesSessionId(session.id, newSession.id)
+                                julesDao.deleteSession(session.id)
 
-                        // After promotion, sync any activities that were attached to this session
-                        syncPendingActivities(apiKey, newSession.id)
+                                // After promotion, sync any activities that were attached to this session
+                                syncPendingActivities(key, newSession.id)
+                                promoted = true
+                                break
+                            } catch (e: Exception) {
+                                lastError = e
+                                if (e is fr.geoking.julius.shared.network.NetworkException && e.httpCode == 429) {
+                                    continue
+                                } else {
+                                    break
+                                }
+                            }
+                        }
+                        if (!promoted) {
+                            android.util.Log.e("JulesRepository", "Failed to sync offline session ${session.id}", lastError)
+                        }
                     } catch (e: Exception) {
                         android.util.Log.e("JulesRepository", "Failed to sync offline session ${session.id}", e)
                     }
@@ -285,7 +344,11 @@ class JulesRepository(
         for (sessionId in sessionIds) {
             async {
                 syncSemaphore.withPermit {
-                    syncPendingActivities(apiKey, sessionId)
+                    val existing = julesDao.getSession(sessionId)
+                    val key = existing?.apiKey ?: apiKeys.firstOrNull()
+                    if (key != null) {
+                        syncPendingActivities(key, sessionId)
+                    }
                 }
             }
         }
@@ -310,12 +373,16 @@ class JulesRepository(
      * Polls the status of a specific session and its associated PR.
      * Refreshes PR details from GitHub and session details (for new PR URLs) from Jules.
      */
-    suspend fun pollSessionStatus(apiKey: String, sessionId: String, githubToken: String) {
+    suspend fun pollSessionStatus(sessionId: String, githubToken: String) {
         try {
+            var existing = julesDao.getSession(sessionId)
+            val apiKey = existing?.apiKey ?: settingsManager.settings.value.julesKeys.firstOrNull()
+                ?: return
+
             // 1. Refresh session from Jules to see if a PR was just created or if sessionState changed
             val session = julesClient.getSession(apiKey, sessionId)
             val pr = session.outputs?.firstOrNull()?.pullRequest
-            val existing = julesDao.getSession(sessionId)
+            existing = julesDao.getSession(sessionId)
 
             if (existing != null) {
                 val statusChanged = existing.sessionState != session.state
@@ -348,7 +415,11 @@ class JulesRepository(
         }
     }
 
-    fun getActivities(apiKey: String, sessionId: String): Flow<List<JulesChatItem>> = flow {
+    fun getActivities(sessionId: String): Flow<List<JulesChatItem>> = flow {
+        val existingSession = try { julesDao.getSession(sessionId) } catch (e: Exception) { null }
+        val apiKey = existingSession?.apiKey ?: settingsManager.settings.value.julesKeys.firstOrNull()
+        val json = Json { ignoreUnknownKeys = true }
+
         // 1. Emit from cache
         try {
             val cached = julesDao.getActivitiesBySession(sessionId)
@@ -401,6 +472,7 @@ class JulesRepository(
         }
 
         // 2. Fetch from network
+        if (apiKey != null) {
         try {
             val resp = julesClient.listActivities(apiKey, sessionId, pageSize = 50)
             val items = julesClient.activitiesToChatItems(resp.activities)
@@ -425,7 +497,8 @@ class JulesRepository(
                     text = text,
                     timestamp = ts,
                     sortTimestamp = sortTs,
-                    type = type
+                    type = type,
+                    activityJson = json.encodeToString(a)
                 ))
             }
 
@@ -439,6 +512,7 @@ class JulesRepository(
             emit(items)
         } catch (e: Exception) {
             // Ignore network/processing error
+        }
         }
     }
 
@@ -570,9 +644,13 @@ class JulesRepository(
         return julesDao.getSession(sessionId)
     }
 
+    suspend fun getActivitiesBySession(sessionId: String): List<JulesActivityEntity> {
+        return julesDao.getActivitiesBySession(sessionId)
+    }
+
     /** Daily session quota for the Jules UI. Null when the API does not expose usage. */
-    suspend fun getUsageQuota(apiKey: String): JulesQuota? {
-        if (apiKey.isBlank()) return null
+    suspend fun getUsageQuota(apiKeys: List<String>): JulesQuota? {
+        if (apiKeys.isEmpty()) return null
         // Jules public API has no documented quota endpoint; UI hides the quota row when null.
         return null
     }
