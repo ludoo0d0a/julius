@@ -147,7 +147,7 @@ class FueloProvider(
                 fuelPrices = parsed.prices.ifEmpty { null },
                 source = "Fuelo.net ($countryCode)"
             ))
-            // Minimal rate limit as per Pumperly logic
+            // Minimal rate limit as per Gaston logic
             delay(100)
         }
 
