@@ -34,7 +34,7 @@ These providers cover multiple regions or provide fallback data when specific lo
 | **OpenChargeMap** | JSON | API Key | Community | Global | No | Real-time (Community) |
 | **Eco-Movement** | JSON (OCPI) | API Key | Private | Global | **Yes** | Real-time |
 | **Routex** | JSON | Free | Multinational | Europe | No | Daily |
-| **Fuelo.net** | HTML (Scraped) | Free | Private | Balkans / Central Europe | No | Daily |
+| **Fuelo.net** | HTML (Scraped) | Free | Private | Europe / Turkey | No | Daily |
 | **DrivstoffAppen** | JSON | Free | Private | Nordics | No | ~1 hour cache |
 | **Ionity / Fastned** | JSON (OCPI) | Free | Private | Europe | **Yes** | Real-time |
 
