@@ -9,6 +9,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -38,6 +39,7 @@ import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.poi.*
+import fr.geoking.julius.poi.PoiProviderError
 import fr.geoking.julius.poi.MapPoiFilter
 import fr.geoking.julius.feature.location.LocationHelper
 import fr.geoking.julius.shared.conversation.ConversationStore
@@ -138,7 +140,8 @@ fun VectorMapScreen(
     var trafficInfo by remember { mutableStateOf<TrafficInfo?>(null) }
     var availabilityByPoiId by remember { mutableStateOf<Map<String, StationAvailabilitySummary>>(emptyMap()) }
     var isLoading by remember { mutableStateOf(false) }
-    var mapErrorMessage by remember(selectedProviders) { mutableStateOf<String?>(null) }
+    var mapErrors by remember(selectedProviders) { mutableStateOf<List<PoiProviderError>>(emptyList()) }
+    var isErrorIgnored by remember(selectedProviders) { mutableStateOf(false) }
     var isErrorPaused by remember(selectedProviders) { mutableStateOf(false) }
     var showErrorDetailsDialog by remember { mutableStateOf(false) }
     var retryCount by remember { mutableStateOf(0) }
@@ -223,7 +226,8 @@ fun VectorMapScreen(
             poiSeenAtMs.clear()
             availabilityByPoiId = emptyMap()
             trafficInfo = null
-            mapErrorMessage = null
+            mapErrors = emptyList()
+            isErrorIgnored = false
             isErrorPaused = false
             lastCacheKey = currentCacheKey
         }
@@ -298,19 +302,15 @@ fun VectorMapScreen(
                         }
 
                         if (result.errors.isNotEmpty()) {
-                            val msg = if (result.errors.size == 1) {
-                                result.errors.first().let { "${it.providerName}: ${it.message}" }
-                            } else {
-                                "Multiple errors: " + result.errors.joinToString { it.providerName }
-                            }
-                            mapErrorMessage = msg
+                            mapErrors = (mapErrors + result.errors).distinctBy { it.providerName + it.message }
                             result.errors.forEach { err ->
                                 store.recordError(err.httpCode, "VectorMap ($selectedProviders) [${err.providerName}]: ${err.message}")
                             }
                         }
                     }
                 } catch (e: Exception) {
-                    mapErrorMessage = e.message
+                    val msg = e.message?.takeIf { it.isNotBlank() } ?: e.toString()
+                    mapErrors = (mapErrors + PoiProviderError("VectorMap", msg)).distinctBy { it.providerName + it.message }
                 } finally {
                     isLoading = false
                 }
@@ -389,24 +389,7 @@ fun VectorMapScreen(
         onRefresh = {
             retryCount++
         },
-        onLocateMe = {
-            if (hasLocationPermission) {
-                scope.launch {
-                    val loc = LocationHelper.getCurrentLocation(context)
-                    if (loc != null) {
-                        mapLibreMap?.animateCamera(
-                            CameraUpdateFactory.newLatLng(
-                                LatLng(loc.latitude, loc.longitude)
-                            )
-                        )
-                    }
-                }
-            } else {
-                launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-            }
-        },
         onShowSettings = onShowSettings,
-        onPlanRoute = onPlanRoute,
         showFavoritesOnly = showFavoritesOnly,
         onShowFavoritesOnlyChange = { showFavoritesOnly = it },
         favoritesFilterEnabled = settings.isLoggedIn && favoritesRepo != null,
@@ -418,10 +401,15 @@ fun VectorMapScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            mapErrorMessage?.let { msg ->
+            if (mapErrors.isNotEmpty() && !isErrorIgnored) {
                 val configuration = LocalConfiguration.current
                 val maxHeight = configuration.screenHeightDp.dp * 0.15f
                 val clipboard = androidx.compose.ui.platform.LocalClipboard.current
+                val errorSummary = if (mapErrors.size == 1) {
+                    mapErrors.first().let { "${it.providerName}: ${it.message}" }
+                } else {
+                    "Multiple sources failed to load"
+                }
 
                 Surface(
                     modifier = Modifier
@@ -438,10 +426,12 @@ fun VectorMapScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = msg,
+                            text = errorSummary,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             fontSize = 14.sp,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { showErrorDetailsDialog = true },
                             maxLines = 3,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
@@ -461,7 +451,8 @@ fun VectorMapScreen(
                             TextButton(
                                 onClick = {
                                     scope.launch {
-                                        clipboard.setClipEntry(ClipEntry(android.content.ClipData.newPlainText("error", msg)))
+                                        val fullMsg = mapErrors.joinToString("\n") { "${it.providerName}: ${it.message}" }
+                                        clipboard.setClipEntry(ClipEntry(android.content.ClipData.newPlainText("error", fullMsg)))
                                     }
                                 },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
@@ -471,7 +462,7 @@ fun VectorMapScreen(
                             }
                             TextButton(
                                 onClick = {
-                                    mapErrorMessage = null
+                                    isErrorIgnored = true
                                 },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                                 modifier = Modifier.height(32.dp)
@@ -480,7 +471,8 @@ fun VectorMapScreen(
                             }
                             Button(
                                 onClick = {
-                                    mapErrorMessage = null
+                                    mapErrors = emptyList()
+                                    isErrorIgnored = false
                                     isErrorPaused = false
                                     retryCount++
                                 },
@@ -503,10 +495,26 @@ fun VectorMapScreen(
                     onDismissRequest = { showErrorDetailsDialog = false },
                     title = { Text("Error Details") },
                     text = {
-                        Text(
-                            text = mapErrorMessage ?: "",
-                            modifier = Modifier.verticalScroll(rememberScrollState())
-                        )
+                        Column(
+                            modifier = Modifier
+                                .verticalScroll(rememberScrollState())
+                                .padding(vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            mapErrors.forEach { error ->
+                                Column {
+                                    Text(
+                                        text = error.providerName,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                    Text(
+                                        text = error.message,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
+                            }
+                        }
                     },
                     confirmButton = {
                         TextButton(onClick = { showErrorDetailsDialog = false }) {
@@ -611,7 +619,6 @@ fun VectorMapScreen(
             }
             }
         }
-    }
 
     LaunchedEffect(selectedPoi?.id, scrollRequestPoiId) {
         val poi = selectedPoi ?: return@LaunchedEffect
@@ -769,6 +776,15 @@ fun VectorMapScreen(
             onNavigate = {
                 NavigationHelper.navigateToPoi(context, poi)
             },
+            isFavorite = poi.id in favoriteIds,
+            onToggleFavorite = if (settings.isLoggedIn && favoritesRepo != null) {
+                {
+                    scope.launch {
+                        favoritesRepo.toggleFavorite(poi)
+                        favoriteIds = favoritesRepo.getFavorites().map { it.id }.toSet()
+                    }
+                }
+            } else null,
             onDismiss = { poiForDetailsDialog = null }
         )
     }

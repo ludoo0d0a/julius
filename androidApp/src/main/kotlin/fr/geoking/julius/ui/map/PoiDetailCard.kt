@@ -115,18 +115,22 @@ fun PoiDetailCard(
                         )
                         if (isMergedPoi) {
                             Row(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(vertical = 4.dp)
                             ) {
-                                AssistChip(
-                                    onClick = {},
-                                    label = { Text("Merged POI", fontSize = 11.sp) },
-                                    colors = AssistChipDefaults.assistChipColors(
-                                        containerColor = Color(0xFF0F172A),
-                                        labelColor = Color.White
-                                    ),
-                                    interactionSource = remember { MutableInteractionSource() }
-                                )
+                                Surface(
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    shape = MaterialTheme.shapes.extraSmall,
+                                ) {
+                                    Text(
+                                        text = "MERGED",
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
                                 Text(
                                     text = sources.joinToString(" + "),
                                     color = Color.White.copy(alpha = 0.7f),
@@ -181,16 +185,18 @@ fun PoiDetailCard(
                             }
                         }
                     }
-                    IconButton(
-                        onClick = onNavigate,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Directions,
-                            contentDescription = "Navigate",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
+                    if (isLoggedIn && onToggleFavorite != null) {
+                        IconButton(
+                            onClick = onToggleFavorite,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isFavorite) Icons.Default.Star else Icons.Outlined.StarBorder,
+                                contentDescription = if (isFavorite) "Saved" else "Save",
+                                tint = if (isFavorite) Color(0xFFEAB308) else Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
 
@@ -336,21 +342,14 @@ fun PoiDetailCard(
                 }
             }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+            Button(
+                onClick = onNavigate,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                if (isLoggedIn && onToggleFavorite != null) {
-                    IconButton(onClick = onToggleFavorite) {
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Default.Star else Icons.Outlined.StarBorder,
-                            contentDescription = if (isFavorite) "Saved" else "Save",
-                            tint = if (isFavorite) Color(0xFFEAB308) else Color.White.copy(alpha = 0.7f),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
+                Icon(Icons.Default.Directions, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Navigate", fontSize = 14.sp)
             }
         }
     }

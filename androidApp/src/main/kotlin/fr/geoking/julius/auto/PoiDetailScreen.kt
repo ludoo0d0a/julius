@@ -22,8 +22,12 @@ class PoiDetailScreen(
     carContext: CarContext,
     private val poi: Poi,
     private val availabilitySummary: StationAvailabilitySummary? = null,
-    private val rating: Int? = null
+    private val rating: Int? = null,
+    isFavorite: Boolean = false,
+    private val onToggleFavorite: (() -> Unit)? = null
 ) : Screen(carContext) {
+
+    private var isFavorite: Boolean = isFavorite
 
     override fun onGetTemplate(): Template {
         val title = poi.siteName?.takeIf { it.isNotBlank() } ?: poi.name
@@ -32,7 +36,7 @@ class PoiDetailScreen(
             data = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${Uri.encode(title)}")
         }
         val navigateAction = Action.Builder()
-            .setTitle("Navigate to")
+            .setTitle("Navigate")
             .setIcon(
                 CarIcon.Builder(
                     IconCompat.createWithResource(carContext, R.drawable.ic_poi_gas)
@@ -42,14 +46,35 @@ class PoiDetailScreen(
                 carContext.startCarApp(navigateIntent)
             }
             .build()
-        return MessageTemplate.Builder(body)
-            .setHeader(
-                Header.Builder()
-                    .setTitle(title)
-                    .setStartHeaderAction(Action.BACK)
-                    .addEndHeaderAction(navigateAction)
+
+        val headerBuilder = Header.Builder()
+            .setTitle(title)
+            .setStartHeaderAction(Action.BACK)
+
+        if (onToggleFavorite != null) {
+            headerBuilder.addEndHeaderAction(
+                Action.Builder()
+                    .setTitle(if (isFavorite) "Saved" else "Save")
+                    .setIcon(
+                        CarIcon.Builder(
+                            IconCompat.createWithResource(
+                                carContext,
+                                if (isFavorite) android.R.drawable.btn_star_big_on else android.R.drawable.btn_star_big_off
+                            )
+                        ).build()
+                    )
+                    .setOnClickListener {
+                        onToggleFavorite.invoke()
+                        this@PoiDetailScreen.isFavorite = !this@PoiDetailScreen.isFavorite
+                        invalidate()
+                    }
                     .build()
             )
+        }
+
+        return MessageTemplate.Builder(body)
+            .setHeader(headerBuilder.build())
+            .addAction(navigateAction)
             .build()
     }
 

@@ -13,6 +13,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -62,6 +63,7 @@ import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.poi.PoiSearchRequest
 import fr.geoking.julius.poi.PoiSearchResult
+import fr.geoking.julius.poi.PoiProviderError
 import fr.geoking.julius.poi.PoiCategory
 import fr.geoking.julius.poi.MapPoiFilter
 import fr.geoking.julius.poi.anyProvidesElectric
@@ -160,7 +162,8 @@ fun MapScreen(
     val selectedProviders = settings.selectedPoiProviders
     var cachedPois by remember { mutableStateOf<List<Poi>>(emptyList()) }
     var trafficInfo by remember { mutableStateOf<TrafficInfo?>(null) }
-    var mapErrorMessage by remember(selectedProviders) { mutableStateOf<String?>(null) }
+    var mapErrors by remember(selectedProviders) { mutableStateOf<List<PoiProviderError>>(emptyList()) }
+    var isErrorIgnored by remember(selectedProviders) { mutableStateOf(false) }
     var isErrorPaused by remember(selectedProviders) { mutableStateOf(false) }
     var showErrorDetailsDialog by remember { mutableStateOf(false) }
     var retryCount by remember { mutableStateOf(0) }
@@ -328,8 +331,6 @@ fun MapScreen(
                     mapSizePx.height
                 ).coerceIn(1, 50)
 
-                mapErrorMessage = null
-
                 val viewport = MapViewport(
                     zoom = zoom,
                     mapWidthPx = mapSizePx.width,
@@ -364,12 +365,7 @@ fun MapScreen(
                         }
 
                         if (result.errors.isNotEmpty()) {
-                            val msg = if (result.errors.size == 1) {
-                                result.errors.first().let { "${it.providerName}: ${it.message}" }
-                            } else {
-                                "Multiple errors: " + result.errors.joinToString { it.providerName }
-                            }
-                            mapErrorMessage = msg
+                            mapErrors = (mapErrors + result.errors).distinctBy { it.providerName + it.message }
                             result.errors.forEach { err ->
                                 store.recordError(err.httpCode, "Map ($selectedProviders) [${err.providerName}]: ${err.message}")
                             }
@@ -405,7 +401,7 @@ fun MapScreen(
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
                     val msg = e.message?.takeIf { it.isNotBlank() } ?: e.toString()
-                    mapErrorMessage = msg
+                    mapErrors = (mapErrors + PoiProviderError("Map", msg, (e as? NetworkException)?.httpCode)).distinctBy { it.providerName + it.message }
                     store.recordError(
                         (e as? NetworkException)?.httpCode,
                         "Map ($selectedProviders): $msg"
@@ -427,26 +423,13 @@ fun MapScreen(
                 cachedPois = emptyList()
                 availabilityByPoiId = emptyMap()
                 trafficInfo = null
-                mapErrorMessage = null
+                mapErrors = emptyList()
+                isErrorIgnored = false
                 isErrorPaused = false
                 retryCount++
             }
         },
-        onLocateMe = {
-            scope.launch {
-                val location = LocationHelper.getCurrentLocation(context)
-                if (location != null) {
-                    cameraPositionState.animate(
-                        CameraUpdateFactory.newLatLngZoom(
-                            LatLng(location.latitude, location.longitude),
-                            12f
-                        )
-                    )
-                }
-            }
-        },
         onShowSettings = onShowSettings,
-        onPlanRoute = onPlanRoute,
         showFavoritesOnly = showFavoritesOnly,
         onShowFavoritesOnlyChange = { showFavoritesOnly = it },
         favoritesFilterEnabled = settings.isLoggedIn && favoritesRepo != null,
@@ -458,10 +441,15 @@ fun MapScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            mapErrorMessage?.let { msg ->
+            if (mapErrors.isNotEmpty() && !isErrorIgnored) {
                 val configuration = LocalConfiguration.current
                 val maxHeight = configuration.screenHeightDp.dp * 0.15f
                 val clipboard = LocalClipboard.current
+                val errorSummary = if (mapErrors.size == 1) {
+                    mapErrors.first().let { "${it.providerName}: ${it.message}" }
+                } else {
+                    "Multiple sources failed to load"
+                }
 
                 Surface(
                     modifier = Modifier
@@ -478,10 +466,12 @@ fun MapScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = msg,
+                            text = errorSummary,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             fontSize = 14.sp,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { showErrorDetailsDialog = true },
                             maxLines = 3,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -501,7 +491,8 @@ fun MapScreen(
                             TextButton(
                                 onClick = {
                                     scope.launch {
-                                        clipboard.setClipEntry(ClipEntry(android.content.ClipData.newPlainText("error", msg)))
+                                        val fullMsg = mapErrors.joinToString("\n") { "${it.providerName}: ${it.message}" }
+                                        clipboard.setClipEntry(ClipEntry(android.content.ClipData.newPlainText("error", fullMsg)))
                                     }
                                 },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
@@ -511,7 +502,7 @@ fun MapScreen(
                             }
                             TextButton(
                                 onClick = {
-                                    mapErrorMessage = null
+                                    isErrorIgnored = true
                                 },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                                 modifier = Modifier.height(32.dp)
@@ -520,7 +511,8 @@ fun MapScreen(
                             }
                             Button(
                                 onClick = {
-                                    mapErrorMessage = null
+                                    mapErrors = emptyList()
+                                    isErrorIgnored = false
                                     isErrorPaused = false
                                     retryCount++
                                 },
@@ -543,10 +535,26 @@ fun MapScreen(
                     onDismissRequest = { showErrorDetailsDialog = false },
                     title = { Text("Error Details") },
                     text = {
-                        Text(
-                            text = mapErrorMessage ?: "",
-                            modifier = Modifier.verticalScroll(rememberScrollState())
-                        )
+                        Column(
+                            modifier = Modifier
+                                .verticalScroll(rememberScrollState())
+                                .padding(vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            mapErrors.forEach { error ->
+                                Column {
+                                    Text(
+                                        text = error.providerName,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                    Text(
+                                        text = error.message,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
+                            }
+                        }
                     },
                     confirmButton = {
                         TextButton(onClick = { showErrorDetailsDialog = false }) {
@@ -896,6 +904,15 @@ fun MapScreen(
             onNavigate = {
                 NavigationHelper.navigateToPoi(context, poi)
             },
+            isFavorite = poi.id in favoriteIds,
+            onToggleFavorite = if (settings.isLoggedIn && favoritesRepo != null) {
+                {
+                    scope.launch {
+                        favoritesRepo.toggleFavorite(poi)
+                        favoriteIds = favoritesRepo.getFavorites().map { it.id }.toSet()
+                    }
+                }
+            } else null,
             onDismiss = { poiForDetailsDialog = null }
         )
     }

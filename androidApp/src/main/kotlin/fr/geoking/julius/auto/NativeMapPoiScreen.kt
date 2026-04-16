@@ -224,7 +224,17 @@ class NativeMapPoiScreen(
                             carContext = carContext,
                             poi = poi,
                             availabilitySummary = availability,
-                            rating = null
+                            rating = null,
+                            isFavorite = poi.id in favoriteIds,
+                            onToggleFavorite = if (favoritesRepo != null) {
+                                {
+                                    lifecycleScope.launch {
+                                        favoritesRepo.toggleFavorite(poi)
+                                        favoriteIds = favoritesRepo.getFavorites().map { it.id }.toSet()
+                                        invalidate()
+                                    }
+                                }
+                            } else null
                         )
                     )
                 }
