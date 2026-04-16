@@ -78,7 +78,7 @@ class PortugalDgegProvider(
             val fuelIds = listOf(2101, 2105, 3201, 3205, 3400, 3405, 1120).joinToString(",")
             val url = "https://precoscombustiveis.dgeg.gov.pt/api/PrecoComb/PesquisarPostos"
             val response: DgegEnvelope = httpClient.get(url) {
-                header(HttpHeaders.UserAgent, "Pumperly/1.0")
+                header(HttpHeaders.UserAgent, "Gaston/1.0")
                 parameter("idsTiposComb", fuelIds)
                 parameter("qtdPorPagina", 15000)
                 parameter("pagina", 1)

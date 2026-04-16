@@ -33,7 +33,7 @@ class GreeceFuelGRProvider(
     ): List<Poi> {
         // In the interest of efficiency for a mobile provider, we'll only query the primary fuel types
         // (SP95 and Gazole) if no specific filters are applied, or we could query them all.
-        // For simplicity and matching Pumperly's 30km radius, we'll fetch them.
+        // For simplicity and matching Gaston's 30km radius, we'll fetch them.
 
         val stationMap = mutableMapOf<String, Poi>()
 
