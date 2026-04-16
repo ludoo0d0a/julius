@@ -31,13 +31,24 @@ object DebugLogStore {
     private const val MAX_LOGS = 50
 
     fun addLog(log: NetworkLog) {
+        addOrUpdateLog(log)
+    }
+
+    fun addOrUpdateLog(log: NetworkLog) {
         _logs.update { current ->
-            val next = current.toMutableList()
-            next.add(0, log)
-            if (next.size > MAX_LOGS) {
-                next.take(MAX_LOGS)
+            val index = current.indexOfFirst { it.id == log.id }
+            if (index != -1) {
+                current.toMutableList().apply {
+                    this[index] = log
+                }
             } else {
-                next
+                val next = current.toMutableList()
+                next.add(0, log)
+                if (next.size > MAX_LOGS) {
+                    next.take(MAX_LOGS)
+                } else {
+                    next
+                }
             }
         }
     }
