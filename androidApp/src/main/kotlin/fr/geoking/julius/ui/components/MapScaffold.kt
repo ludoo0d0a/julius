@@ -37,11 +37,7 @@ fun MapScaffold(
     settingsManager: SettingsManager,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
-    onLocateMe: () -> Unit,
     onShowSettings: () -> Unit,
-    onPlanRoute: (() -> Unit)? = null,
-    onLocatePlace: (() -> Unit)? = null,
-    onRouteToDirection: (() -> Unit)? = null,
     showFavoritesOnly: Boolean = false,
     onShowFavoritesOnlyChange: ((Boolean) -> Unit)? = null,
     favoritesFilterEnabled: Boolean = false,
@@ -51,7 +47,6 @@ fun MapScaffold(
 ) {
     val settings by settingsManager.settings.collectAsState()
     val selectedProviders = settings.selectedPoiProviders
-    var navMenuExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -68,51 +63,19 @@ fun MapScaffold(
                         }
                     },
                     actions = {
-                        if (onPlanRoute != null || onLocatePlace != null || onRouteToDirection != null) {
-                            Box {
-                                IconButton(onClick = { navMenuExpanded = true }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Directions,
-                                        contentDescription = "Navigation",
-                                        tint = Color.White
-                                    )
-                                }
-                                DropdownMenu(
-                                    expanded = navMenuExpanded,
-                                    onDismissRequest = { navMenuExpanded = false }
-                                ) {
-                                    if (onPlanRoute != null) {
-                                        DropdownMenuItem(
-                                            text = { Text("Plan route") },
-                                            leadingIcon = { Icon(Icons.Default.Directions, contentDescription = null) },
-                                            onClick = {
-                                                navMenuExpanded = false
-                                                onPlanRoute()
-                                            }
-                                        )
-                                    }
-                                    if (onLocatePlace != null) {
-                                        DropdownMenuItem(
-                                            text = { Text("Locate a place") },
-                                            leadingIcon = { Icon(Icons.Default.Place, contentDescription = null) },
-                                            onClick = {
-                                                navMenuExpanded = false
-                                                onLocatePlace()
-                                            }
-                                        )
-                                    }
-                                    if (onRouteToDirection != null) {
-                                        DropdownMenuItem(
-                                            text = { Text("Route to a direction") },
-                                            leadingIcon = { Icon(Icons.Default.Directions, contentDescription = null) },
-                                            onClick = {
-                                                navMenuExpanded = false
-                                                onRouteToDirection()
-                                            }
-                                        )
-                                    }
-                                }
-                            }
+                        IconButton(onClick = onRefresh) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Refresh",
+                                tint = Color.White
+                            )
+                        }
+                        IconButton(onClick = onShowSettings) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Settings",
+                                tint = Color.White
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -233,55 +196,12 @@ fun MapScaffold(
             }
         },
         floatingActionButton = {
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                if (onShowFavoritesOnlyChange != null) {
-                    FilterFab(
-                        settingsManager = settingsManager,
-                        favoritesFilterEnabled = favoritesFilterEnabled,
-                        showFavoritesOnly = showFavoritesOnly,
-                        onShowFavoritesOnlyChange = onShowFavoritesOnlyChange
-                    )
-                }
-
-                FloatingActionButton(
-                    onClick = onLocateMe,
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MyLocation,
-                        contentDescription = "Locate me"
-                    )
-                }
-
-                FloatingActionButton(
-                    onClick = onRefresh,
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Refresh map"
-                    )
-                }
-
-                FloatingActionButton(
-                    onClick = onShowSettings,
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Map settings"
-                    )
-                }
-            }
+            FilterFab(
+                settingsManager = settingsManager,
+                favoritesFilterEnabled = favoritesFilterEnabled,
+                showFavoritesOnly = showFavoritesOnly,
+                onShowFavoritesOnlyChange = onShowFavoritesOnlyChange
+            )
         }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
