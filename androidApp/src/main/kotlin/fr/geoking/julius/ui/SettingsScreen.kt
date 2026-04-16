@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -53,6 +54,7 @@ import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.poi.anyProvidesElectric
 import fr.geoking.julius.poi.isUserSelectablePoiDataSource
 import fr.geoking.julius.poi.getDisplayGroup
+import fr.geoking.julius.poi.getCountryDisplayName
 import androidx.compose.foundation.Canvas
 import fr.geoking.julius.TextAnimation
 import fr.geoking.julius.CacheManager
@@ -295,6 +297,65 @@ private fun MapConfig(
     settings: AppSettings,
     onUpdate: (AppSettings) -> Unit
 ) {
+    var selectedCountryCode by remember { mutableStateOf<String?>(null) }
+
+    val electricOptions = listOf(
+        PoiProviderType.DataGouvElec to "data.gouv (France official)",
+        PoiProviderType.Chargy to "Chargy (Luxembourg)",
+        PoiProviderType.OpenChargeMap to "OpenChargeMap",
+        PoiProviderType.Ionity to "Ionity",
+        PoiProviderType.Fastned to "Fastned",
+        PoiProviderType.EcoMovement to "Eco-Movement"
+    ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }
+
+    val fuelOptions = listOf(
+        PoiProviderType.Routex to "Routex",
+        PoiProviderType.Etalab to "Prix carburant (official)",
+        PoiProviderType.GasApi to "gas-api.ovh",
+        PoiProviderType.DataGouv to "data.gouv (official)",
+        PoiProviderType.OpenVanCamp to "OpenVan.camp (Reference)",
+        PoiProviderType.SpainMinetur to "Spain Minetur (official)",
+        PoiProviderType.GermanyTankerkoenig to "Tankerkönig (Germany)",
+        PoiProviderType.AustriaEControl to "E-Control (Austria)",
+        PoiProviderType.BelgiumOfficial to "Belgium (official)",
+        PoiProviderType.PortugalDgeg to "Portugal DGEG (official)",
+        PoiProviderType.MadeiraOfficial to "Madeira (official)",
+        PoiProviderType.NetherlandsAnwb to "Netherlands/Luxembourg (ANWB)",
+        PoiProviderType.SloveniaGoriva to "Slovenia (Goriva.si)",
+        PoiProviderType.RomaniaPeco to "Romania (Peco Online)",
+        PoiProviderType.Fuelo to "CEE / Turkey (Fuelo.net)",
+        PoiProviderType.GreeceFuelGR to "Greece (FuelGR)",
+        PoiProviderType.SerbiaNis to "Serbia (NIS)",
+        PoiProviderType.CroatiaMzoe to "Croatia (MZOE)",
+        PoiProviderType.DrivstoffAppen to "Nordics (DrivstoffAppen)",
+        PoiProviderType.DenmarkFuelprices to "Denmark (Fuelprices.dk)",
+        PoiProviderType.FinlandPolttoaine to "Finland (Polttoaine.net)",
+        PoiProviderType.ArgentinaEnergia to "Argentina (Energia)",
+        PoiProviderType.MexicoCRE to "Mexico (CRE)",
+        PoiProviderType.MoldovaAnre to "Moldova (ANRE)",
+        PoiProviderType.AustraliaFuel to "Australia (FuelWatch/Check)",
+        PoiProviderType.IrelandPickAPump to "Ireland (Pick A Pump)",
+        PoiProviderType.UnitedKingdomCma to "United Kingdom (CMA)",
+        PoiProviderType.ItalyMimit to "Italy (MIMIT)",
+        PoiProviderType.Hybrid to "Hybrid (Gas + EV)"
+    ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }
+
+    val otherOptions = listOf(
+        PoiProviderType.Overpass to "OSM (toilets, water, parking…)"
+    ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }
+
+    val availableCountries = (electricOptions + fuelOptions + otherOptions)
+        .flatMap { it.first.supportedCountries }
+        .distinct()
+        .sortedBy { getCountryDisplayName(it) }
+
+    val isVisible = { type: PoiProviderType ->
+        selectedCountryCode == null ||
+                type.supportedCountries.contains(selectedCountryCode) ||
+                type.supportedCountries.isEmpty() ||
+                type.getDisplayGroup().let { it.contains("Global") || it.contains("International") || it.contains("General") || it.contains("Europe") }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -373,156 +434,96 @@ private fun MapConfig(
                 )
             } else {
                 Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            Text("Electric", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
-            FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(
-                    PoiProviderType.DataGouvElec to "data.gouv (France official)",
-                    PoiProviderType.Chargy to "Chargy (Luxembourg)",
-                    PoiProviderType.OpenChargeMap to "OpenChargeMap",
-                    PoiProviderType.Ionity to "Ionity",
-                    PoiProviderType.Fastned to "Fastned",
-                    PoiProviderType.EcoMovement to "Eco-Movement"
-                ).forEach { (type, label) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     FilterChip(
-                        selected = if (settings.autoPoiProvidersEnabled) type.eligibleToAuto else settings.selectedPoiProviders.contains(type),
-                        onClick = {
-                            if (!settings.autoPoiProvidersEnabled) {
-                                val next = if (settings.selectedPoiProviders.contains(type)) settings.selectedPoiProviders - type else settings.selectedPoiProviders + type
-                                onUpdate(settings.copy(selectedPoiProviders = next))
-                            }
-                        },
-                        label = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(label)
-                                if (type.eligibleToAuto) {
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Canvas(modifier = Modifier.size(6.dp)) {
-                                        drawCircle(color = if (settings.autoPoiProvidersEnabled) DeepPurple else Lavender)
-                                    }
-                                }
-                            }
-                        },
+                        selected = selectedCountryCode == null,
+                        onClick = { selectedCountryCode = null },
+                        label = { Text("All") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = Lavender,
                             selectedLabelColor = DeepPurple,
                             labelColor = Color.White,
                             containerColor = Color.White.copy(alpha = 0.1f)
-                        ),
-                        enabled = !settings.autoPoiProvidersEnabled || type.eligibleToAuto
+                        )
                     )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-            Text("Fuel", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
-            val fuelOptions = listOf(
-                PoiProviderType.Routex to "Routex",
-                PoiProviderType.Etalab to "Prix carburant (official)",
-                PoiProviderType.GasApi to "gas-api.ovh",
-                PoiProviderType.DataGouv to "data.gouv (official)",
-                PoiProviderType.OpenVanCamp to "OpenVan.camp (Reference)",
-                PoiProviderType.SpainMinetur to "Spain Minetur (official)",
-                PoiProviderType.GermanyTankerkoenig to "Tankerkönig (Germany)",
-                PoiProviderType.AustriaEControl to "E-Control (Austria)",
-                PoiProviderType.BelgiumOfficial to "Belgium (official)",
-                PoiProviderType.PortugalDgeg to "Portugal DGEG (official)",
-                PoiProviderType.MadeiraOfficial to "Madeira (official)",
-                PoiProviderType.NetherlandsAnwb to "Netherlands/Luxembourg (ANWB)",
-                PoiProviderType.SloveniaGoriva to "Slovenia (Goriva.si)",
-                PoiProviderType.RomaniaPeco to "Romania (Peco Online)",
-                PoiProviderType.Fuelo to "CEE / Turkey (Fuelo.net)",
-                PoiProviderType.GreeceFuelGR to "Greece (FuelGR)",
-                PoiProviderType.SerbiaNis to "Serbia (NIS)",
-                PoiProviderType.CroatiaMzoe to "Croatia (MZOE)",
-                PoiProviderType.DrivstoffAppen to "Nordics (DrivstoffAppen)",
-                PoiProviderType.DenmarkFuelprices to "Denmark (Fuelprices.dk)",
-                PoiProviderType.FinlandPolttoaine to "Finland (Polttoaine.net)",
-                PoiProviderType.ArgentinaEnergia to "Argentina (Energia)",
-                PoiProviderType.MexicoCRE to "Mexico (CRE)",
-                PoiProviderType.MoldovaAnre to "Moldova (ANRE)",
-                PoiProviderType.AustraliaFuel to "Australia (FuelWatch/Check)",
-                PoiProviderType.IrelandPickAPump to "Ireland (Pick A Pump)",
-                PoiProviderType.UnitedKingdomCma to "United Kingdom (CMA)",
-                PoiProviderType.ItalyMimit to "Italy (MIMIT)",
-                PoiProviderType.Hybrid to "Hybrid (Gas + EV)"
-            ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }
-
-            val groupedFuel = fuelOptions.groupBy { (type, _) -> type.getDisplayGroup() }
-            groupedFuel.forEach { (group, providers) ->
-                Text(
-                    text = group,
-                    color = Lavender.copy(alpha = 0.5f),
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                )
-                FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    providers.forEach { (type, label) ->
+                    availableCountries.forEach { code ->
                         FilterChip(
-                            selected = if (settings.autoPoiProvidersEnabled) type.eligibleToAuto else settings.selectedPoiProviders.contains(type),
-                            onClick = {
-                                if (!settings.autoPoiProvidersEnabled) {
-                                    val next = if (settings.selectedPoiProviders.contains(type)) settings.selectedPoiProviders - type else settings.selectedPoiProviders + type
-                                    onUpdate(settings.copy(selectedPoiProviders = next))
-                                }
-                            },
-                            label = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(label)
-                                    if (type.eligibleToAuto) {
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Canvas(modifier = Modifier.size(6.dp)) {
-                                            drawCircle(color = if (settings.autoPoiProvidersEnabled) DeepPurple else Lavender)
-                                        }
-                                    }
-                                }
-                            },
+                            selected = selectedCountryCode == code,
+                            onClick = { selectedCountryCode = code },
+                            label = { Text(getCountryDisplayName(code)) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Lavender,
                                 selectedLabelColor = DeepPurple,
                                 labelColor = Color.White,
                                 containerColor = Color.White.copy(alpha = 0.1f)
-                            ),
-                            enabled = !settings.autoPoiProvidersEnabled || type.eligibleToAuto
+                            )
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-            Text("Other", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
-            FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(
-                    PoiProviderType.Overpass to "OSM (toilets, water, parking…)"
-                ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }.forEach { (type, label) ->
-                    FilterChip(
-                        selected = if (settings.autoPoiProvidersEnabled) type.eligibleToAuto else settings.selectedPoiProviders.contains(type),
-                        onClick = {
-                            if (!settings.autoPoiProvidersEnabled) {
-                                val next = if (settings.selectedPoiProviders.contains(type)) settings.selectedPoiProviders - type else settings.selectedPoiProviders + type
-                                onUpdate(settings.copy(selectedPoiProviders = next))
-                            }
-                        },
-                        label = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(label)
-                                if (type.eligibleToAuto) {
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Canvas(modifier = Modifier.size(6.dp)) {
-                                        drawCircle(color = if (settings.autoPoiProvidersEnabled) DeepPurple else Lavender)
-                                    }
-                                }
-                            }
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Lavender,
-                            selectedLabelColor = DeepPurple,
-                            labelColor = Color.White,
-                            containerColor = Color.White.copy(alpha = 0.1f)
-                        ),
-                        enabled = !settings.autoPoiProvidersEnabled || type.eligibleToAuto
+            // Electric
+            val filteredElectric = electricOptions.filter { isVisible(it.first) }
+            if (filteredElectric.isNotEmpty()) {
+                Text("Electric", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+                filteredElectric.groupBy { (type, _) -> type.getDisplayGroup() }.forEach { (group, providers) ->
+                    Text(
+                        text = group,
+                        color = Lavender.copy(alpha = 0.5f),
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                     )
+                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        providers.forEach { (type, label) ->
+                            DataSourceChip(type, label, settings, onUpdate)
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // Fuel
+            val filteredFuel = fuelOptions.filter { isVisible(it.first) }
+            if (filteredFuel.isNotEmpty()) {
+                Text("Fuel", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+                filteredFuel.groupBy { (type, _) -> type.getDisplayGroup() }.forEach { (group, providers) ->
+                    Text(
+                        text = group,
+                        color = Lavender.copy(alpha = 0.5f),
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                    )
+                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        providers.forEach { (type, label) ->
+                            DataSourceChip(type, label, settings, onUpdate)
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // Other
+            val filteredOther = otherOptions.filter { isVisible(it.first) }
+            if (filteredOther.isNotEmpty()) {
+                Text("Other", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+                filteredOther.groupBy { (type, _) -> type.getDisplayGroup() }.forEach { (group, providers) ->
+                    Text(
+                        text = group,
+                        color = Lavender.copy(alpha = 0.5f),
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                    )
+                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        providers.forEach { (type, label) ->
+                            DataSourceChip(type, label, settings, onUpdate)
+                        }
+                    }
                 }
             }
         }
@@ -656,6 +657,42 @@ private fun MapConfig(
             }
         }
     }
+}
+
+@Composable
+private fun DataSourceChip(
+    type: PoiProviderType,
+    label: String,
+    settings: AppSettings,
+    onUpdate: (AppSettings) -> Unit
+) {
+    FilterChip(
+        selected = if (settings.autoPoiProvidersEnabled) type.eligibleToAuto else settings.selectedPoiProviders.contains(type),
+        onClick = {
+            if (!settings.autoPoiProvidersEnabled) {
+                val next = if (settings.selectedPoiProviders.contains(type)) settings.selectedPoiProviders - type else settings.selectedPoiProviders + type
+                onUpdate(settings.copy(selectedPoiProviders = next))
+            }
+        },
+        label = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(label)
+                if (type.eligibleToAuto) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Canvas(modifier = Modifier.size(6.dp)) {
+                        drawCircle(color = if (settings.autoPoiProvidersEnabled) DeepPurple else Lavender)
+                    }
+                }
+            }
+        },
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = Lavender,
+            selectedLabelColor = DeepPurple,
+            labelColor = Color.White,
+            containerColor = Color.White.copy(alpha = 0.1f)
+        ),
+        enabled = !settings.autoPoiProvidersEnabled || type.eligibleToAuto
+    )
 }
 
 private fun save(settingsManager: SettingsManager, s: AppSettings) {
