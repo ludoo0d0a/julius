@@ -184,6 +184,7 @@ private fun LogItem(log: NetworkLog, onClick: () -> Unit) {
         in 200..299 -> Color(0xFF4ADE80)
         in 400..499 -> Color(0xFFFACC15)
         in 500..599 -> Color(0xFFF87171)
+        null -> Color.Gray
         else -> Color.Gray
     }
 
@@ -205,17 +206,25 @@ private fun LogItem(log: NetworkLog, onClick: () -> Unit) {
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = log.statusCode?.toString() ?: "ERR",
+                text = log.statusCode?.toString() ?: "...",
                 color = statusColor,
                 fontWeight = FontWeight.Bold,
                 fontSize = 12.sp
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "${log.durationMs}ms",
-                color = Color.White.copy(alpha = 0.6f),
-                fontSize = 11.sp
-            )
+            if (log.statusCode != null) {
+                Text(
+                    text = "${log.durationMs}ms",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 11.sp
+                )
+            } else {
+                Text(
+                    text = "Pending",
+                    color = Color.White.copy(alpha = 0.4f),
+                    fontSize = 11.sp
+                )
+            }
             Spacer(modifier = Modifier.weight(1f))
             Text(
                 text = time,
@@ -283,9 +292,12 @@ private fun LogDetailsDialog(log: NetworkLog, onDismiss: () -> Unit) {
                         DetailItem("Timestamp", Date(log.timestamp).toString())
 
                         Spacer(modifier = Modifier.height(16.dp))
-                        DetailSection("Request Headers")
-                        log.requestHeaders.forEach { (k, v) ->
-                            DetailItem(k, v.joinToString(", "))
+                        ExpandableDetailSection(title = "Request Headers", initiallyExpanded = false) {
+                            Column {
+                                log.requestHeaders.forEach { (k, v) ->
+                                    DetailItem(k, v.joinToString(", "))
+                                }
+                            }
                         }
 
                         if (log.metadata.isNotEmpty()) {
@@ -305,9 +317,12 @@ private fun LogDetailsDialog(log: NetworkLog, onDismiss: () -> Unit) {
 
                         log.responseHeaders?.let { headers ->
                             Spacer(modifier = Modifier.height(16.dp))
-                            DetailSection("Response Headers")
-                            headers.forEach { (k, v) ->
-                                DetailItem(k, v.joinToString(", "))
+                            ExpandableDetailSection(title = "Response Headers", initiallyExpanded = false) {
+                                Column {
+                                    headers.forEach { (k, v) ->
+                                        DetailItem(k, v.joinToString(", "))
+                                    }
+                                }
                             }
                         }
 
@@ -403,6 +418,44 @@ private fun DetailSection(title: String) {
         fontWeight = FontWeight.Bold,
         modifier = Modifier.padding(vertical = 4.dp)
     )
+}
+
+@Composable
+private fun ExpandableDetailSection(
+    title: String,
+    initiallyExpanded: Boolean = true,
+    content: @Composable () -> Unit
+) {
+    var isExpanded by remember { mutableStateOf(initiallyExpanded) }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { isExpanded = !isExpanded }
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (isExpanded) Icons.Default.ExpandMore else Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = title,
+                color = MaterialTheme.colorScheme.primary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        if (isExpanded) {
+            Box(modifier = Modifier.padding(start = 24.dp)) {
+                content()
+            }
+        }
+    }
 }
 
 @Composable
