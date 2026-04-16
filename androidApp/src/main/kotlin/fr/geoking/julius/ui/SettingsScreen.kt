@@ -291,6 +291,87 @@ fun SettingsScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CountrySelector(
+    availableCountries: List<String>,
+    selectedCountryCode: String?,
+    onCountrySelected: (String?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val selectedLabel = if (selectedCountryCode == null) "All Countries" else getCountryDisplayName(selectedCountryCode)
+
+    val filteredCountries = remember(searchQuery, availableCountries) {
+        val all = listOf(null) + availableCountries
+        if (searchQuery.isBlank()) all
+        else all.filter {
+            val label = if (it == null) "All Countries" else getCountryDisplayName(it)
+            label.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+        Text(
+            "Filter by Country",
+            color = Lavender.copy(alpha = 0.7f),
+            fontSize = 14.sp,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = if (expanded) searchQuery else selectedLabel,
+                onValueChange = { searchQuery = it },
+                label = { Text("Search country...", color = Lavender.copy(alpha = 0.5f)) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                readOnly = !expanded,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = Lavender,
+                    unfocusedBorderColor = SeparatorColor,
+                    focusedContainerColor = Color.Black.copy(alpha = 0.3f),
+                    unfocusedContainerColor = Color.Black.copy(alpha = 0.2f),
+                    focusedLabelColor = Lavender,
+                    unfocusedLabelColor = Lavender.copy(alpha = 0.7f)
+                ),
+                modifier = Modifier
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable)
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = {
+                    expanded = false
+                    searchQuery = ""
+                },
+                containerColor = Color(0xFF1A1A2E),
+                modifier = Modifier.background(Color(0xFF1A1A2E))
+            ) {
+                filteredCountries.forEach { code ->
+                    val label = if (code == null) "All Countries" else getCountryDisplayName(code)
+                    DropdownMenuItem(
+                        text = { Text(label, color = Color.White) },
+                        onClick = {
+                            onCountrySelected(code)
+                            expanded = false
+                            searchQuery = ""
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MapConfig(
@@ -434,38 +515,11 @@ private fun MapConfig(
                 )
             } else {
                 Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp)
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        selected = selectedCountryCode == null,
-                        onClick = { selectedCountryCode = null },
-                        label = { Text("All") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Lavender,
-                            selectedLabelColor = DeepPurple,
-                            labelColor = Color.White,
-                            containerColor = Color.White.copy(alpha = 0.1f)
-                        )
-                    )
-                    availableCountries.forEach { code ->
-                        FilterChip(
-                            selected = selectedCountryCode == code,
-                            onClick = { selectedCountryCode = code },
-                            label = { Text(getCountryDisplayName(code)) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Lavender,
-                                selectedLabelColor = DeepPurple,
-                                labelColor = Color.White,
-                                containerColor = Color.White.copy(alpha = 0.1f)
-                            )
-                        )
-                    }
-                }
+                CountrySelector(
+                    availableCountries = availableCountries,
+                    selectedCountryCode = selectedCountryCode,
+                    onCountrySelected = { selectedCountryCode = it }
+                )
             }
 
             // Electric
