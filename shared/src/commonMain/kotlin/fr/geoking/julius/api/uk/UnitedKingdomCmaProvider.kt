@@ -79,7 +79,7 @@ class UnitedKingdomCmaProvider(
 
     private fun CmaStation.toPoi(retailerName: String): Poi? {
         val lat = location?.latitude ?: return null
-        val lng = location?.longitude ?: return null
+        val lng = location.longitude ?: return null
         if (lat == 0.0 || lng == 0.0) return null
 
         val fuelPrices = prices.mapNotNull { (type, price) ->

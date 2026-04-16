@@ -12,7 +12,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
-import io.ktor.utils.io.readUTF8Line
+import io.ktor.utils.io.readLine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -73,7 +73,7 @@ class ItalyMimitProvider(
         val pricesChannel = pricesResponse.bodyAsChannel()
         var lineCount = 0
         while (true) {
-            val line = pricesChannel.readUTF8Line() ?: break
+            val line = pricesChannel.readLine() ?: break
             lineCount++
             if (lineCount <= 2 || line.isEmpty()) continue
 
@@ -104,7 +104,7 @@ class ItalyMimitProvider(
         val pois = mutableListOf<Poi>()
         lineCount = 0
         while (true) {
-            val line = stationsChannel.readUTF8Line() ?: break
+            val line = stationsChannel.readLine() ?: break
             lineCount++
             if (lineCount <= 2 || line.isEmpty()) continue
 

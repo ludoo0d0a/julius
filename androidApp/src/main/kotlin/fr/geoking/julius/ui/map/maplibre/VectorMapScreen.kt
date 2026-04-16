@@ -606,11 +606,9 @@ fun VectorMapScreen(
                         .zIndex(2f)
                 )
             }
-
-            }
-            }
         }
     }
+}
 
     LaunchedEffect(selectedPoi?.id, scrollRequestPoiId) {
         val poi = selectedPoi ?: return@LaunchedEffect

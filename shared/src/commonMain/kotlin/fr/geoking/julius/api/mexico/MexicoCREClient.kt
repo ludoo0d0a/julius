@@ -6,7 +6,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
-import io.ktor.utils.io.readUTF8Line
+import io.ktor.utils.io.readLine
 
 data class MexicoPlace(
     val id: String,
@@ -41,7 +41,7 @@ class MexicoCREClient(private val client: HttpClient) {
 
         val currentBlock = StringBuilder()
         while (true) {
-            val line = channel.readUTF8Line() ?: break
+            val line = channel.readLine() ?: break
             currentBlock.append(line).append("\n")
 
             while (true) {
@@ -88,7 +88,7 @@ class MexicoCREClient(private val client: HttpClient) {
 
         val currentBlock = StringBuilder()
         while (true) {
-            val line = channel.readUTF8Line() ?: break
+            val line = channel.readLine() ?: break
             currentBlock.append(line).append("\n")
 
             while (true) {
