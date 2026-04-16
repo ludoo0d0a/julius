@@ -386,24 +386,7 @@ fun VectorMapScreen(
         onRefresh = {
             retryCount++
         },
-        onLocateMe = {
-            if (hasLocationPermission) {
-                scope.launch {
-                    val loc = LocationHelper.getCurrentLocation(context)
-                    if (loc != null) {
-                        mapLibreMap?.animateCamera(
-                            CameraUpdateFactory.newLatLng(
-                                LatLng(loc.latitude, loc.longitude)
-                            )
-                        )
-                    }
-                }
-            } else {
-                launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-            }
-        },
         onShowSettings = onShowSettings,
-        onPlanRoute = onPlanRoute,
         showFavoritesOnly = showFavoritesOnly,
         onShowFavoritesOnlyChange = { showFavoritesOnly = it },
         favoritesFilterEnabled = settings.isLoggedIn && favoritesRepo != null,

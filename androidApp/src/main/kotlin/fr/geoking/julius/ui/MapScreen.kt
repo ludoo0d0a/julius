@@ -426,21 +426,7 @@ fun MapScreen(
                 retryCount++
             }
         },
-        onLocateMe = {
-            scope.launch {
-                val location = LocationHelper.getCurrentLocation(context)
-                if (location != null) {
-                    cameraPositionState.animate(
-                        CameraUpdateFactory.newLatLngZoom(
-                            LatLng(location.latitude, location.longitude),
-                            12f
-                        )
-                    )
-                }
-            }
-        },
         onShowSettings = onShowSettings,
-        onPlanRoute = onPlanRoute,
         showFavoritesOnly = showFavoritesOnly,
         onShowFavoritesOnlyChange = { showFavoritesOnly = it },
         favoritesFilterEnabled = settings.isLoggedIn && favoritesRepo != null,
