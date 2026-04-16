@@ -66,7 +66,8 @@ fun DirectionsMapScreen(
             settings = settings,
             pois = pois,
             providers = effectiveProviders,
-            skipWhenOnlyOverpass = false
+            skipWhenOnlyOverpass = false,
+            limit = 200
         )
     }
 

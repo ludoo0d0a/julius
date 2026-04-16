@@ -5,6 +5,7 @@ import fr.geoking.julius.poi.MapPoiFilter
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiProviderType
 import fr.geoking.julius.poi.anyProvidesElectric
+import fr.geoking.julius.shared.location.approxDistanceKm
 
 fun AppSettings.effectiveMapEnergyFilterIds(): Set<String> {
     return if (useVehicleFilter) {
@@ -95,6 +96,9 @@ object StationMapFilters {
         pois: List<Poi>,
         providers: Set<PoiProviderType>,
         skipWhenOnlyOverpass: Boolean,
+        limit: Int = Int.MAX_VALUE,
+        centerLat: Double? = null,
+        centerLng: Double? = null
     ): List<Poi> {
         if (skipWhenOnlyOverpass && providers.isOnlyOverpass()) return pois
 
@@ -152,6 +156,15 @@ object StationMapFilters {
                 isPureElectric ||
                     b == null || // Don't filter out unknown brands (e.g. from OpenVanCamp / OSM)
                     brandIds.any { id -> b.lowercase().contains(id) }
+            }
+        }
+
+        if (result.size > limit) {
+            result = if (centerLat != null && centerLng != null) {
+                result.sortedBy { approxDistanceKm(centerLat, centerLng, it.latitude, it.longitude) }
+                    .take(limit)
+            } else {
+                result.take(limit)
             }
         }
 

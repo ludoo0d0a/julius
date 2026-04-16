@@ -345,7 +345,10 @@ fun VectorMapScreen(
             settings = settings,
             pois = raw,
             providers = effectiveProviders,
-            skipWhenOnlyOverpass = true
+            skipWhenOnlyOverpass = true,
+            limit = 200,
+            centerLat = centerLat,
+            centerLng = centerLng
         )
     }
 
@@ -614,7 +617,6 @@ fun VectorMapScreen(
                         .zIndex(2f)
                 )
             }
-
             }
         }
 
