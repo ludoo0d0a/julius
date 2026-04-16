@@ -25,6 +25,7 @@ val VEHICLE_TYPE_OPTIONS = listOf(
 val MAP_ENERGY_OPTIONS = listOf(
     "electric" to "Elec",
     "gazole" to "Gazole",
+    "gazole_plus" to "Gazole+",
     "sp98" to "SP98",
     "sp95" to "SP95",
     "gplc" to "GPLc",

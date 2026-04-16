@@ -163,7 +163,7 @@ class PortugalDgegProvider(
             val type = Combustivel ?: Combustive1
             val fuelType = when {
                 type?.contains("Gasóleo simples", ignoreCase = true) == true -> "Gazole"
-                type?.contains("Gasóleo especial", ignoreCase = true) == true -> "Gazole"
+                type?.contains("Gasóleo especial", ignoreCase = true) == true -> "Gazole Premium"
                 type?.contains("Gasóleo", ignoreCase = true) == true -> "Gazole"
                 type?.contains("Gasolina simples 95", ignoreCase = true) == true -> "SP95"
                 type?.contains("Gasolina especial 95", ignoreCase = true) == true -> "SP95"

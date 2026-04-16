@@ -36,6 +36,28 @@ class PoiTest {
     }
 
     @Test
+    fun testFuelNameToId() {
+        assertEquals("gazole", MapPoiFilter.fuelNameToId("Gazole"))
+        assertEquals("gazole", MapPoiFilter.fuelNameToId("Diesel"))
+        assertEquals("gazole", MapPoiFilter.fuelNameToId("Gasoil"))
+        assertEquals("gazole_plus", MapPoiFilter.fuelNameToId("Gazole Premium"))
+        assertEquals("gazole_plus", MapPoiFilter.fuelNameToId("Diesel Ultimate"))
+        assertEquals("gazole_plus", MapPoiFilter.fuelNameToId("Gazole Excellium"))
+        assertEquals("gazole_plus", MapPoiFilter.fuelNameToId("Diesel Supreme"))
+        assertEquals("gazole_plus", MapPoiFilter.fuelNameToId("Diesel V-Power"))
+        assertEquals("gazole_plus", MapPoiFilter.fuelNameToId("Gasóleo Especial"))
+        assertEquals("gazole_plus", MapPoiFilter.fuelNameToId("Diesel Plus"))
+        assertEquals("gazole_plus", MapPoiFilter.fuelNameToId("Gazole Extra"))
+        assertEquals("gazole_plus", MapPoiFilter.fuelNameToId("Star Diesel"))
+
+        assertEquals("sp95", MapPoiFilter.fuelNameToId("SP95"))
+        assertEquals("sp95", MapPoiFilter.fuelNameToId("Sans Plomb 95 E10"))
+        assertEquals("sp98", MapPoiFilter.fuelNameToId("SP98"))
+        assertEquals("e85", MapPoiFilter.fuelNameToId("E85"))
+        assertEquals("gplc", MapPoiFilter.fuelNameToId("GPL"))
+    }
+
+    @Test
     fun testGetDisplayGroup() {
         assertEquals("🌍 International", PoiProviderType.Routex.getDisplayGroup())
         assertEquals("🇫🇷 France", PoiProviderType.Etalab.getDisplayGroup())

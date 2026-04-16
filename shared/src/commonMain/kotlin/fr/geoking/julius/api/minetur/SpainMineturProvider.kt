@@ -108,7 +108,8 @@ class SpainMineturProvider(
             lat = lat,
             lon = lon,
             sp95 = precioGasolina95E5?.replace(",", ".")?.toDoubleOrNull(),
-            gazole = precioGasoilA?.replace(",", ".")?.toDoubleOrNull(),
+            gazole = (precioGasoilA ?: precioGasoleoA)?.replace(",", ".")?.toDoubleOrNull(),
+            gazolePlus = precioGasoleoPremium?.replace(",", ".")?.toDoubleOrNull(),
             sp98 = precioGasolina98E5?.replace(",", ".")?.toDoubleOrNull()
         )
     }
@@ -121,6 +122,7 @@ class SpainMineturProvider(
         val prices = mutableListOf<FuelPrice>()
         sp95?.let { prices.add(FuelPrice("SP95 E5", it)) }
         gazole?.let { prices.add(FuelPrice("Gazole", it)) }
+        gazolePlus?.let { prices.add(FuelPrice("Gazole Premium", it)) }
         sp98?.let { prices.add(FuelPrice("SP98", it)) }
 
         val poi = Poi(
@@ -147,6 +149,7 @@ data class MineturCompactStation(
     val lon: Double,
     val sp95: Double?,
     val gazole: Double?,
+    val gazolePlus: Double? = null,
     val sp98: Double?
 )
 
@@ -164,5 +167,7 @@ data class MineturStation(
     @SerialName("Longitud (WGS84)") val longitudWGS84: String? = null,
     @SerialName("Precio Gasolina 95 E5") val precioGasolina95E5: String? = null,
     @SerialName("Precio Gasóleo A") val precioGasoilA: String? = null,
+    @SerialName("Precio Gasoleo A") val precioGasoleoA: String? = null,
+    @SerialName("Precio Gasoleo Premium") val precioGasoleoPremium: String? = null,
     @SerialName("Precio Gasolina 98 E5") val precioGasolina98E5: String? = null
 )

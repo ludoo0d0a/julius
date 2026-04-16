@@ -354,11 +354,22 @@ data class PoiProviderError(
  * Aligned with [prix-carburants.gouv.fr](https://www.prix-carburants.gouv.fr/) fuel list.
  */
 object MapPoiFilter {
-    /** Normalize API fuel name to a filter id (gazole, sp98, sp95, sp95_e10, gplc, e85). Returns null if unknown. */
+    /** Normalize API fuel name to a filter id (gazole, gazole_plus, sp98, sp95, sp95_e10, gplc, e85). Returns null if unknown. */
     fun fuelNameToId(fuelName: String): String? {
         val n = fuelName.trim().lowercase()
         return when {
-            n.contains("gazole") || n == "gasoil" || n == "diesel" -> "gazole"
+            n.contains("gazole") || n.contains("gasoil") || n.contains("diesel") ||
+            n.contains("gasóleo") || n.contains("gasoleo") || n.contains("gasolio") -> {
+                if (n.contains("premium") || n.contains("excellium") || n.contains("ultimate") ||
+                    n.contains("supreme") || n.contains("v-power") || n.contains("vpower") ||
+                    n.contains("especial") || n.contains("speciale") || n.contains("plus") ||
+                    n.contains("optium") || n.contains("extra") || n.contains("star diesel")
+                ) {
+                    "gazole_plus"
+                } else {
+                    "gazole"
+                }
+            }
             n.contains("sp98") || n == "sp 98" -> "sp98"
             n.contains("e10") || n.contains("sp95-e10") || n == "sp95 e10" || n.contains("sp95") || n == "sp 95" -> "sp95"
             n.contains("gpl") || n == "gplc" || n == "lpg" -> "gplc"

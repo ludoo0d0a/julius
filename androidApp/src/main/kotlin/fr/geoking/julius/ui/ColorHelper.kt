@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.Color
 object ColorHelper {
     // Fuel Colors
     val ColorGazole = Color(0xFFEAB308)
+    val ColorGazolePlus = Color(0xFFCA8A04)
     val ColorSP95 = Color(0xFF22C55E)
     val ColorSP98 = Color(0xFF15803D)
     val ColorE85 = Color(0xFFA855F7)
@@ -20,6 +21,7 @@ object ColorHelper {
 
     fun getFuelColor(fuelId: String?): Color? = when (fuelId) {
         "gazole" -> ColorGazole
+        "gazole_plus" -> ColorGazolePlus
         "sp95" -> ColorSP95
         "sp98" -> ColorSP98
         "e85" -> ColorE85
