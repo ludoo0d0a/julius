@@ -353,12 +353,13 @@ fun JulesScreen(
                             else -> (if (hasOutput) "Output available" else "In progress") to (if (hasOutput) JulesAccent else Color.White.copy(alpha = 0.6f))
                         }
                         val mergeabilityText = if (currentSession!!.prState == "open" && currentSession!!.prMergeable == false) " (Conflicts)" else ""
+                        val prIdText = if (!currentSession!!.prId.isNullOrBlank()) " #${currentSession!!.prId}" else ""
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(modifier = Modifier.size(6.dp).background(statusColor, RoundedCornerShape(3.dp)))
                             Spacer(modifier = Modifier.size(6.dp))
                             Text(
-                                text = "$statusText$mergeabilityText",
+                                text = "$statusText$prIdText$mergeabilityText",
                                 color = statusColor,
                                 fontSize = 12.sp
                             )
@@ -1833,13 +1834,14 @@ private fun SessionRow(
                 else -> (if (hasOutput) "Output available" else "In progress") to (if (hasOutput) JulesAccent else Color.White.copy(alpha = 0.6f))
             }
             val mergeabilityText = if (session.prState == "open" && session.prMergeable == false) " (Conflicts)" else ""
+            val prIdText = if (!session.prId.isNullOrBlank()) " #${session.prId}" else ""
 
             Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.size(6.dp).background(statusColor, RoundedCornerShape(3.dp)))
                 Spacer(modifier = Modifier.size(6.dp))
                 Text(
-                    text = "$statusText$mergeabilityText",
+                    text = "$statusText$prIdText$mergeabilityText",
                     color = statusColor,
                     fontSize = 12.sp
                 )
