@@ -165,11 +165,57 @@ fun Iterable<PoiProviderType>.anyProvidesFuel(): Boolean = any { it.providesFuel
 fun Iterable<PoiProviderType>.anyProvidesElectric(): Boolean = any { it.providesElectric }
 
 /**
+ * Returns the display name for a country code, including its flag emoji.
+ */
+fun getCountryDisplayName(code: String): String = when (code) {
+    "FR" -> "🇫🇷 France"
+    "LU" -> "🇱🇺 Luxembourg"
+    "BE" -> "🇧🇪 Belgium"
+    "NL" -> "🇳🇱 Netherlands"
+    "DE" -> "🇩🇪 Germany"
+    "AT" -> "🇦🇹 Austria"
+    "ES" -> "🇪🇸 Spain"
+    "PT" -> "🇵🇹 Portugal"
+    "PT-MA" -> "🇵🇹 Madeira"
+    "PT-AC" -> "🇵🇹 Azores"
+    "IT" -> "🇮🇹 Italy"
+    "GB" -> "🇬🇧 United Kingdom"
+    "IE" -> "🇮🇪 Ireland"
+    "DK" -> "🇩🇰 Denmark"
+    "FI" -> "🇫🇮 Finland"
+    "NO" -> "🇳🇴 Norway"
+    "SE" -> "🇸🇪 Sweden"
+    "SI" -> "🇸🇮 Slovenia"
+    "HR" -> "🇭🇷 Croatia"
+    "RO" -> "🇷🇴 Romania"
+    "BG" -> "🇧🇬 Bulgaria"
+    "GR" -> "🇬🇷 Greece"
+    "HU" -> "🇭🇺 Hungary"
+    "PL" -> "🇵🇱 Poland"
+    "CZ" -> "🇨🇿 Czechia"
+    "SK" -> "🇸🇰 Slovakia"
+    "RS" -> "🇷🇸 Serbia"
+    "AR" -> "🇦🇷 Argentina"
+    "MX" -> "🇲🇽 Mexico"
+    "MD" -> "🇲🇩 Moldova"
+    "AU" -> "🇦🇺 Australia"
+    "EE" -> "🇪🇪 Estonia"
+    "LV" -> "🇱🇻 Latvia"
+    "LT" -> "🇱🇹 Lithuania"
+    "CH" -> "🇨🇭 Switzerland"
+    "BA" -> "🇧🇦 Bosnia"
+    "TR" -> "🇹🇷 Turkey"
+    "MK" -> "🇲🇰 North Macedonia"
+    "ME" -> "🇲🇪 Montenegro"
+    else -> "🌍 $code"
+}
+
+/**
  * Returns a display group name for the provider (e.g. flag + country name).
  */
 fun PoiProviderType.getDisplayGroup(): String {
     if (this == PoiProviderType.Routex) return "🌍 International"
-    if (this == PoiProviderType.OpenChargeMap || this == PoiProviderType.EcoMovement) return "🌍 Global"
+    if (this == PoiProviderType.OpenChargeMap || this == PoiProviderType.EcoMovement || this == PoiProviderType.Ionity || this == PoiProviderType.Fastned) return "🌍 Global"
     if (this == PoiProviderType.OpenVanCamp) return "🇪🇺 Europe (Reference)"
     if (this == PoiProviderType.Overpass) return "🌍 General"
 
@@ -177,39 +223,7 @@ fun PoiProviderType.getDisplayGroup(): String {
     if (countries.isEmpty()) return "🌍 Other"
     if (countries.size > 1) return "🇪🇺 Multi-country"
 
-    return when (val code = countries.first()) {
-        "FR" -> "🇫🇷 France"
-        "LU" -> "🇱🇺 Luxembourg"
-        "BE" -> "🇧🇪 Belgium"
-        "NL" -> "🇳🇱 Netherlands"
-        "DE" -> "🇩🇪 Germany"
-        "AT" -> "🇦🇹 Austria"
-        "ES" -> "🇪🇸 Spain"
-        "PT" -> "🇵🇹 Portugal"
-        "PT-MA" -> "🇵🇹 Madeira"
-        "IT" -> "🇮🇹 Italy"
-        "GB" -> "🇬🇧 United Kingdom"
-        "IE" -> "🇮🇪 Ireland"
-        "DK" -> "🇩🇰 Denmark"
-        "FI" -> "🇫🇮 Finland"
-        "NO" -> "🇳🇴 Norway"
-        "SE" -> "🇸🇪 Sweden"
-        "SI" -> "🇸🇮 Slovenia"
-        "HR" -> "🇭🇷 Croatia"
-        "RO" -> "🇷🇴 Romania"
-        "BG" -> "🇧🇬 Bulgaria"
-        "GR" -> "🇬🇷 Greece"
-        "HU" -> "🇭🇺 Hungary"
-        "PL" -> "🇵🇱 Poland"
-        "CZ" -> "🇨🇿 Czechia"
-        "SK" -> "🇸🇰 Slovakia"
-        "RS" -> "🇷🇸 Serbia"
-        "AR" -> "🇦🇷 Argentina"
-        "MX" -> "🇲🇽 Mexico"
-        "MD" -> "🇲🇩 Moldova"
-        "AU" -> "🇦🇺 Australia"
-        else -> "🌍 $code"
-    }
+    return getCountryDisplayName(countries.first())
 }
 
 /**

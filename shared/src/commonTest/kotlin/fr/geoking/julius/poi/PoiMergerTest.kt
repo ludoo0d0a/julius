@@ -90,4 +90,39 @@ class PoiMergerTest {
         assertEquals(1, merged.size)
         assertEquals(1.60, merged[0].fuelPrices?.first()?.price, "Should pick price with timestamp over null")
     }
+
+    @Test
+    fun mergePois_saintJulienLesMetz_mergesDataGouvAndGasApi() {
+        // Relais des 4 chemins - Total Access in Saint-Julien-lès-Metz
+        val lat = 49.1332
+        val lon = 6.2001
+
+        val pDataGouv = Poi(
+            id = "57070001",
+            name = "relais des 4 chemins  total express",
+            address = "rue de l'abattoir",
+            latitude = lat,
+            longitude = lon,
+            brand = "TotalEnergies",
+            townLocal = "Saint-Julien-lès-Metz",
+            fuelPrices = listOf(FuelPrice("Gazole", 1.85)),
+            source = "DataGouv"
+        )
+
+        val pGasApi = Poi(
+            id = "gas_57070001",
+            name = "TOTAL ACCESS",
+            address = "Rue de l'Abattoir",
+            latitude = lat + 0.0005, // ~55m away
+            longitude = lon + 0.0005,
+            brand = "Total",
+            fuelPrices = listOf(FuelPrice("Gazole", 1.86)),
+            source = "GasAPI"
+        )
+
+        val merged = PoiMerger.mergePois(listOf(pDataGouv, pGasApi))
+        assertEquals(1, merged.size, "Should merge the two sources for the same station")
+        assertTrue(merged[0].source?.contains("DataGouv") == true)
+        assertTrue(merged[0].source?.contains("GasAPI") == true)
+    }
 }
