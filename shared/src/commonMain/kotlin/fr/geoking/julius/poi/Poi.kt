@@ -116,8 +116,16 @@ enum class PoiProviderType(
     SloveniaGoriva(providesFuel = true, providesPrices = true, supportedCountries = setOf("SI")),
     /** Romania fuel prices via Peco Online. */
     RomaniaPeco(providesFuel = true, providesPrices = true, supportedCountries = setOf("RO")),
-    /** Fuel prices via Fuelo.net (BG, CZ, HU, PL, SK, EE, LV, LT, CH, BA, TR, MK). */
-    Fuelo(providesFuel = true, providesPrices = true, supportedCountries = setOf("BG", "CZ", "HU", "PL", "SK", "EE", "LV", "LT", "CH", "BA", "TR", "MK")),
+    /** Fuel prices via Fuelo.net (BG, CZ, HU, PL, SK, EE, LV, LT, CH, BA, TR, MK, AT, BE, DE, ES, FR, GB, GR, HR, IE, IT, NL, PT, RO, RS, SI, PT-MA, PT-AC, ES-CN, ES-IB). */
+    Fuelo(
+        providesFuel = true,
+        providesPrices = true,
+        supportedCountries = setOf(
+            "BG", "CZ", "HU", "PL", "SK", "EE", "LV", "LT", "CH", "BA", "TR", "MK",
+            "AT", "BE", "DE", "ES", "FR", "GB", "GR", "HR", "IE", "IT", "NL", "PT", "RO", "RS", "SI",
+            "PT-MA", "PT-AC", "ES-CN", "ES-IB"
+        )
+    ),
     /** Greece fuel prices via FuelGR. */
     GreeceFuelGR(providesFuel = true, providesPrices = true, supportedCountries = setOf("GR")),
     /** Serbia fuel prices via NIS / Cenagoriva. */
@@ -176,8 +184,6 @@ fun getCountryDisplayName(code: String): String = when (code) {
     "AT" -> "🇦🇹 Austria"
     "ES" -> "🇪🇸 Spain"
     "PT" -> "🇵🇹 Portugal"
-    "PT-MA" -> "🇵🇹 Madeira"
-    "PT-AC" -> "🇵🇹 Azores"
     "IT" -> "🇮🇹 Italy"
     "GB" -> "🇬🇧 United Kingdom"
     "IE" -> "🇮🇪 Ireland"
@@ -207,6 +213,10 @@ fun getCountryDisplayName(code: String): String = when (code) {
     "TR" -> "🇹🇷 Turkey"
     "MK" -> "🇲🇰 North Macedonia"
     "ME" -> "🇲🇪 Montenegro"
+    "ES-CN" -> "🇪🇸 Canary Islands"
+    "ES-IB" -> "🇪🇸 Balearic Islands"
+    "PT-MA" -> "🇵🇹 Madeira"
+    "PT-AC" -> "🇵🇹 Azores"
     else -> "🌍 $code"
 }
 
