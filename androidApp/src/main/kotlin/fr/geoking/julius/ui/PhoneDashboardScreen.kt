@@ -261,7 +261,10 @@ fun PhoneDashboardScreen(
                         settings = settingsManager.settings.value,
                         pois = results,
                         providers = currentProviders,
-                        skipWhenOnlyOverpass = true
+                        skipWhenOnlyOverpass = true,
+                        limit = 200,
+                        centerLat = location.latitude,
+                        centerLng = location.longitude
                     )
 
                     val fuelIds = currentEnergyIds - "electric"

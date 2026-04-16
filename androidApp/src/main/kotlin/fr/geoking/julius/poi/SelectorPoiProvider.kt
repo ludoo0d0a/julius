@@ -591,7 +591,10 @@ class SelectorPoiProvider(
                 settings = settingsManager.settings.value,
                 pois = raw,
                 providers = providers,
-                skipWhenOnlyOverpass = true
+                skipWhenOnlyOverpass = true,
+                limit = 200,
+                centerLat = centerLat,
+                centerLng = centerLng
             )
         } else {
             raw
@@ -697,6 +700,9 @@ class SelectorPoiProvider(
             pois = result,
             providers = providers,
             skipWhenOnlyOverpass = false,
+            limit = 200,
+            centerLat = latitude,
+            centerLng = longitude
         )
         Log.d("SelectorPoiProvider", "selected=$providers lat=$latitude lon=$longitude -> ${result.size} pois (energy+power+operator+connector filter)")
         return result

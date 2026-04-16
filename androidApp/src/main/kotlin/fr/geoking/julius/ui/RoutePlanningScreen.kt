@@ -387,7 +387,8 @@ fun RoutePlanningScreen(
                         settings = settings,
                         pois = stations,
                         providers = effectiveProviders,
-                        skipWhenOnlyOverpass = false
+                        skipWhenOnlyOverpass = false,
+                        limit = 200
                     )
                 }
 

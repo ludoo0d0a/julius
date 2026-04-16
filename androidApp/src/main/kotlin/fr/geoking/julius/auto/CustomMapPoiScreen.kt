@@ -159,7 +159,10 @@ class CustomMapPoiScreen(
             settings = currentSettings,
             pois = pois,
             providers = effectiveProviders,
-            skipWhenOnlyOverpass = true
+            skipWhenOnlyOverpass = true,
+            limit = 200,
+            centerLat = searchLat,
+            centerLng = searchLon
         )
     }
 

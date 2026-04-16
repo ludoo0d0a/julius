@@ -266,7 +266,10 @@ fun MapScreen(
             settings = settings,
             pois = raw,
             providers = effectiveProviders,
-            skipWhenOnlyOverpass = true
+            skipWhenOnlyOverpass = true,
+            limit = 200,
+            centerLat = center.latitude,
+            centerLng = center.longitude
         )
     }
 
