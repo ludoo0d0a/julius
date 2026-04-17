@@ -14,6 +14,8 @@ import fr.geoking.julius.persistence.JulesActivityEntity
 import fr.geoking.julius.persistence.JulesDao
 import fr.geoking.julius.persistence.JulesSessionEntity
 import fr.geoking.julius.shared.network.NetworkService
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.coroutineScope
@@ -63,11 +65,24 @@ class JulesRepository(
                             val pr = session.outputs?.firstOrNull()?.pullRequest
                             val existing = try { julesDao.getSession(sessionId) } catch (e: Exception) { null }
 
-                            val newLastUpdated = if (existing == null || (pr?.url != null && existing.prUrl != pr.url)) {
-                                System.currentTimeMillis()
-                            } else {
-                                existing.lastUpdated
-                            }
+                entities.add(JulesSessionEntity(
+                    id = sessionId,
+                    title = session.title,
+                    prompt = session.prompt,
+                    sourceName = sourceName,
+                    prUrl = pr?.url,
+                    prTitle = pr?.title,
+                    prId = pr?.id,
+                    prState = existing?.prState,
+                    prMergeable = existing?.prMergeable,
+                    sessionState = session.state,
+                    url = session.url,
+                    createTime = session.createTime,
+                    updateTime = session.updateTime,
+                    isArchived = existing?.isArchived ?: false,
+                    lastUpdated = newLastUpdated
+                ))
+            }
 
                             currentEntities.add(JulesSessionEntity(
                                 id = sessionId,
@@ -169,45 +184,32 @@ class JulesRepository(
 
     suspend fun createSession(apiKeys: List<String>, prompt: String, source: String, title: String): String {
         val isOnline = networkService.status.value.isConnected
-        if (isOnline && apiKeys.isNotEmpty()) {
-            var lastError: Exception? = null
-            for (key in apiKeys) {
-                try {
-                    val session = julesClient.createSession(
-                        apiKey = key,
-                        prompt = prompt,
-                        source = source,
-                        title = title
-                    )
-                    val entity = JulesSessionEntity(
-                        id = session.id,
-                        title = session.title,
-                        prompt = session.prompt,
-                        sourceName = source,
-                        prUrl = session.outputs?.firstOrNull()?.pullRequest?.url,
-                        prTitle = session.outputs?.firstOrNull()?.pullRequest?.title,
-                        prState = null,
-                        prMergeable = null,
-                        sessionState = session.state,
-                        isArchived = false,
-                        lastUpdated = System.currentTimeMillis(),
-                        apiKey = key
-                    )
-                    julesDao.insertSessions(listOf(entity))
-                    return session.id
-                } catch (e: fr.geoking.julius.shared.network.NetworkException) {
-                    lastError = e
-                    if (e.httpCode == 429 || e.httpCode == 401) {
-                        continue // Try next key
-                    } else {
-                        throw e // Other network errors should be reported
-                    }
-                } catch (e: Exception) {
-                    lastError = e
-                    continue
-                }
-            }
-            throw lastError ?: Exception("Failed to create session with any API key")
+        if (isOnline) {
+            val session = julesClient.createSession(
+                apiKey = apiKey,
+                prompt = prompt,
+                source = source,
+                title = title
+            )
+            val entity = JulesSessionEntity(
+                id = session.id,
+                title = session.title,
+                prompt = session.prompt,
+                sourceName = source,
+                prUrl = session.outputs?.firstOrNull()?.pullRequest?.url,
+                prTitle = session.outputs?.firstOrNull()?.pullRequest?.title,
+                prId = session.outputs?.firstOrNull()?.pullRequest?.id,
+                prState = null,
+                prMergeable = null,
+                sessionState = session.state,
+                url = session.url,
+                createTime = session.createTime,
+                updateTime = session.updateTime,
+                isArchived = false,
+                lastUpdated = System.currentTimeMillis()
+            )
+            julesDao.insertSessions(listOf(entity))
+            return session.id
         } else {
             val tempId = "offline_${java.util.UUID.randomUUID()}"
             val entity = JulesSessionEntity(
@@ -282,53 +284,38 @@ class JulesRepository(
             async {
                 syncSemaphore.withPermit {
                     try {
-                        var promoted = false
-                        var lastError: Exception? = null
-                        for (key in apiKeys) {
-                            try {
-                                val newSession = julesClient.createSession(
-                                    apiKey = key,
-                                    prompt = session.prompt,
-                                    source = session.sourceName,
-                                    title = session.title
-                                )
-                                // Update local session ID and all associated activities
-                                val updatedEntity = JulesSessionEntity(
-                                    id = newSession.id,
-                                    title = newSession.title,
-                                    prompt = newSession.prompt,
-                                    sourceName = session.sourceName,
-                                    prUrl = newSession.outputs?.firstOrNull()?.pullRequest?.url,
-                                    prTitle = newSession.outputs?.firstOrNull()?.pullRequest?.title,
-                                    prState = null,
-                                    prMergeable = null,
-                                    sessionState = newSession.state,
-                                    isArchived = false,
-                                    lastUpdated = System.currentTimeMillis(),
-                                    isPendingOffline = false,
-                                    queuedAt = null,
-                                    apiKey = key
-                                )
-                                julesDao.insertSessions(listOf(updatedEntity))
-                                julesDao.updateActivitiesSessionId(session.id, newSession.id)
-                                julesDao.deleteSession(session.id)
+                        val newSession = julesClient.createSession(
+                            apiKey = apiKey,
+                            prompt = session.prompt,
+                            source = session.sourceName,
+                            title = session.title
+                        )
+                        // Update local session ID and all associated activities
+                        val updatedEntity = JulesSessionEntity(
+                            id = newSession.id,
+                            title = newSession.title,
+                            prompt = newSession.prompt,
+                            sourceName = session.sourceName,
+                            prUrl = newSession.outputs?.firstOrNull()?.pullRequest?.url,
+                            prTitle = newSession.outputs?.firstOrNull()?.pullRequest?.title,
+                            prId = newSession.outputs?.firstOrNull()?.pullRequest?.id,
+                            prState = null,
+                            prMergeable = null,
+                            sessionState = newSession.state,
+                            url = newSession.url,
+                            createTime = newSession.createTime,
+                            updateTime = newSession.updateTime,
+                            isArchived = false,
+                            lastUpdated = System.currentTimeMillis(),
+                            isPendingOffline = false,
+                            queuedAt = null
+                        )
+                        julesDao.insertSessions(listOf(updatedEntity))
+                        julesDao.updateActivitiesSessionId(session.id, newSession.id)
+                        julesDao.deleteSession(session.id)
 
-                                // After promotion, sync any activities that were attached to this session
-                                syncPendingActivities(key, newSession.id)
-                                promoted = true
-                                break
-                            } catch (e: Exception) {
-                                lastError = e
-                                if (e is fr.geoking.julius.shared.network.NetworkException && e.httpCode == 429) {
-                                    continue
-                                } else {
-                                    break
-                                }
-                            }
-                        }
-                        if (!promoted) {
-                            android.util.Log.e("JulesRepository", "Failed to sync offline session ${session.id}", lastError)
-                        }
+                        // After promotion, sync any activities that were attached to this session
+                        syncPendingActivities(apiKey, newSession.id)
                     } catch (e: Exception) {
                         android.util.Log.e("JulesRepository", "Failed to sync offline session ${session.id}", e)
                     }
@@ -395,7 +382,11 @@ class JulesRepository(
                     val updated = existing.copy(
                         prUrl = pr.url,
                         prTitle = pr.title,
+                        prId = pr.id,
                         sessionState = session.state,
+                        url = session.url,
+                        createTime = session.createTime,
+                        updateTime = session.updateTime,
                         lastUpdated = System.currentTimeMillis()
                     )
                     julesDao.insertSessions(listOf(updated))
@@ -485,10 +476,19 @@ class JulesRepository(
                     a.planGenerated != null -> "plan"
                     a.progressUpdated != null -> "progress"
                     a.sessionCompleted != null -> "completion"
+                    a.userMessaged != null || a.messageSent != null -> "user_message"
+                    a.agentMessaged != null -> "agent_message"
+                    a.sessionFailed != null -> "failure"
                     else -> "other"
                 }
                 val ts = a.createTime
                 val sortTs = try { OffsetDateTime.parse(ts).toInstant().toEpochMilli() } catch (e: Exception) { 0L }
+
+                val artifactsJson = try {
+                    if (a.artifacts != null) Json.encodeToString(a.artifacts) else null
+                } catch (e: Exception) {
+                    null
+                }
 
                 entities.add(JulesActivityEntity(
                     id = a.id,
@@ -498,7 +498,7 @@ class JulesRepository(
                     timestamp = ts,
                     sortTimestamp = sortTs,
                     type = type,
-                    activityJson = json.encodeToString(a)
+                    artifactsJson = artifactsJson
                 ))
             }
 

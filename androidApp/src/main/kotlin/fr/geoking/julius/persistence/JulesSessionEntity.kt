@@ -12,9 +12,13 @@ data class JulesSessionEntity(
     val sourceName: String,
     val prUrl: String?,
     val prTitle: String?,
+    val prId: String? = null,
     val prState: String?, // open, closed, merged
     val prMergeable: Boolean?, // true if no conflicts, false if conflicts, null if unknown
     val sessionState: String?, // QUEUED, PLANNING, COMPLETED, etc.
+    val url: String? = null,
+    val createTime: String? = null,
+    val updateTime: String? = null,
     @ColumnInfo(defaultValue = "0")
     val isArchived: Boolean = false,
     val lastUpdated: Long,

@@ -196,8 +196,10 @@ abstract class AppDatabase : RoomDatabase() {
 
         val MIGRATION_9_10: Migration = object : Migration(9, 10) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `apiKey` TEXT")
-                db.execSQL("ALTER TABLE `jules_activities` ADD COLUMN `activityJson` TEXT")
+                db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `prId` TEXT")
+                db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `url` TEXT")
+                db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `createTime` TEXT")
+                db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `updateTime` TEXT")
             }
         }
     }

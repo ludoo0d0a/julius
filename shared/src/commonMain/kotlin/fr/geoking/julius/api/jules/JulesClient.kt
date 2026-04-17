@@ -106,6 +106,9 @@ class JulesClient(
         val sourceContext: SourceContext? = null,
         val prompt: String = "",
         val state: String? = null,
+        val url: String? = null,
+        val createTime: String = "",
+        val updateTime: String = "",
         val outputs: List<JulesOutput>? = null
     )
 
@@ -116,6 +119,7 @@ class JulesClient(
 
     @Serializable
     data class JulesPullRequest(
+        val id: String? = null,
         val url: String? = null,
         val title: String? = null,
         val description: String? = null
@@ -243,13 +247,17 @@ class JulesClient(
     data class JulesActivity(
         val name: String = "",
         val id: String = "",
+        val description: String? = null,
         val createTime: String = "",
         @SerialName("originator") val originator: String = "",
         val planGenerated: PlanGenerated? = null,
         val planApproved: PlanApproved? = null,
         val progressUpdated: ProgressUpdated? = null,
         val sessionCompleted: JsonObject? = null,
+        val sessionFailed: SessionFailed? = null,
         val messageSent: MessageSent? = null,
+        val userMessaged: UserMessaged? = null,
+        val agentMessaged: AgentMessaged? = null,
         val artifacts: List<JulesArtifact>? = null
     )
 
@@ -292,6 +300,7 @@ class JulesClient(
     @Serializable
     data class JulesPlan(
         val id: String? = null,
+        val createTime: String = "",
         val steps: List<JulesPlanStep> = emptyList()
     )
 
@@ -299,6 +308,7 @@ class JulesClient(
     data class JulesPlanStep(
         val id: String? = null,
         val title: String = "",
+        val description: String? = null,
         val index: Int? = null
     )
 
@@ -312,7 +322,16 @@ class JulesClient(
     )
 
     @Serializable
+    data class SessionFailed(val reason: String? = null)
+
+    @Serializable
     data class MessageSent(val prompt: String? = null)
+
+    @Serializable
+    data class UserMessaged(val userMessage: String)
+
+    @Serializable
+    data class AgentMessaged(val agentMessage: String)
 
     suspend fun listActivities(apiKey: String, sessionId: String, pageSize: Int = 30, pageToken: String? = null): ListActivitiesResponse {
         val token = apiKeyHeader(apiKey)
@@ -335,6 +354,8 @@ class JulesClient(
      */
     fun extractText(a: JulesActivity): String {
         return when {
+            a.userMessaged != null -> a.userMessaged.userMessage
+            a.agentMessaged != null -> a.agentMessaged.agentMessage
             a.messageSent != null -> a.messageSent.prompt ?: ""
             a.planGenerated != null -> {
                 val plan = a.planGenerated.plan
@@ -353,8 +374,9 @@ class JulesClient(
                 }
             }
             a.sessionCompleted != null -> "Session completed."
+            a.sessionFailed != null -> "Session failed: ${a.sessionFailed.reason ?: "Unknown error"}"
             a.planApproved != null && a.originator == "user" -> "Plan approved. 🚀"
-            else -> "Activity"
+            else -> a.description ?: "Activity"
         }
     }
 
@@ -392,7 +414,9 @@ class JulesClient(
         for (a in sorted) {
             if (a.originator == "user") {
                 flush()
-                if (a.messageSent != null) {
+                if (a.userMessaged != null) {
+                    items.add(JulesChatItem.UserMessage(a.id, a.createTime, a.userMessaged.userMessage))
+                } else if (a.messageSent != null) {
                     items.add(JulesChatItem.UserMessage(a.id, a.createTime, a.messageSent.prompt ?: ""))
                 } else if (a.planApproved != null) {
                     // Plan approved is special: show as a single agent message for now as it triggers agent work
