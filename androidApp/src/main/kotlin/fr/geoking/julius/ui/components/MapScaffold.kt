@@ -115,7 +115,6 @@ fun MapScaffold(
                                             PoiProviderType.AustriaEControl -> "Source: E-Control (Austria)"
                                             PoiProviderType.BelgiumOfficial -> "Source: Belgium (official)"
                                             PoiProviderType.PortugalDgeg -> "Source: Portugal DGEG (official)"
-                                            PoiProviderType.MadeiraOfficial -> "Source: Madeira (official)"
                                             PoiProviderType.NetherlandsAnwb -> "Source: ANWB"
                                             PoiProviderType.SloveniaGoriva -> "Source: Goriva.si"
                                             PoiProviderType.RomaniaPeco -> "Source: Peco Online"

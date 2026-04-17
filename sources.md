@@ -140,7 +140,6 @@ These providers cover multiple regions or provide fallback data when specific lo
 | Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **DGEG (Mainland)** | JSON | Free | Government | No | No | ~1 hour cache |
-| **Madeira Official** | HTML | Free | Government | No | No | 24 hour cache |
 
 ### 🇷🇴 Romania
 | Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |

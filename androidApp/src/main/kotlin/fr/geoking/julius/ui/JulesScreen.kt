@@ -653,8 +653,6 @@ fun JulesScreen(
                 }
             }
         }
-
-        }
     }
 
     if (showActivitiesSheet) {

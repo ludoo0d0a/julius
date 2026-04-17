@@ -90,7 +90,7 @@ enum class PoiProviderType(
         providesFuel = true,
         providesPrices = true,
         supportedCountries = setOf(
-            "LU", "ME", "MK", "HR", "SI", "BE", "PT", "PT-MA", "PT-AC", "IT", "SE", "DK", "FI",
+            "LU", "ME", "MK", "HR", "SI", "BE", "PT", "PT-AC", "IT", "SE", "DK", "FI",
             "NO", "PL", "HU", "IE", "GR", "RO", "CZ", "SK", "BG"
         )
     ),
@@ -106,8 +106,6 @@ enum class PoiProviderType(
     BelgiumOfficial(providesFuel = true, providesPrices = true, supportedCountries = setOf("BE")),
     /** Portuguese fuel prices via DGEG (Mainland). */
     PortugalDgeg(providesFuel = true, providesPrices = true, supportedCountries = setOf("PT")),
-    /** Madeira regional official maximum fuel prices. */
-    MadeiraOfficial(providesFuel = true, providesPrices = true, supportedCountries = setOf("PT-MA")),
     /** UK fuel prices via CMA open data feeds. */
     UnitedKingdomCma(providesFuel = true, providesPrices = true, supportedCountries = setOf("GB")),
     /** Italian fuel prices via MIMIT open data feeds. */

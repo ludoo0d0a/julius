@@ -402,7 +402,6 @@ private fun MapConfig(
         PoiProviderType.AustriaEControl to "E-Control (Austria)",
         PoiProviderType.BelgiumOfficial to "Belgium (official)",
         PoiProviderType.PortugalDgeg to "Portugal DGEG (official)",
-        PoiProviderType.MadeiraOfficial to "Madeira (official)",
         PoiProviderType.NetherlandsAnwb to "Netherlands/Luxembourg (ANWB)",
         PoiProviderType.SloveniaGoriva to "Slovenia (Goriva.si)",
         PoiProviderType.RomaniaPeco to "Romania (Peco Online)",

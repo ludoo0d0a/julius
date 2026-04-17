@@ -41,7 +41,6 @@ class SelectorPoiProvider(
     private val austriaEControl: PoiProvider,
     private val belgiumOfficial: PoiProvider,
     private val portugalDgeg: PoiProvider,
-    private val madeiraOfficial: PoiProvider,
     private val ionity: PoiProvider,
     private val fastned: PoiProvider,
     private val unitedKingdomCma: PoiProvider,
@@ -104,7 +103,6 @@ class SelectorPoiProvider(
         PoiProviderType.AustriaEControl -> austriaEControl
         PoiProviderType.BelgiumOfficial -> belgiumOfficial
         PoiProviderType.PortugalDgeg -> portugalDgeg
-        PoiProviderType.MadeiraOfficial -> madeiraOfficial
         PoiProviderType.Ionity -> ionity
         PoiProviderType.Fastned -> fastned
         PoiProviderType.UnitedKingdomCma -> unitedKingdomCma
@@ -463,7 +461,6 @@ class SelectorPoiProvider(
         austriaEControl.clearCache()
         belgiumOfficial.clearCache()
         portugalDgeg.clearCache()
-        madeiraOfficial.clearCache()
         ionity.clearCache()
         fastned.clearCache()
         unitedKingdomCma.clearCache()
