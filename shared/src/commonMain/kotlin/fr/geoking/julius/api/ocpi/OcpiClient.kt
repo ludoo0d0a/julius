@@ -17,7 +17,9 @@ import kotlinx.serialization.json.Json
 class OcpiClient(
     private val client: HttpClient,
     private val baseUrl: String,
-    private val token: String
+    private val token: String,
+    private val authHeaderName: String = "Authorization",
+    private val useTokenPrefix: Boolean = true
 ) {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -40,7 +42,8 @@ class OcpiClient(
 
         val response = client.get(url) {
             if (token.isNotBlank()) {
-                header("Authorization", "Token $token")
+                val headerValue = if (useTokenPrefix) "Token $token" else token
+                header(authHeaderName, headerValue)
             }
             // OCPI /locations typically supports date_from, date_to for delta.
             // Some implementations support lat/lon/radius as query params (non-standard extension).
@@ -72,7 +75,8 @@ class OcpiClient(
 
         val response = client.get(url) {
             if (token.isNotBlank()) {
-                header("Authorization", "Token $token")
+                val headerValue = if (useTokenPrefix) "Token $token" else token
+                header(authHeaderName, headerValue)
             }
         }
 

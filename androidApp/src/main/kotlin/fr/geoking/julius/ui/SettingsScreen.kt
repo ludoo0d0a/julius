@@ -627,6 +627,15 @@ private fun MapConfig(
             )
         }
 
+        // API Keys for EV Charging
+        Column {
+            Text("EV Charging API Keys", color = Lavender, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
+            ConfigTextField("OpenChargeMap Key", settings.openChargeMapKey) { onUpdate(settings.copy(openChargeMapKey = it)) }
+            ConfigTextField("Fastned x-api-key", settings.fastnedKey) { onUpdate(settings.copy(fastnedKey = it)) }
+            ConfigTextField("Eco-Movement URL", settings.ecoMovementUrl) { onUpdate(settings.copy(ecoMovementUrl = it)) }
+            ConfigTextField("Eco-Movement Token", settings.ecoMovementToken) { onUpdate(settings.copy(ecoMovementToken = it)) }
+        }
+
         // Map Filters
         Column {
             Text("Map Filters", color = Lavender, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))

@@ -162,6 +162,8 @@ data class AppSettings(
     val evConsumptionKwhPer100km: Float? = null,
     /** Optional API key for Open Charge Map (api.openchargemap.io). */
     val openChargeMapKey: String = "",
+    /** API key for Fastned (x-api-key). */
+    val fastnedKey: String = "",
     /** Base URL for Eco-Movement OCPI endpoint. */
     val ecoMovementUrl: String = "",
     /** Authentication token for Eco-Movement. */
@@ -290,6 +292,8 @@ open class SettingsManager(
         val githubApiKey = prefs.getString("github_api_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.GITHUB_TOKEN
         val openChargeMapKey = prefs.getString("openchargemap_key", "")?.takeIf { it.isNotEmpty() }
             ?: fr.geoking.julius.BuildConfig.OPENCHARGEMAP_KEY
+        val fastnedKey = prefs.getString("fastned_key", "")?.takeIf { it.isNotEmpty() }
+            ?: fr.geoking.julius.BuildConfig.FASTNED_KEY
         val ecoMovementUrl = prefs.getString("eco_movement_url", "")?.takeIf { it.isNotEmpty() }
             ?: fr.geoking.julius.BuildConfig.ECO_MOVEMENT_URL
         val ecoMovementToken = prefs.getString("eco_movement_token", "")?.takeIf { it.isNotEmpty() }
@@ -316,7 +320,7 @@ open class SettingsManager(
             deepSeekKey, deepSeekModel, groqKey, groqModel,
             openRouterKey, openRouterModel,
             julesKeys, githubApiKey,
-            openChargeMapKey, ecoMovementUrl, ecoMovementToken
+            openChargeMapKey, fastnedKey, ecoMovementUrl, ecoMovementToken
         )
 
         val speakingInterruptMode = loadSpeakingInterruptMode()
@@ -459,6 +463,7 @@ open class SettingsManager(
             evRangeKm = evRangeKm,
             evConsumptionKwhPer100km = evConsumptionKwhPer100km,
             openChargeMapKey = openChargeMapKey,
+            fastnedKey = fastnedKey,
             ecoMovementUrl = ecoMovementUrl,
             ecoMovementToken = ecoMovementToken,
             selectedOverpassAmenityTypes = selectedOverpassAmenityTypes,
@@ -608,6 +613,7 @@ open class SettingsManager(
         julesKeys: List<String>,
         githubApiKey: String,
         openChargeMapKey: String = "",
+        fastnedKey: String = "",
         ecoMovementUrl: String = "",
         ecoMovementToken: String = ""
     ) {
@@ -633,6 +639,7 @@ open class SettingsManager(
         if (prefs.getString("jules_keys", "")?.isEmpty() != false && julesKeys.isNotEmpty()) edit.putString("jules_keys", Json.encodeToString(julesKeys))
         if (prefs.getString("github_api_key", "")?.isEmpty() != false && githubApiKey.isNotEmpty()) edit.putString("github_api_key", githubApiKey)
         if (prefs.getString("openchargemap_key", "")?.isEmpty() != false && openChargeMapKey.isNotEmpty()) edit.putString("openchargemap_key", openChargeMapKey)
+        if (prefs.getString("fastned_key", "")?.isEmpty() != false && fastnedKey.isNotEmpty()) edit.putString("fastned_key", fastnedKey)
         if (prefs.getString("eco_movement_url", "")?.isEmpty() != false && ecoMovementUrl.isNotEmpty()) edit.putString("eco_movement_url", ecoMovementUrl)
         if (prefs.getString("eco_movement_token", "")?.isEmpty() != false && ecoMovementToken.isNotEmpty()) edit.putString("eco_movement_token", ecoMovementToken)
         edit.apply()
@@ -861,6 +868,7 @@ open class SettingsManager(
             .putInt("ev_range_km", settings.evRangeKm.coerceIn(50, 1000))
             .apply { settings.evConsumptionKwhPer100km?.let { putFloat("ev_consumption_kwh_100", it) } ?: remove("ev_consumption_kwh_100") }
             .putString("openchargemap_key", settings.openChargeMapKey)
+            .putString("fastned_key", settings.fastnedKey)
             .putString("eco_movement_url", settings.ecoMovementUrl)
             .putString("eco_movement_token", settings.ecoMovementToken)
             .putString("mobiliteit_luxembourg_key", settings.mobiliteitLuxembourgKey)
@@ -987,6 +995,7 @@ open class SettingsManager(
             evRangeKm = _settings.value.evRangeKm,
             evConsumptionKwhPer100km = _settings.value.evConsumptionKwhPer100km,
             openChargeMapKey = _settings.value.openChargeMapKey,
+            fastnedKey = _settings.value.fastnedKey,
             selectedOverpassAmenityTypes = _settings.value.selectedOverpassAmenityTypes,
             phoneMapEngine = _settings.value.phoneMapEngine,
             mapTheme = _settings.value.mapTheme,
