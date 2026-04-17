@@ -212,9 +212,12 @@ val mapModule = module {
         )
     }
     single<PoiProvider>(named("fastned")) {
-        fr.geoking.julius.api.ocpi.OcpiPoiProvider(
-            client = fr.geoking.julius.api.ocpi.OcpiClient(get(), baseUrl = "https://api.fastned.nl/ocpi/2.2.1", token = ""),
-            providerName = "Fastned"
+        fr.geoking.julius.api.ocpi.FastnedOcpiPoiProvider(
+            client = fr.geoking.julius.api.ocpi.OcpiClient(
+                get(),
+                baseUrl = "https://uk-public.api.fastned.nl/uk-public/ocpi/cpo/2.2.1",
+                token = ""
+            )
         )
     }
     single<PoiProvider>(named("unitedkingdomcma")) {

@@ -65,6 +65,34 @@ data class OcpiOperator(
 )
 
 @Serializable
+data class OcpiTariff(
+    val id: String,
+    val currency: String,
+    val elements: List<OcpiTariffElement> = emptyList(),
+    val last_updated: String
+)
+
+@Serializable
+data class OcpiTariffElement(
+    val price_components: List<OcpiPriceComponent> = emptyList()
+)
+
+@Serializable
+data class OcpiPriceComponent(
+    val type: OcpiPriceComponentType,
+    val price: Double,
+    val step_size: Int
+)
+
+@Serializable
+enum class OcpiPriceComponentType {
+    ENERGY,
+    FLAT,
+    TIME,
+    PARKING_TIME
+}
+
+@Serializable
 enum class OcpiStatus {
     AVAILABLE,
     BLOCKED,

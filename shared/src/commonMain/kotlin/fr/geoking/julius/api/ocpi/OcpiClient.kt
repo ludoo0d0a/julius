@@ -39,7 +39,9 @@ class OcpiClient(
         val url = if (baseUrl.endsWith("/locations")) baseUrl else "$baseUrl/locations"
 
         val response = client.get(url) {
-            header("Authorization", "Token $token")
+            if (token.isNotBlank()) {
+                header("Authorization", "Token $token")
+            }
             // OCPI /locations typically supports date_from, date_to for delta.
             // Some implementations support lat/lon/radius as query params (non-standard extension).
             if (latitude != null) parameter("latitude", latitude)
@@ -57,6 +59,32 @@ class OcpiClient(
         }
 
         val ocpiResponse: OcpiResponse<List<OcpiLocation>> = response.body()
+        return ocpiResponse.data ?: emptyList()
+    }
+
+    /**
+     * Fetches tariffs from the OCPI /tariffs endpoint.
+     */
+    suspend fun getTariffs(): List<OcpiTariff> {
+        if (baseUrl.isBlank()) return emptyList()
+
+        val url = if (baseUrl.endsWith("/tariffs")) baseUrl else "$baseUrl/tariffs"
+
+        val response = client.get(url) {
+            if (token.isNotBlank()) {
+                header("Authorization", "Token $token")
+            }
+        }
+
+        if (response.status == HttpStatusCode.NotFound) {
+            return emptyList()
+        }
+
+        if (response.status.value != 200) {
+            throw NetworkException(response.status.value, "OCPI Error: ${response.bodyAsText()}")
+        }
+
+        val ocpiResponse: OcpiResponse<List<OcpiTariff>> = response.body()
         return ocpiResponse.data ?: emptyList()
     }
 }
