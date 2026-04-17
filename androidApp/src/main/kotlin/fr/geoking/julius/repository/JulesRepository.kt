@@ -14,6 +14,8 @@ import fr.geoking.julius.persistence.JulesActivityEntity
 import fr.geoking.julius.persistence.JulesDao
 import fr.geoking.julius.persistence.JulesSessionEntity
 import fr.geoking.julius.shared.network.NetworkService
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.coroutineScope
@@ -69,9 +71,13 @@ class JulesRepository(
                     sourceName = sourceName,
                     prUrl = pr?.url,
                     prTitle = pr?.title,
+                    prId = pr?.id,
                     prState = existing?.prState,
                     prMergeable = existing?.prMergeable,
                     sessionState = session.state,
+                    url = session.url,
+                    createTime = session.createTime,
+                    updateTime = session.updateTime,
                     isArchived = existing?.isArchived ?: false,
                     lastUpdated = newLastUpdated
                 ))
@@ -164,9 +170,13 @@ class JulesRepository(
                 sourceName = source,
                 prUrl = session.outputs?.firstOrNull()?.pullRequest?.url,
                 prTitle = session.outputs?.firstOrNull()?.pullRequest?.title,
+                prId = session.outputs?.firstOrNull()?.pullRequest?.id,
                 prState = null,
                 prMergeable = null,
                 sessionState = session.state,
+                url = session.url,
+                createTime = session.createTime,
+                updateTime = session.updateTime,
                 isArchived = false,
                 lastUpdated = System.currentTimeMillis()
             )
@@ -256,9 +266,13 @@ class JulesRepository(
                             sourceName = session.sourceName,
                             prUrl = newSession.outputs?.firstOrNull()?.pullRequest?.url,
                             prTitle = newSession.outputs?.firstOrNull()?.pullRequest?.title,
+                            prId = newSession.outputs?.firstOrNull()?.pullRequest?.id,
                             prState = null,
                             prMergeable = null,
                             sessionState = newSession.state,
+                            url = newSession.url,
+                            createTime = newSession.createTime,
+                            updateTime = newSession.updateTime,
                             isArchived = false,
                             lastUpdated = System.currentTimeMillis(),
                             isPendingOffline = false,
@@ -328,7 +342,11 @@ class JulesRepository(
                     val updated = existing.copy(
                         prUrl = pr.url,
                         prTitle = pr.title,
+                        prId = pr.id,
                         sessionState = session.state,
+                        url = session.url,
+                        createTime = session.createTime,
+                        updateTime = session.updateTime,
                         lastUpdated = System.currentTimeMillis()
                     )
                     julesDao.insertSessions(listOf(updated))
@@ -413,10 +431,19 @@ class JulesRepository(
                     a.planGenerated != null -> "plan"
                     a.progressUpdated != null -> "progress"
                     a.sessionCompleted != null -> "completion"
+                    a.userMessaged != null || a.messageSent != null -> "user_message"
+                    a.agentMessaged != null -> "agent_message"
+                    a.sessionFailed != null -> "failure"
                     else -> "other"
                 }
                 val ts = a.createTime
                 val sortTs = try { OffsetDateTime.parse(ts).toInstant().toEpochMilli() } catch (e: Exception) { 0L }
+
+                val artifactsJson = try {
+                    if (a.artifacts != null) Json.encodeToString(a.artifacts) else null
+                } catch (e: Exception) {
+                    null
+                }
 
                 entities.add(JulesActivityEntity(
                     id = a.id,
@@ -425,7 +452,8 @@ class JulesRepository(
                     text = text,
                     timestamp = ts,
                     sortTimestamp = sortTs,
-                    type = type
+                    type = type,
+                    artifactsJson = artifactsJson
                 ))
             }
 

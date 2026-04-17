@@ -78,4 +78,42 @@ class JulesGroupingTest {
         val msg = chatItems[0] as JulesChatItem.AgentMessage
         assertEquals("Updated file1.kt, file2.kt", msg.title)
     }
+
+    @Test
+    fun testNewActivityTypes() {
+        val activities = listOf(
+            JulesClient.JulesActivity(
+                id = "1",
+                createTime = "2024-01-01T10:00:00Z",
+                originator = "user",
+                userMessaged = JulesClient.UserMessaged(userMessage = "Hello Jules")
+            ),
+            JulesClient.JulesActivity(
+                id = "2",
+                createTime = "2024-01-01T10:01:00Z",
+                originator = "agent",
+                agentMessaged = JulesClient.AgentMessaged(agentMessage = "Hello user")
+            ),
+            JulesClient.JulesActivity(
+                id = "3",
+                createTime = "2024-01-01T10:02:00Z",
+                originator = "system",
+                sessionFailed = JulesClient.SessionFailed(reason = "Too many tokens")
+            ),
+            JulesClient.JulesActivity(
+                id = "4",
+                createTime = "2024-01-01T10:03:00Z",
+                originator = "system",
+                description = "Custom system message"
+            )
+        )
+
+        val chatItems = client.activitiesToChatItems(activities)
+
+        assertEquals(4, chatItems.size)
+        assertEquals("Hello Jules", (chatItems[0] as JulesChatItem.UserMessage).text)
+        assertEquals("Hello user", (chatItems[1] as JulesChatItem.AgentMessage).text)
+        assertEquals("Session failed: Too many tokens", (chatItems[2] as JulesChatItem.AgentMessage).text)
+        assertEquals("Custom system message", (chatItems[3] as JulesChatItem.AgentMessage).text)
+    }
 }
