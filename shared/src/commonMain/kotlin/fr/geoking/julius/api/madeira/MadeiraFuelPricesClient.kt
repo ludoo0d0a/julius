@@ -69,10 +69,10 @@ class MadeiraFuelPricesClient(
         val dieselPrice = latest.groupValues[4].replace(",", ".").toDoubleOrNull()
 
         if (sp95Price != null) {
-            prices.add(FuelPrice("SP95", sp95Price, updatedAt = "$startDate to $endDate"))
+            prices.add(FuelPrice("SP95", sp95Price, updatedAt = "$startDate to $endDate", isReference = true))
         }
         if (dieselPrice != null) {
-            prices.add(FuelPrice("Gazole", dieselPrice, updatedAt = "$startDate to $endDate"))
+            prices.add(FuelPrice("Gazole", dieselPrice, updatedAt = "$startDate to $endDate", isReference = true))
         }
 
         return prices

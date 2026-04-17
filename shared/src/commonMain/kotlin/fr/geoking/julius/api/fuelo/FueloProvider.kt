@@ -6,6 +6,7 @@ import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.poi.PoiCategory
 import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.shared.location.haversineKm
+import fr.geoking.julius.shared.util.DateUtils
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -186,7 +187,7 @@ class FueloProvider(
                 val priceStr = priceMatch.groupValues[1]
                 val price = parsePrice(priceStr)
                 if (price > 0) {
-                    prices.add(FuelPrice(fuelName, price))
+                    prices.add(FuelPrice(fuelName, price, updatedAt = DateUtils.formatIsoNow()))
                 }
             }
         }
