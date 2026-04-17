@@ -115,7 +115,8 @@ object BrandRegistry {
             .replace('ý', 'y').replace('ÿ', 'y')
             .replace('œ', 'o').replace('æ', 'a')
 
-        val base = out.replace(Regex("\\s+"), " ")
+        // Handle dashes and multiple spaces
+        val base = out.replace("-", " ").replace(Regex("\\s+"), " ").trim()
 
         return when {
             base.contains("systeme u") || base.contains("super u") || base.contains("hyper u") ||
@@ -123,7 +124,7 @@ object BrandRegistry {
             base.contains("intermarche") -> "intermarche"
             base.contains("casino") -> "casino"
             base.contains("indigo") -> "indigo"
-            base.contains("total") && base.contains("access") -> "totalenergies"
+            base.contains("total") && (base.contains("access") || base.contains("express")) -> "totalenergies"
             base.contains("esso") && base.contains("express") -> "esso express"
             else -> base.replace(". ", ".").trim()
         }

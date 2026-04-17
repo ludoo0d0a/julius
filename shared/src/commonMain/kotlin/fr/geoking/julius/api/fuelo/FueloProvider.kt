@@ -213,7 +213,8 @@ class FueloProvider(
             "eni" to "Eni", "lukoil" to "Lukoil", "slovnaft" to "Slovnaft", "bp" to "BP",
             "avia" to "AVIA", "orlen" to "Orlen", "rompetrol" to "Rompetrol",
             "eko" to "EKO", "nis" to "NIS", "petrol" to "Petrol", "gazprom" to "Gazprom",
-            "total-new" to "TotalEnergies", "total" to "TotalEnergies", "circle-k" to "Circle K"
+            "total-new" to "TotalEnergies", "total" to "TotalEnergies", "circle-k" to "Circle K",
+            "galp" to "Galp", "prio" to "Prio", "alves-bandeira" to "Alves Bandeira"
         )
         return map[logo] ?: (logo.replaceFirstChar { it.uppercase() })
     }
