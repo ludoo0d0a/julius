@@ -39,11 +39,10 @@ class AutoJulesConversationScreen(
     }
 
     private fun startPolling() {
-        val apiKey = settingsManager.settings.value.julesKey
         lifecycleScope.launch {
             while (true) {
                 try {
-                    julesRepository.getActivities(apiKey, session.id).collectLatest { items ->
+                    julesRepository.getActivities(session.id).collectLatest { items ->
                         if (items.size != chatItems.size || items.lastOrNull() != chatItems.lastOrNull()) {
                             chatItems = items
                             loading = false
@@ -115,16 +114,15 @@ class AutoJulesConversationScreen(
     }
 
     private fun sendMessage(prompt: String) {
-        val apiKey = settingsManager.settings.value.julesKey
         sending = true
         lastError = null
         invalidate()
         lifecycleScope.launch {
             try {
-                julesClient.sendMessage(apiKey, session.id, prompt)
+                julesRepository.sendMessage(session.id, prompt)
                 lastCapturedPrompt = null
                 // Refresh immediately
-                julesRepository.getActivities(apiKey, session.id).collectLatest { items ->
+                julesRepository.getActivities(session.id).collectLatest { items ->
                     chatItems = items
                     sending = false
                     invalidate()

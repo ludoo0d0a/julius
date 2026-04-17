@@ -24,5 +24,6 @@ data class JulesSessionEntity(
     val lastUpdated: Long,
     @ColumnInfo(defaultValue = "0")
     val isPendingOffline: Boolean = false,
-    val queuedAt: Long? = null
+    val queuedAt: Long? = null,
+    val apiKey: String? = null
 )
