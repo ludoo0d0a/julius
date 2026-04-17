@@ -64,31 +64,19 @@ class AutoJulesNewSessionScreen(
     }
 
     private fun createSession(prompt: String) {
-        val apiKey = settingsManager.settings.value.julesKey
+        val apiKeys = settingsManager.settings.value.julesKeys
         loading = true
         error = null
         invalidate()
         lifecycleScope.launch {
             try {
-                val session = julesClient.createSession(
-                    apiKey = apiKey,
+                val sessionId = julesRepository.createSession(
+                    apiKeys = apiKeys,
                     prompt = prompt,
                     source = sourceId,
                     title = prompt.take(80)
                 )
-                val entity = JulesSessionEntity(
-                    id = session.id,
-                    title = session.title,
-                    prompt = session.prompt,
-                    sourceName = sourceId,
-                    prUrl = session.outputs?.firstOrNull()?.pullRequest?.url,
-                    prTitle = session.outputs?.firstOrNull()?.pullRequest?.title,
-                    prState = null,
-                    prMergeable = null,
-                                            sessionState = session.state,
-                    isArchived = false,
-                    lastUpdated = System.currentTimeMillis()
-                )
+                val entity = julesRepository.getSession(sessionId) ?: throw Exception("Failed to load created session")
                 // Navigate to conversation view
                 screenManager.pop() // Remove "New Session" screen
                 screenManager.push(AutoJulesConversationScreen(carContext, store, settingsManager, julesClient, julesRepository, entity))

@@ -13,8 +13,10 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material3.*
@@ -291,6 +293,87 @@ fun SettingsScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CountrySelector(
+    availableCountries: List<String>,
+    selectedCountryCode: String?,
+    onCountrySelected: (String?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val selectedLabel = if (selectedCountryCode == null) "All Countries" else getCountryDisplayName(selectedCountryCode)
+
+    val filteredCountries = remember(searchQuery, availableCountries) {
+        val all = listOf(null) + availableCountries
+        if (searchQuery.isBlank()) all
+        else all.filter {
+            val label = if (it == null) "All Countries" else getCountryDisplayName(it)
+            label.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+        Text(
+            "Filter by Country",
+            color = Lavender.copy(alpha = 0.7f),
+            fontSize = 14.sp,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = if (expanded) searchQuery else selectedLabel,
+                onValueChange = { searchQuery = it },
+                label = { Text("Search country...", color = Lavender.copy(alpha = 0.5f)) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                readOnly = !expanded,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = Lavender,
+                    unfocusedBorderColor = SeparatorColor,
+                    focusedContainerColor = Color.Black.copy(alpha = 0.3f),
+                    unfocusedContainerColor = Color.Black.copy(alpha = 0.2f),
+                    focusedLabelColor = Lavender,
+                    unfocusedLabelColor = Lavender.copy(alpha = 0.7f)
+                ),
+                modifier = Modifier
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable)
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = {
+                    expanded = false
+                    searchQuery = ""
+                },
+                containerColor = Color(0xFF1A1A2E),
+                modifier = Modifier.background(Color(0xFF1A1A2E))
+            ) {
+                filteredCountries.forEach { code ->
+                    val label = if (code == null) "All Countries" else getCountryDisplayName(code)
+                    DropdownMenuItem(
+                        text = { Text(label, color = Color.White) },
+                        onClick = {
+                            onCountrySelected(code)
+                            expanded = false
+                            searchQuery = ""
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MapConfig(
@@ -434,38 +517,11 @@ private fun MapConfig(
                 )
             } else {
                 Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp)
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        selected = selectedCountryCode == null,
-                        onClick = { selectedCountryCode = null },
-                        label = { Text("All") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Lavender,
-                            selectedLabelColor = DeepPurple,
-                            labelColor = Color.White,
-                            containerColor = Color.White.copy(alpha = 0.1f)
-                        )
-                    )
-                    availableCountries.forEach { code ->
-                        FilterChip(
-                            selected = selectedCountryCode == code,
-                            onClick = { selectedCountryCode = code },
-                            label = { Text(getCountryDisplayName(code)) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Lavender,
-                                selectedLabelColor = DeepPurple,
-                                labelColor = Color.White,
-                                containerColor = Color.White.copy(alpha = 0.1f)
-                            )
-                        )
-                    }
-                }
+                CountrySelector(
+                    availableCountries = availableCountries,
+                    selectedCountryCode = selectedCountryCode,
+                    onCountrySelected = { selectedCountryCode = it }
+                )
             }
 
             // Electric
@@ -1015,8 +1071,8 @@ private fun MainMenu(
         SettingsItem(
             label = "Jules & GitHub",
             value = when {
-                settings.julesKey.isNotEmpty() && settings.githubApiKey.isNotEmpty() -> "••••••••"
-                settings.julesKey.isNotEmpty() -> "Jules only"
+                settings.julesKeys.isNotEmpty() && settings.githubApiKey.isNotEmpty() -> "${settings.julesKeys.size} keys + GitHub"
+                settings.julesKeys.isNotEmpty() -> "${settings.julesKeys.size} keys"
                 settings.githubApiKey.isNotEmpty() -> "GitHub only"
                 else -> "Not set"
             },
@@ -1881,11 +1937,64 @@ private fun JulesConfig(
             .padding(24.dp)
     ) {
         ApiKeyHelpLink(
-            helpText = "Jules suggests code changes from the Jules screen. In the web app, open Settings to create an API key.",
+            helpText = "Jules suggests code changes from the Jules screen. In the web app, open Settings to create an API key. You can add multiple keys to merge projects/conversations from different accounts.",
             url = "https://jules.google.com/",
             linkLabel = "Open Jules"
         )
-        ConfigTextField("Jules API Key", settings.julesKey) { onUpdate(settings.copy(julesKey = it)) }
+
+        Text(
+            "Jules API Keys",
+            color = Lavender,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        settings.julesKeys.forEachIndexed { index, key ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            ) {
+                OutlinedTextField(
+                    value = key,
+                    onValueChange = { newValue ->
+                        val newList = settings.julesKeys.toMutableList()
+                        newList[index] = newValue
+                        onUpdate(settings.copy(julesKeys = newList))
+                    },
+                    modifier = Modifier.weight(1f),
+                    textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 16.sp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Lavender,
+                        unfocusedBorderColor = SeparatorColor,
+                        focusedContainerColor = Color.Black.copy(alpha = 0.3f),
+                        unfocusedContainerColor = Color.Black.copy(alpha = 0.2f)
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    label = { Text("Key #${index + 1}", color = Lavender.copy(alpha = 0.5f)) }
+                )
+                IconButton(onClick = {
+                    val newList = settings.julesKeys.toMutableList()
+                    newList.removeAt(index)
+                    onUpdate(settings.copy(julesKeys = newList))
+                }) {
+                    Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color.Red)
+                }
+            }
+        }
+
+        Button(
+            onClick = {
+                onUpdate(settings.copy(julesKeys = settings.julesKeys + ""))
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = Lavender.copy(alpha = 0.1f), contentColor = Lavender),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Add API Key")
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
         ApiKeyHelpLink(
             helpText = "GitHub personal access token: used on the Jules screen to list pull requests, merge, close, and post comments (with an @jules prefix). Create a classic token with repo scope (or a fine-grained token with Contents, Pull requests, and Issues for your repositories).",
@@ -2290,7 +2399,8 @@ fun SettingsScreenPreview() {
                     fractalQuality = FractalQuality.Medium,
                     fractalColorIntensity = FractalColorIntensity.Medium,
                     extendedActionsEnabled = true,
-                    textAnimation = TextAnimation.Fade
+                    textAnimation = TextAnimation.Fade,
+                    julesKeys = listOf("key1", "key2")
                 )
             )
             override val settings: StateFlow<AppSettings> = mockSettings.asStateFlow()

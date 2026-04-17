@@ -214,12 +214,16 @@ val appModule = module {
         val settingsManager = get<SettingsManager>()
         HttpClient(OkHttp) {
             val requestBodyKey = AttributeKey<String>("DebugRequestBody")
+            val logIdKey = AttributeKey<String>("DebugLogId")
+            val startTimeKey = AttributeKey<Long>("DebugStartTime")
 
             install(ResponseObserver) {
                 onResponse { response ->
                     if (settingsManager.settings.value.debugLoggingEnabled) {
                         val request = response.request
                         val reqBody = request.attributes.getOrNull(requestBodyKey)
+                        val logId = request.attributes.getOrNull(logIdKey) ?: UUID.randomUUID().toString()
+                        val startTime = request.attributes.getOrNull(startTimeKey) ?: System.currentTimeMillis()
 
                         // Capture logs in a background task to avoid blocking.
                         // Note: bodyAsText() on duplicated body from ResponseObserver is safe.
@@ -232,19 +236,19 @@ val appModule = module {
                                 "[Unreadable body: ${e.message}]"
                             }
 
-                            DebugLogStore.addLog(
+                            DebugLogStore.addOrUpdateLog(
                                 NetworkLog(
-                                    id = UUID.randomUUID().toString(),
+                                    id = logId,
                                     url = request.url.toString(),
                                     host = request.url.host,
                                     method = request.method.value,
-                                    requestHeaders = request.headers.toMap(),
+                                    requestHeaders = request.headers.entries().associate { it.key to it.value },
                                     requestBody = reqBody,
                                     responseHeaders = response.headers.toMap(),
                                     responseBody = respBody,
                                     statusCode = response.status.value,
                                     durationMs = response.responseTime.timestamp - response.requestTime.timestamp,
-                                    timestamp = System.currentTimeMillis()
+                                    timestamp = startTime
                                 )
                             )
                         }
@@ -255,12 +259,35 @@ val appModule = module {
             install(createClientPlugin("NetworkDebugLog") {
                 on(io.ktor.client.plugins.api.Send) { request ->
                     if (settingsManager.settings.value.debugLoggingEnabled) {
+                        val logId = UUID.randomUUID().toString()
+                        val startTime = System.currentTimeMillis()
+                        request.attributes.put(logIdKey, logId)
+                        request.attributes.put(startTimeKey, startTime)
+
                         val content = request.body
-                        if (content is io.ktor.http.content.TextContent) {
-                            request.attributes.put(requestBodyKey, content.text)
+                        val reqBody = if (content is io.ktor.http.content.TextContent) {
+                            content.text.also { request.attributes.put(requestBodyKey, it) }
                         } else if (content is io.ktor.client.utils.EmptyContent) {
-                            request.attributes.put(requestBodyKey, "")
+                            "".also { request.attributes.put(requestBodyKey, it) }
+                        } else {
+                            null
                         }
+
+                        DebugLogStore.addOrUpdateLog(
+                            NetworkLog(
+                                id = logId,
+                                url = request.url.toString(),
+                                host = request.url.host,
+                                method = request.method.value,
+                                requestHeaders = request.headers.build().entries().associate { it.key to it.value },
+                                requestBody = reqBody,
+                                responseHeaders = null,
+                                responseBody = null,
+                                statusCode = null,
+                                durationMs = 0,
+                                timestamp = startTime
+                            )
+                        )
                     }
                     proceed(request)
                 }
@@ -390,7 +417,8 @@ val appModule = module {
                         AppDatabase.MIGRATION_5_6,
                         AppDatabase.MIGRATION_6_7,
                         AppDatabase.MIGRATION_7_8,
-                        AppDatabase.MIGRATION_8_9
+                        AppDatabase.MIGRATION_8_9,
+                        AppDatabase.MIGRATION_9_10
                     )
             )
         } catch (e: Throwable) {
