@@ -73,6 +73,7 @@ configure<ApplicationExtension> {
         val ecoMovementToken = sanitizeBuildConfigString(prop("ECO_MOVEMENT_TOKEN"))
         val tomtomKey = sanitizeBuildConfigString(prop("TOMTOM_KEY"))
         val fuelpricesDkKey = sanitizeBuildConfigString(prop("FUELPRICES_DK_KEY"))
+        val fastnedKey = sanitizeBuildConfigString(prop("FASTNED_KEY"))
         val nswFuelCheckApiKey = sanitizeBuildConfigString(prop("NSW_FUELCHECK_API_KEY"))
         val nswFuelCheckApiSecret = sanitizeBuildConfigString(prop("NSW_FUELCHECK_API_SECRET"))
         val mapsApiKey = prop("GOOGLE_MAPS_KEY")
@@ -100,6 +101,7 @@ configure<ApplicationExtension> {
         buildConfigField("String", "ECO_MOVEMENT_TOKEN", "\"$ecoMovementToken\"")
         buildConfigField("String", "TOMTOM_KEY", "\"$tomtomKey\"")
         buildConfigField("String", "FUELPRICES_DK_KEY", "\"$fuelpricesDkKey\"")
+        buildConfigField("String", "FASTNED_KEY", "\"$fastnedKey\"")
         buildConfigField("String", "NSW_FUELCHECK_API_KEY", "\"$nswFuelCheckApiKey\"")
         buildConfigField("String", "NSW_FUELCHECK_API_SECRET", "\"$nswFuelCheckApiSecret\"")
 

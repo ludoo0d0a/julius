@@ -212,11 +212,14 @@ val mapModule = module {
         )
     }
     single<PoiProvider>(named("fastned")) {
+        val sm = get<fr.geoking.julius.SettingsManager>()
         fr.geoking.julius.api.ocpi.FastnedOcpiPoiProvider(
             client = fr.geoking.julius.api.ocpi.OcpiClient(
-                get(),
+                client = get(),
                 baseUrl = "https://uk-public.api.fastned.nl/uk-public/ocpi/cpo/2.2.1",
-                token = ""
+                token = sm.settings.value.fastnedKey,
+                authHeaderName = "x-api-key",
+                useTokenPrefix = false
             )
         )
     }
