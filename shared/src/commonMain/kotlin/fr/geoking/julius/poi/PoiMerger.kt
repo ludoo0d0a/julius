@@ -82,9 +82,20 @@ object PoiMerger {
         val distMeters = haversineMeters(a.latitude, a.longitude, b.latitude, b.longitude)
         if (distMeters > MAX_MERGE_DISTANCE_METERS) return false
 
-        // Different sources merge rule: if distance < 100m, merge them.
+        // Different sources merge rule: if distance < 100m, merge them (unless they have different explicit brands).
         if (a.source != b.source && a.source != null && b.source != null) {
-            if (distMeters <= MERGE_DISTANCE_METERS) return true
+            if (distMeters <= MERGE_DISTANCE_METERS) {
+                val brandA = a.brand?.let { BrandRegistry.normalizeLookupKey(it) }
+                val brandB = b.brand?.let { BrandRegistry.normalizeLookupKey(it) }
+                if (brandA != null && brandB != null &&
+                    !(brandA == brandB || brandA.contains(brandB) || brandB.contains(brandA)) &&
+                    brandA !in setOf("generic", "independent", "station", "gas station") &&
+                    brandB !in setOf("generic", "independent", "station", "gas station")
+                ) {
+                    return false
+                }
+                return true
+            }
         }
 
         // Standard name similarity check for distances up to MAX_MERGE_DISTANCE_METERS.
@@ -120,7 +131,8 @@ object PoiMerger {
 
     private fun isGenericName(name: String): Boolean {
         val n = name.lowercase()
-        return n.contains("gas station") || n == "station" || n == "posto" || n == "posto de abastecimento" || n == "estação" || n == "abastecimento"
+        return n.contains("gas station") || n == "station" || n == "posto" || n == "posto de abastecimento" ||
+            n == "estação" || n == "abastecimento" || n.contains("bombas") || n.contains("combustíveis")
     }
 
     private fun namesSimilarEnough(a: Poi, b: Poi): Boolean {
@@ -227,7 +239,12 @@ object PoiMerger {
             routexDetails = mergedRoutexDetails,
             restaurantDetails = mergedRestaurantDetails,
             // Prefer richer/non-null display fields.
-            name = if (existing.name.isNotBlank()) existing.name else incoming.name,
+            name = when {
+                existing.name.isNotBlank() && !isGenericName(existing.name) -> existing.name
+                incoming.name.isNotBlank() && !isGenericName(incoming.name) -> incoming.name
+                existing.name.isNotBlank() -> existing.name
+                else -> incoming.name
+            },
             address = if (existing.address.isNotBlank()) existing.address else incoming.address,
             siteName = preferNonBlank(existing.siteName, incoming.siteName),
             brand = mergedBrand,
