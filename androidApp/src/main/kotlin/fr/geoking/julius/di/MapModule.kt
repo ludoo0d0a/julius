@@ -19,8 +19,6 @@ import fr.geoking.julius.api.belgium.BelgiumPetrolPricesClient
 import fr.geoking.julius.api.belgium.BelgiumOfficialProvider
 import fr.geoking.julius.api.dgeg.PortugalDgegProvider
 import fr.geoking.julius.api.gas.GasApiClient
-import fr.geoking.julius.api.madeira.MadeiraFuelPricesClient
-import fr.geoking.julius.api.madeira.MadeiraOfficialProvider
 import fr.geoking.julius.api.uk.UnitedKingdomCmaProvider
 import fr.geoking.julius.api.italy.ItalyMimitProvider
 import fr.geoking.julius.api.gas.GasApiProvider
@@ -90,10 +88,6 @@ val mapModule = module {
     }
     single<PoiProvider>(named("gasapi")) {
         GasApiProvider(get(), radiusKm = 10, limit = 100)
-    }
-    single { MadeiraFuelPricesClient(get()) }
-    single<PoiProvider>(named("madeiraofficial")) {
-        MadeiraOfficialProvider(madeiraClient = get(), overpassClient = get(), radiusKm = 10, limit = 50)
     }
     single<PoiProvider>(named("datagouv")) {
         DataGouvProvider(
@@ -243,7 +237,6 @@ val mapModule = module {
             austriaEControl = get(named("austriaecontrol")),
             belgiumOfficial = get(named("belgiumofficial")),
             portugalDgeg = get(named("portugaldgeg")),
-            madeiraOfficial = get(named("madeiraofficial")),
             ionity = get(named("ionity")),
             fastned = get(named("fastned")),
             unitedKingdomCma = get(named("unitedkingdomcma")),
