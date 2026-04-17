@@ -53,7 +53,8 @@ class BelgiumPetrolPricesClient(
                     FuelPrice(
                         fuelName = normalizedName,
                         price = price,
-                        updatedAt = updatedAt
+                        updatedAt = updatedAt,
+                        isReference = true
                     )
                 )
             }

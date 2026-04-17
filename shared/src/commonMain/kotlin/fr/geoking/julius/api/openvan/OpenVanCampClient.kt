@@ -86,19 +86,19 @@ fun OpenVanCountryEntry.toFuelPrices(): List<FuelPrice> {
     val updated = fetchedAt
     return buildList {
         p.gasoline?.let {
-            add(FuelPrice(fuelName = "SP95 E10", price = it, updatedAt = updated, outOfStock = false))
+            add(FuelPrice(fuelName = "SP95 E10", price = it, updatedAt = updated, outOfStock = false, isReference = true))
         }
         p.diesel?.let {
-            add(FuelPrice(fuelName = "Gazole", price = it, updatedAt = updated, outOfStock = false))
+            add(FuelPrice(fuelName = "Gazole", price = it, updatedAt = updated, outOfStock = false, isReference = true))
         }
         p.lpg?.let {
-            add(FuelPrice(fuelName = "GPLc", price = it, updatedAt = updated, outOfStock = false))
+            add(FuelPrice(fuelName = "GPLc", price = it, updatedAt = updated, outOfStock = false, isReference = true))
         }
         p.e85?.let {
-            add(FuelPrice(fuelName = "E85", price = it, updatedAt = updated, outOfStock = false))
+            add(FuelPrice(fuelName = "E85", price = it, updatedAt = updated, outOfStock = false, isReference = true))
         }
         (p.gasolinePremium ?: p.premium)?.let {
-            add(FuelPrice(fuelName = "SP98", price = it, updatedAt = updated, outOfStock = false))
+            add(FuelPrice(fuelName = "SP98", price = it, updatedAt = updated, outOfStock = false, isReference = true))
         }
     }
 }

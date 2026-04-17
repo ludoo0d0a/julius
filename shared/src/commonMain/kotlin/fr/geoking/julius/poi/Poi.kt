@@ -277,7 +277,9 @@ data class FuelPrice(
     val fuelName: String,
     val price: Double,
     val updatedAt: String? = null,
-    val outOfStock: Boolean = false
+    val outOfStock: Boolean = false,
+    /** When true, this is a regional or national reference/maximum price, not specific to this station. */
+    val isReference: Boolean = false
 )
 
 data class Poi(

@@ -268,14 +268,18 @@ object PoiMerger {
 
     private fun mergeFuelPrice(a: FuelPrice, b: FuelPrice): FuelPrice {
         val chooseB = when {
+            // Priority 1: Station-specific prices over regional/national reference prices.
+            a.isReference && !b.isReference -> true
+            !a.isReference && b.isReference -> false
+
+            // Priority 2: Newest update over older or missing update.
             a.updatedAt != null && b.updatedAt != null -> b.updatedAt >= a.updatedAt
             a.updatedAt == null && b.updatedAt != null -> true
             a.updatedAt != null && b.updatedAt == null -> false
             else -> false
         }
         val picked = if (chooseB) b else a
-        val other = if (chooseB) a else b
-        return picked.copy(outOfStock = a.outOfStock || b.outOfStock, price = picked.price)
+        return picked.copy(outOfStock = a.outOfStock || b.outOfStock)
     }
 
     private fun mergeIrveDetails(a: IrveDetails?, b: IrveDetails?): IrveDetails? {
