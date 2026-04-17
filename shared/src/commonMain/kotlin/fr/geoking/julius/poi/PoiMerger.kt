@@ -19,6 +19,8 @@ import kotlin.math.sqrt
 object PoiMerger {
     // Empirically chosen to avoid merging distinct nearby stations.
     private const val MERGE_DISTANCE_METERS = 100.0
+    // Maximum distance to consider for merging if names or brands are similar enough.
+    private const val MAX_MERGE_DISTANCE_METERS = 500.0
     private const val NAME_TOKEN_MIN_LENGTH = 3
     private const val NAME_SIMILARITY_MIN = 0.25
 
@@ -71,19 +73,54 @@ object PoiMerger {
 
         // Fast reject on approximate deltas before doing haversine.
         val latDeltaMeters = abs(a.latitude - b.latitude) * 111_000.0
-        if (latDeltaMeters > MERGE_DISTANCE_METERS * 1.5) return false
+        if (latDeltaMeters > MAX_MERGE_DISTANCE_METERS * 1.5) return false
 
         val lonDeltaMeters =
             abs(a.longitude - b.longitude) * 111_000.0 * cos(((a.latitude + b.latitude) / 2.0) * PI / 180.0)
-        if (lonDeltaMeters > MERGE_DISTANCE_METERS * 1.5) return false
+        if (lonDeltaMeters > MAX_MERGE_DISTANCE_METERS * 1.5) return false
 
         val distMeters = haversineMeters(a.latitude, a.longitude, b.latitude, b.longitude)
-        if (distMeters > MERGE_DISTANCE_METERS) return false
+        if (distMeters > MAX_MERGE_DISTANCE_METERS) return false
 
-        // User requirement: if distance < 100m and from different sources, merge them.
-        if (a.source != b.source && a.source != null && b.source != null) return true
+        // Different sources merge rule: if distance < 100m, merge them.
+        if (a.source != b.source && a.source != null && b.source != null) {
+            if (distMeters <= MERGE_DISTANCE_METERS) return true
+        }
 
+        // Standard name similarity check for distances up to MAX_MERGE_DISTANCE_METERS.
+        if (distMeters > MERGE_DISTANCE_METERS) {
+            // Rule A: auto-merge IF different sources AND (brand match OR name containment)
+            if (a.source != b.source && a.source != null && b.source != null) {
+                // brand match
+                val brandA = a.brand?.let { BrandRegistry.normalizeLookupKey(it) }
+                val brandB = b.brand?.let { BrandRegistry.normalizeLookupKey(it) }
+                if (brandA != null && brandB != null && (brandA == brandB || brandA.contains(brandB) || brandB.contains(brandA))) {
+                    if (brandA !in setOf("generic", "independent", "station", "gas station") &&
+                        brandB !in setOf("generic", "independent", "station", "gas station")) {
+                        return true
+                    }
+                }
+
+                // name containment (stricter than standard overlap)
+                if (!isGenericName(a.name) && !isGenericName(b.name)) {
+                     val na = normalizeNameForMatch(buildMatchName(a))
+                     val nb = normalizeNameForMatch(buildMatchName(b))
+                     if (na.contains(nb) || nb.contains(na)) return true
+                }
+            }
+
+            // Otherwise, strictly don't merge beyond 100m.
+            return false
+        }
+
+
+        // Below 100m: standard name similarity check.
         return namesSimilarEnough(a, b)
+    }
+
+    private fun isGenericName(name: String): Boolean {
+        val n = name.lowercase()
+        return n.contains("gas station") || n == "station" || n == "posto" || n == "posto de abastecimento" || n == "estação" || n == "abastecimento"
     }
 
     private fun namesSimilarEnough(a: Poi, b: Poi): Boolean {
@@ -226,7 +263,7 @@ object PoiMerger {
         val currLower = current.lowercase()
 
         // 2. Generic labels to avoid
-        val generic = setOf("station", "independant", "independant (gms)", "sans enseigne", "autoroute", "route")
+        val generic = setOf("station", "independent", "independent (gms)", "sans enseigne", "autoroute", "route")
         if (currLower in generic && candLower !in generic) return true
         if (candLower in generic && currLower !in generic) return false
 
