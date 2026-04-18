@@ -21,7 +21,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -139,8 +138,8 @@ fun JulesScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var inputText by remember { mutableStateOf("") }
     var newSessionPrompt by remember { mutableStateOf("") }
-    var selectedSourceName by remember { mutableStateOf<String?>(null) }
-    var selectedSourceDisplayName by remember { mutableStateOf("Select repository") }
+    var selectedSourceName by remember { mutableStateOf(settings.lastJulesRepoId.takeIf { it.isNotBlank() }) }
+    var selectedSourceDisplayName by remember { mutableStateOf(settings.lastJulesRepoName.takeIf { it.isNotBlank() } ?: "Select repository") }
     var sourcesLoaded by remember { mutableStateOf(false) }
     var showRepoSheet by remember { mutableStateOf(false) }
     var showActivitiesSheet by remember { mutableStateOf(false) }
@@ -151,13 +150,10 @@ fun JulesScreen(
     val activitiesSheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
-    val sessionsListState = rememberLazyListState()
 
     val handleBack = {
         if (currentSession != null) {
             currentSession = null
-        } else if (selectedSourceName != null) {
-            selectedSourceName = null
         } else {
             onBack()
         }
@@ -224,16 +220,16 @@ fun JulesScreen(
                     sessions = list
                     // If we are in a session, update currentSession object from the list to get refreshed PR state
                     currentSession?.let { curr ->
-                    val updated = list.find { it.id == curr.id }
-                    if (updated != null) {
-                        currentSession = updated
-                    } else if (curr.id.startsWith("offline_")) {
-                        // Check if it was promoted to a real ID
-                        val promoted = list.find { it.prompt == curr.prompt && !it.id.startsWith("offline_") }
-                        if (promoted != null) {
-                            currentSession = promoted
+                        val updated = list.find { it.id == curr.id }
+                        if (updated != null) {
+                            currentSession = updated
+                        } else if (curr.id.startsWith("offline_")) {
+                            // Check if it was promoted to a real ID
+                            val promoted = list.find { it.prompt == curr.prompt && !it.id.startsWith("offline_") }
+                            if (promoted != null) {
+                                currentSession = promoted
+                            }
                         }
-                    }
                     }
                 }
             } finally {
@@ -245,7 +241,6 @@ fun JulesScreen(
 
     suspend fun refreshActivitiesInternal(isRefresh: Boolean = false) {
         val session = currentSession ?: return
-        if (apiKeys.isEmpty()) return
         if (isRefresh) refreshing = true else loading = true
         clearError()
         try {
@@ -352,11 +347,9 @@ fun JulesScreen(
                 Spacer(modifier = Modifier.size(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = when {
-                            currentSession != null -> currentSession!!.title.ifBlank { currentSession!!.prompt.take(40) }.ifBlank { "Conversation" }
-                            selectedSourceName != null -> selectedSourceDisplayName
-                            else -> "Jules"
-                        },
+                        text = if (currentSession != null) {
+                            currentSession!!.title.ifBlank { currentSession!!.prompt.take(40) }.ifBlank { "Conversation" }
+                        } else "Jules",
                         color = Color.White,
                         fontSize = 20.sp,
                         maxLines = 1
@@ -396,22 +389,11 @@ fun JulesScreen(
                         scope.launch {
                             loading = true
                             try {
-                                val json = Json { ignoreUnknownKeys = true }
-                                val cached = julesRepository.getActivitiesBySession(currentSession!!.id)
-                                val activities = cached.mapNotNull {
-                                    it.activityJson?.let { aj -> json.decodeFromString(JulesClient.JulesActivity.serializer(), aj) }
-                                }
-
-                                if (activities.isNotEmpty()) {
-                                    rawActivities = activities
+                                val key = currentSession!!.apiKey ?: apiKeys.firstOrNull()
+                                if (key != null) {
+                                    val resp = julesClient.listActivities(key, currentSession!!.id)
+                                    rawActivities = resp.activities
                                     showActivitiesSheet = true
-                                } else {
-                                    val key = currentSession!!.apiKey ?: apiKeys.firstOrNull()
-                                    if (key != null) {
-                                        val resp = julesClient.listActivities(key, currentSession!!.id)
-                                        rawActivities = resp.activities
-                                        showActivitiesSheet = true
-                                    }
                                 }
                             } catch (e: Exception) {
                                 error = "Could not load activities: ${e.message}"
@@ -490,52 +472,36 @@ fun JulesScreen(
 
                                         julesRepository.sendMessage(currentSession!!.id, prompt)
 
-                                            julesRepository.sendMessage(apiKey, currentSession!!.id, prompt)
-
-                                            if (isOnline && !currentSession!!.id.startsWith("offline_")) {
-                                                // Poll for response
-                                                repeat(10) {
-                                                    kotlinx.coroutines.delay(2000)
-                                                    refreshActivitiesInternal()
-                                                    val newLastAgentMsg = chatItems.lastOrNull { it is JulesChatItem.AgentMessage } as? JulesChatItem.AgentMessage
-                                                    if (newLastAgentMsg != null && newLastAgentMsg.id != oldLastId) {
-                                                        voiceManager.speak(newLastAgentMsg.text)
-                                                        return@repeat
-                                                    }
-                                                }
-                                            } else {
-                                                // Refresh immediately to show local user message
+                                        if (isOnline && !currentSession!!.id.startsWith("offline_")) {
+                                            // Poll for response
+                                            repeat(10) {
+                                                kotlinx.coroutines.delay(2000)
                                                 refreshActivitiesInternal()
+                                                val newLastAgentMsg = chatItems.lastOrNull { it is JulesChatItem.AgentMessage } as? JulesChatItem.AgentMessage
+                                                if (newLastAgentMsg != null && newLastAgentMsg.id != oldLastId) {
+                                                    voiceManager.speak(newLastAgentMsg.text)
+                                                    return@repeat
+                                                }
                                             }
-                                        } catch (e: Exception) {
-                                            error = e.message ?: "Failed to send"
-                                        }
-                                        loading = false
-                                    }
-                                },
-                                onSolveConflicts = {
-                                    scope.launch {
-                                        loading = true
-                                        val res = julesRepository.getConflictingFiles(githubToken, currentSession!!.prUrl!!)
-                                        if (res.isSuccess) {
-                                            conflictingFiles = res.getOrDefault(emptyList())
-                                            showConflictSheet = true
                                         } else {
-                                            error = "Could not find conflicting files: ${res.exceptionOrNull()?.message}"
+                                            // Refresh immediately to show local user message
+                                            refreshActivitiesInternal()
                                         }
-                                        loading = false
+                                    } catch (e: Exception) {
+                                        error = e.message ?: "Failed to send"
                                     }
-                                },
-                                onAutoSolveConflicts = {
-                                    scope.launch {
-                                        loading = true
-                                        try {
-                                            julesRepository.sendMessage(apiKey, currentSession!!.id, "@jules resolve the conflicts in this PR")
-                                            currentSession?.let { refreshActivities() }
-                                        } catch (e: Exception) {
-                                            error = "Auto solve failed: ${e.message}"
-                                        }
-                                        loading = false
+                                    loading = false
+                                }
+                            },
+                            onSolveConflicts = {
+                                scope.launch {
+                                    loading = true
+                                    val res = julesRepository.getConflictingFiles(githubToken, currentSession!!.prUrl!!)
+                                    if (res.isSuccess) {
+                                        conflictingFiles = res.getOrDefault(emptyList())
+                                        showConflictSheet = true
+                                    } else {
+                                        error = "Could not find conflicting files: ${res.exceptionOrNull()?.message}"
                                     }
                                     loading = false
                                 }
@@ -601,17 +567,30 @@ fun JulesScreen(
                                             e is NetworkException && e.httpCode != null -> "API error ${e.httpCode}: ${e.message}"
                                             else -> "Failed to create conversation: ${e.message ?: "Unknown error"}"
                                         }
-                                        loading = false
                                     }
-                                },
-                                onOpenSession = { currentSession = it },
-                                onMergePr = { session ->
-                                    scope.launch {
-                                        loading = true
-                                        val res = julesRepository.mergePr(githubToken, session.prUrl!!)
-                                        if (res.isFailure) error = "Merge failed: ${res.exceptionOrNull()?.message}"
-                                        else loadSessions()
-                                        loading = false
+                                    loading = false
+                                }
+                            },
+                            onOpenSession = { currentSession = it },
+                            onMergePr = { session ->
+                                scope.launch {
+                                    loading = true
+                                    val res = julesRepository.mergePr(githubToken, session.prUrl!!)
+                                    if (res.isFailure) error = "Merge failed: ${res.exceptionOrNull()?.message}"
+                                    else loadSessions()
+                                    loading = false
+                                }
+                            },
+                            onSolveConflicts = { session ->
+                                scope.launch {
+                                    loading = true
+                                    val res = julesRepository.getConflictingFiles(githubToken, session.prUrl!!)
+                                    if (res.isSuccess) {
+                                        currentSession = session
+                                        conflictingFiles = res.getOrDefault(emptyList())
+                                        showConflictSheet = true
+                                    } else {
+                                        error = "Could not find conflicting files: ${res.exceptionOrNull()?.message}"
                                     }
                                     loading = false
                                 }
@@ -1624,7 +1603,7 @@ private fun RepoAndSessionsContent(
     apiKeys: List<String>,
     isOnline: Boolean,
     sessions: List<JulesSessionEntity>,
-    selectedSourceName: String,
+    selectedSourceName: String?,
     loading: Boolean,
     loadingSessions: Boolean,
     newSessionPrompt: String,
@@ -1659,6 +1638,18 @@ private fun RepoAndSessionsContent(
             .fillMaxSize()
             .padding(horizontal = 16.dp)
     ) {
+        if (selectedSourceName == null) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    "Select a repository above to see conversations and start a new one.",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(32.dp)
+                )
+            }
+            return@Column
+        }
 
         var showNewForm by remember { mutableStateOf(false) }
 
@@ -1832,23 +1823,13 @@ private fun SessionRow(
         calculateProgressStep(session, emptyList())
     }
 
-    val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM dd") }
-    val lastUpdated = remember(session.lastUpdated) {
-        val dt = OffsetDateTime.ofInstant(Instant.ofEpochMilli(session.lastUpdated), java.time.ZoneId.systemDefault())
-        if (Duration.between(dt.toInstant(), Instant.now()).toDays() < 1) {
-            dt.format(timeFormatter)
-        } else {
-            dt.format(dateFormatter)
-        }
-    }
-
-    Row(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 12.dp, horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(vertical = 6.dp),
+        colors = CardDefaults.cardColors(containerColor = JulesListBg),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             MiniProgressBar(currentStep = progressStep)
@@ -1876,62 +1857,53 @@ private fun SessionRow(
             val mergeabilityText = if (session.prState == "open" && session.prMergeable == false) " (Conflicts)" else ""
             val prIdText = if (!session.prId.isNullOrBlank()) " #${session.prId}" else ""
 
-        Spacer(modifier = Modifier.size(16.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
+            Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(6.dp).background(statusColor, RoundedCornerShape(3.dp)))
+                Spacer(modifier = Modifier.size(6.dp))
                 Text(
                     text = "$statusText$prIdText$mergeabilityText",
                     color = statusColor,
                     fontSize = 12.sp
                 )
+                if (session.prompt.isNotBlank() && session.title != session.prompt) {
+                    Text(
+                        text = " • " + session.prompt.take(60) + if (session.prompt.length > 60) "…" else "",
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 12.sp,
+                        maxLines = 1
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(2.dp))
-
+            Spacer(modifier = Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val hasOutput = !session.prUrl.isNullOrBlank()
-                val (statusText, statusColor) = when {
-                    session.prState == "merged" -> "Merged" to Color.Magenta
-                    session.prState == "closed" -> "Closed" to Color.Red
-                    session.prState == "open" -> "Open PR" to Color.Green
-                    session.sessionState == "COMPLETED" -> "Completed" to Color.Green
-                    session.sessionState == "FAILED" -> "Failed" to Color.Red
-                    session.sessionState == "AWAITING_PLAN_APPROVAL" -> "Waiting for approval" to JulesAccent
-                    session.sessionState == "AWAITING_USER_FEEDBACK" -> "Waiting for you" to JulesAccent
-                    session.sessionState == "PLANNING" -> "Planning…" to JulesAccent
-                    session.sessionState == "QUEUED" -> "Queued…" to Color.White.copy(alpha = 0.6f)
-                    session.sessionState == "QUEUED_OFFLINE" -> "Queued (Offline)" to Color.White.copy(alpha = 0.5f)
-                    session.sessionState == "PAUSED" -> "Paused" to Color.Yellow
-                    else -> (if (hasOutput) "Output available" else "In progress") to (if (hasOutput) JulesAccent else Color.White.copy(alpha = 0.6f))
+                Spacer(modifier = Modifier.weight(1f))
+
+                IconButton(onClick = onArchive, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Default.Archive, contentDescription = "Archive", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
                 }
-
-                Box(modifier = Modifier.size(8.dp).background(statusColor, CircleShape))
-                Spacer(modifier = Modifier.size(8.dp))
-
-                Text(
-                    text = session.prompt,
-                    color = Color.White.copy(alpha = 0.6f),
-                    fontSize = 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
 
                 if (hasOutput && session.prState == "open") {
                     IconButton(onClick = onDetails, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.Description, contentDescription = "Details", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Description, contentDescription = "Details", tint = Color.White, modifier = Modifier.size(16.dp))
+                    }
+                    if (session.prMergeable == true) {
+                        Spacer(modifier = Modifier.size(4.dp))
+                        IconButton(onClick = onMerge, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Merge, contentDescription = "Merge", tint = Color.Green, modifier = Modifier.size(16.dp))
+                        }
+                    } else if (session.prMergeable == false) {
+                        Spacer(modifier = Modifier.size(4.dp))
+                        IconButton(onClick = onSolve, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Merge, contentDescription = "Solve", tint = Color.Red, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                    Spacer(modifier = Modifier.size(4.dp))
+                    IconButton(onClick = onClose, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(16.dp))
                     }
                 }
-
-                IconButton(onClick = onArchive, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.Archive, contentDescription = "Archive", tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(16.dp))
-                }
-            }
-
-            if (progressStep != null) {
-                Spacer(modifier = Modifier.height(4.dp))
-                MiniProgressBar(currentStep = progressStep)
             }
         }
     }

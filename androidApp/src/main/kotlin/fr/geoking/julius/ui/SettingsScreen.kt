@@ -97,6 +97,8 @@ enum class SettingsScreenPage {
 private val Lavender = Color(0xFFD1D5FF)
 private val DeepPurple = Color(0xFF21004C)
 private val DarkBackground = Color(0xFF0A0A0A)
+enum class EnergyCategory { ALL, FUEL, ELECTRIC, OTHER }
+
 private val SeparatorColor = Color(0xFF2D2D44)
 
 /** Used in About screen: API/service name, website URL, optional logo URL, optional license/credit line. */
@@ -289,7 +291,6 @@ fun SettingsScreen(
                 }
             }
         }
-
     }
 }
 
@@ -381,17 +382,15 @@ private fun MapConfig(
     onUpdate: (AppSettings) -> Unit
 ) {
     var selectedCountryCode by remember { mutableStateOf<String?>(null) }
+    var selectedCategory by remember { mutableStateOf(EnergyCategory.ALL) }
 
-    val electricOptions = listOf(
+    val allOptions = listOf(
         PoiProviderType.DataGouvElec to "data.gouv (France official)",
         PoiProviderType.Chargy to "Chargy (Luxembourg)",
         PoiProviderType.OpenChargeMap to "OpenChargeMap",
         PoiProviderType.Ionity to "Ionity",
         PoiProviderType.Fastned to "Fastned",
-        PoiProviderType.EcoMovement to "Eco-Movement"
-    ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }
-
-    val fuelOptions = listOf(
+        PoiProviderType.EcoMovement to "Eco-Movement",
         PoiProviderType.Routex to "Routex",
         PoiProviderType.Etalab to "Prix carburant (official)",
         PoiProviderType.GasApi to "gas-api.ovh",
@@ -420,23 +419,30 @@ private fun MapConfig(
         PoiProviderType.IrelandPickAPump to "Ireland (Pick A Pump)",
         PoiProviderType.UnitedKingdomCma to "United Kingdom (CMA)",
         PoiProviderType.ItalyMimit to "Italy (MIMIT)",
-        PoiProviderType.Hybrid to "Hybrid (Gas + EV)"
-    ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }
-
-    val otherOptions = listOf(
+        PoiProviderType.Hybrid to "Hybrid (Gas + EV)",
         PoiProviderType.Overpass to "OSM (toilets, water, parking…)"
     ).filter { (type, _) -> type.isUserSelectablePoiDataSource() }
 
-    val availableCountries = (electricOptions + fuelOptions + otherOptions)
+    val filteredOptions = allOptions.filter {
+        when (selectedCategory) {
+            EnergyCategory.ALL -> true
+            EnergyCategory.FUEL -> it.first.providesFuel
+            EnergyCategory.ELECTRIC -> it.first.providesElectric
+            EnergyCategory.OTHER -> !it.first.providesFuel && !it.first.providesElectric
+        }
+    }
+
+    val availableCountries = allOptions
         .flatMap { it.first.supportedCountries }
         .distinct()
         .sortedBy { getCountryDisplayName(it) }
 
     val isVisible = { type: PoiProviderType ->
-        selectedCountryCode == null ||
-                type.supportedCountries.contains(selectedCountryCode) ||
-                type.supportedCountries.isEmpty() ||
+        val isGlobal = type.supportedCountries.isEmpty() ||
                 type.getDisplayGroup().let { it.contains("Global") || it.contains("International") || it.contains("General") || it.contains("Europe") }
+
+        if (selectedCountryCode == null) isGlobal
+        else isGlobal || type.supportedCountries.contains(selectedCountryCode)
     }
 
     Column(
@@ -466,7 +472,7 @@ private fun MapConfig(
             }
         }
 
-        // Map Theme (for both Google and MapLibre)
+        // Map Theme
         Column {
             Text("Map Theme", color = Lavender, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -517,67 +523,45 @@ private fun MapConfig(
                 )
             } else {
                 Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    EnergyCategory.entries.forEach { category ->
+                        FilterChip(
+                            selected = selectedCategory == category,
+                            onClick = { selectedCategory = category },
+                            label = { Text(category.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Lavender,
+                                selectedLabelColor = DeepPurple,
+                                labelColor = Color.White,
+                                containerColor = Color.White.copy(alpha = 0.1f)
+                            )
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
                 CountrySelector(
                     availableCountries = availableCountries,
                     selectedCountryCode = selectedCountryCode,
                     onCountrySelected = { selectedCountryCode = it }
                 )
-            }
-
-            // Electric
-            val filteredElectric = electricOptions.filter { isVisible(it.first) }
-            if (filteredElectric.isNotEmpty()) {
-                Text("Electric", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
-                filteredElectric.groupBy { (type, _) -> type.getDisplayGroup() }.forEach { (group, providers) ->
-                    Text(
-                        text = group,
-                        color = Lavender.copy(alpha = 0.5f),
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                    )
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        providers.forEach { (type, label) ->
-                            DataSourceChip(type, label, settings, onUpdate)
-                        }
-                    }
-                }
                 Spacer(modifier = Modifier.height(12.dp))
-            }
 
-            // Fuel
-            val filteredFuel = fuelOptions.filter { isVisible(it.first) }
-            if (filteredFuel.isNotEmpty()) {
-                Text("Fuel", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
-                filteredFuel.groupBy { (type, _) -> type.getDisplayGroup() }.forEach { (group, providers) ->
-                    Text(
-                        text = group,
-                        color = Lavender.copy(alpha = 0.5f),
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                    )
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        providers.forEach { (type, label) ->
-                            DataSourceChip(type, label, settings, onUpdate)
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // Other
-            val filteredOther = otherOptions.filter { isVisible(it.first) }
-            if (filteredOther.isNotEmpty()) {
-                Text("Other", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
-                filteredOther.groupBy { (type, _) -> type.getDisplayGroup() }.forEach { (group, providers) ->
-                    Text(
-                        text = group,
-                        color = Lavender.copy(alpha = 0.5f),
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                    )
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        providers.forEach { (type, label) ->
-                            DataSourceChip(type, label, settings, onUpdate)
+                val finalOptions = filteredOptions.filter { isVisible(it.first) }
+                if (finalOptions.isNotEmpty()) {
+                    finalOptions.groupBy { it.first.getDisplayGroup() }.forEach { (group, providers) ->
+                        Text(
+                            text = group,
+                            color = Lavender.copy(alpha = 0.5f),
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                        )
+                        FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            providers.forEach { (type, label) ->
+                                DataSourceChip(type, label, settings, onUpdate)
+                            }
                         }
                     }
                 }
@@ -892,218 +876,214 @@ private fun MainMenu(
 
             SettingsItem(
                 label = "Theme",
-            value = settings.selectedTheme.name,
-            onClick = { onNavigate(SettingsScreenPage.Theme) }
-        )
-        SettingsItem(
-            label = "Agent",
-            value = settings.selectedAgent.name,
-            onClick = { onNavigate(SettingsScreenPage.Agent) }
-        )
-        SettingsItem(
-            label = "Text animation",
-            value = settings.textAnimation.name,
-            onClick = { onNavigate(SettingsScreenPage.TextAnimation) }
-        )
-        SettingsItem(
-            label = "Vehicle",
-            value = if (settings.vehicleBrand.isNotEmpty()) "${settings.vehicleBrand} ${settings.vehicleModel}" else "Not configured",
-            onClick = { onNavigate(SettingsScreenPage.VehicleConfig) }
-        )
-        SettingsItem(
-            label = "Map",
-            value = "Data sources, traffic, filters",
-            onClick = { onNavigate(SettingsScreenPage.MapConfig) }
-        )
-        SettingsItem(
-            label = "STT engine (car)",
-            value = sttEnginePreferenceLabel(settings.sttEnginePreference),
-            onClick = { onNavigate(SettingsScreenPage.SttEngine) }
-        )
+                value = settings.selectedTheme.name,
+                onClick = { onNavigate(SettingsScreenPage.Theme) }
+            )
+            SettingsItem(
+                label = "Agent",
+                value = settings.selectedAgent.name,
+                onClick = { onNavigate(SettingsScreenPage.Agent) }
+            )
+            SettingsItem(
+                label = "Text animation",
+                value = settings.textAnimation.name,
+                onClick = { onNavigate(SettingsScreenPage.TextAnimation) }
+            )
+            SettingsItem(
+                label = "Vehicle",
+                value = if (settings.vehicleBrand.isNotEmpty()) "${settings.vehicleBrand} ${settings.vehicleModel}" else "Not configured",
+                onClick = { onNavigate(SettingsScreenPage.VehicleConfig) }
+            )
+            SettingsItem(
+                label = "Map",
+                value = "Data sources, traffic, filters",
+                onClick = { onNavigate(SettingsScreenPage.MapConfig) }
+            )
+            SettingsItem(
+                label = "STT engine (car)",
+                value = sttEnginePreferenceLabel(settings.sttEnginePreference),
+                onClick = { onNavigate(SettingsScreenPage.SttEngine) }
+            )
 
-        SettingsItem(
-            label = "Google Account",
-            value = settings.googleUserName ?: "Not connected",
-            onClick = { onNavigate(SettingsScreenPage.GoogleAccount) }
-        )
+            SettingsItem(
+                label = "Google Account",
+                value = settings.googleUserName ?: "Not connected",
+                onClick = { onNavigate(SettingsScreenPage.GoogleAccount) }
+            )
 
-        // Mute Media Toggle
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .padding(horizontal = 24.dp, vertical = 24.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+            // Mute Media Toggle
+            Column(
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Mute Media",
-                        color = Color.White,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = "Pause other audio sources when Julius is active",
-                        color = Lavender.copy(alpha = 0.7f),
-                        fontSize = 16.sp
-                    )
-                }
-                Switch(
-                    checked = settings.muteMediaOnCar,
-                    onCheckedChange = onToggleMuteMediaOnCar,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Lavender,
-                        checkedTrackColor = DeepPurple,
-                        uncheckedThumbColor = Color.Gray,
-                        uncheckedTrackColor = Color.DarkGray
-                    )
-                )
-            }
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 24.dp),
-                thickness = 0.5.dp,
-                color = SeparatorColor
-            )
-        }
-
-        // Interrupt while Julius speaks (barge-in mode)
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 16.dp)
-        ) {
-            Text(
-                text = "Interrupt while speaking",
-                color = Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = "Keep the mic active during replies so you can cut off long answers.",
-                color = Lavender.copy(alpha = 0.7f),
-                fontSize = 16.sp,
-                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
-            )
-            val radioColors = RadioButtonDefaults.colors(
-                selectedColor = Lavender,
-                unselectedColor = Color.Gray
-            )
-            SpeakingInterruptMode.entries.forEach { mode ->
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onSpeakingInterruptModeChange(mode) }
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    RadioButton(
-                        selected = settings.speakingInterruptMode == mode,
-                        onClick = { onSpeakingInterruptModeChange(mode) },
-                        colors = radioColors
-                    )
-                    Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = phoneSpeakingInterruptTitle(mode),
+                            text = "Mute Media",
                             color = Color.White,
-                            fontSize = 18.sp,
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = phoneSpeakingInterruptSubtitle(mode),
+                            text = "Pause other audio sources when Julius is active",
                             color = Lavender.copy(alpha = 0.7f),
-                            fontSize = 14.sp
+                            fontSize = 16.sp
                         )
                     }
-                }
-            }
-            HorizontalDivider(
-                modifier = Modifier.padding(top = 16.dp),
-                thickness = 0.5.dp,
-                color = SeparatorColor
-            )
-        }
-        
-        // Extended Actions Toggle
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .padding(horizontal = 24.dp, vertical = 24.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Extended Actions",
-                        color = Color.White,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = "Allow AI to access sensors",
-                        color = Lavender.copy(alpha = 0.7f),
-                        fontSize = 16.sp
+                    Switch(
+                        checked = settings.muteMediaOnCar,
+                        onCheckedChange = onToggleMuteMediaOnCar,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Lavender,
+                            checkedTrackColor = DeepPurple,
+                            uncheckedThumbColor = Color.Gray,
+                            uncheckedTrackColor = Color.DarkGray
+                        )
                     )
                 }
-                Switch(
-                    checked = settings.extendedActionsEnabled,
-                    onCheckedChange = onToggleExtendedActions,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Lavender,
-                        checkedTrackColor = DeepPurple,
-                        uncheckedThumbColor = Color.Gray,
-                        uncheckedTrackColor = Color.DarkGray
-                    )
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                    thickness = 0.5.dp,
+                    color = SeparatorColor
                 )
             }
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 24.dp),
-                thickness = 0.5.dp,
-                color = SeparatorColor
+
+            // Interrupt while Julius speaks (barge-in mode)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+            ) {
+                Text(
+                    text = "Interrupt while speaking",
+                    color = Color.White,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = "Keep the mic active during replies so you can cut off long answers.",
+                    color = Lavender.copy(alpha = 0.7f),
+                    fontSize = 16.sp,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                )
+                val radioColors = RadioButtonDefaults.colors(
+                    selectedColor = Lavender,
+                    unselectedColor = Color.Gray
+                )
+                SpeakingInterruptMode.entries.forEach { mode ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSpeakingInterruptModeChange(mode) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = settings.speakingInterruptMode == mode,
+                            onClick = { onSpeakingInterruptModeChange(mode) },
+                            colors = radioColors
+                        )
+                        Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
+                            Text(
+                                text = phoneSpeakingInterruptTitle(mode),
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = phoneSpeakingInterruptSubtitle(mode),
+                                color = Lavender.copy(alpha = 0.7f),
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+                HorizontalDivider(
+                    modifier = Modifier.padding(top = 16.dp),
+                    thickness = 0.5.dp,
+                    color = SeparatorColor
+                )
+            }
+
+            // Extended Actions Toggle
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Extended Actions",
+                            color = Color.White,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Allow AI to access sensors",
+                            color = Lavender.copy(alpha = 0.7f),
+                            fontSize = 16.sp
+                        )
+                    }
+                    Switch(
+                        checked = settings.extendedActionsEnabled,
+                        onCheckedChange = onToggleExtendedActions,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Lavender,
+                            checkedTrackColor = DeepPurple,
+                            uncheckedThumbColor = Color.Gray,
+                            uncheckedTrackColor = Color.DarkGray
+                        )
+                    )
+                }
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                    thickness = 0.5.dp,
+                    color = SeparatorColor
+                )
+            }
+
+            SettingsItem(
+                label = "Jules & GitHub",
+                value = when {
+                    settings.julesKeys.isNotEmpty() && settings.githubApiKey.isNotEmpty() -> "${settings.julesKeys.size} keys + GitHub"
+                    settings.julesKeys.isNotEmpty() -> "${settings.julesKeys.size} keys"
+                    settings.githubApiKey.isNotEmpty() -> "GitHub only"
+                    else -> "Not set"
+                },
+                onClick = { onNavigate(SettingsScreenPage.JulesConfig) }
+            )
+            SettingsItem(
+                label = "Highway toll (OpenTollData)",
+                value = if (!settings.tollDataPath.isNullOrBlank()) "Downloaded" else "Not downloaded",
+                onClick = { onNavigate(SettingsScreenPage.TollData) }
+            )
+            SettingsItem(
+                label = "Error Log",
+                value = "View recent errors",
+                onClick = { onNavigate(SettingsScreenPage.ErrorLog) }
+            )
+            SettingsItem(
+                label = "About",
+                value = "Version & build info",
+                onClick = { onNavigate(SettingsScreenPage.About) }
+            )
+            SettingsItem(
+                label = "Clear Cache",
+                value = "Markers, images, logs & temp files",
+                onClick = { showClearCacheConfirm = true }
             )
         }
 
-        SettingsItem(
-            label = "Jules & GitHub",
-            value = when {
-                settings.julesKeys.isNotEmpty() && settings.githubApiKey.isNotEmpty() -> "${settings.julesKeys.size} keys + GitHub"
-                settings.julesKeys.isNotEmpty() -> "${settings.julesKeys.size} keys"
-                settings.githubApiKey.isNotEmpty() -> "GitHub only"
-                else -> "Not set"
-            },
-            onClick = { onNavigate(SettingsScreenPage.JulesConfig) }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
         )
-        SettingsItem(
-            label = "Highway toll (OpenTollData)",
-            value = if (!settings.tollDataPath.isNullOrBlank()) "Downloaded" else "Not downloaded",
-            onClick = { onNavigate(SettingsScreenPage.TollData) }
-        )
-        SettingsItem(
-            label = "Error Log",
-            value = "View recent errors",
-            onClick = { onNavigate(SettingsScreenPage.ErrorLog) }
-        )
-        SettingsItem(
-            label = "About",
-            value = "Version & build info",
-            onClick = { onNavigate(SettingsScreenPage.About) }
-        )
-        SettingsItem(
-            label = "Clear Cache",
-            value = "Markers, images, logs & temp files",
-            onClick = { showClearCacheConfirm = true }
-        )
-    }
-
-    SnackbarHost(
-        hostState = snackbarHostState,
-        modifier = Modifier.align(Alignment.BottomCenter)
-    )
     }
 }
 
@@ -1417,14 +1397,14 @@ private fun SettingsItem(
                 Text(
                     text = label,
                     color = Color.White,
-                    fontSize = 22.sp, // Bigger font
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Medium
                 )
                 if (value != null) {
                     Text(
                         text = value,
                         color = Lavender.copy(alpha = 0.7f),
-                        fontSize = 16.sp // Bigger font
+                        fontSize = 16.sp
                     )
                 }
             }
@@ -1471,7 +1451,6 @@ private fun ThemeSelection(
         }
     }
 }
-
 
 @Composable
 private fun AgentSelection(
@@ -1587,7 +1566,7 @@ private fun SelectionItem(
             Text(
                 text = label,
                 color = if (isSelected) Lavender else Color.White,
-                fontSize = 20.sp, // Bigger font
+                fontSize = 20.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                 modifier = Modifier.weight(1f)
             )
