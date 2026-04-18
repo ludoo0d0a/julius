@@ -150,6 +150,7 @@ fun JulesScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val sessionsListState = rememberLazyListState()
+    val uriHandler = LocalUriHandler.current
 
     val handleBack = {
         if (currentSession != null) {
@@ -281,6 +282,28 @@ fun JulesScreen(
             sessions = emptyList()
         }
     }
+    LaunchedEffect(apiKeys, githubToken, selectedSourceName, currentSession?.id) {
+        if (apiKeys.isEmpty() || selectedSourceName == null) return@LaunchedEffect
+        while (true) {
+            delay(30_000)
+            val sessionToPoll = currentSession
+            if (sessionToPoll != null) {
+                julesRepository.pollSessionStatus(sessionToPoll.id, githubToken)
+                loadSessions()
+            } else {
+                val inProgress = sessions.filter { it.prState == null && it.prUrl == null }
+                if (inProgress.isNotEmpty()) {
+                    for (s in inProgress) {
+                        julesRepository.pollSessionStatus(s.id, githubToken)
+                    }
+                    loadSessions()
+                } else {
+                    loadSessions()
+                }
+            }
+        }
+    }
+
 
     LaunchedEffect(currentSession?.id) {
         if (currentSession != null) {
@@ -339,6 +362,13 @@ fun JulesScreen(
                         }
                     }
                 }
+                    if (!currentSession!!.url.isNullOrBlank()) {
+                        IconButton(onClick = {
+                            uriHandler.openUri(currentSession!!.url!!)
+                        }) {
+                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open in web", tint = Color.White)
+                        }
+                    }
                 if (currentSession != null) {
                     IconButton(onClick = {
                         scope.launch {
