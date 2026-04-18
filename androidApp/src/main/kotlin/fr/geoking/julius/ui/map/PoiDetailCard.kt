@@ -114,23 +114,25 @@ fun PoiDetailCard(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        if (isMergedPoi) {
+                        if (sources.isNotEmpty()) {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.padding(vertical = 4.dp)
                             ) {
-                                Surface(
-                                    color = MaterialTheme.colorScheme.secondaryContainer,
-                                    shape = MaterialTheme.shapes.extraSmall,
-                                ) {
-                                    Text(
-                                        text = "MERGED",
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                                    )
+                                if (isMergedPoi) {
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.secondaryContainer,
+                                        shape = MaterialTheme.shapes.extraSmall,
+                                    ) {
+                                        Text(
+                                            text = "MERGED",
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                    }
                                 }
                                 Text(
                                     text = sources.joinToString(" + "),

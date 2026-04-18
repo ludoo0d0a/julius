@@ -105,7 +105,6 @@ class PoiDetailScreen(
                 }
             }
         }
-        rating?.let { r -> lines.add("Note: $r/5") }
         poi.irveDetails?.let { d ->
             if (d.connectorTypes.isNotEmpty()) {
                 val connectorLabels = d.connectorTypes.sorted().map { connectorLabel(it) }.joinToString(", ")

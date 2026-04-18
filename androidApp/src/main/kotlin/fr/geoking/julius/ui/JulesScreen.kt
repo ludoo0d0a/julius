@@ -882,86 +882,7 @@ private fun ActivitiesSheet(activities: List<JulesClient.JulesActivity>) {
                 )
                 activity.artifacts?.forEach { artifact ->
                     artifact.bashOutput?.let { bash ->
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 8.dp)
-                                .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
-                                .padding(8.dp)
-                        ) {
-                            Text(
-                                text = "> ${bash.command}",
-                                color = Color.Green,
-                                fontSize = 11.sp,
-                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                            )
-                            if (bash.output.isNotBlank()) {
-                                Text(
-                                    text = bash.output,
-                                    color = Color.White.copy(alpha = 0.7f),
-                                    fontSize = 10.sp,
-                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                    modifier = Modifier.padding(top = 4.dp)
-                                )
-                            }
-                            if (bash.exitCode != null) {
-                                Text(
-                                    text = "Exit Code: ${bash.exitCode}",
-                                    color = if (bash.exitCode == 0) Color.Green else Color.Red,
-                                    fontSize = 10.sp,
-                                    modifier = Modifier.padding(top = 4.dp)
-                                )
-                            }
-                        }
-                    }
-                    artifact.changeSet?.let { cs ->
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 8.dp)
-                                .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                                .padding(8.dp)
-                        ) {
-                            Text(
-                                text = "Modified: ${cs.source}",
-                                color = JulesAccent,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            cs.gitPatch?.let { gp ->
-                                gp.suggestedCommitMessage?.let { msg ->
-                                    Text(
-                                        text = "Suggested Commit: $msg",
-                                        color = Color.White.copy(alpha = 0.7f),
-                                        fontSize = 11.sp,
-                                        modifier = Modifier.padding(top = 4.dp)
-                                    )
-                                }
-                                gp.unidiffPatch?.let { patch ->
-                                    var showPatch by remember { mutableStateOf(false) }
-                                    Text(
-                                        text = if (showPatch) "Hide Patch" else "Show Patch",
-                                        color = JulesAccent,
-                                        fontSize = 10.sp,
-                                        modifier = Modifier
-                                            .clickable { showPatch = !showPatch }
-                                            .padding(top = 4.dp)
-                                    )
-                                    if (showPatch) {
-                                        Text(
-                                            text = patch,
-                                            color = Color.White.copy(alpha = 0.5f),
-                                            fontSize = 9.sp,
-                                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                            modifier = Modifier
-                                                .padding(top = 4.dp)
-                                                .background(Color.Black.copy(alpha = 0.3f))
-                                                .padding(4.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                        Text("> ${bash.command}", color = Color.Green, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                     }
                 }
                 HorizontalDivider(modifier = Modifier.padding(top = 8.dp), color = Color.White.copy(alpha = 0.1f))
@@ -1123,10 +1044,7 @@ private fun RepoAndSessionsContent(
                 items(displaySessions) { session ->
                     androidx.compose.material3.ListItem(
                         headlineContent = { Text(session.title.ifBlank { session.prompt }, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        supportingContent = {
-                            val prIdText = if (!session.prId.isNullOrBlank()) " #${session.prId}" else ""
-                            Text("${session.sessionState ?: "In progress"}$prIdText", fontSize = 12.sp)
-                        },
+                        supportingContent = { Text(session.sessionState ?: "In progress", fontSize = 12.sp) },
                         trailingContent = {
                             Row {
                                 if (session.prUrl != null) {
@@ -1158,42 +1076,6 @@ private fun RepoAndSessionsContent(
 }
 
 @Composable
-private fun RenderAnnotatedText(content: String, baseFontSize: Int) {
-    val annotatedString = buildAnnotatedString {
-        val lines = content.lines()
-        lines.forEachIndexed { index, line ->
-            val isH3 = line.startsWith("###")
-            val cleanLine = if (isH3) line.removePrefix("###").trim() else line
-
-            val style = if (isH3) {
-                SpanStyle(color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            } else {
-                SpanStyle(color = Color.White)
-            }
-
-            withStyle(style) {
-                val parts = cleanLine.split("**")
-                parts.forEachIndexed { pIndex, part ->
-                    if (pIndex % 2 == 1) {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                            append(part)
-                        }
-                    } else {
-                        val bulletedPart = part.replace(Regex("(?m)^\\s*[-*]\\s+"), " • ")
-                        append(bulletedPart)
-                    }
-                }
-            }
-            if (index < lines.size - 1) append("\n")
-        }
-    }
-    Text(
-        text = annotatedString,
-        fontSize = baseFontSize.sp
-    )
-}
-
-@Composable
 private fun MessageText(item: JulesChatItem, baseFontSize: Int, onSpeak: () -> Unit) {
     val text = if (item is JulesChatItem.UserMessage) item.text
                else (item as JulesChatItem.AgentMessage).let { if (it.subItems.size == 1) it.subItems.first().text else it.text }
@@ -1203,7 +1085,7 @@ private fun MessageText(item: JulesChatItem, baseFontSize: Int, onSpeak: () -> U
             .padding(12.dp)
             .combinedClickable(onClick = {}, onLongClick = onSpeak)
     ) {
-        RenderAnnotatedText(text, baseFontSize)
+        Text(text, color = Color.White, fontSize = baseFontSize.sp)
         val ts = if (item is JulesChatItem.UserMessage) item.createTime else (item as JulesChatItem.AgentMessage).createTime
         Text(
             text = ts.takeLast(5),
