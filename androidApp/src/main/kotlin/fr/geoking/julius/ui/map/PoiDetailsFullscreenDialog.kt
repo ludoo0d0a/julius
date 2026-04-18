@@ -130,20 +130,22 @@ fun PoiDetailsFullscreenDialog(
                         }
                     }
 
-                    if (isMergedPoi) {
+                    if (sources.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Surface(
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                shape = MaterialTheme.shapes.extraSmall,
-                            ) {
-                                Text(
-                                    text = "MERGED",
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
+                            if (isMergedPoi) {
+                                Surface(
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    shape = MaterialTheme.shapes.extraSmall,
+                                ) {
+                                    Text(
+                                        text = "MERGED",
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
                             }
                             Text(
                                 text = sources.joinToString(" + "),
@@ -177,7 +179,7 @@ fun PoiDetailsFullscreenDialog(
                         }
                     }
 
-                    if (isMergedPoi) {
+                    if (sources.isNotEmpty()) {
                         SectionHeader("Sources")
                         sources.forEach { s ->
                             Text(
@@ -205,35 +207,6 @@ fun PoiDetailsFullscreenDialog(
                         }
                     }
 
-                    // Rating
-                    if (rating != null || onRate != null) {
-                        SectionHeader("Note")
-                        if (rating != null) {
-                            Text(
-                                text = "Note: $rating/5",
-                                color = Color.White.copy(alpha = 0.9f),
-                                fontSize = 14.sp
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
-                        if (onRate != null) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                (1..5).forEach { star ->
-                                    IconButton(
-                                        onClick = { onRate(star) },
-                                        modifier = Modifier.size(40.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = if (rating != null && star <= rating) Icons.Default.Star else Icons.Outlined.StarBorder,
-                                            contentDescription = "Note $star",
-                                            tint = if (rating != null && star <= rating) Color(0xFFEAB308) else Color.White.copy(alpha = 0.5f),
-                                            modifier = Modifier.size(32.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
 
                     // Fuel Prices
                     poi.fuelPrices?.let { prices ->
