@@ -56,7 +56,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -142,7 +141,6 @@ fun JulesScreen(
     var selectedSourceName by remember { mutableStateOf<String?>(null) }
     var selectedSourceDisplayName by remember { mutableStateOf("Select repository") }
     var sourcesLoaded by remember { mutableStateOf(false) }
-    var showRepoSheet by remember { mutableStateOf(false) }
     var showActivitiesSheet by remember { mutableStateOf(false) }
     var showConflictSheet by remember { mutableStateOf(false) }
     var conflictingFiles by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -166,10 +164,10 @@ fun JulesScreen(
 
     fun clearError() { error = null }
 
-    fun loadSources() {
+    fun loadSources(isRefresh: Boolean = false) {
         if (apiKeys.isEmpty()) return
         scope.launch {
-            loading = true
+            if (isRefresh) refreshing = true else loading = true
             clearError()
             try {
                 val allSources = mutableMapOf<String, JulesClient.JulesSource>()
@@ -203,6 +201,7 @@ fun JulesScreen(
                 error = "Could not load repositories: ${e.message}"
             }
             loading = false
+            refreshing = false
         }
     }
 
@@ -330,7 +329,11 @@ fun JulesScreen(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = if (currentSession != null) currentSession!!.title else "Jules",
+                        text = when {
+                            currentSession != null -> currentSession!!.title
+                            selectedSourceName != null -> selectedSourceDisplayName
+                            else -> "Repositories"
+                        },
                         color = Color.White,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
@@ -362,6 +365,7 @@ fun JulesScreen(
                         }
                     }
                 }
+                if (currentSession != null) {
                     if (!currentSession!!.url.isNullOrBlank()) {
                         IconButton(onClick = {
                             uriHandler.openUri(currentSession!!.url!!)
@@ -369,7 +373,6 @@ fun JulesScreen(
                             Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open in web", tint = Color.White)
                         }
                     }
-                if (currentSession != null) {
                     IconButton(onClick = {
                         scope.launch {
                             loading = true
@@ -402,33 +405,6 @@ fun JulesScreen(
                 }
             }
 
-            if (apiKeys.isNotEmpty() && currentSession == null) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(JulesHeaderBg.copy(alpha = 0.8f))
-                        .clickable {
-                            showRepoSheet = true
-                            if (!sourcesLoaded) loadSources()
-                        }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = selectedSourceDisplayName,
-                        color = JulesAccent,
-                        fontSize = 14.sp,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Icon(
-                        Icons.Default.KeyboardArrowDown,
-                        contentDescription = null,
-                        tint = JulesAccent,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-                HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
-            }
 
             when {
                 apiKeys.isEmpty() -> {
@@ -507,7 +483,7 @@ fun JulesScreen(
                             isRefreshing = refreshing,
                             onRefresh = { refreshActivities(isRefresh = true) }
                         )
-                    } else {
+                    } else if (selectedSourceName != null) {
                         RepoAndSessionsContent(
                             apiKeys = apiKeys,
                             isOnline = isOnline,
@@ -587,27 +563,19 @@ fun JulesScreen(
                             hideCompleted = hideCompleted,
                             onHideCompletedChange = { hideCompleted = it }
                         )
+                    } else {
+                        RepositoriesListContent(
+                            sources = sources,
+                            onSelect = { src ->
+                                selectedSourceName = src.name
+                                selectedSourceDisplayName = src.githubRepo?.let { "${it.owner}/${it.repo}" } ?: src.name
+                            },
+                            loading = loading && sources.isEmpty(),
+                            refreshing = refreshing,
+                            onRefresh = { loadSources(isRefresh = true) }
+                        )
                     }
                 }
-            }
-        }
-
-        if (showRepoSheet) {
-            ModalBottomSheet(
-                onDismissRequest = { showRepoSheet = false },
-                sheetState = rememberModalBottomSheetState(),
-                containerColor = JulesListBg
-            ) {
-                RepoSelectionSheet(
-                    sources = sources,
-                    onSelect = { src ->
-                        selectedSourceName = src.name
-                        val displayName = src.githubRepo?.let { "${it.owner}/${it.repo}" } ?: src.name
-                        selectedSourceDisplayName = displayName
-                        showRepoSheet = false
-                    },
-                    loading = loading && !sourcesLoaded
-                )
             }
         }
 
@@ -639,44 +607,49 @@ fun JulesScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RepoSelectionSheet(
+private fun RepositoriesListContent(
     sources: List<JulesClient.JulesSource>,
     onSelect: (JulesClient.JulesSource) -> Unit,
-    loading: Boolean
+    loading: Boolean,
+    refreshing: Boolean,
+    onRefresh: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 32.dp)
+    PullToRefreshBox(
+        isRefreshing = refreshing,
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize()
     ) {
-        Text(
-            "Select Repository",
-            color = Color.White,
-            fontSize = 20.sp,
-            modifier = Modifier.padding(16.dp),
-            fontWeight = FontWeight.Bold
-        )
-
         if (loading && sources.isEmpty()) {
-            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = JulesAccent)
             }
         } else {
-            LazyColumn {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                item {
+                    Text(
+                        "Repositories",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(16.dp, 8.dp)
+                    )
+                }
                 items(sources) { source ->
                     val displayName = source.githubRepo?.let { "${it.owner}/${it.repo}" } ?: source.name
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSelect(source) }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(displayName, color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Color.White.copy(alpha = 0.3f))
-                    }
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                    androidx.compose.material3.ListItem(
+                        headlineContent = { Text(displayName) },
+                        trailingContent = {
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+                        },
+                        modifier = Modifier.clickable { onSelect(source) },
+                        colors = androidx.compose.material3.ListItemDefaults.colors(
+                            containerColor = Color.Transparent,
+                            headlineColor = Color.White,
+                            trailingIconColor = Color.White.copy(alpha = 0.3f)
+                        )
+                    )
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
                 }
             }
         }
