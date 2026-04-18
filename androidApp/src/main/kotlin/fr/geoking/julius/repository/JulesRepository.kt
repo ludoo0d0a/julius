@@ -14,6 +14,7 @@ import fr.geoking.julius.persistence.JulesActivityEntity
 import fr.geoking.julius.persistence.JulesDao
 import fr.geoking.julius.persistence.JulesSessionEntity
 import fr.geoking.julius.shared.network.NetworkService
+import fr.geoking.julius.shared.network.NetworkException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.flow.Flow
@@ -22,8 +23,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.awaitAll
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.time.OffsetDateTime
 import java.time.Instant
 
@@ -65,24 +64,7 @@ class JulesRepository(
                             val pr = session.outputs?.firstOrNull()?.pullRequest
                             val existing = try { julesDao.getSession(sessionId) } catch (e: Exception) { null }
 
-                entities.add(JulesSessionEntity(
-                    id = sessionId,
-                    title = session.title,
-                    prompt = session.prompt,
-                    sourceName = sourceName,
-                    prUrl = pr?.url,
-                    prTitle = pr?.title,
-                    prId = pr?.id,
-                    prState = existing?.prState,
-                    prMergeable = existing?.prMergeable,
-                    sessionState = session.state,
-                    url = session.url,
-                    createTime = session.createTime,
-                    updateTime = session.updateTime,
-                    isArchived = existing?.isArchived ?: false,
-                    lastUpdated = newLastUpdated
-                ))
-            }
+                            val newLastUpdated = existing?.lastUpdated ?: System.currentTimeMillis()
 
                             currentEntities.add(JulesSessionEntity(
                                 id = sessionId,
@@ -91,9 +73,13 @@ class JulesRepository(
                                 sourceName = sourceName,
                                 prUrl = pr?.url,
                                 prTitle = pr?.title,
+                                prId = pr?.id,
                                 prState = existing?.prState,
                                 prMergeable = existing?.prMergeable,
                                 sessionState = session.state,
+                                url = session.url,
+                                createTime = session.createTime,
+                                updateTime = session.updateTime,
                                 isArchived = existing?.isArchived ?: false,
                                 lastUpdated = newLastUpdated,
                                 apiKey = key
@@ -185,6 +171,7 @@ class JulesRepository(
     suspend fun createSession(apiKeys: List<String>, prompt: String, source: String, title: String): String {
         val isOnline = networkService.status.value.isConnected
         if (isOnline) {
+            val apiKey = apiKeys.firstOrNull() ?: throw Exception("No API key available")
             val session = julesClient.createSession(
                 apiKey = apiKey,
                 prompt = prompt,
@@ -206,7 +193,8 @@ class JulesRepository(
                 createTime = session.createTime,
                 updateTime = session.updateTime,
                 isArchived = false,
-                lastUpdated = System.currentTimeMillis()
+                lastUpdated = System.currentTimeMillis(),
+                apiKey = apiKey
             )
             julesDao.insertSessions(listOf(entity))
             return session.id
@@ -233,11 +221,11 @@ class JulesRepository(
         }
     }
 
-    suspend fun sendMessage(sessionId: String, prompt: String) {
+    suspend fun sendMessage(sessionId: String, prompt: String, apiKey: String? = null) {
         val isOnline = networkService.status.value.isConnected
         if (isOnline && !sessionId.startsWith("offline_")) {
             val existing = julesDao.getSession(sessionId)
-            val key = existing?.apiKey ?: settingsManager.settings.value.julesKeys.firstOrNull()
+            val key = apiKey ?: existing?.apiKey ?: settingsManager.settings.value.julesKeys.firstOrNull()
                 ?: throw Exception("No API key available")
 
             julesClient.sendMessage(key, sessionId, prompt)
@@ -277,6 +265,7 @@ class JulesRepository(
     suspend fun syncOfflineData() = coroutineScope {
         val apiKeys = settingsManager.settings.value.julesKeys
         if (apiKeys.isEmpty()) return@coroutineScope
+        val apiKey = apiKeys.first()
 
         // 1. Sync pending sessions
         val pendingSessions = julesDao.getPendingOfflineSessions()
@@ -308,7 +297,8 @@ class JulesRepository(
                             isArchived = false,
                             lastUpdated = System.currentTimeMillis(),
                             isPendingOffline = false,
-                            queuedAt = null
+                            queuedAt = null,
+                            apiKey = apiKey
                         )
                         julesDao.insertSessions(listOf(updatedEntity))
                         julesDao.updateActivitiesSessionId(session.id, newSession.id)
@@ -409,7 +399,6 @@ class JulesRepository(
     fun getActivities(sessionId: String): Flow<List<JulesChatItem>> = flow {
         val existingSession = try { julesDao.getSession(sessionId) } catch (e: Exception) { null }
         val apiKey = existingSession?.apiKey ?: settingsManager.settings.value.julesKeys.firstOrNull()
-        val json = Json { ignoreUnknownKeys = true }
 
         // 1. Emit from cache
         try {
@@ -484,12 +473,6 @@ class JulesRepository(
                 val ts = a.createTime
                 val sortTs = try { OffsetDateTime.parse(ts).toInstant().toEpochMilli() } catch (e: Exception) { 0L }
 
-                val artifactsJson = try {
-                    if (a.artifacts != null) Json.encodeToString(a.artifacts) else null
-                } catch (e: Exception) {
-                    null
-                }
-
                 entities.add(JulesActivityEntity(
                     id = a.id,
                     sessionId = sessionId,
@@ -498,7 +481,8 @@ class JulesRepository(
                     timestamp = ts,
                     sortTimestamp = sortTs,
                     type = type,
-                    artifactsJson = artifactsJson
+                    artifactsJson = if (a.artifacts != null) Json.encodeToString(a.artifacts) else null,
+                    activityJson = Json.encodeToString(JulesClient.JulesActivity.serializer(), a)
                 ))
             }
 
@@ -561,7 +545,7 @@ class JulesRepository(
     )
 
     fun parseConflicts(content: String): List<Conflict> {
-        val regex = Regex("<<<<<<< .*?\\r?\\n(.*?)\\r?\\n=======?\\r?\\n(.*?)\\r?\\n>>>>>>> .*?\\r?\\n", RegexOption.DOT_MATCHES_ALL)
+        val regex = Regex("<<<<<<< .*?\r?\n(.*?)\r?\n=======?\r?\n(.*?)\r?\n>>>>>>> .*?\r?\n", RegexOption.DOT_MATCHES_ALL)
         return regex.findAll(content).map { match ->
             Conflict(
                 fullMatch = match.value,
@@ -653,6 +637,10 @@ class JulesRepository(
         if (apiKeys.isEmpty()) return null
         // Jules public API has no documented quota endpoint; UI hides the quota row when null.
         return null
+    }
+
+    suspend fun approvePlan(apiKey: String, sessionId: String) {
+        julesClient.approvePlan(apiKey, sessionId)
     }
 }
 

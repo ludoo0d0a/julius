@@ -3,6 +3,8 @@ package fr.geoking.julius.ui.map
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Directions
@@ -84,12 +86,11 @@ fun PoiDetailCard(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(12.dp)
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() }
-                ) { onShowDetails() },
-            verticalArrangement = Arrangement.SpaceBetween
+                ) { onShowDetails() }
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(
@@ -204,13 +205,15 @@ fun PoiDetailCard(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigate() }
                 ) {
                     Icon(
                         imageVector = Icons.Default.LocationOn,
-                        contentDescription = null,
+                        contentDescription = "Navigate",
                         modifier = Modifier.size(16.dp),
-                        tint = Color.White.copy(alpha = 0.6f)
+                        tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
@@ -227,22 +230,27 @@ fun PoiDetailCard(
                 }
 
                 if (isSelected) {
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     HorizontalDivider(color = Color.White.copy(alpha = 0.12f))
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     // Compact “show everything we have” summary for merged POIs.
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f, fill = false)
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
                     ) {
                         when (effectiveCategory) {
                             PoiCategory.Gas -> {
                                 val prices = poi.fuelPrices.orEmpty()
                                 if (prices.isNotEmpty()) {
-                                    val sorted = prices.sortedBy { it.fuelName.lowercase() }
-                                    sorted.take(6).forEach { fp ->
+                                    val sorted = prices.sortedWith(
+                                        compareByDescending<fr.geoking.julius.poi.FuelPrice> {
+                                            MapPoiFilter.fuelNameToId(it.fuelName) in highlightedFuelIds
+                                        }.thenBy { it.fuelName.lowercase() }
+                                    )
+                                    sorted.forEach { fp ->
                                         val fuelId = MapPoiFilter.fuelNameToId(fp.fuelName)
                                         val matchColor = fuelId?.let { ColorHelper.getFuelColor(it) }
                                         Row(
@@ -342,15 +350,6 @@ fun PoiDetailCard(
                 }
             }
 
-            Button(
-                onClick = onNavigate,
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(vertical = 8.dp)
-            ) {
-                Icon(Icons.Default.Directions, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Navigate", fontSize = 14.sp)
-            }
         }
     }
 }
