@@ -5,7 +5,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.EvStation
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -58,38 +60,19 @@ fun FilterFab(
         )
     }
 
-    val favoritesFilterActive = favoritesFilterEnabled && showFavoritesOnly
-    val activeFilterCount = remember(settings, filterMode, favoritesFilterActive) {
-        val favCount = if (favoritesFilterActive) 1 else 0
-        if (settings.useVehicleFilter) return@remember 1 + favCount
-        val fuelFilters = if (filterMode == 0 || filterMode == 2) {
-            val brandFilter = if (settings.mapBrands.isNotEmpty()) 1 else 0
-            val energyFilter = if (settings.selectedMapEnergyTypes.isNotEmpty()) 1 else 0
-            brandFilter + energyFilter
-        } else 0
-
-        val elecFilters = if (filterMode == 1 || filterMode == 2) {
-            val operatorFilter = if (settings.mapIrveOperators.isNotEmpty()) 1 else 0
-            val powerFilter = if (settings.mapPowerLevels.isNotEmpty()) 1 else 0
-            val connectorFilter = if (settings.selectedMapConnectorTypes.isNotEmpty()) 1 else 0
-            operatorFilter + powerFilter + connectorFilter
-        } else 0
-
-        favCount + fuelFilters + elecFilters
-    }
-
-    ExtendedFloatingActionButton(
+    FloatingActionButton(
         onClick = { showSheet = true },
-        icon = { Icon(Icons.Default.FilterList, contentDescription = null) },
-        text = {
-            Text(
-                if (activeFilterCount > 0) "Filters ($activeFilterCount)" else "Filters"
-            )
-        },
         containerColor = MaterialTheme.colorScheme.secondaryContainer,
         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
         modifier = modifier
-    )
+    ) {
+        val icon = when (filterMode) {
+            0 -> Icons.Default.LocalGasStation
+            1 -> Icons.Default.EvStation
+            else -> Icons.Default.FilterList
+        }
+        Icon(icon, contentDescription = "Filters")
+    }
 
     if (showSheet) {
         ModalBottomSheet(

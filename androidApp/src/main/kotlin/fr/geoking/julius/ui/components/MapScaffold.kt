@@ -18,16 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import fr.geoking.julius.AppSettings
 import fr.geoking.julius.SettingsManager
-import fr.geoking.julius.effectiveIrvePowerLevels
-import fr.geoking.julius.effectiveMapEnergyFilterIds
 import fr.geoking.julius.poi.PoiProviderType
-import fr.geoking.julius.poi.anyProvidesElectric
-import fr.geoking.julius.poi.anyProvidesFuel
-import fr.geoking.julius.ui.ColorHelper
-import fr.geoking.julius.ui.MAP_ENERGY_OPTIONS
-import fr.geoking.julius.ui.MAP_IRVE_POWER_OPTIONS
 import fr.geoking.julius.ui.anim.AnimationPalette
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -138,58 +130,6 @@ fun MapScaffold(
                                 )
                             }
                         )
-                    }
-
-                    if (selectedProviders.anyProvidesFuel() || selectedProviders.anyProvidesElectric()) {
-                        items(MAP_ENERGY_OPTIONS) { (id, label) ->
-                            val isSelected = settings.effectiveMapEnergyFilterIds().contains(id)
-                            val color = ColorHelper.getFuelColor(id) ?: MaterialTheme.colorScheme.primary
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    val current = settings.selectedMapEnergyTypes
-                                    val next = if (current.contains(id)) current - id else current + id
-                                    settingsManager.setUseVehicleFilter(false)
-                                    settingsManager.setMapEnergyTypes(next)
-                                },
-                                label = { Text(label) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = color,
-                                    selectedLabelColor = Color.White,
-                                    iconColor = color,
-                                    selectedLeadingIconColor = Color.White
-                                ),
-                                leadingIcon = {
-                                    Box(modifier = Modifier.size(12.dp).background(color, MaterialTheme.shapes.small))
-                                }
-                            )
-                        }
-                    }
-
-                    if (selectedProviders.anyProvidesElectric()) {
-                        items(MAP_IRVE_POWER_OPTIONS) { (kw, label) ->
-                            val isSelected = settings.effectiveIrvePowerLevels().contains(kw)
-                            val color = ColorHelper.getPowerColorByLevel(kw)
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    val current = settings.mapPowerLevels
-                                    val next = if (current.contains(kw)) current - kw else current + kw
-                                    settingsManager.setUseVehicleFilter(false)
-                                    settingsManager.setMapPowerLevels(next)
-                                },
-                                label = { Text(label) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = color,
-                                    selectedLabelColor = Color.White,
-                                    iconColor = color,
-                                    selectedLeadingIconColor = Color.White
-                                ),
-                                leadingIcon = {
-                                    Box(modifier = Modifier.size(12.dp).background(color, MaterialTheme.shapes.small))
-                                }
-                            )
-                        }
                     }
                 }
             }
