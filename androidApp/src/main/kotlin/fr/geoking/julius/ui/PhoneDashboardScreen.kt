@@ -462,7 +462,12 @@ fun PhoneDashboardScreen(
                                         selected = isSelected,
                                         onClick = {
                                             val current = settings.selectedMapEnergyTypes
-                                            val next = if (current.contains(id)) current - id else current + id
+                                            val next = if (current.contains(id)) {
+                                                current - id
+                                            } else {
+                                                val allFuelIds = MAP_ENERGY_OPTIONS.map { it.first }.filter { it != "electric" }.toSet()
+                                                (current - allFuelIds) + id
+                                            }
                                             settingsManager.setUseVehicleFilter(false)
                                             settingsManager.setMapEnergyTypes(next)
                                         },
