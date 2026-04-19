@@ -1,0 +1,13 @@
+<!-- Galp: Orange drop with white 'g' symbol (simplified) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+  <path
+      android:fillColor="#FF6600"
+      android:pathData="M12,2 C8,8 6,12 6,16 C6,19.31 8.69,22 12,22 C15.31,22 18,19.31 18,16 C18,12 16,8 12,2 Z"/>
+  <path
+      android:fillColor="#FFFFFF"
+      android:pathData="M13,13 C12.5,12.5 12,12.2 11,12.2 C10,12.2 9,13 9,14.5 C9,16 10,16.8 11,16.8 C11.5,16.8 12,16.6 12.5,16.2 V17.5 C12,17.8 11.5,18 10.8,18 C9.5,18 8,16.8 8,14.5 C8,12.2 9.5,11 11,11 C11.8,11 12.5,11.2 13,11.5 V13 Z"/>
+</vector>

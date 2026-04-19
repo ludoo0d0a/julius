@@ -59,6 +59,9 @@ object BrandRegistry {
         "galp" to "Galp",
         "prio" to "Prio",
         "alves bandeira" to "Alves Bandeira",
+        "lukoil" to "Lukoil",
+        "petrom" to "Petrom",
+        "cepsa" to "Cepsa",
     )
 
     /** brand_id (lowercase) -> is gas station brand. */
@@ -67,7 +70,7 @@ object BrandRegistry {
         "q8", "agip", "carrefour", "leclerc", "auchan", "intermarche", "casino", "rel", "rel.metz",
         "circle k", "eurogarages", "aral", "jet", "elf", "migrol", "coop", "migros",
         "superu", "systeme u", "match", "supermarche match",
-        "spar", "gulf", "monoprix", "galp", "prio", "alves bandeira"
+        "spar", "gulf", "monoprix", "galp", "prio", "alves bandeira", "lukoil", "petrom", "cepsa"
     )
 
     /** brand_id (lowercase) -> is electric charging brand. */
@@ -83,8 +86,8 @@ object BrandRegistry {
         "q8", "agip", "eurogarages", "jet", "elf", "migrol", "coop", "migros", "rel", "rel.metz",
         "circle k", "aral", "carrefour", "leclerc", "e.leclerc", "auchan", "intermarche", "casino",
         "tesla", "ionity", "fastned", "allego", "lidl", "chargy", "atlante", "zunder", "freshmile",
-        "superu", "systeme u", "cooperative u", "match", "supermarche match", "powerdot", "driveco"
-        , "spar", "gulf", "monoprix", "galp", "prio", "alves bandeira"
+        "superu", "systeme u", "cooperative u", "match", "supermarche match", "powerdot", "driveco",
+        "spar", "gulf", "monoprix", "galp", "prio", "alves bandeira", "lukoil", "petrom", "cepsa"
     )
 
     /** Returns true if the brand has a dedicated icon. */
