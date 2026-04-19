@@ -132,7 +132,8 @@ fun FuelForecastChartCard(
             )
             val fuelLabel = when (state.fuelId) {
                 "gazole" -> "Gazole"
-                "sp95" -> "SP95 / E10"
+                "sp95" -> "SP95"
+                "sp95_e10" -> "SP95-E10"
                 "sp98" -> "SP98"
                 "gplc" -> "GPLc"
                 "e85" -> "E85"

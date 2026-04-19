@@ -51,7 +51,7 @@ class PoiTest {
         assertEquals("gazole_plus", MapPoiFilter.fuelNameToId("Star Diesel"))
 
         assertEquals("sp95", MapPoiFilter.fuelNameToId("SP95"))
-        assertEquals("sp95", MapPoiFilter.fuelNameToId("Sans Plomb 95 E10"))
+        assertEquals("sp95_e10", MapPoiFilter.fuelNameToId("Sans Plomb 95 E10"))
         assertEquals("sp98", MapPoiFilter.fuelNameToId("SP98"))
         assertEquals("e85", MapPoiFilter.fuelNameToId("E85"))
         assertEquals("gplc", MapPoiFilter.fuelNameToId("GPL"))

@@ -48,7 +48,7 @@ fun FuelForecastScreen(
     var refreshTick by remember { mutableStateOf(0) }
 var brentRange by remember { mutableStateOf("1m") }
 
-    val allFuelIds = setOf("gazole", "sp95", "sp98", "gplc", "e85")
+    val allFuelIds = setOf("gazole", "sp95_e10", "sp95", "sp98", "gplc", "e85")
 
     LaunchedEffect(refreshTick, brentRange) {
         isLoading = true
@@ -108,7 +108,7 @@ var brentRange by remember { mutableStateOf("1m") }
                         )
                     }
 
-                    val sortedFuels = listOf("gazole", "sp95", "sp98", "gplc", "e85")
+                    val sortedFuels = listOf("gazole", "sp95_e10", "sp95", "sp98", "gplc", "e85")
                     items(sortedFuels) { fuelId ->
                         val state = states[fuelId] ?: FuelForecastUiState(fuelId = fuelId, locationKey = "")
                         FuelForecastChartCard(

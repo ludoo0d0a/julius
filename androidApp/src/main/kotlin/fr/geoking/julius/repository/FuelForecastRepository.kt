@@ -28,7 +28,7 @@ import kotlinx.serialization.json.Json
 
 private val PARIS: ZoneId = ZoneId.of("Europe/Paris")
 
-private val FUEL_PRIORITY = listOf("gazole", "gazole_plus", "sp95", "sp98", "gplc", "e85")
+private val FUEL_PRIORITY = listOf("gazole", "gazole_plus", "sp95_e10", "sp95", "sp98", "gplc", "e85")
 
 /**
  * Local pump averages, Yahoo-based market series, rule forecasts, and scoring against realized daily averages.
@@ -264,6 +264,7 @@ class FuelForecastRepository(
         "gazole" -> "Gazole"
         "gazole_plus" -> "Gazole+"
         "sp95" -> "SP95"
+        "sp95_e10" -> "E10"
         "sp98" -> "SP98"
         "gplc" -> "GPLc"
         "e85" -> "E85"
