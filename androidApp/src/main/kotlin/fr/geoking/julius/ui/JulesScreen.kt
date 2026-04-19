@@ -50,6 +50,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -68,10 +69,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
-import android.graphics.BitmapFactory
-import android.util.Base64
-import androidx.compose.foundation.Image
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
@@ -165,7 +162,10 @@ fun JulesScreen(
     fun clearError() { error = null }
 
     fun loadSources(isRefresh: Boolean = false) {
-        if (apiKeys.isEmpty()) return
+        if (apiKeys.isEmpty()) {
+            sourcesLoaded = true
+            return
+        }
         scope.launch {
             if (isRefresh) refreshing = true else loading = true
             clearError()
@@ -182,7 +182,7 @@ fun JulesScreen(
                                     }
                                 }
                             } catch (e: Exception) {
-                                android.util.Log.e("JulesScreen", "Failed to load sources", e)
+                                android.util.Log.e("JulesScreen", "Failed to load sources for a key", e)
                             }
                         }
                     }.awaitAll()
@@ -198,10 +198,11 @@ fun JulesScreen(
                 }
             } catch (e: Exception) {
                 sourcesLoaded = true
-                error = "Could not load repositories: ${e.message}"
+                error = "Could not load repositories: ${e.message ?: "Unknown error"}"
+            } finally {
+                loading = false
+                refreshing = false
             }
-            loading = false
-            refreshing = false
         }
     }
 
@@ -211,8 +212,8 @@ fun JulesScreen(
         scope.launch {
             if (isRefresh) refreshingSessions = true else loadingSessions = true
             clearError()
-            quota = julesRepository.getUsageQuota(apiKeys)
             try {
+                quota = julesRepository.getUsageQuota(apiKeys)
                 julesRepository.getSessions(apiKeys, sourceName, githubToken).collectLatest { list ->
                     sessions = list
                     currentSession?.let { curr ->
@@ -222,6 +223,8 @@ fun JulesScreen(
                         }
                     }
                 }
+            } catch (e: Exception) {
+                error = "Could not load sessions: ${e.message ?: "Unknown error"}"
             } finally {
                 loadingSessions = false
                 refreshingSessions = false
@@ -240,9 +243,17 @@ fun JulesScreen(
                     chatItems.clear()
                     chatItems.addAll(list)
                 } else {
-                    val existingIds = chatItems.map { if (it is JulesChatItem.UserMessage) it.id else (it as JulesChatItem.AgentMessage).id }.toSet()
+                    val existingIds = chatItems.map {
+                        when (it) {
+                            is JulesChatItem.UserMessage -> it.id
+                            is JulesChatItem.AgentMessage -> it.id
+                        }
+                    }.toSet()
                     val newItems = list.filter {
-                        val id = if (it is JulesChatItem.UserMessage) it.id else (it as JulesChatItem.AgentMessage).id
+                        val id = when (it) {
+                            is JulesChatItem.UserMessage -> it.id
+                            is JulesChatItem.AgentMessage -> it.id
+                        }
                         !existingIds.contains(id)
                     }
                     if (newItems.isNotEmpty()) {
@@ -250,9 +261,15 @@ fun JulesScreen(
                     }
                 }
                 if (chatItems.isNotEmpty()) {
-                    listState.animateScrollToItem(chatItems.size - 1)
+                    try {
+                        listState.animateScrollToItem(chatItems.size - 1)
+                    } catch (e: Exception) {
+                        // Ignore scroll errors
+                    }
                 }
             }
+        } catch (e: Exception) {
+            error = "Could not load activities: ${e.message ?: "Unknown error"}"
         } finally {
             loading = false
             refreshing = false
@@ -330,7 +347,7 @@ fun JulesScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = when {
-                            currentSession != null -> currentSession!!.title
+                            currentSession != null -> currentSession?.title ?: ""
                             selectedSourceName != null -> selectedSourceDisplayName
                             else -> "Repositories"
                         },
@@ -340,19 +357,20 @@ fun JulesScreen(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    if (currentSession != null) {
-                        val hasOutput = !currentSession!!.prUrl.isNullOrBlank()
+                    val session = currentSession
+                    if (session != null) {
+                        val hasOutput = !session.prUrl.isNullOrBlank()
                         val (statusText, statusColor) = when {
-                            currentSession!!.prState == "merged" -> "Merged" to Color.Green
-                            currentSession!!.prState == "closed" -> "Closed" to Color.Red
-                            currentSession!!.sessionState == "COMPLETED" -> "Completed" to Color.Green
-                            currentSession!!.sessionState == "FAILED" -> "Failed" to Color.Red
-                            currentSession!!.sessionState == "AWAITING_PLAN_APPROVAL" -> "Waiting for approval" to JulesAccent
-                            currentSession!!.sessionState == "PLANNING" -> "Planning…" to JulesAccent
+                            session.prState == "merged" -> "Merged" to Color.Green
+                            session.prState == "closed" -> "Closed" to Color.Red
+                            session.sessionState == "COMPLETED" -> "Completed" to Color.Green
+                            session.sessionState == "FAILED" -> "Failed" to Color.Red
+                            session.sessionState == "AWAITING_PLAN_APPROVAL" -> "Waiting for approval" to JulesAccent
+                            session.sessionState == "PLANNING" -> "Planning…" to JulesAccent
                             else -> (if (hasOutput) "Output available" else "In progress") to (if (hasOutput) JulesAccent else Color.White.copy(alpha = 0.6f))
                         }
-                        val mergeabilityText = if (currentSession!!.prState == "open" && currentSession!!.prMergeable == false) " (Conflicts)" else ""
-                        val prIdText = if (!currentSession!!.prId.isNullOrBlank()) " #${currentSession!!.prId}" else ""
+                        val mergeabilityText = if (session.prState == "open" && session.prMergeable == false) " (Conflicts)" else ""
+                        val prIdText = if (!session.prId.isNullOrBlank()) " #${session.prId}" else ""
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(modifier = Modifier.size(6.dp).background(statusColor, RoundedCornerShape(3.dp)))
@@ -365,10 +383,11 @@ fun JulesScreen(
                         }
                     }
                 }
-                if (currentSession != null) {
-                    if (!currentSession!!.url.isNullOrBlank()) {
+                val sess = currentSession
+                if (sess != null) {
+                    if (!sess.url.isNullOrBlank()) {
                         IconButton(onClick = {
-                            uriHandler.openUri(currentSession!!.url!!)
+                            sess.url?.let { uriHandler.openUri(it) }
                         }) {
                             Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open in web", tint = Color.White)
                         }
@@ -378,7 +397,7 @@ fun JulesScreen(
                             loading = true
                             try {
                                 val json = Json { ignoreUnknownKeys = true }
-                                val cached = julesRepository.getActivitiesBySession(currentSession!!.id)
+                                val cached = julesRepository.getActivitiesBySession(sess.id)
                                 val activities = cached.mapNotNull {
                                     it.activityJson?.let { aj -> json.decodeFromString(JulesClient.JulesActivity.serializer(), aj) }
                                 }
@@ -387,17 +406,18 @@ fun JulesScreen(
                                     rawActivities = activities
                                     showActivitiesSheet = true
                                 } else {
-                                    val key = currentSession!!.apiKey ?: apiKeys.firstOrNull()
+                                    val key = sess.apiKey ?: apiKeys.firstOrNull()
                                     if (key != null) {
-                                        val resp = julesClient.listActivities(key, currentSession!!.id)
+                                        val resp = julesClient.listActivities(key, sess.id)
                                         rawActivities = resp.activities
                                         showActivitiesSheet = true
                                     }
                                 }
                             } catch (e: Exception) {
-                                error = "Could not load activities: ${e.message}"
+                                error = "Could not load activities: ${e.message ?: "Unknown error"}"
+                            } finally {
+                                loading = false
                             }
-                            loading = false
                         }
                     }) {
                         Icon(Icons.Default.History, contentDescription = "Activities", tint = Color.White)
@@ -422,9 +442,10 @@ fun JulesScreen(
                         )
                     }
 
-                    if (currentSession != null) {
+                    val activeSession = currentSession
+                    if (activeSession != null) {
                         InConversationContent(
-                            currentSession = currentSession!!,
+                            currentSession = activeSession,
                             chatItems = chatItems,
                             listState = listState,
                             inputText = inputText,
@@ -437,28 +458,31 @@ fun JulesScreen(
                                     loading = true
                                     clearError()
                                     try {
-                                        julesRepository.sendMessage(currentSession!!.id, prompt)
+                                        julesRepository.sendMessage(activeSession.id, prompt)
                                         refreshActivitiesInternal()
                                     } catch (e: Exception) {
                                         error = e.message ?: "Failed to send"
+                                    } finally {
+                                        loading = false
                                     }
-                                    loading = false
                                 }
                             },
                             loading = loading,
                             onMergePr = {
+                                val prUrl = activeSession.prUrl ?: return@InConversationContent
                                 scope.launch {
                                     loading = true
-                                    val res = julesRepository.mergePr(githubToken, currentSession!!.prUrl!!)
+                                    val res = julesRepository.mergePr(githubToken, prUrl)
                                     if (res.isFailure) error = "Merge failed: ${res.exceptionOrNull()?.message}"
                                     else loadSessions()
                                     loading = false
                                 }
                             },
                             onSolveConflicts = {
+                                val prUrl = activeSession.prUrl ?: return@InConversationContent
                                 scope.launch {
                                     loading = true
-                                    val res = julesRepository.getConflictingFiles(githubToken, currentSession!!.prUrl!!)
+                                    val res = julesRepository.getConflictingFiles(githubToken, prUrl)
                                     if (res.isSuccess) {
                                         conflictingFiles = res.getOrDefault(emptyList())
                                         showConflictSheet = true
@@ -472,12 +496,13 @@ fun JulesScreen(
                                 scope.launch {
                                     loading = true
                                     try {
-                                        julesRepository.sendMessage(currentSession!!.id, "@jules resolve the conflicts in this PR")
-                                        currentSession?.let { refreshActivities() }
+                                        julesRepository.sendMessage(activeSession.id, "@jules resolve the conflicts in this PR")
+                                        refreshActivities()
                                     } catch (e: Exception) {
-                                        error = "Auto solve failed: ${e.message}"
+                                        error = "Auto solve failed: ${e.message ?: "Unknown error"}"
+                                    } finally {
+                                        loading = false
                                     }
-                                    loading = false
                                 }
                             },
                             isRefreshing = refreshing,
@@ -589,14 +614,15 @@ fun JulesScreen(
             }
         }
 
-        if (showConflictSheet && currentSession != null) {
+        val conflictSession = currentSession
+        if (showConflictSheet && conflictSession != null) {
             ModalBottomSheet(
                 onDismissRequest = { showConflictSheet = false },
                 containerColor = JulesListBg,
                 modifier = Modifier.fillMaxSize()
             ) {
                 ConflictResolutionSheet(
-                    session = currentSession!!,
+                    session = conflictSession,
                     files = conflictingFiles,
                     githubToken = githubToken,
                     julesRepository = julesRepository,
@@ -702,8 +728,8 @@ private fun ConflictResolutionSheet(
             fontWeight = FontWeight.Bold
         )
 
-        if (error != null) {
-            ErrorCard(title = "Error", message = error!!, onDismiss = { error = null })
+        error?.let {
+            ErrorCard(title = "Error", message = it, onDismiss = { error = null })
         }
 
         if (loading) {
@@ -741,11 +767,12 @@ private fun ConflictResolutionSheet(
                 }
             }
         } else {
+            val file = selectedFile ?: ""
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { selectedFile = null }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                 }
-                Text(selectedFile!!, color = JulesAccent, fontWeight = FontWeight.Bold)
+                Text(file, color = JulesAccent, fontWeight = FontWeight.Bold)
             }
 
             if (conflicts.isNotEmpty()) {
@@ -777,22 +804,26 @@ private fun ConflictResolutionSheet(
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     Text("Resolved!", color = Color.Green)
                 }
-                FilledTonalButton(
-                    onClick = {
-                        scope.launch {
-                            loading = true
-                            val res = julesRepository.saveResolvedFile(githubToken, session.prUrl!!, selectedFile!!, fileContent, fileSha)
-                            if (res.isSuccess) {
-                                selectedFile = null
-                            } else {
-                                error = "Failed to save"
+                val fileToSave = selectedFile
+                val prUrl = session.prUrl
+                if (fileToSave != null && prUrl != null) {
+                    FilledTonalButton(
+                        onClick = {
+                            scope.launch {
+                                loading = true
+                                val res = julesRepository.saveResolvedFile(githubToken, prUrl, fileToSave, fileContent, fileSha)
+                                if (res.isSuccess) {
+                                    selectedFile = null
+                                } else {
+                                    error = "Failed to save"
+                                }
+                                loading = false
                             }
-                            loading = false
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Save Resolved File", color = Color.Green)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Save Resolved File", color = Color.Green)
+                    }
                 }
             }
         }
@@ -1043,8 +1074,9 @@ private fun RepoAndSessionsContent(
         }
     }
 
-    if (showPrDetails != null) {
-        PRDetailsDialog(pr = showPrDetails!!, onDismiss = { showPrDetails = null })
+    val pr = showPrDetails
+    if (pr != null) {
+        PRDetailsDialog(pr = pr, onDismiss = { showPrDetails = null })
     }
 }
 
