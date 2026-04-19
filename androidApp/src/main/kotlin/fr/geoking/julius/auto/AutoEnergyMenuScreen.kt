@@ -30,7 +30,7 @@ class AutoEnergyMenuScreen(
                 .addText(if (isFuelMode) "Selected: ${fuels.joinToString(", ")}" else "Tap to select fuel types")
                 .setOnClickListener {
                     if (!hasFuel) {
-                        settingsManager.setMapEnergyTypes(setOf("sp95"))
+                        settingsManager.setMapEnergyTypes(setOf("sp95_e10"))
                     } else if (hasElectric) {
                         settingsManager.setMapEnergyTypes(fuels)
                     }
@@ -61,7 +61,7 @@ class AutoEnergyMenuScreen(
                 .setTitle("Hybrid")
                 .addText(if (isHybridMode) "Selected: Fuel + Electric" else "Fuel + Electric")
                 .setOnClickListener {
-                    val nextFuels = if (fuels.isEmpty()) setOf("sp95") else fuels
+                    val nextFuels = if (fuels.isEmpty()) setOf("sp95_e10") else fuels
                     settingsManager.setMapEnergyTypes(nextFuels + "electric")
                     invalidate()
                 }

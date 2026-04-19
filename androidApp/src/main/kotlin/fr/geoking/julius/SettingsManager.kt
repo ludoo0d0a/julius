@@ -328,7 +328,7 @@ open class SettingsManager(
         val energyTypesStr = prefs.getString("map_energy_types", null)
         val selectedMapEnergyTypes = if (!energyTypesStr.isNullOrBlank()) {
             energyTypesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                .map { if (it == "sp95_e10") "sp95" else it }
+                .map { if (it == "sp95") "sp95_e10" else it }
                 .toSet()
         } else DEFAULT_MAP_ENERGY_TYPES
         val mapEnseigneType = prefs.getString("map_enseigne_type", DEFAULT_MAP_ENSEIGNE_TYPE) ?: DEFAULT_MAP_ENSEIGNE_TYPE
@@ -401,7 +401,7 @@ open class SettingsManager(
         val vehicleGasTypesStr = prefs.getString("vehicle_gas_types", null)
         val vehicleGasTypes = if (!vehicleGasTypesStr.isNullOrBlank()) {
             vehicleGasTypesStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                .map { if (it == "sp95_e10") "sp95" else it }
+                .map { if (it == "sp95") "sp95_e10" else it }
                 .toSet()
         } else DEFAULT_MAP_ENERGY_TYPES
         val vehiclePowerLevelsStr = prefs.getString("vehicle_power_levels", null)

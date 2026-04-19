@@ -40,6 +40,7 @@ object PreviewPoiSamples {
             PreviewMapMarkerSpec(pvFuelGazole(), setOf("gazole"), emptySet(), "gazole"),
             PreviewMapMarkerSpec(pvFuelSp98(), setOf("sp98"), emptySet(), "sp98"),
             PreviewMapMarkerSpec(pvFuelSp95(), setOf("sp95"), emptySet(), "sp95"),
+            PreviewMapMarkerSpec(pvFuelE10(), setOf("sp95_e10"), emptySet(), "sp95_e10"),
             PreviewMapMarkerSpec(pvFuelE85(), setOf("e85"), emptySet(), "e85"),
             PreviewMapMarkerSpec(pvFuelGplc(), setOf("gplc"), emptySet(), "gplc"),
             PreviewMapMarkerSpec(pvFuelNoSelection(), emptySet(), emptySet(), "none"),
@@ -243,6 +244,25 @@ object PreviewPoiSamples {
         siteName = "BP Bercy",
         postcode = "75012",
         addressLocal = "200 Rue de Bercy",
+        townLocal = "Paris",
+        countryLocal = "France",
+        source = "DataGouv"
+    )
+
+    private fun pvFuelE10(): Poi = Poi(
+        id = "pv-total-e10",
+        name = "Total Access",
+        address = "1 Av. de la République, 75011 Paris",
+        latitude = 48.86670,
+        longitude = 2.35090,
+        brand = "Total",
+        poiCategory = PoiCategory.Gas,
+        fuelPrices = listOf(
+            FuelPrice("E10", 1.859, "2025-03-28")
+        ),
+        siteName = "Total Access République",
+        postcode = "75011",
+        addressLocal = "1 Av. de la République",
         townLocal = "Paris",
         countryLocal = "France",
         source = "DataGouv"
