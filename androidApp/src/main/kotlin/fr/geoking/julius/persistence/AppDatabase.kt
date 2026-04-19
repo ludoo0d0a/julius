@@ -16,7 +16,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FuelPricePredictionEntity::class,
         FuelPricePredictionScoreEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -200,6 +200,13 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `url` TEXT")
                 db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `createTime` TEXT")
                 db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `updateTime` TEXT")
+            }
+        }
+
+        val MIGRATION_10_11: Migration = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `apiKey` TEXT")
+                db.execSQL("ALTER TABLE `jules_activities` ADD COLUMN `activityJson` TEXT")
             }
         }
     }
