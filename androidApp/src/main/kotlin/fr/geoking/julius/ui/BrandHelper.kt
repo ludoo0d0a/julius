@@ -59,6 +59,11 @@ object BrandHelper {
         "spar" to R.drawable.ic_brand_spar,
         "gulf" to R.drawable.ic_brand_gulf,
         "monoprix" to R.drawable.ic_brand_monoprix,
+        "lukoil" to R.drawable.ic_brand_lukoil,
+        "petrom" to R.drawable.ic_brand_petrom,
+        "cepsa" to R.drawable.ic_brand_cepsa,
+        "galp" to R.drawable.ic_brand_galp,
+        "prio" to R.drawable.ic_brand_prio,
     )
 
     /** Lookup key -> rounded brand icon drawable. Unlisted brands use ic_poi_gas_rounded. */
@@ -110,6 +115,11 @@ object BrandHelper {
         "spar" to R.drawable.ic_brand_spar_rounded,
         "gulf" to R.drawable.ic_brand_gulf_rounded,
         "monoprix" to R.drawable.ic_brand_monoprix_rounded,
+        "lukoil" to R.drawable.ic_brand_lukoil_rounded,
+        "petrom" to R.drawable.ic_brand_petrom_rounded,
+        "cepsa" to R.drawable.ic_brand_cepsa_rounded,
+        "galp" to R.drawable.ic_brand_galp_rounded,
+        "prio" to R.drawable.ic_brand_prio_rounded,
     )
 
     data class BrandInfo(

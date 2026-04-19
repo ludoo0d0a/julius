@@ -1,0 +1,49 @@
+name: Integration Tests
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Every day at 2 AM
+  workflow_dispatch:
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Run Integration Tests
+        env:
+          RUN_REAL_API_TESTS: "true"
+          OPENCHARGEMAP_KEY: ${{ secrets.OPENCHARGEMAP_KEY }}
+          FUELPRICES_DK_KEY: ${{ secrets.FUELPRICES_DK_KEY }}
+          NSW_FUELCHECK_API_KEY: ${{ secrets.NSW_FUELCHECK_API_KEY }}
+          NSW_FUELCHECK_API_SECRET: ${{ secrets.NSW_FUELCHECK_API_SECRET }}
+          FASTNED_KEY: ${{ secrets.FASTNED_KEY }}
+          ECO_MOVEMENT_URL: ${{ secrets.ECO_MOVEMENT_URL }}
+          ECO_MOVEMENT_TOKEN: ${{ secrets.ECO_MOVEMENT_TOKEN }}
+          TOMTOM_KEY: ${{ secrets.TOMTOM_KEY }}
+          JULES_KEY: ${{ secrets.JULES_KEY }}
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew :shared:testAndroidHostTest -PrunRealApiTests=true
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Integration Tests Results 🧪" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ All integration tests passed!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Some integration tests failed. Check logs for details." >> $GITHUB_STEP_SUMMARY
+          fi
