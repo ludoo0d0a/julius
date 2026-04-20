@@ -16,6 +16,7 @@ import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.api.belib.BorneAvailabilityProviderFactory
 import fr.geoking.julius.api.geocoding.GeocodingClient
+import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.api.routing.RoutePlanner
 import fr.geoking.julius.api.routing.RoutingClient
 import fr.geoking.julius.api.traffic.TrafficProviderFactory
@@ -27,6 +28,8 @@ import fr.geoking.julius.di.MapModuleLoader
 import fr.geoking.julius.intent.IntentNavigationHelper
 import fr.geoking.julius.poi.PoiProvider
 import fr.geoking.julius.repository.FuelForecastRepository
+import fr.geoking.julius.repository.JulesRepository
+import fr.geoking.julius.shared.conversation.ConversationStore
 import fr.geoking.julius.shared.network.NetworkService
 import fr.geoking.julius.shared.network.NetworkStatus
 import fr.geoking.julius.toll.TollCalculator
@@ -45,6 +48,9 @@ class CarAppSession : Session(), KoinComponent {
     private val settingsManager: SettingsManager by inject()
     private val networkService: NetworkService by inject()
     private val fuelForecastRepository: FuelForecastRepository by inject()
+    private val store: ConversationStore by inject()
+    private val julesClient: JulesClient by inject()
+    private val julesRepository: JulesRepository by inject()
 
     private var cachedMapDeps: MapDeps? = null
 
@@ -172,6 +178,9 @@ class CarAppSession : Session(), KoinComponent {
                     settingsManager = settingsManager,
                     networkService = networkService,
                     fuelForecastRepository = fuelForecastRepository,
+                    store = store,
+                    julesClient = julesClient,
+                    julesRepository = julesRepository,
                     getMapDeps = this::getMapDeps
                 )
             } else {
@@ -180,6 +189,9 @@ class CarAppSession : Session(), KoinComponent {
                     settingsManager = settingsManager,
                     networkService = networkService,
                     fuelForecastRepository = fuelForecastRepository,
+                    store = store,
+                    julesClient = julesClient,
+                    julesRepository = julesRepository,
                     getMapDeps = this::getMapDeps
                 )
             }
