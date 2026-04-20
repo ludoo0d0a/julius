@@ -211,11 +211,13 @@ class DataGouvPrixCarburantClient(
      */
     suspend fun getNationalAverages(days: Int = 30): Map<String, List<DataGouvNationalAvgPoint>> {
         val baseUrl = "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-carburants-quotidien"
-        val limit = (days * 7).coerceAtMost(100) // approx 7 fuel types
-        val url = "$baseUrl/records?group_by=year(prix_maj),month(prix_maj),day(prix_maj),prix_nom" +
-                "&select=avg(prix_valeur)" +
+        val limit = (days * 10).coerceIn(1, 500) // approx 7-10 fuel types
+
+        // Using aliases for order_by as Opendatasoft v2.1 group_by + order_by functions can be finicky.
+        val url = "$baseUrl/records?group_by=year(prix_maj)%20as%20y,month(prix_maj)%20as%20m,day(prix_maj)%20as%20d,prix_nom" +
+                "&select=avg(prix_valeur)%20as%20avg_price" +
                 "&where=prix_maj%20%3C%20now()" +
-                "&order_by=year(prix_maj)%20desc,month(prix_maj)%20desc,day(prix_maj)%20desc" +
+                "&order_by=y%20desc,m%20desc,d%20desc" +
                 "&limit=$limit"
 
         val response = client.get(url)
@@ -230,11 +232,11 @@ class DataGouvPrixCarburantClient(
         val out = mutableMapOf<String, MutableList<DataGouvNationalAvgPoint>>()
         for (item in results) {
             val obj = item.jsonObject
-            val y = obj["year(prix_maj)"]?.jsonPrimitive?.contentOrNull ?: continue
-            val m = obj["month(prix_maj)"]?.jsonPrimitive?.contentOrNull ?: continue
-            val d = obj["day(prix_maj)"]?.jsonPrimitive?.contentOrNull ?: continue
+            val y = (obj["y"] ?: obj["year(prix_maj)"])?.jsonPrimitive?.contentOrNull ?: continue
+            val m = (obj["m"] ?: obj["month(prix_maj)"])?.jsonPrimitive?.contentOrNull ?: continue
+            val d = (obj["d"] ?: obj["day(prix_maj)"])?.jsonPrimitive?.contentOrNull ?: continue
             val fuel = obj["prix_nom"]?.jsonPrimitive?.contentOrNull ?: continue
-            val avg = obj["avg(prix_valeur)"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull() ?: continue
+            val avg = (obj["avg_price"] ?: obj["avg(prix_valeur)"])?.jsonPrimitive?.contentOrNull?.toDoubleOrNull() ?: continue
 
             val monthStr = m.toInt().toString().let { if (it.length == 1) "0$it" else it }
             val dayStr = d.toInt().toString().let { if (it.length == 1) "0$it" else it }

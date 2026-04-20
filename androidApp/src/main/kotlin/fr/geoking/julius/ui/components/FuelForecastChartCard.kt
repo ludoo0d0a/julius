@@ -252,12 +252,24 @@ fun FuelForecastChartCard(
 @Composable
 private fun LegendItem(label: String, color: Color, isDashed: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(width = 16.dp, height = 2.dp)
-                .clip(MaterialTheme.shapes.extraSmall)
-                .background(color)
-        )
+        if (isDashed) {
+            Canvas(modifier = Modifier.size(width = 16.dp, height = 2.dp)) {
+                drawLine(
+                    color = color,
+                    start = Offset(0f, size.height / 2),
+                    end = Offset(size.width, size.height / 2),
+                    strokeWidth = size.height,
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 4f), 0f)
+                )
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(width = 16.dp, height = 2.dp)
+                    .clip(MaterialTheme.shapes.extraSmall)
+                    .background(color)
+            )
+        }
         Spacer(Modifier.width(4.dp))
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
