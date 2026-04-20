@@ -74,7 +74,6 @@ fun PoiDetailCard(
     }
 
     val sources = rememberSources(poi.source)
-    val isMergedPoi = sources.size >= 2
     val effectiveCategory = poi.poiCategory ?: if (poi.isElectric) PoiCategory.Irve else PoiCategory.Gas
 
     Card(
@@ -120,20 +119,6 @@ fun PoiDetailCard(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.padding(vertical = 4.dp)
                             ) {
-                                if (isMergedPoi) {
-                                    Surface(
-                                        color = MaterialTheme.colorScheme.secondaryContainer,
-                                        shape = MaterialTheme.shapes.extraSmall,
-                                    ) {
-                                        Text(
-                                            text = "MERGED",
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                                        )
-                                    }
-                                }
                                 Text(
                                     text = sources.joinToString(" + "),
                                     color = Color.White.copy(alpha = 0.7f),
