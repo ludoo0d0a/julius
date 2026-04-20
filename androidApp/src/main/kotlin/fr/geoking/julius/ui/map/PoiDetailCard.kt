@@ -31,6 +31,7 @@ import fr.geoking.julius.poi.PoiCategory
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.ui.BrandHelper
 import fr.geoking.julius.ui.ColorHelper
+import fr.geoking.julius.ui.util.DateTimeFormatter
 import kotlin.math.roundToInt
 
 @Composable
@@ -188,16 +189,27 @@ fun PoiDetailCard(
                             }
                         }
                     }
-                    if (isLoggedIn && onToggleFavorite != null) {
-                        IconButton(
-                            onClick = onToggleFavorite,
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isFavorite) Icons.Default.Star else Icons.Outlined.StarBorder,
-                                contentDescription = if (isFavorite) "Saved" else "Save",
-                                tint = if (isFavorite) Color(0xFFEAB308) else Color.White,
-                                modifier = Modifier.size(24.dp)
+                    Column(horizontalAlignment = Alignment.End) {
+                        if (isLoggedIn && onToggleFavorite != null) {
+                            IconButton(
+                                onClick = onToggleFavorite,
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isFavorite) Icons.Default.Star else Icons.Outlined.StarBorder,
+                                    contentDescription = if (isFavorite) "Saved" else "Save",
+                                    tint = if (isFavorite) Color(0xFFEAB308) else Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+
+                        DateTimeFormatter.formatRelative(poi.effectiveUpdatedAt)?.let { relativeTime ->
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Updated $relativeTime",
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 10.sp
                             )
                         }
                     }
