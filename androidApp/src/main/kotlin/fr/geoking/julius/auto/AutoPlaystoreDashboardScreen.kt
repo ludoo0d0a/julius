@@ -13,8 +13,11 @@ import androidx.core.graphics.drawable.IconCompat
 import fr.geoking.julius.CarMapMode
 import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.di.MapDeps
 import fr.geoking.julius.repository.FuelForecastRepository
+import fr.geoking.julius.repository.JulesRepository
+import fr.geoking.julius.shared.conversation.ConversationStore
 import fr.geoking.julius.shared.network.NetworkService
 
 /**
@@ -26,6 +29,9 @@ class AutoPlaystoreDashboardScreen(
     private val settingsManager: SettingsManager,
     private val networkService: NetworkService,
     private val fuelForecastRepository: FuelForecastRepository,
+    private val store: ConversationStore,
+    private val julesClient: JulesClient,
+    private val julesRepository: JulesRepository,
     private val getMapDeps: () -> MapDeps?
 ) : Screen(carContext) {
 
@@ -53,6 +59,19 @@ class AutoPlaystoreDashboardScreen(
                             )
                         )
                     }
+                }
+                .build()
+        )
+
+        grid.addItem(
+            GridItem.Builder()
+                .setTitle("Jules")
+                .setText("AI coding")
+                .setImage(gridIcon(R.drawable.ic_jules))
+                .setOnClickListener {
+                    screenManager.push(
+                        AutoJulesSourceScreen(carContext, store, settingsManager, julesClient, julesRepository)
+                    )
                 }
                 .build()
         )
