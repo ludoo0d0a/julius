@@ -6,8 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Directions
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -25,6 +24,7 @@ import fr.geoking.julius.poi.MapPoiFilter
 import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.ui.BrandHelper
 import fr.geoking.julius.ui.ColorHelper
+import fr.geoking.julius.ui.util.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -308,46 +308,73 @@ fun PoiDetailsFullscreenDialog(
 
                     // Routex Details
                     poi.routexDetails?.let { details ->
-                        SectionHeader("Services & amenities")
-                        PoiDetailRow("Manned 24h", details.manned24h)
-                        PoiDetailRow("Manned / automat 24h", details.mannedAutomat24h)
-                        PoiDetailRow("Automat", details.automat)
-                        PoiDetailRow("Motorway", details.motorwayIndicator)
-                        PoiDetailRow("Restaurant", details.restaurant)
-                        PoiDetailRow("Shop", details.shop)
-                        PoiDetailRow("Snackbar", details.snackbar)
-                        PoiDetailRow("Car wash", details.carWash)
-                        PoiDetailRow("Showers", details.showers)
-                        PoiDetailRow("AdBlue pump", details.adBluePump)
-                        PoiDetailRow("R4T network", details.r4tNetwork)
-                        PoiDetailRow("Car vignette", details.carVignette)
-                        PoiDetailRow("High-speed diesel", details.highspeedDiesel)
-                        PoiDetailRow("Truck station", details.truckIndicator)
-                        PoiDetailRow("Truck parking", details.truckParking)
-                        PoiDetailRow("Truck diesel", details.truckDiesel)
-                        PoiDetailRow("Truck lane", details.truckLane)
-                        PoiDetailRow("Diesel bio", details.dieselBio)
-                        PoiDetailRow("HVO100", details.hvo100)
-                        PoiDetailRow("LNG", details.lng)
-                        PoiDetailRow("LPG", details.lpg)
-                        PoiDetailRow("CNG", details.cng)
-                        PoiDetailRow("AdBlue canister", details.adBlueCanister)
-                        PoiDetailRow("Open 24h", details.open24h)
+                        val hasAmenities = listOf(
+                            details.manned24h, details.mannedAutomat24h, details.automat, details.motorwayIndicator,
+                            details.restaurant, details.shop, details.snackbar, details.carWash, details.showers,
+                            details.adBluePump, details.r4tNetwork, details.carVignette, details.highspeedDiesel,
+                            details.truckIndicator, details.truckParking, details.truckDiesel, details.truckLane,
+                            details.dieselBio, details.hvo100, details.lng, details.lpg, details.cng,
+                            details.adBlueCanister, details.open24h
+                        ).any { it == true }
 
-                        SectionHeader("Fuel opening hours")
-                        PoiDetailRowStr("Mon", details.monOpenFuel?.let { o -> details.monCloseFuel?.let { c -> "$o – $c" } ?: o })
-                        PoiDetailRowStr("Tue", details.tueOpenFuel?.let { o -> details.tueCloseFuel?.let { c -> "$o – $c" } ?: o })
-                        PoiDetailRowStr("Wed", details.wedOpenFuel?.let { o -> details.wedCloseFuel?.let { c -> "$o – $c" } ?: o })
-                        PoiDetailRowStr("Thu", details.thuOpenFuel?.let { o -> details.thuCloseFuel?.let { c -> "$o – $c" } ?: o })
-                        PoiDetailRowStr("Fri", details.friOpenFuel?.let { o -> details.friCloseFuel?.let { c -> "$o – $c" } ?: o })
-                        PoiDetailRowStr("Sat", details.satOpenFuel?.let { o -> details.satCloseFuel?.let { c -> "$o – $c" } ?: o })
-                        PoiDetailRowStr("Sun", details.sunOpenFuel?.let { o -> details.sunCloseFuel?.let { c -> "$o – $c" } ?: o })
-                        if (details.openingHoursFuel.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            details.openingHoursFuel.forEach { line ->
-                                Text(line, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
+                        if (hasAmenities) {
+                            SectionHeader("Services & amenities")
+                            PoiDetailRow("Manned 24h", details.manned24h, Icons.Default.Person)
+                            PoiDetailRow("Manned / automat 24h", details.mannedAutomat24h, Icons.Default.BrightnessAuto)
+                            PoiDetailRow("Automat", details.automat, Icons.Default.Atm)
+                            PoiDetailRow("Motorway", details.motorwayIndicator, Icons.Default.AddRoad)
+                            PoiDetailRow("Restaurant", details.restaurant, Icons.Default.Restaurant)
+                            PoiDetailRow("Shop", details.shop, Icons.Default.Storefront)
+                            PoiDetailRow("Snackbar", details.snackbar, Icons.Default.Fastfood)
+                            PoiDetailRow("Car wash", details.carWash, Icons.Default.LocalCarWash)
+                            PoiDetailRow("Showers", details.showers, Icons.Default.Shower)
+                            PoiDetailRow("AdBlue pump", details.adBluePump, Icons.Default.GasMeter)
+                            PoiDetailRow("R4T network", details.r4tNetwork, Icons.Default.Hub)
+                            PoiDetailRow("Car vignette", details.carVignette, Icons.Default.Style)
+                            PoiDetailRow("High-speed diesel", details.highspeedDiesel, Icons.Default.Speed)
+                            PoiDetailRow("Truck station", details.truckIndicator, Icons.Default.LocalShipping)
+                            PoiDetailRow("Truck parking", details.truckParking, Icons.Default.Park)
+                            PoiDetailRow("Truck diesel", details.truckDiesel, Icons.Default.LocalGasStation)
+                            PoiDetailRow("Truck lane", details.truckLane, Icons.Default.MergeType)
+                            PoiDetailRow("Diesel bio", details.dieselBio, Icons.Default.Eco)
+                            PoiDetailRow("HVO100", details.hvo100, Icons.Default.Eco)
+                            PoiDetailRow("LNG", details.lng, Icons.Default.PropaneTank)
+                            PoiDetailRow("LPG", details.lpg, Icons.Default.Propane)
+                            PoiDetailRow("CNG", details.cng, Icons.Default.WindPower)
+                            PoiDetailRow("AdBlue canister", details.adBlueCanister, Icons.Default.ShoppingBag)
+                            PoiDetailRow("Open 24h", details.open24h, Icons.Default.Schedule)
+                        }
+
+                        val hasOpeningHours = listOf(
+                            details.monOpenFuel, details.tueOpenFuel, details.wedOpenFuel, details.thuOpenFuel,
+                            details.friOpenFuel, details.satOpenFuel, details.sunOpenFuel
+                        ).any { !it.isNullOrBlank() } || details.openingHoursFuel.isNotEmpty()
+
+                        if (hasOpeningHours) {
+                            SectionHeader("Fuel opening hours")
+                            PoiDetailRowStr("Mon", details.monOpenFuel?.let { o -> details.monCloseFuel?.let { c -> "$o – $c" } ?: o })
+                            PoiDetailRowStr("Tue", details.tueOpenFuel?.let { o -> details.tueCloseFuel?.let { c -> "$o – $c" } ?: o })
+                            PoiDetailRowStr("Wed", details.wedOpenFuel?.let { o -> details.wedCloseFuel?.let { c -> "$o – $c" } ?: o })
+                            PoiDetailRowStr("Thu", details.thuOpenFuel?.let { o -> details.thuCloseFuel?.let { c -> "$o – $c" } ?: o })
+                            PoiDetailRowStr("Fri", details.friOpenFuel?.let { o -> details.friCloseFuel?.let { c -> "$o – $c" } ?: o })
+                            PoiDetailRowStr("Sat", details.satOpenFuel?.let { o -> details.satCloseFuel?.let { c -> "$o – $c" } ?: o })
+                            PoiDetailRowStr("Sun", details.sunOpenFuel?.let { o -> details.sunCloseFuel?.let { c -> "$o – $c" } ?: o })
+                            if (details.openingHoursFuel.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                details.openingHoursFuel.forEach { line ->
+                                    Text(line, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
+                                }
                             }
                         }
+                    }
+
+                    DateTimeFormatter.formatRelative(poi.effectiveUpdatedAt)?.let { relativeTime ->
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(
+                            text = "Last updated $relativeTime",
+                            color = Color.White.copy(alpha = 0.5f),
+                            fontSize = 12.sp
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(32.dp))

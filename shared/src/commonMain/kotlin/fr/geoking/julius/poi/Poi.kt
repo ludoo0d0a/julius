@@ -314,8 +314,15 @@ data class Poi(
     /** Restaurant/fast food only: opening hours, cuisine, brand (e.g. from Overpass). */
     val restaurantDetails: RestaurantDetails? = null,
     /** The source of the POI data (e.g. "Routex", "DataGouv", "Chargy"). */
-    val source: String? = null
-)
+    val source: String? = null,
+    val updatedAt: String? = null
+) {
+    /**
+     * Returns the most recent update timestamp from the POI itself or its fuel prices.
+     */
+    val effectiveUpdatedAt: String?
+        get() = updatedAt ?: fuelPrices?.mapNotNull { it.updatedAt }?.maxOrNull()
+}
 
 /**
  * Optional map viewport to scope the POI search to the visible area (e.g. for Routex API).
