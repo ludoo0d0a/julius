@@ -19,6 +19,19 @@ class AutoMapSettingsScreen(
 
         listBuilder.addItem(
             Row.Builder()
+                .setTitle("Auto Source discovery")
+                .addText("Discovery based on current country")
+                .setToggle(
+                    Toggle.Builder { checked ->
+                        settingsManager.setAutoPoiProvidersEnabled(checked)
+                        invalidate()
+                    }.setChecked(settings.autoPoiProvidersEnabled).build()
+                )
+                .build()
+        )
+
+        listBuilder.addItem(
+            Row.Builder()
                 .setTitle("Data Source")
                 .addText(if (settings.selectedPoiProviders.isEmpty()) "None" else settings.selectedPoiProviders.joinToString(", ") { it.name })
                 .setOnClickListener {

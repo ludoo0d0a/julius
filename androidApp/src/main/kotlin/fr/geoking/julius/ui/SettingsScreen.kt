@@ -730,13 +730,14 @@ private fun DataSourceChip(
     settings: AppSettings,
     onUpdate: (AppSettings) -> Unit
 ) {
+    val isSelected = settings.selectedPoiProviders.contains(type)
+    val isAutoActive = settings.autoPoiProvidersEnabled && type.eligibleToAuto
+
     FilterChip(
-        selected = if (settings.autoPoiProvidersEnabled) type.eligibleToAuto else settings.selectedPoiProviders.contains(type),
+        selected = isSelected || isAutoActive,
         onClick = {
-            if (!settings.autoPoiProvidersEnabled) {
-                val next = if (settings.selectedPoiProviders.contains(type)) settings.selectedPoiProviders - type else settings.selectedPoiProviders + type
-                onUpdate(settings.copy(selectedPoiProviders = next))
-            }
+            val next = if (isSelected) settings.selectedPoiProviders - type else settings.selectedPoiProviders + type
+            onUpdate(settings.copy(selectedPoiProviders = next))
         },
         label = {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -750,12 +751,11 @@ private fun DataSourceChip(
             }
         },
         colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = Lavender,
+            selectedContainerColor = if (isAutoActive && !isSelected) Lavender.copy(alpha = 0.6f) else Lavender,
             selectedLabelColor = DeepPurple,
             labelColor = Color.White,
             containerColor = Color.White.copy(alpha = 0.1f)
-        ),
-        enabled = !settings.autoPoiProvidersEnabled || type.eligibleToAuto
+        )
     )
 }
 
