@@ -31,6 +31,17 @@ Use these names in `local.properties` or set the same name as an env var (e.g. f
 | `GROQ_KEY` | Groq API key. |
 | `OPENROUTER_KEY` | OpenRouter API key. |
 | `JULES_KEY` | Jules (jules.google.com) API key for the Jules screen. |
+| `GITHUB_TOKEN` | Personal access token for GitHub (Jules screen). |
+| `GOOGLE_WEB_CLIENT_ID` | Google Web Client ID for Authentication. |
+| `MOBILITEIT_LUXEMBOURG_KEY` | Luxembourg mobiliteit.lu API key. |
+| `OPENCHARGEMAP_KEY` | Open Charge Map API key. |
+| `ECO_MOVEMENT_URL` | Eco-Movement OCPI base URL. |
+| `ECO_MOVEMENT_TOKEN` | Eco-Movement OCPI authentication token. |
+| `TOMTOM_KEY` | TomTom Traffic API key. |
+| `FUELPRICES_DK_KEY` | Fuelprices.dk API key. |
+| `FASTNED_KEY` | Fastned OCPI API key (x-api-key). |
+| `NSW_FUELCHECK_API_KEY` | NSW FuelCheck API key. |
+| `NSW_FUELCHECK_API_SECRET` | NSW FuelCheck API secret. |
 | `GOOGLE_MAPS_KEY` | Google Maps API key. **Required for map screen** (tiles); without it the map stays grey. |
 
 Keys are read at **build time** in this order: `local.properties` then environment variables. In CI, set env vars on the step that runs Gradle (e.g. `env:` in the build job). Build-time values are baked into the app and, on first run, persisted into app settings so they appear in Settings and are reused.
