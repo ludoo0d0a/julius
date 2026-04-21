@@ -123,6 +123,7 @@ fun VectorMapScreen(
     palette: AnimationPalette,
     initialCenter: LatLng? = null,
     initialZoom: Double = 12.0,
+    initialPoi: Poi? = null,
     onBack: () -> Unit,
     onCameraMove: (LatLng, Double) -> Unit = { _, _ -> },
     onShowSettings: () -> Unit,
@@ -146,16 +147,24 @@ fun VectorMapScreen(
     var showErrorDetailsDialog by remember { mutableStateOf(false) }
     var retryCount by remember { mutableStateOf(0) }
     var mapSizePx by remember { mutableStateOf(IntSize.Zero) }
-    var selectedPoi by remember { mutableStateOf<Poi?>(null) }
+    var selectedPoi by remember { mutableStateOf<Poi?>(initialPoi) }
     var showFavoritesOnly by remember { mutableStateOf(false) }
     var favoriteIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var frozenPoisForSheet by remember { mutableStateOf<List<Poi>>(emptyList()) }
-    var scrollRequestPoiId by remember { mutableStateOf<String?>(null) }
+    var scrollRequestPoiId by remember { mutableStateOf<String?>(initialPoi?.id) }
     var poiForDetailsDialog by remember { mutableStateOf<Poi?>(null) }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val lazyListState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(initialPoi) {
+        if (initialPoi != null) {
+            selectedPoi = initialPoi
+            scrollRequestPoiId = initialPoi.id
+            scope.launch { sheetState.show() }
+        }
+    }
 
     var hasLocationPermission by remember {
         mutableStateOf(
@@ -775,6 +784,16 @@ fun VectorMapScreen(
             } else null,
             onNavigate = {
                 NavigationHelper.navigateToPoi(context, poi)
+            },
+            onLocate = {
+                scope.launch {
+                    mapLibreMap?.animateCamera(
+                        CameraUpdateFactory.newLatLng(
+                            LatLng(poi.latitude, poi.longitude)
+                        )
+                    )
+                }
+                poiForDetailsDialog = null
             },
             isFavorite = poi.id in favoriteIds,
             onToggleFavorite = if (settings.isLoggedIn && favoritesRepo != null) {

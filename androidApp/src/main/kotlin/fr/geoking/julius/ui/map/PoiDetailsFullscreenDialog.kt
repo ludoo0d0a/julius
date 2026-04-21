@@ -43,6 +43,7 @@ fun PoiDetailsFullscreenDialog(
     onHide: (() -> Unit)? = null,
     onSuggestCorrection: (() -> Unit)? = null,
     onNavigate: (() -> Unit)? = null,
+    onLocate: (() -> Unit)? = null,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
     onDismiss: () -> Unit
@@ -132,22 +133,34 @@ fun PoiDetailsFullscreenDialog(
 
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onNavigate?.invoke() },
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onNavigate?.invoke() }
+                        ) {
                             addressLines.forEach { line ->
                                 Text(line, color = Color.White.copy(alpha = 0.9f), fontSize = 14.sp)
                             }
                         }
-                        Icon(
-                            imageVector = Icons.Default.Directions,
-                            contentDescription = "Navigate",
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        IconButton(onClick = { onLocate?.invoke() }) {
+                            Icon(
+                                imageVector = Icons.Default.Map,
+                                contentDescription = "Locate on map",
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        IconButton(onClick = { onNavigate?.invoke() }) {
+                            Icon(
+                                imageVector = Icons.Default.Directions,
+                                contentDescription = "Navigate",
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
 
                     if (poi.isElectric) {

@@ -204,11 +204,13 @@ fun PoiDetailCard(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onNavigate() }
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onNavigate() }
+                    ) {
                         addressLines.take(2).forEach { line ->
                             Text(
                                 text = line,
@@ -219,12 +221,22 @@ fun PoiDetailCard(
                             )
                         }
                     }
-                    Icon(
-                        imageVector = Icons.Default.Directions,
-                        contentDescription = "Navigate",
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                    IconButton(onClick = onLocate, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Map,
+                            contentDescription = "Locate on map",
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(onClick = onNavigate, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Directions,
+                            contentDescription = "Navigate",
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
 
                 if (isSelected) {
