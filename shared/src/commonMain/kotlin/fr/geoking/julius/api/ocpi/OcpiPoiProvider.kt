@@ -38,6 +38,12 @@ class OcpiPoiProvider(
             val available = loc.evses.count { it.status == OcpiStatus.AVAILABLE }
             val total = loc.evses.size
 
+            val metadata = mutableMapOf<String, String>()
+            metadata["ID"] = loc.id
+            loc.operator?.website?.let { metadata["Website"] = it }
+            metadata["City"] = loc.city
+            loc.postal_code?.let { metadata["Postcode"] = it }
+
             Poi(
                 id = loc.id,
                 name = loc.name ?: providerName,
@@ -54,7 +60,8 @@ class OcpiPoiProvider(
                     availableConnectors = available,
                     totalConnectors = total
                 ),
-                source = providerName
+                source = providerName,
+                metadata = metadata
             )
         }
     }

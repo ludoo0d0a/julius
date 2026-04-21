@@ -258,6 +258,7 @@ object PoiMerger {
             chargePointCount = mergeMaxOrNull(existing.chargePointCount, incoming.chargePointCount),
             // Connector / fuel price details are merged above.
             source = mergedSources,
+            metadata = (existing.metadata ?: emptyMap()) + (incoming.metadata ?: emptyMap())
         )
     }
 

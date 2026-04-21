@@ -72,10 +72,21 @@ class OpenChargeMapClient(
             }
         } }.toSet()
         val maxKw = connections.mapNotNull { (it as? JsonObject)?.let { c ->
-            c["PowerKW"]?.jsonPrimitive?.content?.toDoubleOrNull()
+            val rawKw = c["PowerKW"]?.jsonPrimitive?.content?.toDoubleOrNull() ?: return@let null
+            // Some OCM data incorrectly reports Watts instead of Kilowatts.
+            // If > 500, we assume it's Watts and convert to kW.
+            if (rawKw > 500.0) rawKw / 1000.0 else rawKw
         } }.maxOrNull()
         val operatorInfo = obj["OperatorInfo"]?.jsonObject
         val operator = operatorInfo?.get("Title")?.jsonPrimitive?.content?.trim()?.takeIf { it.isNotBlank() }
+
+        val metadata = mutableMapOf<String, String>()
+        obj["UsageType"]?.jsonObject?.get("Title")?.jsonPrimitive?.content?.let { metadata["Usage"] = it }
+        obj["StatusType"]?.jsonObject?.get("Title")?.jsonPrimitive?.content?.let { metadata["Status"] = it }
+        obj["GeneralComments"]?.jsonPrimitive?.content?.trim()?.takeIf { it.isNotBlank() }?.let { metadata["Comments"] = it }
+        addr["AccessComments"]?.jsonPrimitive?.content?.trim()?.takeIf { it.isNotBlank() }?.let { metadata["Access Info"] = it }
+        addr["RelatedURL"]?.jsonPrimitive?.content?.trim()?.takeIf { it.isNotBlank() }?.let { metadata["Website"] = it }
+
         return OpenChargeMapPoi(
             id = "ocm-$id",
             name = name,
@@ -84,7 +95,8 @@ class OpenChargeMapClient(
             longitude = lon,
             operator = operator,
             powerKw = maxKw,
-            connectorTypes = connectorTypes
+            connectorTypes = connectorTypes,
+            metadata = metadata
         )
     }
 
@@ -109,5 +121,6 @@ data class OpenChargeMapPoi(
     val longitude: Double,
     val operator: String?,
     val powerKw: Double?,
-    val connectorTypes: Set<String>
+    val connectorTypes: Set<String>,
+    val metadata: Map<String, String>? = null
 )
