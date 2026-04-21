@@ -32,7 +32,7 @@ fun FavoritesScreen(
     geocodingClient: GeocodingClient,
     settingsManager: SettingsManager,
     onBack: () -> Unit,
-    onOpenMap: (LatLng) -> Unit
+    onOpenMap: (Poi) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var suggestions by remember { mutableStateOf<List<GeocodedPlace>>(emptyList()) }
@@ -140,7 +140,14 @@ fun FavoritesScreen(
                                         }
                                     },
                                     modifier = Modifier.clickable {
-                                        onOpenMap(LatLng(place.latitude, place.longitude))
+                                        val poi = Poi(
+                                            id = placeId,
+                                            name = place.label,
+                                            address = place.label,
+                                            latitude = place.latitude,
+                                            longitude = place.longitude
+                                        )
+                                        onOpenMap(poi)
                                     },
                                     colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                                 )
@@ -203,7 +210,7 @@ fun FavoritesScreen(
                                         }
                                     },
                                     modifier = Modifier.clickable {
-                                        onOpenMap(LatLng(poi.latitude, poi.longitude))
+                                        onOpenMap(poi)
                                     },
                                     colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                                 )

@@ -174,7 +174,7 @@ fun PhoneDashboardScreen(
     hasLocationPermission: Boolean,
     mapDepsReady: Boolean,
     fuelForecastRepository: FuelForecastRepository? = null,
-    onOpenMap: (LatLng?) -> Unit,
+    onOpenMap: (Poi?) -> Unit,
     onOpenRoutes: () -> Unit,
     onOpenJules: () -> Unit,
     onOpenFavorites: () -> Unit,
@@ -593,7 +593,7 @@ fun PhoneDashboardScreen(
                                             )
                                         },
                                         modifier = Modifier.clickable {
-                                            onOpenMap(LatLng(poi.latitude, poi.longitude))
+                                            onOpenMap(poi)
                                         },
                                         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                                     )
@@ -678,6 +678,10 @@ fun PhoneDashboardScreen(
             } else null,
             onNavigate = {
                 NavigationHelper.navigateToPoi(context, poi)
+            },
+            onLocate = {
+                onOpenMap(poi)
+                poiForDetails = null
             },
             onDismiss = { poiForDetails = null }
         )

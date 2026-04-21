@@ -379,6 +379,7 @@ fun MainUI(
     var stationsForDirections by remember { mutableStateOf<List<Poi>>(emptyList()) }
     var initialNavDestination by remember { mutableStateOf<NavDestination?>(null) }
     var initialMapCenter by remember { mutableStateOf<com.google.android.gms.maps.model.LatLng?>(null) }
+    var initialSelectedPoi by remember { mutableStateOf<Poi?>(null) }
     var lastMapCenter by remember { mutableStateOf<com.google.android.gms.maps.model.LatLng?>(null) }
     var lastMapZoom by remember { mutableStateOf(12f) }
 
@@ -541,7 +542,8 @@ fun MainUI(
                             initialCenter = initialMapCenter?.let { org.maplibre.android.geometry.LatLng(it.latitude, it.longitude) }
                                 ?: lastMapCenter?.let { org.maplibre.android.geometry.LatLng(it.latitude, it.longitude) },
                             initialZoom = if (initialMapCenter != null) 12.0 else lastMapZoom.toDouble(),
-                            onBack = { showMap = false; initialMapCenter = null },
+                            initialPoi = initialSelectedPoi,
+                            onBack = { showMap = false; initialMapCenter = null; initialSelectedPoi = null },
                             onCameraMove = { center, zoom ->
                                 lastMapCenter = com.google.android.gms.maps.model.LatLng(center.latitude, center.longitude)
                                 lastMapZoom = zoom.toFloat()
@@ -565,7 +567,8 @@ fun MainUI(
                             palette = palette,
                             initialCenter = initialMapCenter ?: lastMapCenter,
                             initialZoom = if (initialMapCenter != null) 12f else lastMapZoom,
-                            onBack = { showMap = false; initialMapCenter = null },
+                            initialPoi = initialSelectedPoi,
+                            onBack = { showMap = false; initialMapCenter = null; initialSelectedPoi = null },
                             onCameraMove = { center, zoom ->
                                 lastMapCenter = center
                                 lastMapZoom = zoom
@@ -595,8 +598,9 @@ fun MainUI(
                         geocodingClient = mapDeps!!.geocodingClient,
                         settingsManager = settingsManager,
                         onBack = { showFavorites = false },
-                        onOpenMap = { center ->
-                            initialMapCenter = center
+                        onOpenMap = { poi ->
+                            initialMapCenter = com.google.android.gms.maps.model.LatLng(poi.latitude, poi.longitude)
+                            initialSelectedPoi = poi
                             showMap = true
                             showFavorites = false
                         }
@@ -611,8 +615,9 @@ fun MainUI(
                         favoritesRepo = mapDeps?.favoritesRepo,
                         mapDepsReady = mapDeps != null,
                         fuelForecastRepository = fuelForecastRepository,
-                        onOpenMap = { center ->
-                            initialMapCenter = center
+                        onOpenMap = { poi ->
+                            initialMapCenter = poi?.let { com.google.android.gms.maps.model.LatLng(it.latitude, it.longitude) }
+                            initialSelectedPoi = poi
                             showMap = true
                         },
                         onOpenRoutes = {
@@ -678,7 +683,8 @@ fun MainUI(
                             initialCenter = initialMapCenter?.let { org.maplibre.android.geometry.LatLng(it.latitude, it.longitude) }
                                 ?: lastMapCenter?.let { org.maplibre.android.geometry.LatLng(it.latitude, it.longitude) },
                             initialZoom = if (initialMapCenter != null) 12.0 else lastMapZoom.toDouble(),
-                            onBack = { showMap = false; initialMapCenter = null },
+                            initialPoi = initialSelectedPoi,
+                            onBack = { showMap = false; initialMapCenter = null; initialSelectedPoi = null },
                             onCameraMove = { center, zoom ->
                                 lastMapCenter = com.google.android.gms.maps.model.LatLng(center.latitude, center.longitude)
                                 lastMapZoom = zoom.toFloat()
@@ -702,7 +708,8 @@ fun MainUI(
                                 palette = palette,
                             initialCenter = initialMapCenter ?: lastMapCenter,
                             initialZoom = if (initialMapCenter != null) 12f else lastMapZoom,
-                            onBack = { showMap = false; initialMapCenter = null },
+                            initialPoi = initialSelectedPoi,
+                            onBack = { showMap = false; initialMapCenter = null; initialSelectedPoi = null },
                             onCameraMove = { center, zoom ->
                                 lastMapCenter = center
                                 lastMapZoom = zoom

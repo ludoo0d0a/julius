@@ -44,6 +44,7 @@ fun PoiDetailsFullscreenDialog(
     onHide: (() -> Unit)? = null,
     onSuggestCorrection: (() -> Unit)? = null,
     onNavigate: (() -> Unit)? = null,
+    onLocate: (() -> Unit)? = null,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
     onDismiss: () -> Unit

@@ -148,6 +148,7 @@ fun MapScreen(
     palette: AnimationPalette,
     initialCenter: LatLng? = null,
     initialZoom: Float = 12f,
+    initialPoi: Poi? = null,
     onBack: () -> Unit,
     onCameraMove: (LatLng, Float) -> Unit = { _, _ -> },
     onShowSettings: () -> Unit,
@@ -228,13 +229,21 @@ fun MapScreen(
     }
 
     var mapSizePx by remember { mutableStateOf(IntSize.Zero) }
-    var selectedPoi by remember { mutableStateOf<Poi?>(null) }
-    var scrollRequestPoiId by remember { mutableStateOf<String?>(null) }
+    var selectedPoi by remember { mutableStateOf<Poi?>(initialPoi) }
+    var scrollRequestPoiId by remember { mutableStateOf<String?>(initialPoi?.id) }
     var poiForDetailsDialog by remember { mutableStateOf<Poi?>(null) }
     var availabilityByPoiId by remember { mutableStateOf<Map<String, StationAvailabilitySummary>>(emptyMap()) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val lazyListState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(initialPoi) {
+        if (initialPoi != null) {
+            selectedPoi = initialPoi
+            scrollRequestPoiId = initialPoi.id
+            scope.launch { sheetState.show() }
+        }
+    }
 
     LaunchedEffect(favoritesRepo) {
         if (favoritesRepo != null) {
@@ -903,6 +912,16 @@ fun MapScreen(
             } else null,
             onNavigate = {
                 NavigationHelper.navigateToPoi(context, poi)
+            },
+            onLocate = {
+                scope.launch {
+                    cameraPositionState.animate(
+                        CameraUpdateFactory.newLatLng(
+                            LatLng(poi.latitude, poi.longitude)
+                        )
+                    )
+                }
+                poiForDetailsDialog = null
             },
             isFavorite = poi.id in favoriteIds,
             onToggleFavorite = if (settings.isLoggedIn && favoritesRepo != null) {
