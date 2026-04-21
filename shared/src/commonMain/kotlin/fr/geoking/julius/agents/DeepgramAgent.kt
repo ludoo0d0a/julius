@@ -69,12 +69,17 @@ class DeepgramAgent(
     }
 
     override suspend fun process(input: String): AgentResponse = mutex.withLock {
+        val url = "$baseUrl/chat/completions"
         if (deepgramKey.isBlank()) {
-            throw NetworkException(null, "Deepgram API key is required. Please set it in settings.")
+            throw NetworkException(
+                httpCode = null,
+                message = "Deepgram API key is required. Please set it in settings.",
+                provider = "Deepgram"
+            )
         }
 
         try {
-            val response = client.post("$baseUrl/chat/completions") {
+            val response = client.post(url) {
                 header("Authorization", "Bearer $deepgramKey")
                 contentType(ContentType.Application.Json)
                 setBody(
@@ -86,12 +91,22 @@ class DeepgramAgent(
 
             // Check for error response
             if (response.status.value != 200) {
-                throw NetworkException(response.status.value, "Error connecting to Deepgram: $responseBody")
+                throw NetworkException(
+                    httpCode = response.status.value,
+                    message = "Error connecting to Deepgram: $responseBody",
+                    url = url,
+                    provider = "Deepgram"
+                )
             }
 
             // Check if response body is empty
             if (responseBody.isBlank()) {
-                throw NetworkException(null, "Error connecting to Deepgram: Empty response")
+                throw NetworkException(
+                    httpCode = null,
+                    message = "Error connecting to Deepgram: Empty response",
+                    url = url,
+                    provider = "Deepgram"
+                )
             }
 
             val text = json.decodeFromString<ChatRes>(responseBody)
@@ -105,7 +120,13 @@ class DeepgramAgent(
             return AgentResponse(text, null)
         } catch (e: Exception) {
             e.printStackTrace()
-            throw NetworkException(null, "Error connecting to Deepgram: ${e.message}")
+            if (e is NetworkException) throw e
+            throw NetworkException(
+                httpCode = null,
+                message = "Error connecting to Deepgram: ${e.message}",
+                url = url,
+                provider = "Deepgram"
+            )
         }
     }
 }

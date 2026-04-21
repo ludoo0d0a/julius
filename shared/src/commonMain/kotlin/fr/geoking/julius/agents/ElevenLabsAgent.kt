@@ -74,8 +74,13 @@ class ElevenLabsAgent(
     }
 
     override suspend fun process(input: String): AgentResponse = mutex.withLock {
+        val ttsUrl = "$baseUrl/text-to-speech/$voiceId"
         if (elevenLabsKey.isBlank()) {
-            throw NetworkException(null, "ElevenLabs API key is required. Please set it in settings.")
+            throw NetworkException(
+                httpCode = null,
+                message = "ElevenLabs API key is required. Please set it in settings.",
+                provider = "ElevenLabs"
+            )
         }
 
         // 1. Get Text from LLM (reusing PerplexityAgent)
@@ -84,17 +89,28 @@ class ElevenLabsAgent(
 
         // 2. Get Audio from ElevenLabs
         val audioBytes = try {
-            val ttsResponse = client.post("$baseUrl/text-to-speech/$voiceId") {
+            val ttsResponse = client.post(ttsUrl) {
                 header("xi-api-key", elevenLabsKey)
                 contentType(ContentType.Application.Json)
                 setBody(TtsReq(text = text))
             }
             if (ttsResponse.status.value != 200) {
-                throw NetworkException(ttsResponse.status.value, "Error from ElevenLabs: ${ttsResponse.bodyAsText()}")
+                throw NetworkException(
+                    httpCode = ttsResponse.status.value,
+                    message = "Error from ElevenLabs: ${ttsResponse.bodyAsText()}",
+                    url = ttsUrl,
+                    provider = "ElevenLabs"
+                )
             }
             ttsResponse.body<ByteArray>()
         } catch (e: Exception) {
-            throw NetworkException(null, "Error from ElevenLabs: ${e.message}")
+            if (e is NetworkException) throw e
+            throw NetworkException(
+                httpCode = null,
+                message = "Error from ElevenLabs: ${e.message}",
+                url = ttsUrl,
+                provider = "ElevenLabs"
+            )
         }
 
         return AgentResponse(text, audioBytes)

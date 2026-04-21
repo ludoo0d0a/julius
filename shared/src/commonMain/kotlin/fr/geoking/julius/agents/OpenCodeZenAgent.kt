@@ -42,11 +42,16 @@ class OpenCodeZenAgent(
     }
 
     override suspend fun process(input: String): AgentResponse = mutex.withLock {
+        val url = "$baseUrl/chat/completions"
         if (apiKey.isBlank()) {
-            throw NetworkException(null, "OpenCode Zen API key is required. Get one at opencode.ai")
+            throw NetworkException(
+                httpCode = null,
+                message = "OpenCode Zen API key is required. Get one at opencode.ai",
+                provider = "OpenCodeZen"
+            )
         }
 
-        val response = client.post("$baseUrl/chat/completions") {
+        val response = client.post(url) {
             header("Authorization", "Bearer $apiKey")
             contentType(ContentType.Application.Json)
             setBody(Req(model = model, messages = listOf(Msg("user", input))))
@@ -55,7 +60,12 @@ class OpenCodeZenAgent(
         val responseBody = response.bodyAsText()
 
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Error from OpenCode Zen: $responseBody")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Error from OpenCode Zen: $responseBody",
+                url = url,
+                provider = "OpenCodeZen"
+            )
         }
 
         val text = json.decodeFromString<Res>(responseBody).choices.firstOrNull()?.message?.content ?: "No response"

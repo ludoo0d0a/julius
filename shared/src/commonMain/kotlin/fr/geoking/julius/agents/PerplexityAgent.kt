@@ -37,11 +37,16 @@ class PerplexityAgent(
     }
 
     override suspend fun process(input: String): AgentResponse = mutex.withLock {
+        val url = "$baseUrl/chat/completions"
         if (apiKey.isBlank()) {
-            throw NetworkException(null, "Perplexity API key is required. Please set it in settings.")
+            throw NetworkException(
+                httpCode = null,
+                message = "Perplexity API key is required. Please set it in settings.",
+                provider = "Perplexity"
+            )
         }
 
-        val response = client.post("$baseUrl/chat/completions") {
+        val response = client.post(url) {
             header("Authorization", "Bearer $apiKey")
             contentType(ContentType.Application.Json)
             setBody(
@@ -55,7 +60,12 @@ class PerplexityAgent(
         val responseBody = response.bodyAsText()
 
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Error from Perplexity API: $responseBody")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Error from Perplexity API: $responseBody",
+                url = url,
+                provider = "Perplexity"
+            )
         }
 
         val text = json.decodeFromString<Res>(responseBody).choices.firstOrNull()?.message?.content ?: "No response"

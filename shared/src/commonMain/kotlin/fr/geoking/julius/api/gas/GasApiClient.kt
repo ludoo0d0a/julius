@@ -68,14 +68,20 @@ class GasApiClient(
             offset = offset.coerceAtLeast(0)
         )
 
-        val response = client.post("$baseUrl/api/station-search") {
+        val url = "$baseUrl/api/station-search"
+        val response = client.post(url) {
             contentType(ContentType.Application.Json)
             setBody(request)
         }
 
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Gas API error: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Gas API error: $body",
+                url = url,
+                provider = "GasAPI"
+            )
         }
 
         return parseStationsResponse(body)

@@ -20,7 +20,12 @@ class BelgiumPetrolPricesClient(
         val response = client.get(url)
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Belgium Petrol Prices API error")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Belgium Petrol Prices API error",
+                url = url,
+                provider = "BelgiumPetrolPrices"
+            )
         }
         return parseFuelPrices(body)
     }

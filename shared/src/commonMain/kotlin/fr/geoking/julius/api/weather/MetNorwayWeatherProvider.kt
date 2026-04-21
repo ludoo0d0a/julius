@@ -28,7 +28,12 @@ class MetNorwayWeatherProvider(
         }
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "MET Norway error: ${body.take(500)}")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "MET Norway error: ${body.take(500)}",
+                url = url,
+                provider = "METNorway"
+            )
         }
         val root = runCatching { json.parseToJsonElement(body).jsonObject }.getOrNull() ?: return null
         val props = root["properties"]?.jsonObject ?: return null

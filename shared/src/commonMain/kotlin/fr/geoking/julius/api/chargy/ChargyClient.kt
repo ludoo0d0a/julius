@@ -24,7 +24,12 @@ class ChargyClient(
         }
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Chargy API error: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Chargy API error: $body",
+                url = url,
+                provider = "Chargy"
+            )
         }
         return ChargyKmlParser.parse(body)
     }

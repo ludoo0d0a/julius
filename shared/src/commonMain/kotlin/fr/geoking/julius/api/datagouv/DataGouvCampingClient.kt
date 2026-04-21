@@ -42,7 +42,12 @@ class DataGouvCampingClient(
         val response = client.get(url)
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "DataGouvCamping API error: ${body.take(500)}")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "DataGouvCamping API error: ${body.take(500)}",
+                url = url,
+                provider = "DataGouvCamping"
+            )
         }
         val records = parseRecords(body)
         return records

@@ -57,7 +57,12 @@ class DataGouvClient(
         val response = client.get(url)
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "DataGouv API error: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "DataGouv API error: $body",
+                url = url,
+                provider = "DataGouv"
+            )
         }
         return parseRecords(body)
     }
