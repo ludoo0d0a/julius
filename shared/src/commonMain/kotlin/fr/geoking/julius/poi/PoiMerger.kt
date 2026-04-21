@@ -258,8 +258,18 @@ object PoiMerger {
             chargePointCount = mergeMaxOrNull(existing.chargePointCount, incoming.chargePointCount),
             // Connector / fuel price details are merged above.
             source = mergedSources,
+            updatedAt = maxDate(existing.updatedAt, incoming.updatedAt),
             metadata = (existing.metadata ?: emptyMap()) + (incoming.metadata ?: emptyMap())
         )
+    }
+
+    private fun maxDate(a: String?, b: String?): String? {
+        return when {
+            a == null -> b
+            b == null -> a
+            b >= a -> b
+            else -> a
+        }
     }
 
     private fun preferNonBlank(a: String?, b: String?): String? {
@@ -334,7 +344,10 @@ object PoiMerger {
             else -> false
         }
         val picked = if (chooseB) b else a
-        return picked.copy(outOfStock = a.outOfStock || b.outOfStock)
+        return picked.copy(
+            outOfStock = a.outOfStock || b.outOfStock,
+            updatedAt = maxDate(a.updatedAt, b.updatedAt)
+        )
     }
 
     private fun mergeIrveDetails(a: IrveDetails?, b: IrveDetails?): IrveDetails? {
