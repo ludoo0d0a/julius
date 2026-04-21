@@ -5,6 +5,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import io.ktor.client.HttpClient
 
 class DataGouvElecClientTest {
@@ -42,5 +43,55 @@ class DataGouvElecClientTest {
         val station = client.parseStation(record)
         assertNotNull(station)
         assertEquals("Station", station.name)
+    }
+
+    @Test
+    fun parseStation_correctsHighPower() {
+        val json = Json { ignoreUnknownKeys = true }
+        val record = json.parseToJsonElement("""
+            {
+                "id_station_itinerance": "FR*ABC*P123",
+                "puissance_nominale": 7360.0,
+                "consolidated_latitude": 48.0,
+                "consolidated_longitude": 2.0
+            }
+        """).jsonObject
+
+        val station = client.parseStation(record)
+        assertNotNull(station)
+        assertEquals(7.36, station.puissanceKw)
+    }
+
+    @Test
+    fun parseStation_filtersOutNonFrenchStations() {
+        val json = Json { ignoreUnknownKeys = true }
+        val record = json.parseToJsonElement("""
+            {
+                "id_station_itinerance": "FRZWOEZW04208",
+                "adresse_station": "20 boulevard de Kockelscheuer, 1821 Luxembourg",
+                "consolidated_latitude": 49.58,
+                "consolidated_longitude": 6.12
+            }
+        """).jsonObject
+
+        val station = client.parseStation(record)
+        assertNull(station)
+    }
+
+    @Test
+    fun parseStation_keepsFrenchStationsWithoutPostalCode() {
+        val json = Json { ignoreUnknownKeys = true }
+        val record = json.parseToJsonElement("""
+            {
+                "id_station_itinerance": "FR*ABC*P123",
+                "adresse_station": "123 Rue de la Paix, Paris",
+                "consolidated_latitude": 48.0,
+                "consolidated_longitude": 2.0
+            }
+        """).jsonObject
+
+        val station = client.parseStation(record)
+        assertNotNull(station)
+        assertEquals("123 Rue de la Paix, Paris", station.address)
     }
 }

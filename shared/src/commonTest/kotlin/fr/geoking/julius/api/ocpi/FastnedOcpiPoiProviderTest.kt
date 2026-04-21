@@ -117,6 +117,6 @@ class FastnedOcpiPoiProviderTest {
         assertEquals("Fastned London", poi.name)
         assertTrue(poi.isElectric)
         assertEquals(300.0, poi.powerKw)
-        assertEquals("0.69 GBP/kWh", poi.irveDetails?.tarification)
+        assertEquals("0.69£ / kWh", poi.irveDetails?.tarification)
     }
 }

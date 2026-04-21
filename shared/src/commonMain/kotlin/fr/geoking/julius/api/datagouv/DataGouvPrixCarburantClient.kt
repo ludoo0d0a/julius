@@ -61,7 +61,12 @@ class DataGouvPrixCarburantClient(
         val response = client.get(url)
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Prix carburants API error: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Prix carburants API error: $body",
+                url = url,
+                provider = "DataGouvPrixCarburant"
+            )
         }
         return parseRecords(body)
     }
@@ -223,7 +228,12 @@ class DataGouvPrixCarburantClient(
         val response = client.get(url)
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "National averages API error: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "National averages API error: $body",
+                url = url,
+                provider = "DataGouvPrixCarburant"
+            )
         }
 
         val element = json.parseToJsonElement(body)

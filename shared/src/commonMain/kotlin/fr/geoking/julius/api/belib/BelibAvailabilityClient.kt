@@ -58,7 +58,12 @@ class BelibAvailabilityClient(
         val response = client.get(url)
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Belib API error: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Belib API error: $body",
+                url = url,
+                provider = "Belib"
+            )
         }
         val raw = parseRecords(body)
         return raw

@@ -69,19 +69,40 @@ data class OcpiTariff(
     val id: String,
     val currency: String,
     val elements: List<OcpiTariffElement> = emptyList(),
+    val tax_included: Boolean = true,
     val last_updated: String
 )
 
 @Serializable
 data class OcpiTariffElement(
-    val price_components: List<OcpiPriceComponent> = emptyList()
+    val price_components: List<OcpiPriceComponent> = emptyList(),
+    val restrictions: OcpiTariffRestrictions? = null
 )
 
 @Serializable
 data class OcpiPriceComponent(
     val type: OcpiPriceComponentType,
     val price: Double,
-    val step_size: Int
+    val step_size: Int,
+    val vat: Double? = null
+)
+
+@Serializable
+data class OcpiTariffRestrictions(
+    val start_time: String? = null,
+    val end_time: String? = null,
+    val start_date: String? = null,
+    val end_date: String? = null,
+    val min_kwh: Double? = null,
+    val max_kwh: Double? = null,
+    val min_current: Double? = null,
+    val max_current: Double? = null,
+    val min_power: Double? = null,
+    val max_power: Double? = null,
+    val min_duration: Int? = null,
+    val max_duration: Int? = null,
+    val day_of_week: List<String> = emptyList(),
+    val reservation: String? = null
 )
 
 @Serializable

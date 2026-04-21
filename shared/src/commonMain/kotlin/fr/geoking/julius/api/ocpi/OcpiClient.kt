@@ -42,7 +42,7 @@ class OcpiClient(
 
         val response = client.get(url) {
             if (token.isNotBlank()) {
-                val headerValue = if (useTokenPrefix) "Token $token" else token
+                val headerValue = if (useTokenPrefix && !token.startsWith("Token ", ignoreCase = true)) "Token $token" else token
                 header(authHeaderName, headerValue)
             }
             // OCPI /locations typically supports date_from, date_to for delta.
@@ -58,7 +58,12 @@ class OcpiClient(
         }
 
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "OCPI Error: ${response.bodyAsText()}")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "OCPI Error: ${response.bodyAsText()}",
+                url = url,
+                provider = "OCPI"
+            )
         }
 
         val ocpiResponse: OcpiResponse<List<OcpiLocation>> = response.body()
@@ -75,7 +80,7 @@ class OcpiClient(
 
         val response = client.get(url) {
             if (token.isNotBlank()) {
-                val headerValue = if (useTokenPrefix) "Token $token" else token
+                val headerValue = if (useTokenPrefix && !token.startsWith("Token ", ignoreCase = true)) "Token $token" else token
                 header(authHeaderName, headerValue)
             }
         }
@@ -85,10 +90,43 @@ class OcpiClient(
         }
 
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "OCPI Error: ${response.bodyAsText()}")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "OCPI Error: ${response.bodyAsText()}",
+                url = url,
+                provider = "OCPI"
+            )
         }
 
         val ocpiResponse: OcpiResponse<List<OcpiTariff>> = response.body()
         return ocpiResponse.data ?: emptyList()
+    }
+
+    /**
+     * Fetches a specific tariff by ID from the OCPI /tariffs endpoint.
+     */
+    suspend fun getTariff(tariffId: String): OcpiTariff? {
+        if (baseUrl.isBlank()) return null
+
+        val baseUrlWithoutTrailing = baseUrl.removeSuffix("/")
+        val url = "$baseUrlWithoutTrailing/tariffs/$tariffId"
+
+        val response = client.get(url) {
+            if (token.isNotBlank()) {
+                val headerValue = if (useTokenPrefix && !token.startsWith("Token ", ignoreCase = true)) "Token $token" else token
+                header(authHeaderName, headerValue)
+            }
+        }
+
+        if (response.status == HttpStatusCode.NotFound) {
+            return null
+        }
+
+        if (response.status.value != 200) {
+            return null // Silently fail for individual tariff fetch
+        }
+
+        val ocpiResponse: OcpiResponse<OcpiTariff> = response.body()
+        return ocpiResponse.data
     }
 }

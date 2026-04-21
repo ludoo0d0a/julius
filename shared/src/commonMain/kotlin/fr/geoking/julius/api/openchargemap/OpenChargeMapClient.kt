@@ -33,7 +33,7 @@ class OpenChargeMapClient(
         distanceKm: Int = 10,
         maxResults: Int = 50
     ): List<OpenChargeMapPoi> {
-        val url = URLBuilder(baseUrl).apply {
+        val urlBuilder = URLBuilder(baseUrl).apply {
             parameters.append("latitude", latitude.toString())
             parameters.append("longitude", longitude.toString())
             parameters.append("distance", distanceKm.toString())
@@ -41,12 +41,21 @@ class OpenChargeMapClient(
             parameters.append("maxresults", maxResults.coerceIn(1, 100).toString())
             parameters.append("compact", "false")
             parameters.append("verbose", "false")
-            apiKey?.takeIf { it.isNotBlank() }?.let { parameters.append("key", it) }
-        }.buildString()
-        val response = client.get(url)
+        }
+        val displayUrl = urlBuilder.buildString()
+
+        apiKey?.takeIf { it.isNotBlank() }?.let { urlBuilder.parameters.append("key", it) }
+        val fullUrl = urlBuilder.buildString()
+
+        val response = client.get(fullUrl)
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "OpenChargeMap API error: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "OpenChargeMap API error: $body",
+                url = displayUrl,
+                provider = "OpenChargeMap"
+            )
         }
         val element = json.parseToJsonElement(body)
         val array = element as? JsonArray ?: return emptyList()

@@ -30,7 +30,11 @@ class GitHubClient(
 
     private fun requireToken(token: String): String {
         if (token.isBlank()) {
-            throw NetworkException(null, "GitHub token is required. Add one in Settings → Jules & GitHub.")
+            throw NetworkException(
+                httpCode = null,
+                message = "GitHub token is required. Add one in Settings → Jules & GitHub.",
+                provider = "GitHub"
+            )
         }
         return token
     }
@@ -61,7 +65,8 @@ class GitHubClient(
         state: String = "open"
     ): List<GitHubPullRequestSummary> {
         requireToken(token)
-        val response = client.get("$baseUrl/repos/$owner/$repo/pulls") {
+        val url = "$baseUrl/repos/$owner/$repo/pulls"
+        val response = client.get(url) {
             githubHeaders(token)
             parameter("state", state)
             parameter("per_page", "30")
@@ -70,7 +75,12 @@ class GitHubClient(
         }
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "GitHub list PRs: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "GitHub list PRs: $body",
+                url = url,
+                provider = "GitHub"
+            )
         }
         return json.decodeFromString(ListSerializer(GitHubPullRequestSummary.serializer()), body)
     }
@@ -98,12 +108,18 @@ class GitHubClient(
 
     suspend fun getPullRequest(token: String, owner: String, repo: String, number: Int): GitHubPullRequestDetail {
         requireToken(token)
-        val response = client.get("$baseUrl/repos/$owner/$repo/pulls/$number") {
+        val url = "$baseUrl/repos/$owner/$repo/pulls/$number"
+        val response = client.get(url) {
             githubHeaders(token)
         }
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "GitHub get PR: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "GitHub get PR: $body",
+                url = url,
+                provider = "GitHub"
+            )
         }
         return json.decodeFromString(GitHubPullRequestDetail.serializer(), body)
     }
@@ -118,12 +134,18 @@ class GitHubClient(
 
     suspend fun getPullRequestFiles(token: String, owner: String, repo: String, number: Int): List<GitHubFile> {
         requireToken(token)
-        val response = client.get("$baseUrl/repos/$owner/$repo/pulls/$number/files") {
+        val url = "$baseUrl/repos/$owner/$repo/pulls/$number/files"
+        val response = client.get(url) {
             githubHeaders(token)
         }
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "GitHub list PR files: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "GitHub list PR files: $body",
+                url = url,
+                provider = "GitHub"
+            )
         }
         return json.decodeFromString(ListSerializer(GitHubFile.serializer()), body)
     }
@@ -137,13 +159,19 @@ class GitHubClient(
 
     suspend fun getFileContent(token: String, owner: String, repo: String, path: String, ref: String): GitHubContent {
         requireToken(token)
-        val response = client.get("$baseUrl/repos/$owner/$repo/contents/$path") {
+        val url = "$baseUrl/repos/$owner/$repo/contents/$path"
+        val response = client.get(url) {
             githubHeaders(token)
             parameter("ref", ref)
         }
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "GitHub get file content: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "GitHub get file content: $body",
+                url = url,
+                provider = "GitHub"
+            )
         }
         return json.decodeFromString(GitHubContent.serializer(), body)
     }
@@ -167,13 +195,19 @@ class GitHubClient(
         branch: String
     ) {
         requireToken(token)
-        val response = client.put("$baseUrl/repos/$owner/$repo/contents/$path") {
+        val url = "$baseUrl/repos/$owner/$repo/contents/$path"
+        val response = client.put(url) {
             githubHeaders(token)
             contentType(ContentType.Application.Json)
             setBody(UpdateFileBody(message, contentBase64, sha, branch))
         }
         if (response.status.value !in 200..299) {
-            throw NetworkException(response.status.value, "GitHub update file: ${response.bodyAsText()}")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "GitHub update file: ${response.bodyAsText()}",
+                url = url,
+                provider = "GitHub"
+            )
         }
     }
 
@@ -182,13 +216,19 @@ class GitHubClient(
 
     suspend fun mergePullRequest(token: String, owner: String, repo: String, number: Int) {
         requireToken(token)
-        val response = client.put("$baseUrl/repos/$owner/$repo/pulls/$number/merge") {
+        val url = "$baseUrl/repos/$owner/$repo/pulls/$number/merge"
+        val response = client.put(url) {
             githubHeaders(token)
             contentType(ContentType.Application.Json)
             setBody(MergeBody())
         }
         if (response.status.value !in 200..299) {
-            throw NetworkException(response.status.value, "GitHub merge PR: ${response.bodyAsText()}")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "GitHub merge PR: ${response.bodyAsText()}",
+                url = url,
+                provider = "GitHub"
+            )
         }
     }
 
@@ -197,13 +237,19 @@ class GitHubClient(
 
     suspend fun closePullRequest(token: String, owner: String, repo: String, number: Int) {
         requireToken(token)
-        val response = client.patch("$baseUrl/repos/$owner/$repo/pulls/$number") {
+        val url = "$baseUrl/repos/$owner/$repo/pulls/$number"
+        val response = client.patch(url) {
             githubHeaders(token)
             contentType(ContentType.Application.Json)
             setBody(PatchPrBody(state = "closed"))
         }
         if (response.status.value !in 200..299) {
-            throw NetworkException(response.status.value, "GitHub close PR: ${response.bodyAsText()}")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "GitHub close PR: ${response.bodyAsText()}",
+                url = url,
+                provider = "GitHub"
+            )
         }
     }
 
@@ -221,13 +267,19 @@ class GitHubClient(
         } else {
             "@jules $trimmed"
         }
-        val response = client.post("$baseUrl/repos/$owner/$repo/issues/$number/comments") {
+        val url = "$baseUrl/repos/$owner/$repo/issues/$number/comments"
+        val response = client.post(url) {
             githubHeaders(token)
             contentType(ContentType.Application.Json)
             setBody(IssueCommentBody(body = bodyText))
         }
         if (response.status.value !in 200..299) {
-            throw NetworkException(response.status.value, "GitHub PR comment: ${response.bodyAsText()}")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "GitHub PR comment: ${response.bodyAsText()}",
+                url = url,
+                provider = "GitHub"
+            )
         }
     }
 }

@@ -25,6 +25,13 @@ class OcpiPoiProvider(
     ): List<Poi> {
         val locations = client.getLocations(latitude, longitude, radiusKm)
 
+        // Try to fetch all tariffs once to avoid too many individual calls
+        val allTariffs = try {
+            client.getTariffs().associateBy { it.id }
+        } catch (e: Exception) {
+            emptyMap()
+        }
+
         return locations.map { loc ->
             val lat = loc.coordinates.latitude.toDoubleOrNull() ?: 0.0
             val lon = loc.coordinates.longitude.toDoubleOrNull() ?: 0.0
@@ -37,6 +44,12 @@ class OcpiPoiProvider(
 
             val available = loc.evses.count { it.status == OcpiStatus.AVAILABLE }
             val total = loc.evses.size
+
+            // Resolve tarification from the first available tariff_id in connectors
+            val tariffId = allConnectors.firstOrNull { it.tariff_ids.isNotEmpty() }?.tariff_ids?.firstOrNull()
+            val tariffDescription = tariffId?.let { id ->
+                allTariffs[id]?.let { OcpiTariffParser.formatTariff(it) }
+            }
 
             val metadata = mutableMapOf<String, String>()
             metadata["ID"] = loc.id
@@ -58,7 +71,8 @@ class OcpiPoiProvider(
                 irveDetails = IrveDetails(
                     connectorTypes = connectorTypes,
                     availableConnectors = available,
-                    totalConnectors = total
+                    totalConnectors = total,
+                    tarification = tariffDescription
                 ),
                 source = providerName,
                 metadata = metadata

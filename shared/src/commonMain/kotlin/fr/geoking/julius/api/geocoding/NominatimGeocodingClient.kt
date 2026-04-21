@@ -33,7 +33,12 @@ class NominatimGeocodingClient(
         }
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Geocoding error: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Geocoding error: $body",
+                url = url,
+                provider = "Nominatim"
+            )
         }
 
         val results = json.parseToJsonElement(body).jsonArray

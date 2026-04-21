@@ -67,11 +67,17 @@ class SpainMineturProvider(
             if (dist < radiusKm / 2.0) return@withLock it
         }
 
-        val response = client.get("https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/")
+        val url = "https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/"
+        val response = client.get(url)
 
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Spain Minetur API returned ${response.status.value}")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Spain Minetur API returned ${response.status.value}",
+                url = url,
+                provider = "SpainMinetur"
+            )
         }
 
         val stations = withContext(Dispatchers.Default) {

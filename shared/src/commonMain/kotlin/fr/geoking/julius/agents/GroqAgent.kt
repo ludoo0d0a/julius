@@ -41,11 +41,16 @@ class GroqAgent(
     }
 
     override suspend fun process(input: String): AgentResponse = mutex.withLock {
+        val url = "$baseUrl/chat/completions"
         if (apiKey.isBlank()) {
-            throw NetworkException(null, "Groq API key is required. Get one at console.groq.com")
+            throw NetworkException(
+                httpCode = null,
+                message = "Groq API key is required. Get one at console.groq.com",
+                provider = "Groq"
+            )
         }
 
-        val response = client.post("$baseUrl/chat/completions") {
+        val response = client.post(url) {
             header("Authorization", "Bearer $apiKey")
             contentType(ContentType.Application.Json)
             setBody(Req(model = model, messages = listOf(Msg("user", input))))
@@ -54,7 +59,12 @@ class GroqAgent(
         val responseBody = response.bodyAsText()
 
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Error from Groq: $responseBody")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Error from Groq: $responseBody",
+                url = url,
+                provider = "Groq"
+            )
         }
 
         val text = json.decodeFromString<Res>(responseBody).choices.firstOrNull()?.message?.content ?: "No response"
