@@ -100,8 +100,8 @@ enum class PoiProviderType(
     GermanyTankerkoenig(providesFuel = true, providesPrices = true, supportedCountries = setOf("DE")),
     /** Austrian fuel prices via E-Control. */
     AustriaEControl(providesFuel = true, providesPrices = true, supportedCountries = setOf("AT")),
-    /** Netherlands and Luxembourg fuel prices via ANWB. */
-    NetherlandsAnwb(providesFuel = true, providesPrices = true, supportedCountries = setOf("NL", "LU")),
+    /** Netherlands, Luxembourg and Belgium fuel prices via ANWB. */
+    NetherlandsAnwb(providesFuel = true, providesPrices = true, supportedCountries = setOf("NL", "LU", "BE")),
     /** Belgian official maximum fuel prices. */
     BelgiumOfficial(providesFuel = true, providesPrices = true, supportedCountries = setOf("BE")),
     /** Portuguese fuel prices via DGEG (Mainland). */

@@ -33,6 +33,7 @@ class NetherlandsAnwbProvider(
 
     private val nlBbox = "50.7,3.3,53.6,7.3"
     private val luBbox = "49.4,5.7,50.2,6.6"
+    private val beBbox = "49.4,2.4,51.6,6.5"
 
     override fun supportedCategories(): Set<PoiCategory> = setOf(PoiCategory.Gas)
 
@@ -42,8 +43,9 @@ class NetherlandsAnwbProvider(
         viewport: MapViewport?
     ): List<Poi> {
         val bbox = when {
-            latitude in 50.7..53.6 && longitude in 3.3..7.3 -> nlBbox
             latitude in 49.4..50.2 && longitude in 5.7..6.6 -> luBbox
+            latitude in 49.4..51.6 && longitude in 2.4..6.5 -> beBbox
+            latitude in 50.7..53.6 && longitude in 3.3..7.3 -> nlBbox
             else -> return emptyList()
         }
 
