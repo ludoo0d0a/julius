@@ -208,13 +208,6 @@ fun PoiDetailCard(
                         .fillMaxWidth()
                         .clickable { onNavigate() }
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = "Navigate",
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         addressLines.take(2).forEach { line ->
                             Text(
@@ -226,6 +219,12 @@ fun PoiDetailCard(
                             )
                         }
                     }
+                    Icon(
+                        imageVector = Icons.Default.Directions,
+                        contentDescription = "Navigate",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
 
                 if (isSelected) {
