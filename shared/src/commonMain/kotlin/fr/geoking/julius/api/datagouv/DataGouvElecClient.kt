@@ -158,6 +158,22 @@ class DataGouvElecClient(
 
     internal fun parseStation(record: JsonObject): DataGouvElecStationRaw? {
         val stationId = record["id_station_itinerance"]?.jsonPrimitive?.content ?: return null
+
+        val address = record["adresse_station"]?.jsonPrimitive?.content?.trim().orEmpty()
+        val cp = record["consolidated_code_postal"]?.jsonPrimitive?.content
+
+        // Filter out non-French stations. DataGouv is the French National base.
+        // Stations in neighboring countries (like Luxembourg) are sometimes present but shouldn't be here.
+        if (cp == null) {
+            val nonFrenchIndicators = listOf(
+                "Luxembourg", "Belgique", "Belgium", "Deutschland", "Germany",
+                "España", "Spain", "Italia", "Italy", "Suisse", "Switzerland"
+            )
+            if (nonFrenchIndicators.any { address.contains(it, ignoreCase = true) }) {
+                return null
+            }
+        }
+
         val pdcId = record["id_pdc_itinerance"]?.jsonPrimitive?.content ?: stationId
         val id = stationId
         val lat = record["consolidated_latitude"]?.jsonPrimitive?.content?.toDoubleOrNull()
@@ -173,8 +189,9 @@ class DataGouvElecClient(
         val name = record["nom_station"]?.jsonPrimitive?.content?.trim().orEmpty().ifBlank {
             brand ?: "Station"
         }
-        val address = record["adresse_station"]?.jsonPrimitive?.content?.trim().orEmpty()
-        val power = record["puissance_nominale"]?.jsonPrimitive?.content?.toDoubleOrNull()
+        val rawPower = record["puissance_nominale"]?.jsonPrimitive?.content?.toDoubleOrNull()
+        // Heuristic: if power > 500, it's likely in Watts instead of kW (common error in IRVE data).
+        val power = if (rawPower != null && rawPower > 500.0) rawPower / 1000.0 else rawPower
         val operator = record["nom_operateur"]?.jsonPrimitive?.content?.trim()?.takeIf { it.isNotBlank() }
         val implantation = record["implantation_station"]?.jsonPrimitive?.content?.trim().orEmpty()
         val isOnHighway = implantation.contains("autoroute", ignoreCase = true) ||
