@@ -41,11 +41,16 @@ class OpenRouterAgent(
     }
 
     override suspend fun process(input: String): AgentResponse = mutex.withLock {
+        val url = "$baseUrl/chat/completions"
         if (apiKey.isBlank()) {
-            throw NetworkException(null, "OpenRouter API key is required. Get one at openrouter.ai")
+            throw NetworkException(
+                httpCode = null,
+                message = "OpenRouter API key is required. Get one at openrouter.ai",
+                provider = "OpenRouter"
+            )
         }
 
-        val response = client.post("$baseUrl/chat/completions") {
+        val response = client.post(url) {
             header("Authorization", "Bearer $apiKey")
             header("HTTP-Referer", "https://github.com/ludoo0d0a/julius") // Optional for OpenRouter
             header("X-Title", "Julius Voice Assistant") // Optional for OpenRouter
@@ -56,7 +61,12 @@ class OpenRouterAgent(
         val responseBody = response.bodyAsText()
 
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Error from OpenRouter: $responseBody")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Error from OpenRouter: $responseBody",
+                url = url,
+                provider = "OpenRouter"
+            )
         }
 
         val text = json.decodeFromString<Res>(responseBody).choices.firstOrNull()?.message?.content ?: "No response"

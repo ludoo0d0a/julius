@@ -30,7 +30,12 @@ class AdresseDataGouvGeocodingClient(
         val response = client.get(url)
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Geocoding error: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Geocoding error: $body",
+                url = url,
+                provider = "AdresseDataGouv"
+            )
         }
 
         val root = json.parseToJsonElement(body).jsonObject

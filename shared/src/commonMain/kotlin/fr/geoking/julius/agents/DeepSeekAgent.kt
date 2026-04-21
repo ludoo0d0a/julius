@@ -41,11 +41,16 @@ class DeepSeekAgent(
     }
 
     override suspend fun process(input: String): AgentResponse = mutex.withLock {
+        val url = "$baseUrl/chat/completions"
         if (apiKey.isBlank()) {
-            throw NetworkException(null, "DeepSeek API key is required. Get one at platform.deepseek.com")
+            throw NetworkException(
+                httpCode = null,
+                message = "DeepSeek API key is required. Get one at platform.deepseek.com",
+                provider = "DeepSeek"
+            )
         }
 
-        val response = client.post("$baseUrl/chat/completions") {
+        val response = client.post(url) {
             header("Authorization", "Bearer $apiKey")
             contentType(ContentType.Application.Json)
             setBody(Req(model = model, messages = listOf(Msg("user", input))))
@@ -54,7 +59,12 @@ class DeepSeekAgent(
         val responseBody = response.bodyAsText()
 
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Error from DeepSeek: $responseBody")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Error from DeepSeek: $responseBody",
+                url = url,
+                provider = "DeepSeek"
+            )
         }
 
         val text = json.decodeFromString<Res>(responseBody).choices.firstOrNull()?.message?.content ?: "No response"

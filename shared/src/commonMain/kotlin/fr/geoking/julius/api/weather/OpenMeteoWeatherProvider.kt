@@ -36,7 +36,12 @@ class OpenMeteoWeatherProvider(
         val response = client.get(url)
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Open-Meteo error: ${body.take(500)}")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Open-Meteo error: ${body.take(500)}",
+                url = url,
+                provider = "OpenMeteo"
+            )
         }
         val root = runCatching { json.parseToJsonElement(body).jsonObject }.getOrNull() ?: return null
         val current = root["current"]?.jsonObject ?: return null

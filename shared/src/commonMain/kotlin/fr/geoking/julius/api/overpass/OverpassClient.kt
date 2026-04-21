@@ -88,7 +88,12 @@ class OverpassClient(
         )
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Overpass API error: ${body.take(500)}")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Overpass API error: ${body.take(500)}",
+                url = baseUrl,
+                provider = "Overpass"
+            )
         }
         return parseElements(body, nodesOnly = true)
     }
@@ -132,7 +137,12 @@ class OverpassClient(
         )
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Overpass API error: ${body.take(500)}")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Overpass API error: ${body.take(500)}",
+                url = baseUrl,
+                provider = "Overpass"
+            )
         }
         return parseElements(body, nodesOnly = false)
     }

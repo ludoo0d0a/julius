@@ -148,7 +148,11 @@ class OpenAIAgent(
 
     override suspend fun process(input: String): AgentResponse = mutex.withLock {
         if (apiKey.isBlank()) {
-            throw NetworkException(null, "OpenAI API key is required. Please set it in settings.")
+            throw NetworkException(
+                httpCode = null,
+                message = "OpenAI API key is required. Please set it in settings.",
+                provider = "OpenAI"
+            )
         }
 
         val tools = if (toolsEnabled) {
@@ -211,7 +215,8 @@ class OpenAIAgent(
         } else null
 
         // 1. Get Text
-        val chatResponse = client.post("$baseUrl/chat/completions") {
+        val chatUrl = "$baseUrl/chat/completions"
+        val chatResponse = client.post(chatUrl) {
             header("Authorization", "Bearer $apiKey")
             contentType(ContentType.Application.Json)
             setBody(ChatReq(
@@ -225,14 +230,24 @@ class OpenAIAgent(
         
         val responseMessage = try {
             if (chatResponse.status.value != 200) {
-                throw NetworkException(chatResponse.status.value, "Error from OpenAI: $chatBody")
+                throw NetworkException(
+                    httpCode = chatResponse.status.value,
+                    message = "Error from OpenAI: $chatBody",
+                    url = chatUrl,
+                    provider = "OpenAI"
+                )
             } else {
                 json.decodeFromString<ChatRes>(chatBody).choices.firstOrNull()?.message
                     ?: throw Exception("No response from OpenAI")
             }
         } catch (e: Exception) {
             if (e is NetworkException) throw e
-            throw NetworkException(null, "Error from OpenAI: ${e.message}")
+            throw NetworkException(
+                httpCode = null,
+                message = "Error from OpenAI: ${e.message}",
+                url = chatUrl,
+                provider = "OpenAI"
+            )
         }
 
         val text = responseMessage.content ?: ""

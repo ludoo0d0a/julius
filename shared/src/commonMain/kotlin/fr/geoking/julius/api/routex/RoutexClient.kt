@@ -414,10 +414,16 @@ class RoutexClient(
             setBody(request)
         }
 
+        val url = "$baseUrl/getResults"
         val body = response.bodyAsText()
         log.d { "[RoutexClient] getResults lat=$latitude lon=$longitude requestRadius=$requestRadiusKm status=${response.status.value} bodyLength=${body.length}" }
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Routex API error: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Routex API error: $body",
+                url = url,
+                provider = "Routex"
+            )
         }
 
         val all = parseResults(body)

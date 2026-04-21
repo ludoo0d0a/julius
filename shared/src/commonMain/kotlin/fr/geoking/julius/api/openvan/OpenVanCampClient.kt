@@ -20,10 +20,16 @@ class OpenVanCampClient(
     private val json = Json { ignoreUnknownKeys = true }
 
     suspend fun fetchPricesResponse(): OpenVanFuelPricesResponse {
-        val response = client.get("$baseUrl/api/fuel/prices")
+        val url = "$baseUrl/api/fuel/prices"
+        val response = client.get(url)
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "OpenVan.camp API error: ${body.take(500)}")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "OpenVan.camp API error: ${body.take(500)}",
+                url = url,
+                provider = "OpenVanCamp"
+            )
         }
         return json.decodeFromString<OpenVanFuelPricesResponse>(body)
     }

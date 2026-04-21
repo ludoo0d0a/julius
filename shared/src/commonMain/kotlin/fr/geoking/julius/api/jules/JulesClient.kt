@@ -29,7 +29,11 @@ class JulesClient(
     /** API key from Jules web app Settings. Required for all requests. */
     private fun requireApiKey(apiKey: String): String {
         if (apiKey.isBlank()) {
-            throw NetworkException(null, "Jules API key is required. Get one at jules.google.com Settings.")
+            throw NetworkException(
+                httpCode = null,
+                message = "Jules API key is required. Get one at jules.google.com Settings.",
+                provider = "Jules"
+            )
         }
         return apiKey
     }
@@ -71,7 +75,12 @@ class JulesClient(
         }
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Jules listSources: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Jules listSources: $body",
+                url = url,
+                provider = "Jules"
+            )
         }
         return json.decodeFromString(ListSourcesResponse.serializer(), body)
     }
@@ -145,26 +154,38 @@ class JulesClient(
             title = title,
             requirePlanApproval = requirePlanApproval
         )
-        val response = client.post("$baseUrl/sessions") {
+        val fullUrl = "$baseUrl/sessions"
+        val response = client.post(fullUrl) {
             header("X-Goog-Api-Key", token)
             contentType(ContentType.Application.Json)
             setBody(body)
         }
         val responseBody = response.bodyAsText()
         if (response.status.value !in 200..299) {
-            throw NetworkException(response.status.value, "Jules createSession: $responseBody")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Jules createSession: $responseBody",
+                url = fullUrl,
+                provider = "Jules"
+            )
         }
         return json.decodeFromString(JulesSession.serializer(), responseBody)
     }
 
     suspend fun getSession(apiKey: String, sessionId: String): JulesSession {
         val token = apiKeyHeader(apiKey)
-        val response = client.get("$baseUrl/sessions/$sessionId") {
+        val url = "$baseUrl/sessions/$sessionId"
+        val response = client.get(url) {
             header("X-Goog-Api-Key", token)
         }
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Jules getSession: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Jules getSession: $body",
+                url = url,
+                provider = "Jules"
+            )
         }
         return json.decodeFromString(JulesSession.serializer(), body)
     }
@@ -186,19 +207,30 @@ class JulesClient(
         }
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Jules listSessions: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Jules listSessions: $body",
+                url = url,
+                provider = "Jules"
+            )
         }
         return json.decodeFromString(ListSessionsResponse.serializer(), body)
     }
 
     suspend fun deleteSession(apiKey: String, sessionId: String) {
         val token = apiKeyHeader(apiKey)
-        val response = client.delete("$baseUrl/sessions/$sessionId") {
+        val url = "$baseUrl/sessions/$sessionId"
+        val response = client.delete(url) {
             header("X-Goog-Api-Key", token)
         }
         if (response.status.value !in 200..299) {
             val body = response.bodyAsText()
-            throw NetworkException(response.status.value, "Jules deleteSession: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Jules deleteSession: $body",
+                url = url,
+                provider = "Jules"
+            )
         }
     }
 
@@ -209,14 +241,20 @@ class JulesClient(
 
     suspend fun sendMessage(apiKey: String, sessionId: String, prompt: String) {
         val token = apiKeyHeader(apiKey)
-        val response = client.post("$baseUrl/sessions/$sessionId:sendMessage") {
+        val url = "$baseUrl/sessions/$sessionId:sendMessage"
+        val response = client.post(url) {
             header("X-Goog-Api-Key", token)
             contentType(ContentType.Application.Json)
             setBody(SendMessageRequest(prompt = prompt))
         }
         if (response.status.value !in 200..299) {
             val body = response.bodyAsText()
-            throw NetworkException(response.status.value, "Jules sendMessage: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Jules sendMessage: $body",
+                url = url,
+                provider = "Jules"
+            )
         }
     }
 
@@ -224,14 +262,20 @@ class JulesClient(
 
     suspend fun approvePlan(apiKey: String, sessionId: String) {
         val token = apiKeyHeader(apiKey)
-        val response = client.post("$baseUrl/sessions/$sessionId:approvePlan") {
+        val url = "$baseUrl/sessions/$sessionId:approvePlan"
+        val response = client.post(url) {
             header("X-Goog-Api-Key", token)
             contentType(ContentType.Application.Json)
             setBody(JsonObject(emptyMap()))
         }
         if (response.status.value !in 200..299) {
             val body = response.bodyAsText()
-            throw NetworkException(response.status.value, "Jules approvePlan: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Jules approvePlan: $body",
+                url = url,
+                provider = "Jules"
+            )
         }
     }
 
@@ -344,7 +388,12 @@ class JulesClient(
         }
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "Jules listActivities: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Jules listActivities: $body",
+                url = url,
+                provider = "Jules"
+            )
         }
         return json.decodeFromString(ListActivitiesResponse.serializer(), body)
     }

@@ -145,14 +145,19 @@ class GeminiAgent(
     }
 
     override suspend fun process(input: String): AgentResponse = mutex.withLock {
+        // Following REST API specification from:
+        // https://docs.cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference
+        val url = "$baseUrl/models/$model:generateContent?key=$apiKey"
+        val displayUrl = "$baseUrl/models/$model:generateContent"
         if (apiKey.isBlank()) {
-            throw NetworkException(null, "Gemini API key is required. Please set it in settings.")
+            throw NetworkException(
+                httpCode = null,
+                message = "Gemini API key is required. Please set it in settings.",
+                provider = "Gemini"
+            )
         }
 
         try {
-            // Following REST API specification from:
-            // https://docs.cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference
-            val url = "$baseUrl/models/$model:generateContent?key=$apiKey"
 
             val tools = if (toolsEnabled) {
                 listOf(
@@ -241,22 +246,28 @@ class GeminiAgent(
                 try {
                     val errorRes = json.decodeFromString<ErrorResponse>(responseBody)
                     throw NetworkException(
-                        response.status.value,
-                        "Error connecting to Gemini: ${errorRes.error.message}"
+                        httpCode = response.status.value,
+                        message = "Error connecting to Gemini: ${errorRes.error.message}",
+                        url = displayUrl,
+                        provider = "Gemini"
                     )
                 } catch (e: Exception) {
                     if (e is NetworkException) throw e
                     throw NetworkException(
-                        response.status.value,
-                        "Error connecting to Gemini: HTTP ${response.status.value} - $responseBody"
+                        httpCode = response.status.value,
+                        message = "Error connecting to Gemini: HTTP ${response.status.value} - $responseBody",
+                        url = displayUrl,
+                        provider = "Gemini"
                     )
                 }
             }
 
             if (responseBody.isBlank()) {
                 throw NetworkException(
-                    response.status.value,
-                    "Error connecting to Gemini: Received empty response body"
+                    httpCode = response.status.value,
+                    message = "Error connecting to Gemini: Received empty response body",
+                    url = displayUrl,
+                    provider = "Gemini"
                 )
             }
 
@@ -289,24 +300,36 @@ class GeminiAgent(
         } catch (e: Exception) {
             e.printStackTrace()
             if (e is NetworkException) throw e
-            throw NetworkException(null, "Error connecting to Gemini: ${e.message}")
+            throw NetworkException(
+                httpCode = null,
+                message = "Error connecting to Gemini: ${e.message}",
+                url = displayUrl,
+                provider = "Gemini"
+            )
         }
     }
 
     override suspend fun listModels(): String {
+        val url = "$baseUrl/models?key=$apiKey"
+        val displayUrl = "$baseUrl/models"
         if (apiKey.isBlank()) {
-            throw NetworkException(null, "Gemini API key is required. Please set it in settings.")
+            throw NetworkException(
+                httpCode = null,
+                message = "Gemini API key is required. Please set it in settings.",
+                provider = "Gemini"
+            )
         }
 
         try {
-            val url = "$baseUrl/models?key=$apiKey"
             val response = client.get(url)
             val responseBody = response.bodyAsText()
 
             if (response.status.value != 200) {
                 throw NetworkException(
-                    response.status.value,
-                    "Error listing Gemini models: HTTP ${response.status.value} - $responseBody"
+                    httpCode = response.status.value,
+                    message = "Error listing Gemini models: HTTP ${response.status.value} - $responseBody",
+                    url = displayUrl,
+                    provider = "Gemini"
                 )
             }
 
@@ -323,7 +346,12 @@ class GeminiAgent(
         } catch (e: Exception) {
             e.printStackTrace()
             if (e is NetworkException) throw e
-            throw NetworkException(null, "Error listing Gemini models: ${e.message}")
+            throw NetworkException(
+                httpCode = null,
+                message = "Error listing Gemini models: ${e.message}",
+                url = displayUrl,
+                provider = "Gemini"
+            )
         }
     }
 }

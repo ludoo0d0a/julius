@@ -58,7 +58,12 @@ class OcpiClient(
         }
 
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "OCPI Error: ${response.bodyAsText()}")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "OCPI Error: ${response.bodyAsText()}",
+                url = url,
+                provider = "OCPI"
+            )
         }
 
         val ocpiResponse: OcpiResponse<List<OcpiLocation>> = response.body()
@@ -85,7 +90,12 @@ class OcpiClient(
         }
 
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "OCPI Error: ${response.bodyAsText()}")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "OCPI Error: ${response.bodyAsText()}",
+                url = url,
+                provider = "OCPI"
+            )
         }
 
         val ocpiResponse: OcpiResponse<List<OcpiTariff>> = response.body()

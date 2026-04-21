@@ -53,7 +53,12 @@ class DataGouvElecClient(
         val response = client.get(url)
         val body = response.bodyAsText()
         if (response.status.value != 200) {
-            throw NetworkException(response.status.value, "DataGouvElec API error: $body")
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "DataGouvElec API error: $body",
+                url = url,
+                provider = "DataGouvElec"
+            )
         }
         val raw = parseRecords(body)
         val aggregated = aggregateByStation(raw)
