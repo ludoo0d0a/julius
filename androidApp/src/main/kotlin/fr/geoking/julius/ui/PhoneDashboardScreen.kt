@@ -51,6 +51,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -185,6 +186,8 @@ fun PhoneDashboardScreen(
     val settings by settingsManager.settings.collectAsState()
     var nearbyPois by remember { mutableStateOf<List<Poi>>(emptyList()) }
     var isLoadingPois by remember { mutableStateOf(false) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    var refreshTrigger by remember { mutableIntStateOf(0) }
     var searchError by remember { mutableStateOf<String?>(null) }
     var userLat by remember { mutableStateOf<Double?>(null) }
     var userLon by remember { mutableStateOf<Double?>(null) }
@@ -228,10 +231,11 @@ fun PhoneDashboardScreen(
                 settings.effectiveMapEnergyFilterIds(),
                 settings.effectiveProviders(),
                 settings.useVehicleFilter
-            )
+            ) to refreshTrigger
         }
         .debounce(300)
-        .collectLatest { (currentEnergyIds, currentProviders, _) ->
+        .collectLatest { (p, _) ->
+            val (currentEnergyIds, currentProviders, _) = p
             isLoadingPois = true
             searchError = null
 
@@ -239,6 +243,7 @@ fun PhoneDashboardScreen(
                 nearbyPois = emptyList()
                 searchError = "Location permission is required to find nearby stations."
                 isLoadingPois = false
+                isRefreshing = false
                 return@collectLatest
             }
 
@@ -296,22 +301,33 @@ fun PhoneDashboardScreen(
                 nearbyPois = emptyList()
             }
             isLoadingPois = false
+            isRefreshing = false
         }
     }
 
-    LaunchedEffect(userLat, userLon, energyFilterIds, hasLocationPermission, fuelForecastRepository) {
+    LaunchedEffect(hasLocationPermission, fuelForecastRepository) {
         val repo = fuelForecastRepository ?: return@LaunchedEffect
-        if (!hasLocationPermission) {
-            fuelForecastState = FuelForecastUiState(
-                fuelId = "gazole",
-                locationKey = "",
-                errorMessage = "Location needed for local price forecast."
-            )
-            return@LaunchedEffect
+        snapshotFlow {
+            Triple(userLat, userLon, energyFilterIds) to refreshTrigger
         }
-        val locLatLon: Pair<Double, Double> = when {
-            userLat != null && userLon != null -> Pair(userLat!!, userLon!!)
-            else -> {
+        .debounce(300)
+        .collectLatest { (p, _) ->
+            val (uLat, uLon, ids) = p
+            if (!hasLocationPermission) {
+                fuelForecastState = FuelForecastUiState(
+                    fuelId = "gazole",
+                    locationKey = "",
+                    errorMessage = "Location needed for local price forecast."
+                )
+                return@collectLatest
+            }
+
+            val la: Double
+            val lo: Double
+            if (uLat != null && uLon != null) {
+                la = uLat
+                lo = uLon
+            } else {
                 val loc = withContext(Dispatchers.IO) { LocationHelper.getCurrentLocation(context) }
                 if (loc == null) {
                     fuelForecastState = FuelForecastUiState(
@@ -319,24 +335,25 @@ fun PhoneDashboardScreen(
                         locationKey = "",
                         errorMessage = "Unable to read location for forecast."
                     )
-                    return@LaunchedEffect
+                    return@collectLatest
                 }
-                Pair(loc.latitude, loc.longitude)
+                la = loc.latitude
+                lo = loc.longitude
             }
-        }
-        val (la, lo) = locLatLon
-        fuelForecastLoading = true
-        try {
-            fuelForecastState = repo.refreshAndBuildUiState(la, lo, energyFilterIds)
-        } catch (e: Exception) {
-            android.util.Log.e("PhoneDashboardScreen", "Fuel forecast refresh failed", e)
-            fuelForecastState = FuelForecastUiState(
-                fuelId = energyFilterIds.firstOrNull { it != "electric" } ?: "gazole",
-                locationKey = repo.locationKey(la, lo),
-                errorMessage = "Could not refresh forecast."
-            )
-        } finally {
-            fuelForecastLoading = false
+
+            fuelForecastLoading = true
+            try {
+                fuelForecastState = repo.refreshAndBuildUiState(la, lo, ids)
+            } catch (e: Exception) {
+                android.util.Log.e("PhoneDashboardScreen", "Fuel forecast refresh failed", e)
+                fuelForecastState = FuelForecastUiState(
+                    fuelId = ids.firstOrNull { it != "electric" } ?: "gazole",
+                    locationKey = repo.locationKey(la, lo),
+                    errorMessage = "Could not refresh forecast."
+                )
+            } finally {
+                fuelForecastLoading = false
+            }
         }
     }
 
@@ -397,13 +414,33 @@ fun PhoneDashboardScreen(
             },
             containerColor = MaterialTheme.colorScheme.background
         ) { padding ->
-            LazyColumn(
-                Modifier
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = {
+                    scope.launch {
+                        isRefreshing = true
+                        try {
+                            val location = LocationHelper.getCurrentLocation(context, forceRefresh = true)
+                            if (location != null) {
+                                userLat = location.latitude
+                                userLon = location.longitude
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("PhoneDashboardScreen", "Refresh failed", e)
+                        }
+                        refreshTrigger++
+                    }
+                },
+                modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                LazyColumn(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                 // 1. Energy selector (Fuel, EV, Hybrid)
                 item {
                     val currentMode = remember(settings.selectedPoiProviders) {
@@ -610,16 +647,17 @@ fun PhoneDashboardScreen(
                     }
                 }
 
-                item {
-                    Spacer(Modifier.height(16.dp))
-                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
+                    item {
+                        Spacer(Modifier.height(16.dp))
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
+                        Spacer(Modifier.height(16.dp))
                     }
-                    Spacer(Modifier.height(16.dp))
                 }
             }
         }
