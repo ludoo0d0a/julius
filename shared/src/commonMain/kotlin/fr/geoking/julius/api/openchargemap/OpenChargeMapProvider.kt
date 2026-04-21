@@ -44,7 +44,7 @@ class OpenChargeMapProvider(
                 address = s.address,
                 latitude = s.latitude,
                 longitude = s.longitude,
-                brand = null,
+                brand = s.operator ?: s.name.split(" ").firstOrNull(),
                 isElectric = true,
                 powerKw = s.powerKw,
                 operator = s.operator,
