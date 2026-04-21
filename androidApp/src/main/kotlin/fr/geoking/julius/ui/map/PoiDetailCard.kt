@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -92,254 +93,258 @@ fun PoiDetailCard(
                     interactionSource = remember { MutableInteractionSource() }
                 ) { onShowDetails() }
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.Top,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    val resId = brandInfo?.iconResId ?: if (poi.isElectric) R.drawable.ic_poi_electric else R.drawable.ic_poi_gas
-                    Icon(
-                        painter = painterResource(id = resId),
-                        contentDescription = brandInfo?.displayName ?: if (poi.isElectric) "Charging station" else "Gas station",
-                        modifier = Modifier.size(32.dp),
-                        tint = if (brandInfo != null) Color.Unspecified else Color.White
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
+            SelectionContainer {
+                Column(modifier = Modifier.fillMaxSize()) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = displayTitle,
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        if (sources.isNotEmpty()) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(vertical = 4.dp)
-                            ) {
+                        Row(
+                            verticalAlignment = Alignment.Top,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            val resId = brandInfo?.iconResId ?: if (poi.isElectric) R.drawable.ic_poi_electric else R.drawable.ic_poi_gas
+                            Icon(
+                                painter = painterResource(id = resId),
+                                contentDescription = brandInfo?.displayName ?: if (poi.isElectric) "Charging station" else "Gas station",
+                                modifier = Modifier.size(32.dp),
+                                tint = if (brandInfo != null) Color.Unspecified else Color.White
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = sources.joinToString(" + "),
-                                    color = Color.White.copy(alpha = 0.7f),
-                                    fontSize = 11.sp,
+                                    text = displayTitle,
+                                    color = Color.White,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                            }
-                        }
-                        brandInfo?.let { info ->
-                            if (isGenericName || !displayTitle.startsWith(info.displayName, ignoreCase = true)) {
-                                Text(
-                                    text = info.displayName,
-                                    color = Color.White.copy(alpha = 0.75f),
-                                    fontSize = 12.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                        if (poi.isElectric) {
-                            val info = listOfNotNull(
-                                if (poi.isOnHighway) "Autoroute" else null,
-                                poi.chargePointCount?.let { n ->
-                                    if (n == 1) "1 point" else "$n points"
-                                },
-                                availabilitySummary?.let { s ->
-                                    "${s.availableCount}/${s.totalCount} libres"
+                                if (sources.isNotEmpty()) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = sources.joinToString(" + "),
+                                            color = Color.White.copy(alpha = 0.7f),
+                                            fontSize = 11.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
-                            ).joinToString(" • ")
-                            if (info.isNotBlank()) {
-                                Text(
-                                    text = info,
-                                    color = Color.White.copy(alpha = 0.7f),
-                                    fontSize = 11.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                brandInfo?.let { info ->
+                                    if (isGenericName || !displayTitle.startsWith(info.displayName, ignoreCase = true)) {
+                                        Text(
+                                            text = info.displayName,
+                                            color = Color.White.copy(alpha = 0.75f),
+                                            fontSize = 12.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                                if (poi.isElectric) {
+                                    val info = listOfNotNull(
+                                        if (poi.isOnHighway) "Autoroute" else null,
+                                        poi.chargePointCount?.let { n ->
+                                            if (n == 1) "1 point" else "$n points"
+                                        },
+                                        availabilitySummary?.let { s ->
+                                            "${s.availableCount}/${s.totalCount} libres"
+                                        }
+                                    ).joinToString(" • ")
+                                    if (info.isNotBlank()) {
+                                        Text(
+                                            text = info,
+                                            color = Color.White.copy(alpha = 0.7f),
+                                            fontSize = 11.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+
+                                    // Display power level with its specific color.
+                                    val powerKw = poi.powerKw
+                                    if (powerKw != null) {
+                                        val color = ColorHelper.getPowerColor(powerKw)
+                                        Text(
+                                            text = "${powerKw.roundToInt()} kW",
+                                            color = color,
+                                            fontSize = 11.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
                             }
+                            Column(horizontalAlignment = Alignment.End) {
+                                if (isLoggedIn && onToggleFavorite != null) {
+                                    IconButton(
+                                        onClick = onToggleFavorite,
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isFavorite) Icons.Default.Star else Icons.Outlined.StarBorder,
+                                            contentDescription = if (isFavorite) "Saved" else "Save",
+                                            tint = if (isFavorite) Color(0xFFEAB308) else Color.White,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
 
-                            // Display power level with its specific color.
-                            val powerKw = poi.powerKw
-                            if (powerKw != null) {
-                                val color = ColorHelper.getPowerColor(powerKw)
-                                Text(
-                                    text = "${powerKw.roundToInt()} kW",
-                                    color = color,
-                                    fontSize = 11.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        if (isLoggedIn && onToggleFavorite != null) {
-                            IconButton(
-                                onClick = onToggleFavorite,
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (isFavorite) Icons.Default.Star else Icons.Outlined.StarBorder,
-                                    contentDescription = if (isFavorite) "Saved" else "Save",
-                                    tint = if (isFavorite) Color(0xFFEAB308) else Color.White,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
-
-                        DateTimeFormatter.formatRelative(poi.effectiveUpdatedAt)?.let { relativeTime ->
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Updated $relativeTime",
-                                color = Color.White.copy(alpha = 0.5f),
-                                fontSize = 10.sp
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onNavigate() }
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        addressLines.take(2).forEach { line ->
-                            Text(
-                                text = line,
-                                color = Color.White.copy(alpha = 0.9f),
-                                fontSize = 13.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                    Icon(
-                        imageVector = Icons.Default.Directions,
-                        contentDescription = "Navigate",
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                if (isSelected) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.12f))
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Compact “show everything we have” summary for merged POIs.
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        when (effectiveCategory) {
-                            PoiCategory.Gas -> {
-                                val prices = poi.fuelPrices.orEmpty()
-                                if (prices.isNotEmpty()) {
-                                    val sorted = prices.sortedWith(
-                                        compareByDescending<fr.geoking.julius.poi.FuelPrice> {
-                                            MapPoiFilter.fuelNameToId(it.fuelName) in highlightedFuelIds
-                                        }.thenBy { it.fuelName.lowercase() }
+                                DateTimeFormatter.formatRelative(poi.effectiveUpdatedAt)?.let { relativeTime ->
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Updated $relativeTime",
+                                        color = Color.White.copy(alpha = 0.5f),
+                                        fontSize = 10.sp
                                     )
-                                    sorted.forEach { fp ->
-                                        val fuelId = MapPoiFilter.fuelNameToId(fp.fuelName)
-                                        val matchColor = fuelId?.let { ColorHelper.getFuelColor(it) }
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text(
-                                                text = fp.fuelName,
-                                                color = matchColor ?: Color.White.copy(alpha = 0.85f),
-                                                fontSize = 12.sp,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onNavigate() }
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                addressLines.take(2).forEach { line ->
+                                    Text(
+                                        text = line,
+                                        color = Color.White.copy(alpha = 0.9f),
+                                        fontSize = 13.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                            Icon(
+                                imageVector = Icons.Default.Directions,
+                                contentDescription = "Navigate",
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        if (isSelected) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            HorizontalDivider(color = Color.White.copy(alpha = 0.12f))
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Compact “show everything we have” summary for merged POIs.
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                when (effectiveCategory) {
+                                    PoiCategory.Gas -> {
+                                        val prices = poi.fuelPrices.orEmpty()
+                                        if (prices.isNotEmpty()) {
+                                            val sorted = prices.sortedWith(
+                                                compareByDescending<fr.geoking.julius.poi.FuelPrice> {
+                                                    MapPoiFilter.fuelNameToId(it.fuelName) in highlightedFuelIds
+                                                }.thenBy { it.fuelName.lowercase() }
                                             )
+                                            sorted.forEach { fp ->
+                                                val fuelId = MapPoiFilter.fuelNameToId(fp.fuelName)
+                                                val matchColor = fuelId?.let { ColorHelper.getFuelColor(it) }
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                ) {
+                                                    Text(
+                                                        text = fp.fuelName,
+                                                        color = matchColor ?: Color.White.copy(alpha = 0.85f),
+                                                        fontSize = 12.sp,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                    Text(
+                                                        text = if (fp.outOfStock) "—" else "€%.3f".format(fp.price),
+                                                        color = if (fp.outOfStock) Color.White.copy(alpha = 0.5f) else Color(0xFF22C55E),
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                }
+                                            }
+                                        } else {
                                             Text(
-                                                text = if (fp.outOfStock) "—" else "€%.3f".format(fp.price),
-                                                color = if (fp.outOfStock) Color.White.copy(alpha = 0.5f) else Color(0xFF22C55E),
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Medium
+                                                text = "No fuel price details available",
+                                                color = Color.White.copy(alpha = 0.7f),
+                                                fontSize = 12.sp
                                             )
                                         }
                                     }
-                                } else {
-                                    Text(
-                                        text = "No fuel price details available",
-                                        color = Color.White.copy(alpha = 0.7f),
-                                        fontSize = 12.sp
-                                    )
-                                }
-                            }
-                            PoiCategory.Irve -> {
-                                val line = listOfNotNull(
-                                    poi.operator?.takeIf { it.isNotBlank() },
-                                    poi.powerKw?.let { "${it.roundToInt()} kW" },
-                                    poi.chargePointCount?.let { n -> if (n == 1) "1 point" else "$n points" },
-                                ).joinToString(" • ")
-                                if (line.isNotBlank()) {
-                                    val powerKw = poi.powerKw
-                                    val powerColor = powerKw?.let { ColorHelper.getPowerColor(it) }
-                                    Text(
-                                        text = line,
-                                        color = powerColor ?: Color.White.copy(alpha = 0.85f),
-                                        fontSize = 12.sp,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                }
-                                val connectors = poi.irveDetails?.connectorTypes.orEmpty().sorted()
-                                if (connectors.isNotEmpty()) {
-                                    Text(
-                                        text = "Connectors: " + connectors.joinToString(", ") { BrandHelper.connectorTypeLabel(it) },
-                                        color = Color.White.copy(alpha = 0.7f),
-                                        fontSize = 11.sp,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-                            else -> {
-                                // For non fuel/IRVE categories, show whatever extra info we have.
-                                poi.restaurantDetails?.let { d ->
-                                    val r = listOfNotNull(
-                                        if (d.isFastFood) "Fast food" else null,
-                                        d.brand?.takeIf { it.isNotBlank() },
-                                        d.cuisine?.takeIf { it.isNotBlank() }
-                                    ).joinToString(" • ")
-                                    if (r.isNotBlank()) {
-                                        Text(
-                                            text = r,
-                                            color = Color.White.copy(alpha = 0.85f),
-                                            fontSize = 12.sp,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
+                                    PoiCategory.Irve -> {
+                                        val line = listOfNotNull(
+                                            poi.operator?.takeIf { it.isNotBlank() },
+                                            poi.powerKw?.let { "${it.roundToInt()} kW" },
+                                            poi.chargePointCount?.let { n -> if (n == 1) "1 point" else "$n points" },
+                                        ).joinToString(" • ")
+                                        if (line.isNotBlank()) {
+                                            val powerKw = poi.powerKw
+                                            val powerColor = powerKw?.let { ColorHelper.getPowerColor(it) }
+                                            Text(
+                                                text = line,
+                                                color = powerColor ?: Color.White.copy(alpha = 0.85f),
+                                                fontSize = 12.sp,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                        }
+                                        val connectors = poi.irveDetails?.connectorTypes.orEmpty().sorted()
+                                        if (connectors.isNotEmpty()) {
+                                            Text(
+                                                text = "Connectors: " + connectors.joinToString(", ") { BrandHelper.connectorTypeLabel(it) },
+                                                color = Color.White.copy(alpha = 0.7f),
+                                                fontSize = 11.sp,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
                                     }
-                                }
-                                poi.routexDetails?.let { d ->
-                                    val flags = listOfNotNull(
-                                        if (d.open24h == true) "24h" else null,
-                                        if (d.restaurant == true) "Restaurant" else null,
-                                        if (d.shop == true) "Shop" else null,
-                                        if (d.showers == true) "Showers" else null,
-                                    ).joinToString(" • ")
-                                    if (flags.isNotBlank()) {
-                                        Text(
-                                            text = flags,
-                                            color = Color.White.copy(alpha = 0.7f),
-                                            fontSize = 11.sp,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
+                                    else -> {
+                                        // For non fuel/IRVE categories, show whatever extra info we have.
+                                        poi.restaurantDetails?.let { d ->
+                                            val r = listOfNotNull(
+                                                if (d.isFastFood) "Fast food" else null,
+                                                d.brand?.takeIf { it.isNotBlank() },
+                                                d.cuisine?.takeIf { it.isNotBlank() }
+                                            ).joinToString(" • ")
+                                            if (r.isNotBlank()) {
+                                                Text(
+                                                    text = r,
+                                                    color = Color.White.copy(alpha = 0.85f),
+                                                    fontSize = 12.sp,
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                        poi.routexDetails?.let { d ->
+                                            val flags = listOfNotNull(
+                                                if (d.open24h == true) "24h" else null,
+                                                if (d.restaurant == true) "Restaurant" else null,
+                                                if (d.shop == true) "Shop" else null,
+                                                if (d.showers == true) "Showers" else null,
+                                            ).joinToString(" • ")
+                                            if (flags.isNotBlank()) {
+                                                Text(
+                                                    text = flags,
+                                                    color = Color.White.copy(alpha = 0.7f),
+                                                    fontSize = 11.sp,
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -347,7 +352,6 @@ fun PoiDetailCard(
                     }
                 }
             }
-
         }
     }
 }
