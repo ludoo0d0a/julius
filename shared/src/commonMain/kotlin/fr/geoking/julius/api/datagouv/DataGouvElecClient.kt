@@ -101,6 +101,10 @@ class DataGouvElecClient(
             val conditionAcces = group.mapNotNull { it.conditionAcces }.firstOrNull()?.takeIf { it.isNotBlank() }
             val nbrePdc = group.fold(0) { acc, rec -> maxOf(acc, rec.nbrePdc ?: 0) }.takeIf { n -> n > 0 }
             val puissanceKw = group.mapNotNull { it.puissanceKw }.maxOrNull()
+
+            val metadata = mutableMapOf<String, String>()
+            first.metadata?.let { metadata.putAll(it) }
+
             DataGouvElecStation(
                 id = first.id,
                 name = first.name,
@@ -122,7 +126,8 @@ class DataGouvElecClient(
                     paymentCb = paymentCb,
                     paymentAutre = paymentAutre,
                     conditionAcces = conditionAcces
-                )
+                ),
+                metadata = metadata.takeIf { it.isNotEmpty() }
             )
         }
     }
@@ -184,6 +189,13 @@ class DataGouvElecClient(
         val paymentCb = parseBool(record["paiement_cb"]?.jsonPrimitive?.content)
         val paymentAutre = parseBool(record["paiement_autre"]?.jsonPrimitive?.content)
         val conditionAcces = record["condition_acces"]?.jsonPrimitive?.content?.trim()?.takeIf { it.isNotBlank() }
+
+        val metadata = mutableMapOf<String, String>()
+        record["id_pdc_itinerance"]?.jsonPrimitive?.content?.let { metadata["ID PDC"] = it }
+        record["accessibilite_pmr"]?.jsonPrimitive?.content?.let { metadata["Accès PMR"] = it }
+        record["restriction_gabarit"]?.jsonPrimitive?.content?.let { metadata["Restriction gabarit"] = it }
+        record["observations"]?.jsonPrimitive?.content?.trim()?.takeIf { it.isNotBlank() }?.let { metadata["Observations"] = it }
+
         return DataGouvElecStationRaw(
             stationId = stationId,
             id = id,
@@ -204,7 +216,8 @@ class DataGouvElecClient(
             paymentActe = paymentActe,
             paymentCb = paymentCb,
             paymentAutre = paymentAutre,
-            conditionAcces = conditionAcces
+            conditionAcces = conditionAcces,
+            metadata = metadata
         )
     }
 }
@@ -230,7 +243,8 @@ internal data class DataGouvElecStationRaw(
     val paymentActe: Boolean?,
     val paymentCb: Boolean?,
     val paymentAutre: Boolean?,
-    val conditionAcces: String?
+    val conditionAcces: String?,
+    val metadata: Map<String, String>? = null
 )
 
 /** EV charging station from ODRÉ IRVE (data.gouv.fr base nationale IRVE). */
@@ -247,5 +261,6 @@ data class DataGouvElecStation(
     /** Number of points de charge (charging points) at the station. */
     val nbrePdc: Int? = null,
     /** Connector types, tarification, horaires, payment, etc. */
-    val irveDetails: IrveDetails? = null
+    val irveDetails: IrveDetails? = null,
+    val metadata: Map<String, String>? = null
 )

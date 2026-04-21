@@ -306,6 +306,16 @@ fun PoiDetailsFullscreenDialog(
                         }
                     }
 
+                    // Metadata Details
+                    poi.metadata?.takeIf { it.isNotEmpty() }?.let { meta ->
+                        SectionHeader("Détails")
+                        meta.forEach { (k, v) ->
+                            if (v.isNotBlank()) {
+                                PoiDetailRowStr(k, v)
+                            }
+                        }
+                    }
+
                     // Routex Details
                     poi.routexDetails?.let { details ->
                         val hasAmenities = listOf(

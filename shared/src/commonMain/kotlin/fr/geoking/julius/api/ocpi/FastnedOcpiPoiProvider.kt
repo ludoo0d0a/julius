@@ -45,6 +45,12 @@ class FastnedOcpiPoiProvider(
             val available = loc.evses.count { it.status == OcpiStatus.AVAILABLE }
             val total = loc.evses.size
 
+            val metadata = mutableMapOf<String, String>()
+            metadata["ID"] = loc.id
+            loc.operator?.website?.let { metadata["Website"] = it }
+            metadata["City"] = loc.city
+            loc.postal_code?.let { metadata["Postcode"] = it }
+
             // Try to find a representative tariff from the connectors
             val tarification = allConnectors.flatMap { it.tariff_ids }
                 .mapNotNull { tariffMap[it] }
@@ -68,7 +74,8 @@ class FastnedOcpiPoiProvider(
                     totalConnectors = total,
                     tarification = tarification
                 ),
-                source = "Fastned"
+                source = "Fastned",
+                metadata = metadata
             )
         }
     }

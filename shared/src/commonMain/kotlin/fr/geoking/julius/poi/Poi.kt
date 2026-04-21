@@ -315,7 +315,9 @@ data class Poi(
     val restaurantDetails: RestaurantDetails? = null,
     /** The source of the POI data (e.g. "Routex", "DataGouv", "Chargy"). */
     val source: String? = null,
-    val updatedAt: String? = null
+    val updatedAt: String? = null,
+    /** Extra metadata fields from the provider for detailed display. */
+    val metadata: Map<String, String>? = null
 ) {
     /**
      * Returns the most recent update timestamp from the POI itself or its fuel prices.
