@@ -1,5 +1,6 @@
 package fr.geoking.julius.ui.map
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -129,19 +130,24 @@ fun PoiDetailsFullscreenDialog(
                         }
                     }
 
-                    if (sources.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = sources.joinToString(" + "),
-                                color = Color.White.copy(alpha = 0.75f),
-                                fontSize = 13.sp
-                            )
-                        }
-                    }
                     Spacer(modifier = Modifier.height(8.dp))
-                    addressLines.forEach { line ->
-                        Text(line, color = Color.White.copy(alpha = 0.9f), fontSize = 14.sp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onNavigate?.invoke() },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            addressLines.forEach { line ->
+                                Text(line, color = Color.White.copy(alpha = 0.9f), fontSize = 14.sp)
+                            }
+                        }
+                        Icon(
+                            imageVector = Icons.Default.Directions,
+                            contentDescription = "Navigate",
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
 
                     if (poi.isElectric) {
@@ -164,16 +170,6 @@ fun PoiDetailsFullscreenDialog(
                         }
                     }
 
-                    if (sources.isNotEmpty()) {
-                        SectionHeader("Sources")
-                        sources.forEach { s ->
-                            Text(
-                                text = "• $s",
-                                color = Color.White.copy(alpha = 0.9f),
-                                fontSize = 14.sp
-                            )
-                        }
-                    }
 
                     // Community Actions
                     if (isLoggedIn && (onEdit != null || onRemove != null || onHide != null || onSuggestCorrection != null)) {
@@ -362,19 +358,39 @@ fun PoiDetailsFullscreenDialog(
 
                         if (hasOpeningHours) {
                             SectionHeader("Fuel opening hours")
-                            PoiDetailRowStr("Mon", details.monOpenFuel?.let { o -> details.monCloseFuel?.let { c -> "$o – $c" } ?: o })
-                            PoiDetailRowStr("Tue", details.tueOpenFuel?.let { o -> details.tueCloseFuel?.let { c -> "$o – $c" } ?: o })
-                            PoiDetailRowStr("Wed", details.wedOpenFuel?.let { o -> details.wedCloseFuel?.let { c -> "$o – $c" } ?: o })
-                            PoiDetailRowStr("Thu", details.thuOpenFuel?.let { o -> details.thuCloseFuel?.let { c -> "$o – $c" } ?: o })
-                            PoiDetailRowStr("Fri", details.friOpenFuel?.let { o -> details.friCloseFuel?.let { c -> "$o – $c" } ?: o })
-                            PoiDetailRowStr("Sat", details.satOpenFuel?.let { o -> details.satCloseFuel?.let { c -> "$o – $c" } ?: o })
-                            PoiDetailRowStr("Sun", details.sunOpenFuel?.let { o -> details.sunCloseFuel?.let { c -> "$o – $c" } ?: o })
-                            if (details.openingHoursFuel.isNotEmpty()) {
+                            fun dayLine(open: String?, close: String?): String? {
+                                val o = open?.takeIf { it.isNotBlank() && it != "null" }
+                                val c = close?.takeIf { it.isNotBlank() && it != "null" }
+                                if (o == null && c == null) return null
+                                return if (o != null && c != null) "$o – $c" else o ?: c
+                            }
+
+                            PoiDetailRowStr("Mon", dayLine(details.monOpenFuel, details.monCloseFuel))
+                            PoiDetailRowStr("Tue", dayLine(details.tueOpenFuel, details.tueCloseFuel))
+                            PoiDetailRowStr("Wed", dayLine(details.wedOpenFuel, details.wedCloseFuel))
+                            PoiDetailRowStr("Thu", dayLine(details.thuOpenFuel, details.thuCloseFuel))
+                            PoiDetailRowStr("Fri", dayLine(details.friOpenFuel, details.friCloseFuel))
+                            PoiDetailRowStr("Sat", dayLine(details.satOpenFuel, details.satCloseFuel))
+                            PoiDetailRowStr("Sun", dayLine(details.sunOpenFuel, details.sunCloseFuel))
+
+                            val filteredExtra = details.openingHoursFuel.filter { it.isNotBlank() && it != "null" }
+                            if (filteredExtra.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(8.dp))
-                                details.openingHoursFuel.forEach { line ->
+                                filteredExtra.forEach { line ->
                                     Text(line, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
                                 }
                             }
+                        }
+                    }
+
+                    if (sources.isNotEmpty()) {
+                        SectionHeader("Sources")
+                        sources.forEach { s ->
+                            Text(
+                                text = "• $s",
+                                color = Color.White.copy(alpha = 0.9f),
+                                fontSize = 14.sp
+                            )
                         }
                     }
 
@@ -388,18 +404,6 @@ fun PoiDetailsFullscreenDialog(
                     }
 
                     Spacer(modifier = Modifier.height(32.dp))
-                    onNavigate?.let {
-                        Button(
-                            onClick = it,
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(vertical = 12.dp)
-                        ) {
-                            Icon(Icons.Default.Directions, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Navigate", fontSize = 16.sp)
-                        }
-                    }
                 }
             }
         }

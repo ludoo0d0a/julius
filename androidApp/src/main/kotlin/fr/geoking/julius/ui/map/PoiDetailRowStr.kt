@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun PoiDetailRowStr(label: String, value: String?) {
-    if (value.isNullOrBlank()) return
+    if (value.isNullOrBlank() || value == "null") return
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -23,4 +23,3 @@ fun PoiDetailRowStr(label: String, value: String?) {
         Text(value, color = Color.White, fontSize = 14.sp)
     }
 }
-
