@@ -111,4 +111,37 @@ class OcpiPoiProviderTest {
 
         assertTrue(pois.isEmpty(), "Should return empty list on 404 instead of throwing exception")
     }
+
+    @Test
+    fun testTokenPrefixing() = runBlocking {
+        var capturedHeader: String? = null
+        val mockEngine = MockEngine { request ->
+            capturedHeader = request.headers[HttpHeaders.Authorization]
+            respond(
+                content = """{"data": [], "status_code": 1000}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        val httpClient = HttpClient(mockEngine) {
+            install(ContentNegotiation) { json(json) }
+        }
+
+        // Case 1: Token without prefix
+        OcpiClient(httpClient, "https://api.example.com", "abc").getLocations()
+        assertEquals("Token abc", capturedHeader)
+
+        // Case 2: Token with prefix
+        OcpiClient(httpClient, "https://api.example.com", "Token abc").getLocations()
+        assertEquals("Token abc", capturedHeader)
+
+        // Case 3: Token with prefix (case insensitive)
+        OcpiClient(httpClient, "https://api.example.com", "token abc").getLocations()
+        assertEquals("token abc", capturedHeader)
+
+        // Case 4: No prefix requested
+        OcpiClient(httpClient, "https://api.example.com", "abc", useTokenPrefix = false).getLocations()
+        assertEquals("abc", capturedHeader)
+    }
 }
