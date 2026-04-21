@@ -15,16 +15,19 @@ object LocationHelper {
     private const val FRESH_AGE_MS = 300_000L // 5 minutes
 
     @SuppressLint("MissingPermission")
-    suspend fun getCurrentLocation(context: Context, timeoutMs: Long = 3000L): Location? {
+    suspend fun getCurrentLocation(context: Context, timeoutMs: Long = 3000L, forceRefresh: Boolean = false): Location? {
         val fusedClient = LocationServices.getFusedLocationProviderClient(context)
 
-        // 1. Try last location first (instant if available)
-        val lastLocation = try {
-            fusedClient.lastLocation.await()
-        } catch (e: Exception) {
-            Log.w(TAG, "lastLocation failed", e)
-            null
-        }
+        // 1. Try last location first (instant if available) unless forceRefresh is requested
+        val lastLocation = if (!forceRefresh) {
+            try {
+                fusedClient.lastLocation.await()
+            } catch (e: Exception) {
+                Log.w(TAG, "lastLocation failed", e)
+                null
+            }
+        } else null
+
         if (lastLocation != null && (System.currentTimeMillis() - lastLocation.time) < FRESH_AGE_MS) {
             Log.d(TAG, "Using fresh lastLocation from FusedLocationProviderClient")
             return lastLocation
@@ -45,8 +48,14 @@ object LocationHelper {
             return fresh
         }
 
-        // 3. Fallback to last location even if stale
+        // 3. Fallback to last location even if stale (fetch it now if we skipped it before)
+        val fallbackLocation = lastLocation ?: try {
+            fusedClient.lastLocation.await()
+        } catch (e: Exception) {
+            null
+        }
+
         Log.d(TAG, "Fresh update timed out or failed, using last known location")
-        return lastLocation
+        return fallbackLocation
     }
 }
