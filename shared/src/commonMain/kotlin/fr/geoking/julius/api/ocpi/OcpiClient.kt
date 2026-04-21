@@ -42,7 +42,7 @@ class OcpiClient(
 
         val response = client.get(url) {
             if (token.isNotBlank()) {
-                val headerValue = if (useTokenPrefix) "Token $token" else token
+                val headerValue = if (useTokenPrefix && !token.startsWith("Token ", ignoreCase = true)) "Token $token" else token
                 header(authHeaderName, headerValue)
             }
             // OCPI /locations typically supports date_from, date_to for delta.
@@ -80,7 +80,7 @@ class OcpiClient(
 
         val response = client.get(url) {
             if (token.isNotBlank()) {
-                val headerValue = if (useTokenPrefix) "Token $token" else token
+                val headerValue = if (useTokenPrefix && !token.startsWith("Token ", ignoreCase = true)) "Token $token" else token
                 header(authHeaderName, headerValue)
             }
         }
@@ -113,7 +113,7 @@ class OcpiClient(
 
         val response = client.get(url) {
             if (token.isNotBlank()) {
-                val headerValue = if (useTokenPrefix) "Token $token" else token
+                val headerValue = if (useTokenPrefix && !token.startsWith("Token ", ignoreCase = true)) "Token $token" else token
                 header(authHeaderName, headerValue)
             }
         }
