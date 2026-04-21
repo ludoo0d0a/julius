@@ -55,7 +55,7 @@ class FastnedOcpiPoiProvider(
             val tarification = allConnectors.flatMap { it.tariff_ids }
                 .mapNotNull { tariffMap[it] }
                 .firstOrNull()
-                ?.let { formatTariff(it) }
+                ?.let { OcpiTariffParser.formatTariff(it) }
 
             Poi(
                 id = loc.id,
@@ -77,17 +77,6 @@ class FastnedOcpiPoiProvider(
                 source = "Fastned",
                 metadata = metadata
             )
-        }
-    }
-
-    private fun formatTariff(tariff: OcpiTariff): String? {
-        // Look for the first ENERGY component in any element
-        val energyPrice = tariff.elements
-            .flatMap { it.price_components }
-            .firstOrNull { it.type == OcpiPriceComponentType.ENERGY }
-
-        return energyPrice?.let {
-            "${it.price} ${tariff.currency}/kWh"
         }
     }
 
