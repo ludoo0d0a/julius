@@ -54,9 +54,6 @@ class CarAppSession : Session(), KoinComponent {
 
     private var cachedMapDeps: MapDeps? = null
 
-    private var lastCountryCode: String? = null
-    private var lastIsRoaming: Boolean? = null
-
     init {
         lifecycleScope.launch {
             networkService.status.collectLatest { status ->
@@ -65,25 +62,49 @@ class CarAppSession : Session(), KoinComponent {
         }
     }
 
-    private fun handleNetworkStatusChange(status: NetworkStatus) {
-        val country = status.countryName ?: status.countryCode
+    private var lastIsRoaming: Boolean? = null
 
-        // Country change detection
+    private fun handleNetworkStatusChange(status: NetworkStatus) {
+        val settings = settingsManager.settings.value
+        val country = status.countryName ?: status.countryCode
+        val lastCountryCode = settings.lastCountryCode
+        val lastIsConnected = settings.lastIsConnected
+
+        var updatedSettings = settings
+
+        // Country change detection (Cross-border)
         if (status.countryCode != null && status.countryCode != lastCountryCode) {
+            // Only show "welcome" if it's a real change detected after the first initialization (settings.lastCountryCode != null)
+            // User requested: "When app is opening be sure a toast appears 10s at the top of Android auto, when cross border."
             if (lastCountryCode != null) {
-                // Only show "welcome" if it's a real change, not the first detection
-                // Actually the user said "When app detect user enter in a new country"
-                // Usually this means crossing a border.
-                val alert = Alert.Builder(NETWORK_ALERT_ID, CarText.create("welcome in \"$country\""), 5000)
+                val alert = Alert.Builder(NETWORK_ALERT_ID, CarText.create("Welcome in \"$country\""), 10000)
                     .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
                     .build()
 
                 carContext.getCarService(AppManager::class.java).showAlert(alert)
             }
-            lastCountryCode = status.countryCode
+            updatedSettings = updatedSettings.copy(lastCountryCode = status.countryCode)
         }
 
-        // Roaming change detection
+        // Connectivity change detection
+        if (lastIsConnected != null && status.isConnected != lastIsConnected) {
+            val text = if (status.isConnected) "Network is back online" else "Network is offline"
+            val alert = Alert.Builder(NETWORK_ALERT_ID, CarText.create(text), 10000)
+                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
+                .build()
+
+            carContext.getCarService(AppManager::class.java).showAlert(alert)
+        }
+
+        if (status.isConnected != lastIsConnected) {
+            updatedSettings = updatedSettings.copy(lastIsConnected = status.isConnected)
+        }
+
+        if (updatedSettings != settings) {
+            settingsManager.saveSettings(updatedSettings)
+        }
+
+        // Roaming change detection (legacy, kept with 5s duration as not explicitly requested for 10s)
         if (status.isRoaming != lastIsRoaming) {
             if (lastIsRoaming != null) {
                 val roamingText = if (status.isRoaming) "on" else "off"

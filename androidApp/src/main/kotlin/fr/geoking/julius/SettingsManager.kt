@@ -234,7 +234,9 @@ data class AppSettings(
     /** When true, only show stations explicitly marked as on highway/autoroute. */
     val filterOnlyHighwayStations: Boolean = false,
     /** When true, providers are automatically selected based on user location. */
-    val autoPoiProvidersEnabled: Boolean = true
+    val autoPoiProvidersEnabled: Boolean = true,
+    val lastCountryCode: String? = null,
+    val lastIsConnected: Boolean? = null
 )
 
 open class SettingsManager(
@@ -311,6 +313,8 @@ open class SettingsManager(
         val routeStationSearchRadiusMeters = prefs.getInt("route_station_search_radius_meters", 2000).coerceIn(0, 2000)
         val filterOnlyHighwayStations = prefs.getBoolean("filter_only_highway_stations", false)
         val autoPoiProvidersEnabled = prefs.getBoolean("auto_poi_providers_enabled", true)
+        val lastCountryCode = prefs.getString("last_country_code", null)
+        val lastIsConnected = if (prefs.contains("last_is_connected")) prefs.getBoolean("last_is_connected", true) else null
 
         // Persist build-time keys (from env/local.properties) when prefs were empty so they show in settings and are reused
         persistBuildTimeKeysIfUsed(
@@ -570,7 +574,9 @@ open class SettingsManager(
             routeHistory = routeHistory,
             routeStationSearchRadiusMeters = routeStationSearchRadiusMeters,
             filterOnlyHighwayStations = filterOnlyHighwayStations,
-            autoPoiProvidersEnabled = autoPoiProvidersEnabled
+            autoPoiProvidersEnabled = autoPoiProvidersEnabled,
+            lastCountryCode = lastCountryCode,
+            lastIsConnected = lastIsConnected
         )
     }
 
@@ -925,6 +931,8 @@ open class SettingsManager(
             .putInt("route_station_search_radius_meters", settings.routeStationSearchRadiusMeters.coerceIn(0, 2000))
             .putBoolean("filter_only_highway_stations", settings.filterOnlyHighwayStations)
             .putBoolean("auto_poi_providers_enabled", settings.autoPoiProvidersEnabled)
+            .apply { settings.lastCountryCode?.let { putString("last_country_code", it) } ?: remove("last_country_code") }
+            .apply { settings.lastIsConnected?.let { putBoolean("last_is_connected", it) } ?: remove("last_is_connected") }
             .apply()
 
         // Update StateFlow immediately with the new values to ensure UI and agent switching update right away
@@ -1046,7 +1054,9 @@ open class SettingsManager(
             routeHistory = _settings.value.routeHistory,
             routeStationSearchRadiusMeters = _settings.value.routeStationSearchRadiusMeters,
             filterOnlyHighwayStations = _settings.value.filterOnlyHighwayStations,
-            autoPoiProvidersEnabled = _settings.value.autoPoiProvidersEnabled
+            autoPoiProvidersEnabled = _settings.value.autoPoiProvidersEnabled,
+            lastCountryCode = _settings.value.lastCountryCode,
+            lastIsConnected = _settings.value.lastIsConnected
         )
         saveSettings(newSettings)
     }

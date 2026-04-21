@@ -55,7 +55,15 @@ class AutoPoiProviderSelectionScreen(
             val listBuilder = ItemList.Builder()
             providers.forEach { (type, label) ->
                 val isSelected = settings.selectedPoiProviders.contains(type)
-                val displayLabel = if (isSelected) "$label (Selected)" else label
+                val isAuto = settings.autoPoiProvidersEnabled && type.eligibleToAuto
+
+                val displayLabel = when {
+                    isSelected && isAuto -> "$label (Auto + Selected)"
+                    isAuto -> "$label (Auto)"
+                    isSelected -> "$label (Selected)"
+                    else -> label
+                }
+
                 listBuilder.addItem(
                     Row.Builder()
                         .setTitle(displayLabel)

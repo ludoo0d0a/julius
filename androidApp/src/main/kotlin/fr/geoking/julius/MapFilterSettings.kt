@@ -55,28 +55,27 @@ fun AppSettings.effectiveProviders(
     requirePrices: Boolean = false,
     requireLocation: Boolean = false
 ): Set<PoiProviderType> {
-    if (!autoPoiProvidersEnabled) {
-        return selectedPoiProviders.filter { type ->
-            (!requirePrices || type.providesPrices) &&
-            (!requireLocation || type.providesLocation)
-        }.toSet()
+    // Zoom 11 is approximately 20-40km wide on a phone, seems like a good limit.
+    if (zoom != null && zoom < 11f && (latitude != null || longitude != null)) return emptySet()
+
+    // Determine target country codes based on location (tolerance: 50km radius)
+    val nearbyCountryCodes = if (latitude != null && longitude != null) {
+        ParkingRegion.regionsInRadius(latitude, longitude, 50.0).map { it.countryCode }.toSet()
+    } else emptySet()
+
+    // Resolve base providers set
+    val baseProviders = if (autoPoiProvidersEnabled && nearbyCountryCodes.isNotEmpty()) {
+        // Auto mode: combine user selection with all eligible providers for the current location.
+        // This ensures global providers in selection are kept, and local ones are added automatically.
+        (selectedPoiProviders + PoiProviderType.entries.filter { it.eligibleToAuto }).toSet()
+    } else {
+        // Manual mode: use only selected providers.
+        selectedPoiProviders
     }
 
-    // Always use country-based provider filtering when coordinates are available
-    // Zoom 11 is approximately 20-40km wide on a phone, seems like a good limit.
-    if (zoom != null && zoom < 11f) return emptySet()
-
-    if (latitude == null || longitude == null) return selectedPoiProviders
-
-    // Tolerance: 50km radius to catch cross-border stations
-    val nearbyRegions = ParkingRegion.regionsInRadius(latitude, longitude, 50.0)
-    val nearbyCountryCodes = nearbyRegions.map { it.countryCode }.toSet()
-
-    return PoiProviderType.entries.filter { type ->
-        type.eligibleToAuto && (
-            type.supportedCountries.isEmpty() || // Global providers
-            type.supportedCountries.any { it in nearbyCountryCodes }
-        ) &&
+    // Apply country-based and requirement-based filtering
+    return baseProviders.filter { type ->
+        (nearbyCountryCodes.isEmpty() || type.supportedCountries.isEmpty() || type.supportedCountries.any { it in nearbyCountryCodes }) &&
         (!requirePrices || type.providesPrices) &&
         (!requireLocation || type.providesLocation)
     }.toSet()
