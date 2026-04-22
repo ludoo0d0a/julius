@@ -30,11 +30,13 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Merge
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.AlertDialog
@@ -583,6 +585,12 @@ fun JulesScreen(
                                     loadSessions()
                                 }
                             },
+                            onArchiveCompleted = {
+                                scope.launch {
+                                    julesRepository.archiveCompletedSessions(selectedSourceName ?: "")
+                                    loadSessions()
+                                }
+                            },
                             isRefreshingSessions = refreshingSessions,
                             onRefreshSessions = { loadSessions(isRefresh = true) },
                             hideCompleted = hideCompleted,
@@ -987,6 +995,33 @@ private fun InConversationContent(
     }
 }
 
+@Composable
+private fun StatusBadge(session: JulesSessionEntity) {
+    val (statusText, statusColor) = when {
+        session.prState == "merged" -> "Merged" to Color.Green
+        session.prState == "closed" -> "Closed" to Color.Red
+        session.sessionState == "COMPLETED" -> "Completed" to Color.Green
+        session.sessionState == "FAILED" -> "Failed" to Color.Red
+        session.sessionState == "AWAITING_PLAN_APPROVAL" -> "Wait Approval" to JulesAccent
+        session.sessionState == "PLANNING" -> "Planning" to JulesAccent
+        else -> (if (!session.prUrl.isNullOrBlank()) "Output" else "Active") to (if (!session.prUrl.isNullOrBlank()) JulesAccent else Color.White.copy(alpha = 0.6f))
+    }
+
+    Surface(
+        color = statusColor.copy(alpha = 0.1f),
+        shape = RoundedCornerShape(4.dp),
+        border = BorderStroke(1.dp, statusColor.copy(alpha = 0.5f))
+    ) {
+        Text(
+            text = statusText.uppercase(),
+            color = statusColor,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RepoAndSessionsContent(
@@ -1005,27 +1040,63 @@ private fun RepoAndSessionsContent(
     onClosePr: (JulesSessionEntity) -> Unit,
     onGetPrDetails: (JulesSessionEntity, (GitHubClient.GitHubPullRequestDetail?) -> Unit) -> Unit,
     onArchive: (JulesSessionEntity) -> Unit,
+    onArchiveCompleted: () -> Unit,
     isRefreshingSessions: Boolean,
     onRefreshSessions: () -> Unit,
     hideCompleted: Boolean,
     onHideCompletedChange: (Boolean) -> Unit
 ) {
     var showPrDetails by remember { mutableStateOf<GitHubClient.GitHubPullRequestDetail?>(null) }
-    val displaySessions = sessions.filter { !hideCompleted || (it.prState != "merged" && it.sessionState != "COMPLETED") }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val displaySessions = sessions.filter {
+        val matchesSearch = it.title.contains(searchQuery, ignoreCase = true) || it.prompt.contains(searchQuery, ignoreCase = true)
+        val matchesHideCompleted = !hideCompleted || (it.prState != "merged" && it.sessionState != "COMPLETED")
+        matchesSearch && matchesHideCompleted
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         if (selectedSourceName.isNotBlank()) {
-            OutlinedTextField(
-                value = newSessionPrompt,
-                onValueChange = onNewSessionPromptChange,
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                placeholder = { Text("What should Jules do?") },
-                trailingIcon = {
-                    IconButton(onClick = onCreateSession, enabled = newSessionPrompt.isNotBlank() && !loading) {
-                        Icon(Icons.Default.Add, contentDescription = "Create")
+            Column(modifier = Modifier.padding(16.dp)) {
+                OutlinedTextField(
+                    value = newSessionPrompt,
+                    onValueChange = onNewSessionPromptChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("What should Jules do?") },
+                    trailingIcon = {
+                        IconButton(onClick = onCreateSession, enabled = newSessionPrompt.isNotBlank() && !loading) {
+                            Icon(Icons.Default.Add, contentDescription = "Create")
+                        }
                     }
-                }
-            )
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Search conversations…") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, contentDescription = null, tint = Color.White.copy(alpha = 0.5f))
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.White.copy(alpha = 0.5f))
+                            }
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = JulesAccent,
+                        focusedBorderColor = JulesAccent.copy(alpha = 0.5f),
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.1f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
         }
 
         PullToRefreshBox(
@@ -1035,20 +1106,38 @@ private fun RepoAndSessionsContent(
         ) {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp, 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Conversations", color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                        androidx.compose.material3.TextButton(onClick = { onHideCompletedChange(!hideCompleted) }) {
-                            Text(if (hideCompleted) "Show all" else "Hide completed")
+                    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Conversations", color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                            androidx.compose.material3.TextButton(onClick = { onHideCompletedChange(!hideCompleted) }) {
+                                Text(if (hideCompleted) "Show all" else "Hide completed")
+                            }
+                        }
+                        if (sessions.any { it.prState == "merged" || it.sessionState == "COMPLETED" }) {
+                            androidx.compose.material3.TextButton(
+                                onClick = onArchiveCompleted,
+                                modifier = Modifier.align(Alignment.End)
+                            ) {
+                                Icon(Icons.Default.Archive, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.size(4.dp))
+                                Text("Archive all completed", fontSize = 12.sp)
+                            }
                         }
                     }
                 }
                 items(displaySessions) { session ->
                     androidx.compose.material3.ListItem(
                         headlineContent = { Text(session.title.ifBlank { session.prompt }, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        supportingContent = { Text(session.sessionState ?: "In progress", fontSize = 12.sp) },
+                        supportingContent = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                StatusBadge(session)
+                                Spacer(modifier = Modifier.size(8.dp))
+                                Text(session.sessionState ?: "In progress", fontSize = 12.sp)
+                            }
+                        },
                         trailingContent = {
                             Row {
                                 if (session.prUrl != null) {

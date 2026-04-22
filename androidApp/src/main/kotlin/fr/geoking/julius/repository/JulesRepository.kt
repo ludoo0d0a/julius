@@ -160,6 +160,15 @@ class JulesRepository(
         }
     }
 
+    suspend fun archiveCompletedSessions(sourceName: String) {
+        try {
+            val completed = julesDao.getCompletedSessions(sourceName)
+            completed.forEach { archiveSession(it.id) }
+        } catch (e: Exception) {
+            android.util.Log.e("JulesRepository", "Failed to archive completed sessions", e)
+        }
+    }
+
     suspend fun updateSessionLastUpdated(sessionId: String, lastUpdated: Long) {
         try {
             julesDao.updateSessionLastUpdated(sessionId, lastUpdated)
