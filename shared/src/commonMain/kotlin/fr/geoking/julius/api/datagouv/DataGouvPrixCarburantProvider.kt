@@ -65,7 +65,7 @@ class DataGouvPrixCarburantProvider(
                         outOfStock = false
                     )
                 }.ifEmpty { null },
-                source = "DataGouvPrixCarburant"
+                source = "DataGouv (Flux Instantané)"
             )
         }
     }
