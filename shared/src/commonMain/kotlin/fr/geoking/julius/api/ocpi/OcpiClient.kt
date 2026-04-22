@@ -26,6 +26,19 @@ class OcpiClient(
         isLenient = true
     }
 
+    private fun getAuthHeaderValue(): String? {
+        if (token.isBlank()) return null
+        return if (useTokenPrefix) {
+            if (token.startsWith("Token ", ignoreCase = true)) {
+                "Token " + token.substring(6)
+            } else {
+                "Token $token"
+            }
+        } else {
+            token
+        }
+    }
+
     /**
      * Fetches locations from the OCPI /locations endpoint.
      * Optional bounding box or radius filtering depends on CPO implementation.
@@ -41,10 +54,7 @@ class OcpiClient(
         val url = if (baseUrl.endsWith("/locations")) baseUrl else "$baseUrl/locations"
 
         val response = client.get(url) {
-            if (token.isNotBlank()) {
-                val headerValue = if (useTokenPrefix && !token.startsWith("Token ", ignoreCase = true)) "Token $token" else token
-                header(authHeaderName, headerValue)
-            }
+            getAuthHeaderValue()?.let { header(authHeaderName, it) }
             // OCPI /locations typically supports date_from, date_to for delta.
             // Some implementations support lat/lon/radius as query params (non-standard extension).
             if (latitude != null) parameter("latitude", latitude)
@@ -79,10 +89,7 @@ class OcpiClient(
         val url = if (baseUrl.endsWith("/tariffs")) baseUrl else "$baseUrl/tariffs"
 
         val response = client.get(url) {
-            if (token.isNotBlank()) {
-                val headerValue = if (useTokenPrefix && !token.startsWith("Token ", ignoreCase = true)) "Token $token" else token
-                header(authHeaderName, headerValue)
-            }
+            getAuthHeaderValue()?.let { header(authHeaderName, it) }
         }
 
         if (response.status == HttpStatusCode.NotFound) {
@@ -112,10 +119,7 @@ class OcpiClient(
         val url = "$baseUrlWithoutTrailing/tariffs/$tariffId"
 
         val response = client.get(url) {
-            if (token.isNotBlank()) {
-                val headerValue = if (useTokenPrefix && !token.startsWith("Token ", ignoreCase = true)) "Token $token" else token
-                header(authHeaderName, headerValue)
-            }
+            getAuthHeaderValue()?.let { header(authHeaderName, it) }
         }
 
         if (response.status == HttpStatusCode.NotFound) {

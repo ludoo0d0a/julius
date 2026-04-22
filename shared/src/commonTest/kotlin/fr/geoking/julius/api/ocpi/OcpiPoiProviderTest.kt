@@ -136,9 +136,9 @@ class OcpiPoiProviderTest {
         OcpiClient(httpClient, "https://api.example.com", "Token abc").getLocations()
         assertEquals("Token abc", capturedHeader)
 
-        // Case 3: Token with prefix (case insensitive)
+        // Case 3: Token with prefix (case insensitive) - should normalize to "Token "
         OcpiClient(httpClient, "https://api.example.com", "token abc").getLocations()
-        assertEquals("token abc", capturedHeader)
+        assertEquals("Token abc", capturedHeader)
 
         // Case 4: No prefix requested
         OcpiClient(httpClient, "https://api.example.com", "abc", useTokenPrefix = false).getLocations()
