@@ -381,6 +381,7 @@ private fun MapConfig(
     onUpdate: (AppSettings) -> Unit
 ) {
     var selectedCountryCode by remember { mutableStateOf<String?>(null) }
+    var selectedEnergyCategory by remember { mutableStateOf("Fuel") }
 
     val electricOptions = listOf(
         PoiProviderType.DataGouvElec to "data.gouv (France official)",
@@ -521,12 +522,30 @@ private fun MapConfig(
                     selectedCountryCode = selectedCountryCode,
                     onCountrySelected = { selectedCountryCode = it }
                 )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf("Fuel", "Electric", "Other").forEach { cat ->
+                        FilterChip(
+                            selected = selectedEnergyCategory == cat,
+                            onClick = { selectedEnergyCategory = cat },
+                            label = { Text(cat) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Lavender,
+                                selectedLabelColor = DeepPurple,
+                                labelColor = Color.White,
+                                containerColor = Color.White.copy(alpha = 0.1f)
+                            )
+                        )
+                    }
+                }
             }
 
             // Electric
             val filteredElectric = electricOptions.filter { isVisible(it.first) }
-            if (filteredElectric.isNotEmpty()) {
-                Text("Electric", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+            if (selectedEnergyCategory == "Electric" && filteredElectric.isNotEmpty()) {
                 filteredElectric.groupBy { (type, _) -> type.getDisplayGroup() }.forEach { (group, providers) ->
                     Text(
                         text = group,
@@ -534,7 +553,7 @@ private fun MapConfig(
                         fontSize = 12.sp,
                         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                     )
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         providers.forEach { (type, label) ->
                             DataSourceChip(type, label, settings, onUpdate)
                         }
@@ -545,8 +564,7 @@ private fun MapConfig(
 
             // Fuel
             val filteredFuel = fuelOptions.filter { isVisible(it.first) }
-            if (filteredFuel.isNotEmpty()) {
-                Text("Fuel", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+            if (selectedEnergyCategory == "Fuel" && filteredFuel.isNotEmpty()) {
                 filteredFuel.groupBy { (type, _) -> type.getDisplayGroup() }.forEach { (group, providers) ->
                     Text(
                         text = group,
@@ -554,7 +572,7 @@ private fun MapConfig(
                         fontSize = 12.sp,
                         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                     )
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         providers.forEach { (type, label) ->
                             DataSourceChip(type, label, settings, onUpdate)
                         }
@@ -565,8 +583,7 @@ private fun MapConfig(
 
             // Other
             val filteredOther = otherOptions.filter { isVisible(it.first) }
-            if (filteredOther.isNotEmpty()) {
-                Text("Other", color = Lavender.copy(alpha = 0.7f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+            if (selectedEnergyCategory == "Other" && filteredOther.isNotEmpty()) {
                 filteredOther.groupBy { (type, _) -> type.getDisplayGroup() }.forEach { (group, providers) ->
                     Text(
                         text = group,
@@ -574,7 +591,7 @@ private fun MapConfig(
                         fontSize = 12.sp,
                         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                     )
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         providers.forEach { (type, label) ->
                             DataSourceChip(type, label, settings, onUpdate)
                         }
