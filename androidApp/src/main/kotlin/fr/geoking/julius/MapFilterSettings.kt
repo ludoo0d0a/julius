@@ -74,10 +74,17 @@ fun AppSettings.effectiveProviders(
     }
 
     // Apply country-based and requirement-based filtering
+    val energyFilters = effectiveMapEnergyFilterIds()
+    val wantFuel = energyFilters.isEmpty() || energyFilters.any { it != "electric" }
+    val wantElectric = energyFilters.isEmpty() || "electric" in energyFilters
+
     return baseProviders.filter { type ->
-        (nearbyCountryCodes.isEmpty() || type.supportedCountries.isEmpty() || type.supportedCountries.any { it in nearbyCountryCodes }) &&
-        (!requirePrices || type.providesPrices) &&
-        (!requireLocation || type.providesLocation)
+        val matchesCountry = nearbyCountryCodes.isEmpty() || type.supportedCountries.isEmpty() || type.supportedCountries.any { it in nearbyCountryCodes }
+        val matchesPrices = !requirePrices || type.providesPrices
+        val matchesLocation = !requireLocation || type.providesLocation
+        val matchesEnergy = (wantFuel && type.providesFuel) || (wantElectric && type.providesElectric) || type == PoiProviderType.Overpass
+
+        matchesCountry && matchesPrices && matchesLocation && matchesEnergy
     }.toSet()
 }
 

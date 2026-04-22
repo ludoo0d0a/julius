@@ -384,7 +384,7 @@ private fun MapConfig(
     var selectedEnergyCategory by remember { mutableStateOf("Fuel") }
 
     val electricOptions = listOf(
-        PoiProviderType.DataGouvElec to "data.gouv (France official)",
+        PoiProviderType.DataGouvElec to "DataGouv (EV)",
         PoiProviderType.Chargy to "Chargy (Luxembourg)",
         PoiProviderType.OpenChargeMap to "OpenChargeMap",
         PoiProviderType.Ionity to "Ionity",
@@ -396,7 +396,7 @@ private fun MapConfig(
         PoiProviderType.Routex to "Routex",
         PoiProviderType.Etalab to "Prix carburant (official)",
         PoiProviderType.GasApi to "gas-api.ovh",
-        PoiProviderType.DataGouv to "data.gouv (official)",
+        PoiProviderType.DataGouv to "DataGouv (Fuel)",
         PoiProviderType.OpenVanCamp to "OpenVan.camp (Reference)",
         PoiProviderType.SpainMinetur to "Spain Minetur (official)",
         PoiProviderType.GermanyTankerkoenig to "Tankerkönig (Germany)",

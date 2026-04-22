@@ -78,7 +78,7 @@ class DataGouvProvider(
                         outOfStock = p.outOfStock
                     )
                 }.ifEmpty { null },
-                source = "DataGouv"
+                source = "DataGouv (Fuel)"
             )
         }
     }

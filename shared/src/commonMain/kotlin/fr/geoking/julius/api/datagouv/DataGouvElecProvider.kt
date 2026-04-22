@@ -61,7 +61,7 @@ class DataGouvElecProvider(
                 chargePointCount = station.nbrePdc,
                 fuelPrices = null,
                 irveDetails = station.irveDetails,
-                source = "DataGouv",
+                source = "DataGouv (EV)",
                 metadata = station.metadata
             )
         }

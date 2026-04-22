@@ -3,6 +3,7 @@ package fr.geoking.julius.poi
 import android.util.Log
 import fr.geoking.julius.StationMapFilters
 import fr.geoking.julius.effectiveProviders
+import fr.geoking.julius.effectiveMapEnergyFilterIds
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.VehicleType
 import fr.geoking.julius.parking.ParkingRegion
@@ -256,6 +257,10 @@ class SelectorPoiProvider(
         val errors = mutableSetOf<PoiProviderError>()
 
         val vehicleType = settings.vehicleType
+        val energyFilters = settings.effectiveMapEnergyFilterIds()
+        val wantFuel = energyFilters.isEmpty() || energyFilters.any { it != "electric" }
+        val wantElectric = energyFilters.isEmpty() || "electric" in energyFilters
+
         val categories = try {
             providers.map { providerType ->
                 when (providerType) {
@@ -278,23 +283,31 @@ class SelectorPoiProvider(
                         val defaultOverpass = fromSettings.ifEmpty {
                             setOf(PoiCategory.Toilet, PoiCategory.DrinkingWater)
                         }
-                        when (vehicleType) {
-                            VehicleType.Truck -> defaultOverpass + setOf(PoiCategory.TruckStop, PoiCategory.RestArea, PoiCategory.Gas)
+                        val base = when (vehicleType) {
+                            VehicleType.Truck -> defaultOverpass + setOf(PoiCategory.TruckStop, PoiCategory.RestArea)
                             VehicleType.Motorhome -> defaultOverpass + setOf(PoiCategory.CaravanSite, PoiCategory.Camping, PoiCategory.PicnicSite)
                             else -> defaultOverpass
                         }
+                        if (wantFuel) base + PoiCategory.Gas else base
                     }
                     else -> {
-                        when (vehicleType) {
-                            VehicleType.Truck -> setOf(PoiCategory.Gas, PoiCategory.TruckStop, PoiCategory.RestArea)
-                            else -> setOf(PoiCategory.Gas, PoiCategory.Irve)
+                        val cats = mutableSetOf<PoiCategory>()
+                        if (wantFuel) cats.add(PoiCategory.Gas)
+                        if (wantElectric) cats.add(PoiCategory.Irve)
+                        if (vehicleType == VehicleType.Truck) {
+                            cats.add(PoiCategory.TruckStop)
+                            cats.add(PoiCategory.RestArea)
                         }
+                        cats
                     }
                 }
             }.flatten().toSet()
         } catch (e: Exception) {
             Log.e("SelectorPoiProvider", "Failed to map categories", e)
-            setOf(PoiCategory.Gas, PoiCategory.Irve)
+            val cats = mutableSetOf<PoiCategory>()
+            if (wantFuel) cats.add(PoiCategory.Gas)
+            if (wantElectric) cats.add(PoiCategory.Irve)
+            cats
         }
 
         val effectiveRequest = request.copy(categories = categories, skipFilters = true)
