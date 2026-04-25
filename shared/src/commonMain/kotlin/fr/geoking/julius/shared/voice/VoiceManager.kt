@@ -15,7 +15,7 @@ interface VoiceManager {
     val transcribedText: Flow<String>
     val partialText: Flow<String>
 
-    fun startListening()
+    fun startListening(continuous: Boolean = false)
     fun stopListening()
     fun setTranscriber(transcriber: suspend (ByteArray) -> String?)
     fun speak(text: String, languageTag: String? = null, isInterruptible: Boolean = true)
