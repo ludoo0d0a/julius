@@ -1051,7 +1051,7 @@ private fun RepoAndSessionsContent(
 
     val displaySessions = sessions.filter {
         val matchesSearch = it.title.contains(searchQuery, ignoreCase = true) || it.prompt.contains(searchQuery, ignoreCase = true)
-        val matchesHideCompleted = !hideCompleted || (it.prState != "merged" && it.sessionState != "COMPLETED")
+        val matchesHideCompleted = !hideCompleted || !it.isFinished
         matchesSearch && matchesHideCompleted
     }
 
@@ -1116,7 +1116,7 @@ private fun RepoAndSessionsContent(
                                 Text(if (hideCompleted) "Show all" else "Hide completed")
                             }
                         }
-                        if (sessions.any { it.prState == "merged" || it.sessionState == "COMPLETED" }) {
+                        if (sessions.any { it.isFinished }) {
                             androidx.compose.material3.TextButton(
                                 onClick = onArchiveCompleted,
                                 modifier = Modifier.align(Alignment.End)
