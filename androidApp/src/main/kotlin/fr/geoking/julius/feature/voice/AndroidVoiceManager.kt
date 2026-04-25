@@ -88,6 +88,7 @@ class AndroidVoiceManager(
     private var currentLanguageTag: String? = null
     private var pendingLanguageTag: String? = null
     private var isRecognizerActive: Boolean = false
+    private var isContinuousMode: Boolean = false
     private var isBargeInActive: Boolean = false
     private var isHeyJuliusKeywordBargeIn: Boolean = false
     private var heyJuliusActivationInProgress: Boolean = false
@@ -145,7 +146,7 @@ class AndroidVoiceManager(
 
         override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {
             if (playWhenReady) {
-                startListening()
+                startListening(continuous = true)
             } else {
                 stopSpeaking()
                 stopListening()
@@ -218,7 +219,7 @@ class AndroidVoiceManager(
                     controller: MediaSession.ControllerInfo,
                     mediaItems: MutableList<MediaItem>
                 ): ListenableFuture<List<MediaItem>> {
-                    startListening()
+                    startListening(continuous = true)
                     return Futures.immediateFuture(mediaItems)
                 }
             }
@@ -262,6 +263,9 @@ class AndroidVoiceManager(
                                 abandonAudioFocus()
                             }
                             stopBargeInListening()
+                            if (isContinuousMode) {
+                                startListening(continuous = true)
+                            }
                         }
                     }
 
@@ -282,6 +286,9 @@ class AndroidVoiceManager(
                         abandonAudioFocus()
                     }
                     stopBargeInListening()
+                    if (isContinuousMode) {
+                        startListening(continuous = true)
+                    }
                 }
             }
         }
@@ -296,8 +303,9 @@ class AndroidVoiceManager(
         }
     }
 
-    override fun startListening() {
-        Log.d(TAG, "mic on: startListening()")
+    override fun startListening(continuous: Boolean) {
+        Log.d(TAG, "mic on: startListening(continuous=$continuous)")
+        isContinuousMode = continuous
         requestAudioFocus()
         val currentCarContext = carContext
         // Use the car's microphone whenever a car context is available and the setting is enabled.
@@ -384,6 +392,7 @@ class AndroidVoiceManager(
 
     override fun stopListening() {
         Log.d(TAG, "mic off: stopListening()")
+        isContinuousMode = false
         if (isRecording) {
             isRecording = false
         } else {
@@ -469,6 +478,7 @@ class AndroidVoiceManager(
 
     override fun stopSpeaking() {
         cancelDelayedBargeInStart()
+        isContinuousMode = false
         tts?.stop()
         try {
             if (mediaPlayer?.isPlaying == true) {
@@ -624,6 +634,7 @@ class AndroidVoiceManager(
 
     private fun activateStopKeyword() {
         cancelDelayedBargeInStart()
+        isContinuousMode = false
         android.util.Log.d(TAG, "\"stop\" detected: stop outputs + cancel recognition")
         tts?.stop()
         try {
@@ -679,7 +690,7 @@ class AndroidVoiceManager(
         mainHandler.postDelayed(
             {
                 heyJuliusActivationInProgress = false
-                startListening()
+                startListening(continuous = true)
             },
             BARGE_IN_RESTART_DELAY_MS
         )
@@ -784,6 +795,9 @@ class AndroidVoiceManager(
         isRecognizerActive = false
         isBargeInActive = false
         val finalResult = text.trim()
+        if (finalResult.isBlank()) {
+            isContinuousMode = false
+        }
         android.util.Log.d(TAG, "finalizeListening: finalResult=\"$finalResult\"")
 
         _partialText.value = ""
@@ -815,7 +829,7 @@ class AndroidVoiceManager(
         }
     }
     override fun onBeginningOfSpeech() {
-        if (isBargeInActive && _events.value == VoiceEvent.Speaking) {
+        if (_events.value == VoiceEvent.Speaking) {
             // In keyword-only mode, don't stop speech until keyword is confirmed in onResults/onPartialResults
             if (!isHeyJuliusKeywordBargeIn) {
                 tts?.stop()

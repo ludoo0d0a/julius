@@ -443,7 +443,7 @@ class MainScreen(
                 when {
                     isSpeaking -> store.stopSpeaking()
                     isListening -> store.stopListening()
-                    else -> store.startListening()
+                    else -> store.startListening(continuous = true)
                 }
             }
             .build()

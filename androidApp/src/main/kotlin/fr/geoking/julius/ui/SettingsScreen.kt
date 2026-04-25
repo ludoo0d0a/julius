@@ -2445,7 +2445,7 @@ fun SettingsScreenPreview() {
                 override val events = MutableStateFlow(VoiceEvent.Silence)
                 override val transcribedText = MutableStateFlow("")
                 override val partialText = MutableStateFlow("")
-                override fun startListening() {}
+                override fun startListening(continuous: Boolean) {}
                 override fun stopListening() {}
                 override fun speak(text: String, languageTag: String?, isInterruptible: Boolean) {}
                 override fun playAudio(bytes: ByteArray) {}

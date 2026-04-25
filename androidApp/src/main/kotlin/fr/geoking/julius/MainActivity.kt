@@ -825,7 +825,7 @@ private fun rememberMockStore(): ConversationStore = remember {
             override val events = _events
             override val transcribedText = _transcribedText
             override val partialText = _partialText
-            override fun startListening() {}
+            override fun startListening(continuous: Boolean) {}
             override fun stopListening() {}
             override fun speak(text: String, languageTag: String?, isInterruptible: Boolean) {}
             override fun playAudio(bytes: ByteArray) {}
