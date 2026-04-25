@@ -287,6 +287,17 @@ fun JulesScreen(
         else sourcesLoaded = true
     }
 
+    // If the user previously selected a repo, jump directly into it.
+    LaunchedEffect(sourcesLoaded, sources, settings.lastJulesRepoId) {
+        if (!sourcesLoaded) return@LaunchedEffect
+        if (selectedSourceName != null) return@LaunchedEffect
+        val lastId = settings.lastJulesRepoId.trim()
+        if (lastId.isEmpty()) return@LaunchedEffect
+        if (sources.any { it.name == lastId }) {
+            selectedSourceName = lastId
+        }
+    }
+
     LaunchedEffect(selectedSourceName) {
         if (selectedSourceName != null && apiKeys.isNotEmpty()) {
             loadSessions()
@@ -386,6 +397,15 @@ fun JulesScreen(
                     }
                 }
                 val sess = currentSession
+                if (sess != null || selectedSourceName != null) {
+                    // Allow switching repository from sessions or conversation.
+                    IconButton(onClick = {
+                        currentSession = null
+                        selectedSourceName = null
+                    }) {
+                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Switch repository", tint = Color.White)
+                    }
+                }
                 if (sess != null) {
                     if (!sess.url.isNullOrBlank()) {
                         IconButton(onClick = {
