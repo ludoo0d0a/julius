@@ -28,7 +28,6 @@ import fr.geoking.julius.shared.network.NetworkException
 import fr.geoking.julius.persistence.AppDatabase
 import fr.geoking.julius.persistence.RoomMessagePersistence
 import fr.geoking.julius.persistence.JulesDao
-import fr.geoking.julius.repository.FuelForecastRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import fr.geoking.julius.feature.settings.FirestoreSettingsSync
@@ -387,8 +386,6 @@ val appModule = module {
             get()
         )
     }
-
-    single { FuelForecastRepository(http = get(), db = get()) }
 
     single<ActionExecutor> {
         AndroidActionExecutor(androidContext(), get(), get(), get())

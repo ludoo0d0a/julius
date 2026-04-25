@@ -27,8 +27,7 @@ import fr.geoking.julius.di.MapDeps
 import fr.geoking.julius.di.MapModuleLoader
 import fr.geoking.julius.intent.IntentNavigationHelper
 import fr.geoking.julius.poi.PoiProvider
-import fr.geoking.julius.repository.FuelForecastRepository
-import fr.geoking.julius.repository.JulesRepository
+import fr.geoking.julius.agents.ConversationalAgent
 import fr.geoking.julius.shared.conversation.ConversationStore
 import fr.geoking.julius.shared.network.NetworkService
 import fr.geoking.julius.shared.network.NetworkStatus
@@ -47,10 +46,9 @@ class CarAppSession : Session(), KoinComponent {
 
     private val settingsManager: SettingsManager by inject()
     private val networkService: NetworkService by inject()
-    private val fuelForecastRepository: FuelForecastRepository by inject()
     private val store: ConversationStore by inject()
     private val julesClient: JulesClient by inject()
-    private val julesRepository: JulesRepository by inject()
+    private val conversationalAgent: ConversationalAgent by inject()
 
     private var cachedMapDeps: MapDeps? = null
 
@@ -193,29 +191,14 @@ class CarAppSession : Session(), KoinComponent {
             )
         }
         return try {
-            if (BuildConfig.IS_PLAYSTORE_DISTRIBUTION) {
-                AutoPlaystoreDashboardScreen(
-                    carContext = carContext,
-                    settingsManager = settingsManager,
-                    networkService = networkService,
-                    fuelForecastRepository = fuelForecastRepository,
-                    store = store,
-                    julesClient = julesClient,
-                    julesRepository = julesRepository,
-                    getMapDeps = this::getMapDeps
-                )
-            } else {
-                AutoDashboardScreen(
-                    carContext = carContext,
-                    settingsManager = settingsManager,
-                    networkService = networkService,
-                    fuelForecastRepository = fuelForecastRepository,
-                    store = store,
-                    julesClient = julesClient,
-                    julesRepository = julesRepository,
-                    getMapDeps = this::getMapDeps
-                )
-            }
+            MainScreen(
+                carContext = carContext,
+                store = store,
+                settingsManager = settingsManager,
+                julesClient = julesClient,
+                getMapDeps = this::getMapDeps,
+                conversationalAgent = conversationalAgent
+            )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create Android Auto root screen", e)
             ErrorScreen(

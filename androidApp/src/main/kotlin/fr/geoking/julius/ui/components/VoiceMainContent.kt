@@ -40,7 +40,7 @@ fun VoiceMainContent(
     networkStatus: NetworkStatus,
     onSettingsClick: () -> Unit,
     onHistoryClick: () -> Unit = {},
-    onMapClick: () -> Unit,
+    onMapClick: (() -> Unit)?,
     onJulesClick: () -> Unit = {},
     onAgentClick: (() -> Unit)? = null,
     setupIssue: AgentSetupIssue? = null,
@@ -120,11 +120,13 @@ fun VoiceMainContent(
                 .align(Alignment.BottomEnd)
                 .padding(end = 72.dp, bottom = 48.dp)
         )
-        MapButton(
-            onClick = onMapClick,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 24.dp, bottom = 48.dp)
-        )
+        if (onMapClick != null) {
+            MapButton(
+                onClick = onMapClick,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 24.dp, bottom = 48.dp)
+            )
+        }
     }
 }

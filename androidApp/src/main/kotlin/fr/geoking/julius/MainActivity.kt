@@ -45,16 +45,12 @@ import fr.geoking.julius.ui.JulesScreen
 import fr.geoking.julius.ui.MapScreen
 import fr.geoking.julius.ui.map.maplibre.VectorMapScreen
 import fr.geoking.julius.ui.map.maplibre.DirectionsMapScreen
-import fr.geoking.julius.ui.PhoneMainScreen
-import fr.geoking.julius.ui.PhoneNetworkLocationScreen
-import fr.geoking.julius.ui.PhoneDashboardScreen
-import fr.geoking.julius.ui.PlaystoreTheme
 import fr.geoking.julius.ui.RoutePlanningScreen
 import fr.geoking.julius.api.routing.RouteResult
 import fr.geoking.julius.ui.HistoryScreen
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.ui.SettingsScreenPage
-import fr.geoking.julius.ui.FuelForecastScreen
+import fr.geoking.julius.ui.DashboardVoiceScreen
 import fr.geoking.julius.agents.LlamatikModelHelper
 import fr.geoking.julius.ui.agentConfigSettingsPages
 import fr.geoking.julius.ui.evaluateAgentSetup
@@ -66,8 +62,6 @@ import fr.geoking.julius.persistence.JulesSessionEntity
 import com.google.firebase.auth.FirebaseAuth
 import fr.geoking.julius.poi.MockPoiProvider
 import fr.geoking.julius.poi.Poi
-import fr.geoking.julius.poi.PoiProviderType
-import fr.geoking.julius.repository.FuelForecastRepository
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.ui.UpdateAvailableDialog
 import fr.geoking.julius.ui.anim.AnimationPalettes
@@ -191,7 +185,6 @@ class MainActivity : ComponentActivity() {
             val voiceManager: VoiceManager = get()
             val conversationalAgent: ConversationalAgent = get()
             val networkService: NetworkService = get()
-            val fuelForecastRepository: FuelForecastRepository = get()
             android.util.Log.d("MainActivity", "Dependencies resolved successfully.")
 
             if (!BuildConfig.IS_PLAYSTORE_DISTRIBUTION) {
@@ -212,7 +205,6 @@ class MainActivity : ComponentActivity() {
                 voiceManager = voiceManager,
                 conversationalAgent = conversationalAgent,
                 networkService = networkService,
-                fuelForecastRepository = fuelForecastRepository,
                 isPlaystoreDistribution = BuildConfig.IS_PLAYSTORE_DISTRIBUTION
             )
             android.util.Log.d("MainActivity", "setContent called successfully.")
@@ -235,7 +227,6 @@ class MainActivity : ComponentActivity() {
         voiceManager: VoiceManager,
         conversationalAgent: ConversationalAgent,
         networkService: NetworkService,
-        fuelForecastRepository: FuelForecastRepository,
         isPlaystoreDistribution: Boolean
     ) {
         try {
@@ -251,7 +242,6 @@ class MainActivity : ComponentActivity() {
                     voiceManager = voiceManager,
                     conversationalAgent = conversationalAgent,
                     networkService = networkService,
-                    fuelForecastRepository = fuelForecastRepository,
                     inAppUpdateHelper = inAppUpdateHelper,
                     updateResultLauncher = updateResultLauncher,
                     pendingNavDestination = pendingNavDestination,
@@ -287,7 +277,6 @@ private fun MainActivityComposeRoot(
     voiceManager: VoiceManager,
     conversationalAgent: ConversationalAgent,
     networkService: NetworkService,
-    fuelForecastRepository: FuelForecastRepository,
     inAppUpdateHelper: InAppUpdateHelper,
     updateResultLauncher: ActivityResultLauncher<IntentSenderRequest>,
     pendingNavDestination: MutableStateFlow<NavDestination?>,
@@ -332,7 +321,6 @@ private fun MainActivityComposeRoot(
         voiceManager = voiceManager,
         conversationalAgent = conversationalAgent,
         networkService = networkService,
-        fuelForecastRepository = fuelForecastRepository,
         inAppUpdateHelper = inAppUpdateHelper,
         onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) },
         pendingNavDestinationFlow = pendingNavDestination,
@@ -355,7 +343,6 @@ fun MainUI(
     voiceManager: VoiceManager,
     conversationalAgent: ConversationalAgent,
     networkService: NetworkService,
-    fuelForecastRepository: FuelForecastRepository? = null,
     inAppUpdateHelper: InAppUpdateHelper? = null,
     onStartUpdate: (AppUpdateInfo) -> Unit = {},
     pendingNavDestinationFlow: kotlinx.coroutines.flow.MutableStateFlow<NavDestination?>? = null,
@@ -371,10 +358,8 @@ fun MainUI(
     var showHistory by remember { mutableStateOf(false) }
     /** Play Store flavor uses a dashboard home first; full flavor starts on the voice screen. */
     var showMap by remember { mutableStateOf(false) }
-    var showPlaystoreNetworkInfo by remember { mutableStateOf(false) }
     var showRoutePlanning by remember { mutableStateOf(false) }
     var showDirectionsMap by remember { mutableStateOf(false) }
-    var showFuelForecast by remember { mutableStateOf(false) }
     var routeForDirections by remember { mutableStateOf<RouteResult?>(null) }
     var stationsForDirections by remember { mutableStateOf<List<Poi>>(emptyList()) }
     var initialNavDestination by remember { mutableStateOf<NavDestination?>(null) }
@@ -412,25 +397,7 @@ fun MainUI(
         if (intent?.data?.scheme == "julius" && intent.data?.host == "map") {
             val path = intent.data?.path
             val currentSettings = settingsManager.settings.value
-            if (path == "/gas_stations") {
-                if (currentSettings.useVehicleFilter && (currentSettings.vehicleEnergy == "gas" || currentSettings.vehicleEnergy == "hybrid")) {
-                    // Already configured for car, just show map
-                } else if (currentSettings.vehicleBrand.isNotEmpty() && (currentSettings.vehicleEnergy == "gas" || currentSettings.vehicleEnergy == "hybrid")) {
-                    settingsManager.setUseVehicleFilter(true)
-                } else {
-                    settingsManager.setPoiProviderTypes(setOf(PoiProviderType.Routex))
-                    settingsManager.setUseVehicleFilter(false)
-                }
-            } else if (path == "/electric_stations") {
-                if (currentSettings.useVehicleFilter && (currentSettings.vehicleEnergy == "electric" || currentSettings.vehicleEnergy == "hybrid")) {
-                    // Already configured
-                } else if (currentSettings.vehicleBrand.isNotEmpty() && (currentSettings.vehicleEnergy == "electric" || currentSettings.vehicleEnergy == "hybrid")) {
-                    settingsManager.setUseVehicleFilter(true)
-                } else {
-                    settingsManager.setPoiProviderTypes(setOf(PoiProviderType.DataGouvElec))
-                    settingsManager.setUseVehicleFilter(false)
-                }
-            } else if (path == "/libremap") {
+            if (path == "/libremap") {
                 settingsManager.setPhoneMapEngine(MapEngine.MapLibre)
             }
             showMap = true
@@ -476,20 +443,6 @@ fun MainUI(
                         onDismiss = { showSettings = false },
                         initialScreenStack = settingsInitialStack,
                         onInitialRouteConsumed = { settingsInitialStack = null }
-                    )
-                }
-                isPlaystoreDistribution && showPlaystoreNetworkInfo -> {
-                    BackHandler { showPlaystoreNetworkInfo = false }
-                    PhoneNetworkLocationScreen(
-                        networkService = networkService,
-                        onBack = { showPlaystoreNetworkInfo = false }
-                    )
-                }
-                isPlaystoreDistribution && showFuelForecast -> {
-                    BackHandler { showFuelForecast = false }
-                    FuelForecastScreen(
-                        repository = fuelForecastRepository!!,
-                        onBack = { showFuelForecast = false }
                     )
                 }
                 isPlaystoreDistribution && showDirectionsMap && mapDeps != null -> {
@@ -592,48 +545,6 @@ fun MainUI(
                         voiceManager = voiceManager
                     )
                 }
-                isPlaystoreDistribution && showFavorites && mapDeps != null -> {
-                    fr.geoking.julius.ui.FavoritesScreen(
-                        favoritesRepo = mapDeps!!.favoritesRepo,
-                        geocodingClient = mapDeps!!.geocodingClient,
-                        settingsManager = settingsManager,
-                        onBack = { showFavorites = false },
-                        onOpenMap = { poi ->
-                            initialMapCenter = com.google.android.gms.maps.model.LatLng(poi.latitude, poi.longitude)
-                            initialSelectedPoi = poi
-                            showMap = true
-                            showFavorites = false
-                        }
-                    )
-                }
-                isPlaystoreDistribution && !showMap -> {
-                    PhoneDashboardScreen(
-                        settingsManager = settingsManager,
-                        poiProvider = mapDeps?.poiProvider,
-                        hasLocationPermission = hasLocationPermission,
-                        geocodingClient = mapDeps?.geocodingClient,
-                        favoritesRepo = mapDeps?.favoritesRepo,
-                        mapDepsReady = mapDeps != null,
-                        fuelForecastRepository = fuelForecastRepository,
-                        onOpenMap = { poi ->
-                            initialMapCenter = poi?.let { com.google.android.gms.maps.model.LatLng(it.latitude, it.longitude) }
-                            initialSelectedPoi = poi
-                            showMap = true
-                        },
-                        onOpenRoutes = {
-                            showRoutePlanning = true
-                            showMap = true
-                        },
-                        onOpenJules = { showJules = true },
-                        onOpenFavorites = { showFavorites = true },
-                        onOpenNetworkDiagnostics = { showPlaystoreNetworkInfo = true },
-                        onOpenFuelForecast = { showFuelForecast = true },
-                        onOpenSettings = { stack ->
-                            settingsInitialStack = stack
-                            showSettings = true
-                        }
-                    )
-                }
                 showHistory && !isPlaystoreDistribution -> {
                     HistoryScreen(state = state, store = store, onBack = { showHistory = false })
                 }
@@ -730,7 +641,7 @@ fun MainUI(
                     }
                 }
                 else -> {
-                    PhoneMainScreen(
+                    DashboardVoiceScreen(
                         state = state,
                         settings = settings,
                         palette = palette,
@@ -742,7 +653,6 @@ fun MainUI(
                             showSettings = true
                         },
                         onHistoryClick = { showHistory = true },
-                        onMapClick = { showMap = true },
                         onJulesClick = { showJules = true },
                         setupIssue = setupIssue,
                         onOpenAgentSettings = {
@@ -933,9 +843,6 @@ private fun rememberMockSettingsManager(): SettingsManager {
         object : SettingsManager(context) {
             private val mockSettings = kotlinx.coroutines.flow.MutableStateFlow(AppSettings())
             override val settings = mockSettings
-            override fun setPoiProviderTypes(types: Set<PoiProviderType>) {
-                mockSettings.value = mockSettings.value.copy(selectedPoiProviders = types)
-            }
             override fun saveSettings(settings: AppSettings) {}
         }
     }

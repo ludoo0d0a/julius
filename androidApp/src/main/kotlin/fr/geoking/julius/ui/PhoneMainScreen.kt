@@ -49,7 +49,7 @@ fun PhoneMainScreen(
     networkStatus: NetworkStatus,
     onSettingsClick: () -> Unit,
     onHistoryClick: () -> Unit = {},
-    onMapClick: () -> Unit,
+    onMapClick: (() -> Unit)?,
     onJulesClick: () -> Unit = {},
     setupIssue: AgentSetupIssue? = null,
     onOpenAgentSettings: (() -> Unit)? = null,

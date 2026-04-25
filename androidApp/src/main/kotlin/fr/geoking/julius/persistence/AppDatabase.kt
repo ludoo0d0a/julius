@@ -9,12 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
     entities = [
         ChatMessageEntity::class,
         JulesSessionEntity::class,
-        JulesActivityEntity::class,
-        StationPriceSampleEntity::class,
-        MarketDailyQuoteEntity::class,
-        LocalFuelAvgDailyEntity::class,
-        FuelPricePredictionEntity::class,
-        FuelPricePredictionScoreEntity::class
+        JulesActivityEntity::class
     ],
     version = 11,
     exportSchema = false
@@ -22,11 +17,6 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 abstract class AppDatabase : RoomDatabase() {
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun julesDao(): JulesDao
-    abstract fun stationPriceSampleDao(): StationPriceSampleDao
-    abstract fun marketDailyQuoteDao(): MarketDailyQuoteDao
-    abstract fun localFuelAvgDailyDao(): LocalFuelAvgDailyDao
-    abstract fun fuelPricePredictionDao(): FuelPricePredictionDao
-    abstract fun fuelPricePredictionScoreDao(): FuelPricePredictionScoreDao
 
     companion object {
         // v1 -> v2: no schema change; we keep data across upgrades.
@@ -191,6 +181,18 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `jules_activities` ADD COLUMN `type` TEXT")
                 db.execSQL("ALTER TABLE `jules_activities` ADD COLUMN `artifactsJson` TEXT")
+
+                // Remove all fuel/station-price forecasting tables (feature deprecated).
+                db.execSQL("DROP TABLE IF EXISTS `station_price_samples`")
+                db.execSQL("DROP TABLE IF EXISTS `market_daily_quotes`")
+                db.execSQL("DROP TABLE IF EXISTS `local_fuel_avg_daily`")
+                db.execSQL("DROP TABLE IF EXISTS `fuel_price_predictions`")
+                db.execSQL("DROP TABLE IF EXISTS `fuel_price_prediction_scores`")
+                db.execSQL("DROP INDEX IF EXISTS `index_station_price_samples_stationId_fuelId_observedAtMs`")
+                db.execSQL("DROP INDEX IF EXISTS `index_local_fuel_avg_daily_locationKey_fuelId_day`")
+                db.execSQL("DROP INDEX IF EXISTS `index_fuel_price_predictions_createdDay_fuelId_locationKey_horizonDays`")
+                db.execSQL("DROP INDEX IF EXISTS `index_fuel_price_predictions_targetDay_fuelId_locationKey`")
+                db.execSQL("DROP INDEX IF EXISTS `index_fuel_price_prediction_scores_predictionId`")
             }
         }
 
