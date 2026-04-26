@@ -830,19 +830,20 @@ class AndroidVoiceManager(
     }
     override fun onBeginningOfSpeech() {
         if (_events.value == VoiceEvent.Speaking) {
-            // In keyword-only mode, don't stop speech until keyword is confirmed in onResults/onPartialResults
-            if (!isHeyJuliusKeywordBargeIn) {
-                tts?.stop()
-                try {
-                    if (mediaPlayer?.isPlaying == true) {
-                        mediaPlayer?.stop()
-                    }
-                } catch (e: IllegalStateException) {
-                    e.printStackTrace()
+            // Stop outputs immediately when speech starts, regardless of barge-in mode, to let the user lead.
+            tts?.stop()
+            try {
+                if (mediaPlayer?.isPlaying == true) {
+                    mediaPlayer?.stop()
                 }
-                isBargeInActive = false
+            } catch (e: IllegalStateException) {
+                e.printStackTrace()
             }
         }
+        // Transition out of hidden barge-in/keyword modes as we are now actively listening to user input.
+        isBargeInActive = false
+        isHeyJuliusKeywordBargeIn = false
+
         _events.value = VoiceEvent.Listening
         player.notifyStateChanged()
         android.util.Log.d(TAG, "onBeginningOfSpeech: speech detected")
