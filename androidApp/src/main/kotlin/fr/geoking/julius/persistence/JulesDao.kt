@@ -13,7 +13,7 @@ interface JulesDao {
     @Query("SELECT * FROM jules_sessions WHERE sourceName = :sourceName AND isArchived = 0 ORDER BY lastUpdated DESC")
     suspend fun getSessionsBySource(sourceName: String): List<JulesSessionEntity>
 
-    @Query("SELECT * FROM jules_sessions WHERE sourceName = :sourceName AND isArchived = 0 AND (prState = 'merged' OR sessionState = 'COMPLETED')")
+    @Query("SELECT * FROM jules_sessions WHERE sourceName = :sourceName AND isArchived = 0 AND (prState IN ('merged', 'closed') OR (prUrl IS NULL AND sessionState IN ('COMPLETED', 'FAILED')))")
     suspend fun getCompletedSessions(sourceName: String): List<JulesSessionEntity>
 
     @Query("SELECT * FROM jules_sessions WHERE sourceName = :sourceName AND apiKey = :apiKey AND isArchived = 0")
@@ -21,6 +21,9 @@ interface JulesDao {
 
     @Query("UPDATE jules_sessions SET isArchived = 1 WHERE id = :sessionId")
     suspend fun archiveSession(sessionId: String)
+
+    @Query("UPDATE jules_sessions SET isArchived = 1 WHERE id IN (:sessionIds)")
+    suspend fun archiveSessions(sessionIds: List<String>)
 
     @Query("SELECT * FROM jules_sessions WHERE id = :sessionId")
     suspend fun getSession(sessionId: String): JulesSessionEntity?

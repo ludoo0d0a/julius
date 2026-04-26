@@ -26,4 +26,8 @@ data class JulesSessionEntity(
     val isPendingOffline: Boolean = false,
     val queuedAt: Long? = null,
     val apiKey: String? = null
-)
+) {
+    val isFinished: Boolean
+        get() = prState == "merged" || prState == "closed" ||
+                (prUrl.isNullOrBlank() && (sessionState == "COMPLETED" || sessionState == "FAILED"))
+}

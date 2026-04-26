@@ -152,18 +152,40 @@ class JulesRepository(
             val existing = julesDao.getSession(sessionId)
             val key = existing?.apiKey ?: settingsManager.settings.value.julesKeys.firstOrNull()
             if (key != null && !sessionId.startsWith("offline_")) {
-                julesClient.deleteSession(key, sessionId)
+                try {
+                    julesClient.deleteSession(key, sessionId)
+                } catch (e: Exception) {
+                    // Even if remote deletion fails (e.g. 404), we want to archive locally
+                    android.util.Log.e("JulesRepository", "Remote session deletion failed for $sessionId", e)
+                }
             }
             julesDao.archiveSession(sessionId)
         } catch (e: Exception) {
-            android.util.Log.e("JulesRepository", "Failed to archive session", e)
+            android.util.Log.e("JulesRepository", "Failed to archive session $sessionId", e)
         }
     }
 
     suspend fun archiveCompletedSessions(sourceName: String) {
         try {
             val completed = julesDao.getCompletedSessions(sourceName)
-            completed.forEach { archiveSession(it.id) }
+            if (completed.isEmpty()) return
+
+            coroutineScope {
+                completed.map { session ->
+                    async {
+                        val key = session.apiKey ?: settingsManager.settings.value.julesKeys.firstOrNull()
+                        if (key != null && !session.id.startsWith("offline_")) {
+                            try {
+                                julesClient.deleteSession(key, session.id)
+                            } catch (e: Exception) {
+                                android.util.Log.e("JulesRepository", "Remote bulk session deletion failed for ${session.id}", e)
+                            }
+                        }
+                    }
+                }.awaitAll()
+            }
+
+            julesDao.archiveSessions(completed.map { it.id })
         } catch (e: Exception) {
             android.util.Log.e("JulesRepository", "Failed to archive completed sessions", e)
         }
