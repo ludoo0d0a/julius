@@ -46,6 +46,9 @@ class CarAppSession : Session(), KoinComponent {
 
     private val settingsManager: SettingsManager by inject()
     private val networkService: NetworkService by inject()
+    private val conversationStore: ConversationStore by inject()
+    private val julesClient: JulesClient by inject()
+    private val julesRepository: JulesRepository by inject()
 
     private var cachedMapDeps: MapDeps? = null
 
@@ -202,14 +205,20 @@ class CarAppSession : Session(), KoinComponent {
                     carContext = carContext,
                     settingsManager = settingsManager,
                     networkService = networkService,
-                    getMapDeps = this::getMapDeps
+                    getMapDeps = this::getMapDeps,
+                    store = conversationStore,
+                    julesClient = julesClient,
+                    julesRepository = julesRepository
                 )
             } else {
                 AutoDashboardScreen(
                     carContext = carContext,
                     settingsManager = settingsManager,
                     networkService = networkService,
-                    getMapDeps = this::getMapDeps
+                    getMapDeps = this::getMapDeps,
+                    store = conversationStore,
+                    julesClient = julesClient,
+                    julesRepository = julesRepository
                 )
             }
         } catch (e: Exception) {

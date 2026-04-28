@@ -3,143 +3,117 @@ package fr.geoking.julius.auto
 import android.util.Log
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
-import androidx.car.app.model.Action
-import androidx.car.app.model.CarIcon
-import androidx.car.app.model.Header
-import androidx.car.app.model.ItemList
-import androidx.car.app.model.ListTemplate
-import androidx.car.app.model.Row
-import androidx.car.app.model.Template
+import androidx.car.app.model.*
 import androidx.core.graphics.drawable.IconCompat
 import fr.geoking.julius.CarMapMode
 import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.di.MapDeps
+import fr.geoking.julius.repository.JulesRepository
+import fr.geoking.julius.shared.conversation.ConversationStore
 import fr.geoking.julius.shared.network.NetworkService
 
 class AutoDashboardScreen(
     carContext: CarContext,
     private val settingsManager: SettingsManager,
     private val networkService: NetworkService,
-    private val getMapDeps: () -> MapDeps?
+    private val getMapDeps: () -> MapDeps?,
+    private val store: ConversationStore,
+    private val julesClient: JulesClient,
+    private val julesRepository: JulesRepository
 ) : Screen(carContext) {
 
-    init {
-        val screenNames = listOf(
-            "AutoDashboardScreen",
-            "NativeMapPoiScreen",
-            "CustomMapPoiScreen",
-            "AutoRoutePlanningScreen",
-            "AutoNetworkLocationInfoScreen",
-            "AutoSettingsScreen",
-            "AutoTemplateLabScreen",
-        )
-        Log.d("JuliusNavigation", "Android Auto Screens: ${screenNames.joinToString(", ")}")
-    }
-
     override fun onGetTemplate(): Template {
-        val listBuilder = ItemList.Builder()
+        return try {
+            val grid = ItemList.Builder()
 
-        listBuilder.addItem(
-            Row.Builder()
-                .setTitle("Search")
-                .addText("Search for gas or EV stations by name/brand")
-                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_search)).build())
-                .setOnClickListener {
-                    val mapDeps = getMapDeps()
-                    if (mapDeps != null) {
+            fun gridIcon(drawableId: Int) =
+                CarIcon.Builder(IconCompat.createWithResource(carContext, drawableId)).build()
+
+            // 1. Jules
+            grid.addItem(
+                GridItem.Builder()
+                    .setTitle("Jules")
+                    .setText("Coding sessions")
+                    .setImage(gridIcon(R.drawable.ic_home))
+                    .setOnClickListener {
                         screenManager.push(
-                            AutoPoiSearchScreen(
+                            AutoJulesSourceScreen(
                                 carContext = carContext,
-                                poiProvider = mapDeps.poiProvider,
+                                store = store,
                                 settingsManager = settingsManager,
-                                availabilityProviderFactory = mapDeps.availabilityProviderFactory,
-                                favoritesRepo = mapDeps.favoritesRepo
+                                julesClient = julesClient,
+                                julesRepository = julesRepository
                             )
                         )
                     }
-                }
-                .build()
-        )
-
-        listBuilder.addItem(
-            Row.Builder()
-                .setTitle("Map")
-                .addText("Search nearby gas/EV stations")
-                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
-                .setOnClickListener {
-                    settingsManager.setUseVehicleFilter(false)
-                    pushMapScreen()
-                }
-                .build()
-        )
-
-        listBuilder.addItem(
-            Row.Builder()
-                .setTitle("POI Map")
-                .addText("Search filtered by vehicle settings")
-                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
-                .setOnClickListener {
-                    settingsManager.setUseVehicleFilter(true)
-                    pushMapScreen()
-                }
-                .build()
-        )
-
-        listBuilder.addItem(
-            Row.Builder()
-                .setTitle("Routes")
-                .addText("Plan your journey")
-                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_swap_horiz)).build())
-                .setOnClickListener {
-                    val mapDeps = getMapDeps()
-                    if (mapDeps != null) {
-                        screenManager.push(
-                            AutoRoutePlanningScreen(
-                                carContext = carContext,
-                                routePlanner = mapDeps.routePlanner,
-                                routingClient = mapDeps.routingClient,
-                                poiProvider = mapDeps.poiProvider,
-                                geocodingClient = mapDeps.geocodingClient,
-                                settingsManager = settingsManager
-                            )
-                        )
-                    }
-                }
-                .build()
-        )
-
-        listBuilder.addItem(
-            Row.Builder()
-                .setTitle("Network & Location Info")
-                .addText("Check cellular and GPS status")
-                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_speaker)).build())
-                .setOnClickListener {
-                    screenManager.push(AutoNetworkLocationInfoScreen(carContext, networkService))
-                }
-                .build()
-        )
-
-        listBuilder.addItem(
-            Row.Builder()
-                .setTitle("Settings")
-                .addText("Toll data and car-safe options")
-                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_settings)).build())
-                .setOnClickListener {
-                    screenManager.push(AutoSettingsScreen(carContext, settingsManager))
-                }
-                .build()
-        )
-
-        return ListTemplate.Builder()
-            .setSingleList(listBuilder.build())
-            .setHeader(
-                Header.Builder()
-                    .setTitle("Julius Dashboard")
-                    .setStartHeaderAction(Action.APP_ICON)
                     .build()
             )
-            .build()
+
+            // 2. Map
+            grid.addItem(
+                GridItem.Builder()
+                    .setTitle("Map")
+                    .setText("Nearby stations")
+                    .setImage(gridIcon(R.drawable.ic_map))
+                    .setOnClickListener {
+                        settingsManager.setUseVehicleFilter(false)
+                        pushMapScreen()
+                    }
+                    .build()
+            )
+
+            // 3. Search
+            grid.addItem(
+                GridItem.Builder()
+                    .setTitle("Search")
+                    .setText("Name or brand")
+                    .setImage(gridIcon(R.drawable.ic_search))
+                    .setOnClickListener {
+                        val mapDeps = getMapDeps()
+                        if (mapDeps != null) {
+                            screenManager.push(
+                                AutoPoiSearchScreen(
+                                    carContext = carContext,
+                                    poiProvider = mapDeps.poiProvider,
+                                    settingsManager = settingsManager,
+                                    availabilityProviderFactory = mapDeps.availabilityProviderFactory,
+                                    favoritesRepo = mapDeps.favoritesRepo
+                                )
+                            )
+                        }
+                    }
+                    .build()
+            )
+
+            // 4. Settings
+            grid.addItem(
+                GridItem.Builder()
+                    .setTitle("Settings")
+                    .setText("App preferences")
+                    .setImage(gridIcon(R.drawable.ic_settings))
+                    .setOnClickListener {
+                        screenManager.push(AutoSettingsScreen(carContext, settingsManager))
+                    }
+                    .build()
+            )
+
+            GridTemplate.Builder()
+                .setSingleList(grid.build())
+                .setHeader(
+                    Header.Builder()
+                        .setTitle("Julius Dashboard")
+                        .setStartHeaderAction(Action.APP_ICON)
+                        .build()
+                )
+                .build()
+        } catch (e: Exception) {
+            Log.e("AutoDashboardScreen", "Failed to get template", e)
+            MessageTemplate.Builder(e.message ?: "Unknown error")
+                .setHeader(Header.Builder().setTitle("Julius Error").setStartHeaderAction(Action.APP_ICON).build())
+                .build()
+        }
     }
 
     private fun pushMapScreen() {
