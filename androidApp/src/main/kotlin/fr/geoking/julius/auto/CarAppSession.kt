@@ -168,6 +168,15 @@ class CarAppSession : Session(), KoinComponent {
     }
 
     override fun onCreateScreen(intent: Intent): Screen {
+        val initError = fr.geoking.julius.JuliusApplication.initError
+        if (initError != null) {
+            return ErrorScreen(
+                carContext,
+                errorMessage = "Initialization Failed",
+                errorDetail = initError.message ?: initError.toString()
+            )
+        }
+
         val nav = IntentNavigationHelper.parseNavIntent(intent)
         if (nav != null) {
             val mapDeps = getMapDeps()
