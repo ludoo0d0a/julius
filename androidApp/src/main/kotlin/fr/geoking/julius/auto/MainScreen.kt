@@ -200,105 +200,99 @@ class MainScreen(
         settingsManager.saveSettings(settingsManager.settings.value.copy(selectedAgent = nextAgent))
     }
 
-    override fun onGetTemplate(): Template {
-        return try {
-            // Navigation category: Tabbed UI providing access to Assistant, Map, History and Settings.
-            val assistantTab = Tab.Builder()
-                .setTitle("Assistant")
-                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_home)).build())
-                .setContentId(TAB_ASSISTANT)
-                .build()
+    override fun onGetTemplate(): Template = safeCarTemplate(carContext, TAG) {
+        // Navigation category: Tabbed UI providing access to Assistant, Map, History and Settings.
+        val assistantTab = Tab.Builder()
+            .setTitle("Assistant")
+            .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_home)).build())
+            .setContentId(TAB_ASSISTANT)
+            .build()
 
-            val mapTab = Tab.Builder()
-                .setTitle("Map")
-                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
-                .setContentId(TAB_MAP)
-                .build()
+        val mapTab = Tab.Builder()
+            .setTitle("Map")
+            .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_map)).build())
+            .setContentId(TAB_MAP)
+            .build()
 
-            val historyTab = Tab.Builder()
-                .setTitle("History")
-                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_history)).build())
-                .setContentId(TAB_HISTORY)
-                .build()
+        val historyTab = Tab.Builder()
+            .setTitle("History")
+            .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_history)).build())
+            .setContentId(TAB_HISTORY)
+            .build()
 
-            val settingsTab = Tab.Builder()
-                .setTitle("Settings")
-                .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_settings)).build())
-                .setContentId(TAB_SETTINGS)
-                .build()
+        val settingsTab = Tab.Builder()
+            .setTitle("Settings")
+            .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_settings)).build())
+            .setContentId(TAB_SETTINGS)
+            .build()
 
-            val templateToDisplay = when (activeTabId) {
-                TAB_ASSISTANT -> {
-                    buildPaneTemplate()
-                }
-                TAB_HISTORY -> buildHistoryTemplate()
-                else -> buildPaneTemplate()
+        val templateToDisplay = when (activeTabId) {
+            TAB_ASSISTANT -> {
+                buildPaneTemplate()
             }
+            TAB_HISTORY -> buildHistoryTemplate()
+            else -> buildPaneTemplate()
+        }
 
-            TabTemplate.Builder(object : TabTemplate.TabCallback {
-                override fun onTabSelected(tabContentId: String) {
-                    when (tabContentId) {
-                        TAB_SETTINGS -> screenManager.push(AutoSettingsScreen(carContext, settingsManager))
-                        TAB_MAP -> {
-                            try {
-                                val mapDeps = getMapDeps()
-                                if (mapDeps != null) {
-                                    val screen = if (settingsManager.settings.value.carMapMode == CarMapMode.Native) {
-                                        NativeMapPoiScreen(
-                                            carContext = carContext,
-                                            poiProvider = mapDeps.poiProvider,
-                                            availabilityProviderFactory = mapDeps.availabilityProviderFactory,
-                                            settingsManager = settingsManager,
-                                            communityRepo = mapDeps.communityRepo,
-                                            favoritesRepo = mapDeps.favoritesRepo
-                                        )
-                                    } else {
-                                        CustomMapPoiScreen(
-                                            carContext = carContext,
-                                            poiProvider = mapDeps.poiProvider,
-                                            availabilityProviderFactory = mapDeps.availabilityProviderFactory,
-                                            settingsManager = settingsManager,
-                                            routePlanner = mapDeps.routePlanner,
-                                            routingClient = mapDeps.routingClient,
-                                            tollCalculator = mapDeps.tollCalculator,
-                                            trafficProviderFactory = mapDeps.trafficProviderFactory,
-                                            geocodingClient = mapDeps.geocodingClient,
-                                            communityRepo = mapDeps.communityRepo,
-                                            favoritesRepo = mapDeps.favoritesRepo
-                                        )
-                                    }
-                                    screenManager.push(screen)
+        TabTemplate.Builder(object : TabTemplate.TabCallback {
+            override fun onTabSelected(tabContentId: String) {
+                when (tabContentId) {
+                    TAB_SETTINGS -> screenManager.push(AutoSettingsScreen(carContext, settingsManager))
+                    TAB_MAP -> {
+                        try {
+                            val mapDeps = getMapDeps()
+                            if (mapDeps != null) {
+                                val screen = if (settingsManager.settings.value.carMapMode == CarMapMode.Native) {
+                                    NativeMapPoiScreen(
+                                        carContext = carContext,
+                                        poiProvider = mapDeps.poiProvider,
+                                        availabilityProviderFactory = mapDeps.availabilityProviderFactory,
+                                        settingsManager = settingsManager,
+                                        communityRepo = mapDeps.communityRepo,
+                                        favoritesRepo = mapDeps.favoritesRepo
+                                    )
                                 } else {
-                                    Log.e(TAG, "TAB_MAP selection: mapDeps is null")
-                                    activeTabId = tabContentId
-                                    invalidate()
+                                    CustomMapPoiScreen(
+                                        carContext = carContext,
+                                        poiProvider = mapDeps.poiProvider,
+                                        availabilityProviderFactory = mapDeps.availabilityProviderFactory,
+                                        settingsManager = settingsManager,
+                                        routePlanner = mapDeps.routePlanner,
+                                        routingClient = mapDeps.routingClient,
+                                        tollCalculator = mapDeps.tollCalculator,
+                                        trafficProviderFactory = mapDeps.trafficProviderFactory,
+                                        geocodingClient = mapDeps.geocodingClient,
+                                        communityRepo = mapDeps.communityRepo,
+                                        favoritesRepo = mapDeps.favoritesRepo
+                                    )
                                 }
-                            } catch (e: Exception) {
-                                Log.e(TAG, "TAB_MAP selection: failed to load mapDeps", e)
+                                screenManager.push(screen)
+                            } else {
+                                Log.e(TAG, "TAB_MAP selection: mapDeps is null")
                                 activeTabId = tabContentId
                                 invalidate()
                             }
-                        }
-                        else -> {
+                        } catch (e: Exception) {
+                            Log.e(TAG, "TAB_MAP selection: failed to load mapDeps", e)
                             activeTabId = tabContentId
                             invalidate()
                         }
                     }
+                    else -> {
+                        activeTabId = tabContentId
+                        invalidate()
+                    }
                 }
-            })
-                .setHeaderAction(Action.APP_ICON)
-                .addTab(assistantTab)
-                .addTab(mapTab)
-                .addTab(historyTab)
-                .addTab(settingsTab)
-                .setActiveTabContentId(activeTabId)
-                .setTabContents(TabContents.Builder(templateToDisplay).build())
-                .build()
-
-        } catch (e: Exception) {
-            Log.e(TAG, "onGetTemplate failed", e)
-            buildErrorFallbackTemplate(e)
-        }
+            }
+        })
+            .setHeaderAction(Action.APP_ICON)
+            .addTab(assistantTab)
+            .addTab(mapTab)
+            .addTab(historyTab)
+            .addTab(settingsTab)
+            .setActiveTabContentId(activeTabId)
+            .setTabContents(TabContents.Builder(templateToDisplay).build())
+            .build()
     }
 
     private fun buildHistoryTemplate(): Template {
@@ -322,7 +316,6 @@ class MainScreen(
 
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
-            .setHeader(Header.Builder().setTitle(screenState.title).build())
             .build()
     }
 
@@ -330,13 +323,6 @@ class MainScreen(
         return MessageTemplate.Builder("Redirecting to Settings...")
             .setLoading(true)
             .setHeader(Header.Builder().setTitle("Settings").build())
-            .build()
-    }
-
-    private fun buildErrorFallbackTemplate(e: Exception): Template {
-        val msg = e.message ?: e.toString()
-        return MessageTemplate.Builder(msg.take(300))
-            .setHeader(Header.Builder().setTitle("Julius Error").setStartHeaderAction(Action.APP_ICON).build())
             .build()
     }
 
@@ -436,36 +422,34 @@ class MainScreen(
             IconCompat.createWithResource(carContext, actionIconRes)
         ).build()
 
-        val speakAction = Action.Builder()
-            .setIcon(actionIcon)
-            .setTitle(if (isListening || isSpeaking) "Stop" else "Speak")
-            .setOnClickListener {
-                when {
-                    isSpeaking -> store.stopSpeaking()
-                    isListening -> store.stopListening()
-                    else -> store.startListening(continuous = true)
+        val speakTitle = if (isListening || isSpeaking) "Stop" else "Speak"
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle(speakTitle)
+                .setImage(actionIcon)
+                .setOnClickListener {
+                    when {
+                        isSpeaking -> store.stopSpeaking()
+                        isListening -> store.stopListening()
+                        else -> store.startListening(continuous = true)
+                    }
                 }
-            }
-            .build()
+                .build()
+        )
 
         val currentAgent = settingsManager.settings.value.selectedAgent
         val nextAgent = nextSelectableAgent(currentAgent)
-        val cycleAgentAction = Action.Builder()
-            .setIcon(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_swap_horiz)).build())
-            .setTitle("${currentAgent.name} -> ${nextAgent.name}")
-            .setOnClickListener { cycleToNextAgent() }
-            .build()
+        listBuilder.addItem(
+            Row.Builder()
+                .setTitle("Switch Agent")
+                .addText("${currentAgent.name} -> ${nextAgent.name}")
+                .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_swap_horiz)).build())
+                .setOnClickListener { cycleToNextAgent() }
+                .build()
+        )
 
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
-            .setHeader(
-                Header.Builder()
-                    .setTitle("Assistant")
-                    .setStartHeaderAction(Action.APP_ICON)
-                    .addEndHeaderAction(speakAction)
-                    .addEndHeaderAction(cycleAgentAction)
-                    .build()
-            )
             .build()
     }
 
