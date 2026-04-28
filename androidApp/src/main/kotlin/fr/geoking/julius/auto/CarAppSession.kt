@@ -23,6 +23,7 @@ import fr.geoking.julius.api.traffic.TrafficProviderFactory
 import fr.geoking.julius.api.weather.WeatherProviderFactory
 import fr.geoking.julius.community.CommunityPoiRepository
 import fr.geoking.julius.community.FavoritesRepository
+import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.di.MapDeps
 import fr.geoking.julius.di.MapModuleLoader
 import fr.geoking.julius.intent.IntentNavigationHelper
