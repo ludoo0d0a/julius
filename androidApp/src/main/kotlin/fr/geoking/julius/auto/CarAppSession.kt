@@ -46,9 +46,6 @@ class CarAppSession : Session(), KoinComponent {
 
     private val settingsManager: SettingsManager by inject()
     private val networkService: NetworkService by inject()
-    private val store: ConversationStore by inject()
-    private val julesClient: JulesClient by inject()
-    private val conversationalAgent: ConversationalAgent by inject()
 
     private var cachedMapDeps: MapDeps? = null
 
@@ -200,14 +197,21 @@ class CarAppSession : Session(), KoinComponent {
             )
         }
         return try {
-            MainScreen(
-                carContext = carContext,
-                store = store,
-                settingsManager = settingsManager,
-                julesClient = julesClient,
-                getMapDeps = this::getMapDeps,
-                conversationalAgent = conversationalAgent
-            )
+            if (BuildConfig.IS_PLAYSTORE_DISTRIBUTION) {
+                AutoPlaystoreDashboardScreen(
+                    carContext = carContext,
+                    settingsManager = settingsManager,
+                    networkService = networkService,
+                    getMapDeps = this::getMapDeps
+                )
+            } else {
+                AutoDashboardScreen(
+                    carContext = carContext,
+                    settingsManager = settingsManager,
+                    networkService = networkService,
+                    getMapDeps = this::getMapDeps
+                )
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create Android Auto root screen", e)
             ErrorScreen(
