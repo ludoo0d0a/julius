@@ -6,11 +6,8 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
 import android.util.Log
-import androidx.car.app.AppManager
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
-import androidx.car.app.SurfaceCallback
-import androidx.car.app.SurfaceContainer
 import androidx.car.app.model.Action
 import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.CarIcon
@@ -19,9 +16,7 @@ import androidx.car.app.model.ItemList
 import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
-import androidx.car.app.navigation.model.MapWithContentTemplate
 import androidx.core.graphics.drawable.IconCompat
-import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.R
 import fr.geoking.julius.feature.location.LocationHelper
@@ -32,17 +27,15 @@ import kotlinx.coroutines.launch
  * Phone VectorMapScreen uses MapLibre + OpenFreeMap; "Open MapLibre on phone" starts the host app with
  * `julius://map/libremap` (switches engine to MapLibre and opens the map).
  */
-class AutoLibreMapLabScreen(carContext: CarContext) : Screen(carContext), SurfaceCallback, DefaultLifecycleObserver {
+class AutoLibreMapLabScreen(carContext: CarContext) : Screen(carContext) {
 
     private var searchLat = 48.8566
     private var searchLon = 2.3522
     private var zoom = 12
-    private var surfaceRenderer: AutoSurfaceRenderer? = null
     private var isLoading = true
     private var isDarkMode = false
 
     init {
-        lifecycle.addObserver(this)
         refreshLocation()
     }
 
@@ -62,8 +55,6 @@ class AutoLibreMapLabScreen(carContext: CarContext) : Screen(carContext), Surfac
             }
             searchLat = lat
             searchLon = lon
-            surfaceRenderer?.updateLocation(searchLat, searchLon, zoom)
-            surfaceRenderer?.updateUserLocation(searchLat, searchLon)
             isLoading = false
             invalidate()
         }
@@ -71,69 +62,13 @@ class AutoLibreMapLabScreen(carContext: CarContext) : Screen(carContext), Surfac
 
     private fun bumpZoom(delta: Int) {
         zoom = (zoom + delta).coerceIn(4, 18)
-        surfaceRenderer?.updateLocation(searchLat, searchLon, zoom)
         invalidate()
-    }
-
-    private fun getTileUrlProvider(darkMode: Boolean): (Int, Int, Int) -> String {
-        return if (darkMode) {
-            { z, x, y -> "https://a.basemaps.cartocdn.com/rastertiles/dark_all/$z/$x/$y.png" }
-        } else {
-            // Carto Voyager raster — visually distinct from the OSM tiles used by [CustomMapPoiScreen].
-            { z, x, y -> "https://a.basemaps.cartocdn.com/rastertiles/voyager/$z/$x/$y.png" }
-        }
-    }
-
-    override fun onSurfaceAvailable(surfaceContainer: SurfaceContainer) {
-        surfaceRenderer?.stop()
-        val surface = surfaceContainer.surface
-        if (surface == null) {
-            Log.w("AutoLibreMapLabScreen", "SurfaceContainer.surface is null; skipping renderer start")
-            surfaceRenderer = null
-            return
-        }
-        if (surfaceContainer.width <= 0 || surfaceContainer.height <= 0) {
-            Log.w("AutoLibreMapLabScreen", "Skipping map surface: invalid size ${surfaceContainer.width}x${surfaceContainer.height}")
-            surfaceRenderer = null
-            return
-        }
-
-        isDarkMode = (carContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-
-        surfaceRenderer = AutoSurfaceRenderer(
-            carContext,
-            surface,
-            surfaceContainer.width,
-            surfaceContainer.height,
-            initialTileUrl = getTileUrlProvider(isDarkMode)
-        ).apply {
-            updateTheme(isDarkMode, getTileUrlProvider(isDarkMode))
-            updateLocation(searchLat, searchLon, zoom)
-            updateUserLocation(searchLat, searchLon)
-            updatePois(emptyList(), emptySet(), emptySet())
-            start()
-        }
-    }
-
-    override fun onSurfaceDestroyed(surfaceContainer: SurfaceContainer) {
-        surfaceRenderer?.stop()
-        surfaceRenderer = null
-    }
-
-    override fun onStart(owner: androidx.lifecycle.LifecycleOwner) {
-        carContext.getCarService(AppManager::class.java).setSurfaceCallback(this)
-    }
-
-    override fun onStop(owner: androidx.lifecycle.LifecycleOwner) {
-        surfaceRenderer?.stop()
-        surfaceRenderer = null
     }
 
     override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoLibreMapLabScreen") {
         val currentDarkMode = (carContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         if (currentDarkMode != isDarkMode) {
             isDarkMode = currentDarkMode
-            surfaceRenderer?.updateTheme(isDarkMode, getTileUrlProvider(isDarkMode))
         }
 
         val actionStrip = ActionStrip.Builder()
@@ -149,23 +84,17 @@ class AutoLibreMapLabScreen(carContext: CarContext) : Screen(carContext), Surfac
         val title = "MapLibre (lab)"
 
         if (isLoading) {
-            return@safeCarTemplate MapWithContentTemplate.Builder()
-                .setContentTemplate(
-                    ListTemplate.Builder()
-                        .setLoading(true)
-                        .setHeader(
-                            Header.Builder()
-                                .setTitle(title)
-                                .setStartHeaderAction(Action.BACK)
-                                .build()
-                        )
+            return@safeCarTemplate ListTemplate.Builder()
+                .setLoading(true)
+                .setHeader(
+                    Header.Builder()
+                        .setTitle(title)
+                        .setStartHeaderAction(Action.BACK)
                         .build()
                 )
                 .setActionStrip(actionStrip)
                 .build()
         }
-
-        surfaceRenderer?.updateLocation(searchLat, searchLon, zoom)
 
         val list = ItemList.Builder()
             .addItem(
@@ -208,7 +137,7 @@ class AutoLibreMapLabScreen(carContext: CarContext) : Screen(carContext), Surfac
             )
             .build()
 
-        val listTemplate = ListTemplate.Builder()
+        ListTemplate.Builder()
             .setHeader(
                 Header.Builder()
                     .setTitle(title)
@@ -216,10 +145,6 @@ class AutoLibreMapLabScreen(carContext: CarContext) : Screen(carContext), Surfac
                     .build()
             )
             .setSingleList(list)
-            .build()
-
-        MapWithContentTemplate.Builder()
-            .setContentTemplate(listTemplate)
             .setActionStrip(actionStrip)
             .build()
     }
