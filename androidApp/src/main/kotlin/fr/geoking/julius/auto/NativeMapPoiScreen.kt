@@ -8,13 +8,11 @@ import androidx.car.app.Screen
 import androidx.car.app.model.Action
 import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.CarColor
-import androidx.car.app.model.CarLocation
+import androidx.car.app.model.Header
 import androidx.car.app.model.ItemList
 import androidx.car.app.model.CarIcon
-import androidx.car.app.model.Place
-import androidx.car.app.model.PlaceMarker
 import androidx.car.app.model.Template
-import androidx.car.app.model.PlaceListMapTemplate
+import androidx.car.app.model.ListTemplate
 import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.lifecycleScope
@@ -120,18 +118,17 @@ class NativeMapPoiScreen(
             )
             .build()
 
-        val anchorPlace = Place.Builder(CarLocation.create(searchLat, searchLon))
-            .setMarker(PlaceMarker.Builder().setColor(CarColor.RED).build())
-            .build()
-
-        // PlaceListMapTemplate: loading and item list are mutually exclusive (see Builder.build()).
+        // ListTemplate: loading and item list are mutually exclusive.
         if (isLoading) {
-            return@safeCarTemplate PlaceListMapTemplate.Builder()
-                .setTitle("Nearby Stations")
-                .setHeaderAction(Action.BACK)
+            return@safeCarTemplate ListTemplate.Builder()
+                .setHeader(
+                    Header.Builder()
+                        .setTitle("Nearby Stations")
+                        .setStartHeaderAction(Action.BACK)
+                        .build()
+                )
                 .setActionStrip(actionStrip)
                 .setLoading(true)
-                .setAnchor(anchorPlace)
                 .build()
         }
 
@@ -241,13 +238,16 @@ class NativeMapPoiScreen(
             )
         }
 
-        PlaceListMapTemplate.Builder()
-            .setTitle("Nearby Stations")
-            .setHeaderAction(Action.BACK)
+        ListTemplate.Builder()
+            .setHeader(
+                Header.Builder()
+                    .setTitle("Nearby Stations")
+                    .setStartHeaderAction(Action.BACK)
+                    .build()
+            )
             .setActionStrip(actionStrip)
             .setLoading(false)
-            .setItemList(itemListBuilder.build())
-            .setAnchor(anchorPlace)
+            .setSingleList(itemListBuilder.build())
             .build()
     }
 }

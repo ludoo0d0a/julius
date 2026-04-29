@@ -36,8 +36,8 @@ class AutoTemplateLabScreen(
 
         listBuilder.addItem(
             Row.Builder()
-                .setTitle("Map & Nav Templates")
-                .addText("NavigationTemplate, RoutePreview, PlaceList...")
+                .setTitle("Map & Nav Templates (Lists)")
+                .addText("Navigation, RoutePreview, PlaceList (standard templates for compliance)")
                 .setOnClickListener {
                     screenManager.push(AutoTemplateLabMapTemplatesScreen(carContext))
                 }
@@ -98,16 +98,16 @@ class AutoTemplateLabBasicScreen(carContext: CarContext) : Screen(carContext) {
 class AutoTemplateLabMapTemplatesScreen(carContext: CarContext) : Screen(carContext) {
     override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoTemplateLabMapTemplatesScreen") {
         val listBuilder = ItemList.Builder()
-        listBuilder.addItem(Row.Builder().setTitle("NavigationTemplate").setOnClickListener { screenManager.push(GuidanceScreen(carContext, fr.geoking.julius.poi.Poi(id="lab", name="Sample", address = "Sample address", latitude=48.8, longitude=2.3))) }.build())
-        listBuilder.addItem(Row.Builder().setTitle("RoutePreviewNavigationTemplate").setOnClickListener { screenManager.push(AutoRoutePreviewNavigationTemplateScreen(carContext)) }.build())
-        listBuilder.addItem(Row.Builder().setTitle("PlaceListMapTemplate").setOnClickListener { screenManager.push(AutoPlaceListMapTemplateScreen(carContext)) }.build())
-        listBuilder.addItem(Row.Builder().setTitle("PlaceListNavigationTemplate").setOnClickListener { screenManager.push(AutoPlaceListNavigationTemplateScreen(carContext)) }.build())
+        listBuilder.addItem(Row.Builder().setTitle("Navigation (Message Only)").setOnClickListener { screenManager.push(GuidanceScreen(carContext, fr.geoking.julius.poi.Poi(id="lab", name="Sample", address = "Sample address", latitude=48.8, longitude=2.3))) }.build())
+        listBuilder.addItem(Row.Builder().setTitle("RoutePreview (List Only)").setOnClickListener { screenManager.push(AutoRoutePreviewNavigationTemplateScreen(carContext)) }.build())
+        listBuilder.addItem(Row.Builder().setTitle("PlaceListMap (List Only)").setOnClickListener { screenManager.push(AutoPlaceListMapTemplateScreen(carContext)) }.build())
+        listBuilder.addItem(Row.Builder().setTitle("PlaceListNav (List Only)").setOnClickListener { screenManager.push(AutoPlaceListNavigationTemplateScreen(carContext)) }.build())
         listBuilder.addItem(Row.Builder().setTitle("TabTemplate").setOnClickListener { screenManager.push(AutoTabTemplateScreen(carContext)) }.build())
-        listBuilder.addItem(Row.Builder().setTitle("MapTemplate (Custom OSM)").setOnClickListener { screenManager.push(AutoMapTemplateScreen(carContext)) }.build())
+        listBuilder.addItem(Row.Builder().setTitle("MapTemplate (List Only)").setOnClickListener { screenManager.push(AutoMapTemplateScreen(carContext)) }.build())
 
         ListTemplate.Builder()
             .setSingleList(listBuilder.build())
-            .setHeader(Header.Builder().setTitle("Map & Nav Templates").setStartHeaderAction(Action.BACK).build())
+            .setHeader(Header.Builder().setTitle("Map & Nav (Lists)").setStartHeaderAction(Action.BACK).build())
             .build()
     }
 }

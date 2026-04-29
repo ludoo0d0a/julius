@@ -2,11 +2,8 @@ package fr.geoking.julius.auto
 
 import android.content.res.Configuration
 import android.util.Log
-import androidx.car.app.AppManager
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
-import androidx.car.app.SurfaceCallback
-import androidx.car.app.SurfaceContainer
 import androidx.car.app.model.Action
 import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.CarIcon
@@ -15,78 +12,16 @@ import androidx.car.app.model.ItemList
 import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
-import androidx.car.app.navigation.model.MapWithContentTemplate
 import androidx.core.graphics.drawable.IconCompat
-import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.LifecycleOwner
 import fr.geoking.julius.R
 
-class AutoMapTemplateScreen(carContext: CarContext) : Screen(carContext), SurfaceCallback, DefaultLifecycleObserver {
+class AutoMapTemplateScreen(carContext: CarContext) : Screen(carContext) {
 
-    private var surfaceRenderer: AutoSurfaceRenderer? = null
-    private val lat = 48.8566
-    private val lon = 2.3522
     private var zoom = 14
     private var isDarkMode = false
 
-    init {
-        lifecycle.addObserver(this)
-    }
-
-    private fun getTileUrlProvider(darkMode: Boolean): (Int, Int, Int) -> String {
-        return if (darkMode) {
-            { z, x, y -> "https://a.basemaps.cartocdn.com/rastertiles/dark_all/$z/$x/$y.png" }
-        } else {
-            { z, x, y -> "https://tile.openstreetmap.org/$z/$x/$y.png" }
-        }
-    }
-
-    override fun onSurfaceAvailable(surfaceContainer: SurfaceContainer) {
-        surfaceRenderer?.stop()
-        val surface = surfaceContainer.surface
-        if (surface == null) {
-            surfaceRenderer = null
-            return
-        }
-        if (surfaceContainer.width <= 0 || surfaceContainer.height <= 0) {
-            Log.w("AutoMapTemplateScreen", "Skipping map surface: invalid size ${surfaceContainer.width}x${surfaceContainer.height}")
-            surfaceRenderer = null
-            return
-        }
-
-        isDarkMode = (carContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-
-        surfaceRenderer = AutoSurfaceRenderer(
-            carContext,
-            surface,
-            surfaceContainer.width,
-            surfaceContainer.height,
-            initialTileUrl = getTileUrlProvider(isDarkMode)
-        ).apply {
-            updateTheme(isDarkMode, getTileUrlProvider(isDarkMode))
-            updateLocation(lat, lon, zoom)
-            updateUserLocation(lat, lon)
-            start()
-        }
-    }
-
-    override fun onSurfaceDestroyed(surfaceContainer: SurfaceContainer) {
-        surfaceRenderer?.stop()
-        surfaceRenderer = null
-    }
-
-    override fun onStart(owner: LifecycleOwner) {
-        carContext.getCarService(AppManager::class.java).setSurfaceCallback(this)
-    }
-
-    override fun onStop(owner: LifecycleOwner) {
-        surfaceRenderer?.stop()
-        surfaceRenderer = null
-    }
-
     private fun bumpZoom(delta: Int) {
         zoom = (zoom + delta).coerceIn(4, 18)
-        surfaceRenderer?.updateLocation(lat, lon, zoom)
         invalidate()
     }
 
@@ -94,7 +29,6 @@ class AutoMapTemplateScreen(carContext: CarContext) : Screen(carContext), Surfac
         val currentDarkMode = (carContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         if (currentDarkMode != isDarkMode) {
             isDarkMode = currentDarkMode
-            surfaceRenderer?.updateTheme(isDarkMode, getTileUrlProvider(isDarkMode))
         }
 
         val actionStrip = ActionStrip.Builder()
@@ -121,18 +55,14 @@ class AutoMapTemplateScreen(carContext: CarContext) : Screen(carContext), Surfac
                     .build()
             )
 
-        val contentTemplate = ListTemplate.Builder()
+        ListTemplate.Builder()
             .setHeader(
                 Header.Builder()
-                    .setTitle("MapTemplate (OSM)")
+                    .setTitle("MapTemplate (List Only)")
                     .setStartHeaderAction(Action.BACK)
                     .build()
             )
             .setSingleList(listBuilder.build())
-            .build()
-
-        MapWithContentTemplate.Builder()
-            .setContentTemplate(contentTemplate)
             .setActionStrip(actionStrip)
             .build()
     }

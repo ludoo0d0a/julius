@@ -4,12 +4,9 @@ import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.Action
 import androidx.car.app.model.ActionStrip
-import androidx.car.app.model.CarLocation
+import androidx.car.app.model.Header
 import androidx.car.app.model.ItemList
-import androidx.car.app.model.Metadata
-import androidx.car.app.model.Place
-import androidx.car.app.model.PlaceListMapTemplate
-import androidx.car.app.model.PlaceMarker
+import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
 
@@ -21,15 +18,6 @@ class AutoPlaceListMapTemplateScreen(carContext: CarContext) : Screen(carContext
                     .setTitle("Eiffel Tower")
                     .addText("Champ de Mars, 5 Avenue Anatole France, 75007 Paris")
                     .setBrowsable(true)
-                    .setMetadata(
-                        Metadata.Builder()
-                            .setPlace(
-                                Place.Builder(CarLocation.create(48.8584, 2.2945))
-                                    .setMarker(PlaceMarker.Builder().build())
-                                    .build()
-                            )
-                            .build()
-                    )
                     .setOnClickListener { /* No-op */ }
                     .build()
             )
@@ -38,22 +26,9 @@ class AutoPlaceListMapTemplateScreen(carContext: CarContext) : Screen(carContext
                     .setTitle("Louvre Museum")
                     .addText("Rue de Rivoli, 75001 Paris")
                     .setBrowsable(true)
-                    .setMetadata(
-                        Metadata.Builder()
-                            .setPlace(
-                                Place.Builder(CarLocation.create(48.8606, 2.3376))
-                                    .setMarker(PlaceMarker.Builder().build())
-                                    .build()
-                            )
-                            .build()
-                    )
                     .setOnClickListener { /* No-op */ }
                     .build()
             )
-
-        val anchor = Place.Builder(CarLocation.create(48.8584, 2.2945))
-            .setMarker(PlaceMarker.Builder().build())
-            .build()
 
         val actionStrip = ActionStrip.Builder()
             .addAction(
@@ -64,12 +39,15 @@ class AutoPlaceListMapTemplateScreen(carContext: CarContext) : Screen(carContext
             )
             .build()
 
-        PlaceListMapTemplate.Builder()
-            .setTitle("PlaceListMapTemplate")
-            .setHeaderAction(Action.BACK)
+        ListTemplate.Builder()
+            .setHeader(
+                Header.Builder()
+                    .setTitle("PlaceListMapTemplate (List Only)")
+                    .setStartHeaderAction(Action.BACK)
+                    .build()
+            )
             .setActionStrip(actionStrip)
-            .setAnchor(anchor)
-            .setItemList(listBuilder.build())
+            .setSingleList(listBuilder.build())
             .build()
     }
 }

@@ -3,11 +3,12 @@ package fr.geoking.julius.auto
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.Action
+import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.Header
 import androidx.car.app.model.ItemList
+import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
-import androidx.car.app.navigation.model.RoutePreviewNavigationTemplate
 
 class AutoRoutePreviewNavigationTemplateScreen(carContext: CarContext) : Screen(carContext) {
     override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoRoutePreviewNavigationTemplateScreen") {
@@ -27,18 +28,22 @@ class AutoRoutePreviewNavigationTemplateScreen(carContext: CarContext) : Screen(
                     .build()
             )
 
-        RoutePreviewNavigationTemplate.Builder()
+        ListTemplate.Builder()
             .setHeader(
                 Header.Builder()
-                    .setTitle("Route Preview")
+                    .setTitle("Route Preview (List Only)")
                     .setStartHeaderAction(Action.BACK)
                     .build()
             )
-            .setItemList(listBuilder.build())
-            .setNavigateAction(
-                Action.Builder()
-                    .setTitle("Navigate")
-                    .setOnClickListener { /* Start nav */ }
+            .setSingleList(listBuilder.build())
+            .setActionStrip(
+                ActionStrip.Builder()
+                    .addAction(
+                        Action.Builder()
+                            .setTitle("Navigate")
+                            .setOnClickListener { /* Start nav */ }
+                            .build()
+                    )
                     .build()
             )
             .build()
