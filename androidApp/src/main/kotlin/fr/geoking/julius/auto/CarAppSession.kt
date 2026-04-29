@@ -201,27 +201,14 @@ class CarAppSession : Session(), KoinComponent {
             )
         }
         return try {
-            if (BuildConfig.IS_PLAYSTORE_DISTRIBUTION) {
-                AutoPlaystoreDashboardScreen(
-                    carContext = carContext,
-                    settingsManager = settingsManager,
-                    networkService = networkService,
-                    getMapDeps = this::getMapDeps,
-                    store = conversationStore,
-                    julesClient = julesClient,
-                    julesRepository = julesRepository
-                )
-            } else {
-                AutoDashboardScreen(
-                    carContext = carContext,
-                    settingsManager = settingsManager,
-                    networkService = networkService,
-                    getMapDeps = this::getMapDeps,
-                    store = conversationStore,
-                    julesClient = julesClient,
-                    julesRepository = julesRepository
-                )
-            }
+            AutoHomeScreen(
+                carContext = carContext,
+                settingsManager = settingsManager,
+                getMapDeps = this::getMapDeps,
+                store = conversationStore,
+                julesClient = julesClient,
+                julesRepository = julesRepository
+            )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create Android Auto root screen", e)
             ErrorScreen(
