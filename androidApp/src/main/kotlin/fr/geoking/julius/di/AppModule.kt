@@ -22,6 +22,10 @@ import fr.geoking.julius.shared.platform.PermissionManager
 import fr.geoking.julius.shared.weather.WeatherLookup
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.api.github.GitHubClient
+import fr.geoking.julius.api.weather.MetNorwayWeatherProvider
+import fr.geoking.julius.api.weather.OpenMeteoGeocodingClient
+import fr.geoking.julius.api.weather.OpenMeteoWeatherProvider
+import fr.geoking.julius.api.weather.WeatherProviderFactory
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.conversation.MessagePersistence
 import fr.geoking.julius.shared.network.NetworkException
@@ -351,7 +355,7 @@ val appModule = module {
     single<GitHubClient> { GitHubClient(get()) }
     single { FirebaseAuth.getInstance() }
     single { FirebaseFirestore.getInstance() }
-    single<SettingsManager> { SettingsManager(androidContext(), get()) }
+    single<SettingsManager> { SettingsManager(androidContext()) }
     single<GoogleAuthManager> {
         GoogleAuthManager(androidContext(), get(), { get<ConversationStore>() }, get())
     }
@@ -370,6 +374,11 @@ val appModule = module {
     single<PermissionManager> {
         AndroidPermissionManager(androidContext())
     }
+
+    single { OpenMeteoGeocodingClient(get()) }
+    single { OpenMeteoWeatherProvider(get(), providerId = "Open-Meteo") }
+    single { MetNorwayWeatherProvider(get()) }
+    single { WeatherProviderFactory(listOf(get<OpenMeteoWeatherProvider>(), get<MetNorwayWeatherProvider>())) }
 
     // Map/route/POI/transit/traffic/toll are in mapModule; load via MapModuleLoader when opening map.
 
