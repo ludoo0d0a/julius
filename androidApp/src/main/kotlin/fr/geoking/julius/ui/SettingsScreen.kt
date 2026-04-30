@@ -89,6 +89,7 @@ enum class SettingsScreenPage {
     JulesConfig,
     TollData,
     ErrorLog,
+    LogViewer,
     VehicleConfig,
     MapConfig,
     About
@@ -195,6 +196,7 @@ fun SettingsScreen(
                     SettingsScreenPage.JulesConfig -> "Jules & GitHub"
                     SettingsScreenPage.TollData -> "Highway toll (OpenTollData)"
                     SettingsScreenPage.ErrorLog -> "Error Log"
+                    SettingsScreenPage.LogViewer -> "Log viewer"
                     SettingsScreenPage.About -> "About"
                     SettingsScreenPage.GoogleAccount -> "Google Account"
                     SettingsScreenPage.VehicleConfig -> "Vehicle"
@@ -275,6 +277,7 @@ fun SettingsScreen(
                         onUpdate = { save(settingsManager, it) }
                     )
                     SettingsScreenPage.ErrorLog -> ErrorLog(errorLog)
+                    SettingsScreenPage.LogViewer -> LogViewerScreen()
                     SettingsScreenPage.About -> AboutContent()
                     SettingsScreenPage.GoogleAccount -> GoogleAccount(
                         settings = current,
@@ -1113,6 +1116,13 @@ private fun MainMenu(
             value = "View recent errors",
             onClick = { onNavigate(SettingsScreenPage.ErrorLog) }
         )
+        if (BuildConfig.DEBUG) {
+            SettingsItem(
+                label = "Log viewer",
+                value = "Live device logs (logcat)",
+                onClick = { onNavigate(SettingsScreenPage.LogViewer) }
+            )
+        }
         SettingsItem(
             label = "About",
             value = "Version & build info",

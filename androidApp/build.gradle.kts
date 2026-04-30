@@ -270,6 +270,10 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-compose:${libs.versions.coil.get()}")
     implementation("io.coil-kt.coil3:coil-network-okhttp:${libs.versions.coil.get()}")
 
+    // Shizuku (optional) - allows reading full device logcat when user grants permission.
+    implementation(libs.shizuku.api)
+    implementation(libs.shizuku.provider)
+
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.robolectric)

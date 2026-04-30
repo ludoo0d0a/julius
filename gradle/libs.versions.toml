@@ -31,6 +31,7 @@ coreKtx = "1.18.0"
 robolectric = "4.16.1"
 voskAndroid = "0.3.75"
 firebase-bom = "33.10.0"
+shizuku = "13.1.5"
 
 [libraries]
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
@@ -90,6 +91,8 @@ androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = 
 androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "androidx-work" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 vosk-android = { module = "com.alphacephei:vosk-android", version.ref = "voskAndroid" }
+shizuku-api = { module = "dev.rikka.shizuku:api", version.ref = "shizuku" }
+shizuku-provider = { module = "dev.rikka.shizuku:provider", version.ref = "shizuku" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

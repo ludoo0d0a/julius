@@ -24,6 +24,15 @@
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
         android:networkSecurityConfig="@xml/network_security_config">
 
+        <!-- Shizuku binder bridge (required to access device-wide logcat). -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
         <!-- Mobile UI Activity -->
         <activity
             android:name=".MainActivity"
