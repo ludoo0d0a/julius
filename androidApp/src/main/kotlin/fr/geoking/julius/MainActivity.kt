@@ -39,14 +39,8 @@ import fr.geoking.julius.shared.platform.PermissionManager
 import fr.geoking.julius.shared.network.NetworkService
 import fr.geoking.julius.shared.network.NetworkStatus
 import fr.geoking.julius.shared.voice.VoiceManager
-import fr.geoking.julius.di.MapDeps
-import fr.geoking.julius.di.MapModuleLoader
 import fr.geoking.julius.ui.JulesScreen
 import fr.geoking.julius.ui.MapScreen
-import fr.geoking.julius.ui.map.maplibre.VectorMapScreen
-import fr.geoking.julius.ui.map.maplibre.DirectionsMapScreen
-import fr.geoking.julius.ui.RoutePlanningScreen
-import fr.geoking.julius.api.routing.RouteResult
 import fr.geoking.julius.ui.HistoryScreen
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.ui.SettingsScreenPage
@@ -60,8 +54,6 @@ import fr.geoking.julius.persistence.JulesActivityEntity
 import fr.geoking.julius.persistence.JulesDao
 import fr.geoking.julius.persistence.JulesSessionEntity
 import com.google.firebase.auth.FirebaseAuth
-import fr.geoking.julius.poi.MockPoiProvider
-import fr.geoking.julius.poi.Poi
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.ui.UpdateAvailableDialog
 import fr.geoking.julius.ui.anim.AnimationPalettes
@@ -102,10 +94,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private val inAppUpdateHelper by lazy { InAppUpdateHelper(applicationContext) }
-    private val mapDepsState = MutableStateFlow<MapDeps?>(null)
     private val pendingNavDestination = MutableStateFlow<NavDestination?>(null)
-    /** Set from [handleIntent] when the host opens [julius://map/libremap] (e.g. Android Auto lab). */
-    private val pendingLibreMapLab = MutableStateFlow(false)
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -118,32 +107,10 @@ class MainActivity : ComponentActivity() {
         if (nav != null) {
             pendingNavDestination.value = nav
         }
-        val data = intent.data
-        if (data?.scheme == "julius" && data.host == "map" && data.path == "/libremap") {
-            pendingLibreMapLab.value = true
-        }
+        // POI/libre-map lab paths removed.
     }
 
-    private fun ensureMapDeps() {
-        if (mapDepsState.value != null) return
-        try {
-            MapModuleLoader.ensureLoaded()
-            mapDepsState.value = MapDeps(
-                poiProvider = get(),
-                availabilityProviderFactory = get(),
-                communityRepo = get(),
-                favoritesRepo = get(),
-                trafficProviderFactory = get(),
-                weatherProviderFactory = get(),
-                routePlanner = get(),
-                routingClient = get(),
-                tollCalculator = get(),
-                geocodingClient = get()
-            )
-        } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "ensureMapDeps: failed to load map dependencies", e)
-        }
-    }
+    // Map/POI dependency graph removed.
 
     private val updateResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
@@ -235,8 +202,6 @@ class MainActivity : ComponentActivity() {
                     store = store,
                     settingsManager = settingsManager,
                     authManager = authManager,
-                    mapDepsState = mapDepsState,
-                    onRequestMapDeps = { ensureMapDeps() },
                     julesClient = julesClient,
                     julesRepository = julesRepository,
                     voiceManager = voiceManager,
@@ -245,7 +210,6 @@ class MainActivity : ComponentActivity() {
                     inAppUpdateHelper = inAppUpdateHelper,
                     updateResultLauncher = updateResultLauncher,
                     pendingNavDestination = pendingNavDestination,
-                    pendingLibreMapLab = pendingLibreMapLab,
                     isPlaystoreDistribution = isPlaystoreDistribution
                 )
             }
@@ -270,8 +234,6 @@ private fun MainActivityComposeRoot(
     store: ConversationStore,
     settingsManager: SettingsManager,
     authManager: GoogleAuthManager,
-    mapDepsState: kotlinx.coroutines.flow.MutableStateFlow<MapDeps?>,
-    onRequestMapDeps: () -> Unit,
     julesClient: JulesClient,
     julesRepository: JulesRepository,
     voiceManager: VoiceManager,
@@ -280,7 +242,6 @@ private fun MainActivityComposeRoot(
     inAppUpdateHelper: InAppUpdateHelper,
     updateResultLauncher: ActivityResultLauncher<IntentSenderRequest>,
     pendingNavDestination: MutableStateFlow<NavDestination?>,
-    pendingLibreMapLab: MutableStateFlow<Boolean>,
     isPlaystoreDistribution: Boolean
 ) {
     android.util.Log.d("MainActivity", "Compose setContent block running")
@@ -314,8 +275,6 @@ private fun MainActivityComposeRoot(
         store = store,
         settingsManager = settingsManager,
         authManager = authManager,
-        mapDepsState = mapDepsState,
-        onRequestMapDeps = onRequestMapDeps,
         julesClient = julesClient,
         julesRepository = julesRepository,
         voiceManager = voiceManager,
@@ -324,7 +283,6 @@ private fun MainActivityComposeRoot(
         inAppUpdateHelper = inAppUpdateHelper,
         onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) },
         pendingNavDestinationFlow = pendingNavDestination,
-        pendingLibreMapLab = pendingLibreMapLab,
         isPlaystoreDistribution = isPlaystoreDistribution,
         hasLocationPermission = hasLocationPermission
     )
@@ -336,8 +294,6 @@ fun MainUI(
     store: ConversationStore,
     settingsManager: SettingsManager,
     authManager: GoogleAuthManager,
-    mapDepsState: kotlinx.coroutines.flow.StateFlow<MapDeps?>,
-    onRequestMapDeps: () -> Unit,
     julesClient: JulesClient,
     julesRepository: JulesRepository,
     voiceManager: VoiceManager,
@@ -346,25 +302,18 @@ fun MainUI(
     inAppUpdateHelper: InAppUpdateHelper? = null,
     onStartUpdate: (AppUpdateInfo) -> Unit = {},
     pendingNavDestinationFlow: kotlinx.coroutines.flow.MutableStateFlow<NavDestination?>? = null,
-    pendingLibreMapLab: MutableStateFlow<Boolean>? = null,
     isPlaystoreDistribution: Boolean = false,
     hasLocationPermission: Boolean = false
 ) {
     val pendingNavFlow = pendingNavDestinationFlow ?: remember { MutableStateFlow<NavDestination?>(null) }
-    val mapDeps by mapDepsState.collectAsState()
     val networkStatus by networkService.status.collectAsState()
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var settingsInitialStack by rememberSaveable { mutableStateOf<List<SettingsScreenPage>?>(null) }
     var showHistory by remember { mutableStateOf(false) }
     /** Play Store flavor uses a dashboard home first; full flavor starts on the voice screen. */
     var showMap by remember { mutableStateOf(false) }
-    var showRoutePlanning by remember { mutableStateOf(false) }
-    var showDirectionsMap by remember { mutableStateOf(false) }
-    var routeForDirections by remember { mutableStateOf<RouteResult?>(null) }
-    var stationsForDirections by remember { mutableStateOf<List<Poi>>(emptyList()) }
     var initialNavDestination by remember { mutableStateOf<NavDestination?>(null) }
     var initialMapCenter by remember { mutableStateOf<com.google.android.gms.maps.model.LatLng?>(null) }
-    var initialSelectedPoi by remember { mutableStateOf<Poi?>(null) }
     var lastMapCenter by remember { mutableStateOf<com.google.android.gms.maps.model.LatLng?>(null) }
     var lastMapZoom by remember { mutableStateOf(12f) }
 
@@ -374,35 +323,12 @@ fun MainUI(
         pendingNavFlow.collect { nav ->
             if (nav != null) {
                 initialNavDestination = nav
-                showRoutePlanning = true
                 showMap = true
                 pendingNavFlow.value = null
             }
         }
     }
 
-    val libreMapLabFlow = pendingLibreMapLab ?: remember { MutableStateFlow(false) }
-    LaunchedEffect(Unit) {
-        libreMapLabFlow.collect { open ->
-            if (open) {
-                settingsManager.setPhoneMapEngine(MapEngine.MapLibre)
-                showMap = true
-                libreMapLabFlow.value = false
-            }
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        val intent = (context as? Activity)?.intent
-        if (intent?.data?.scheme == "julius" && intent.data?.host == "map") {
-            val path = intent.data?.path
-            val currentSettings = settingsManager.settings.value
-            if (path == "/libremap") {
-                settingsManager.setPhoneMapEngine(MapEngine.MapLibre)
-            }
-            showMap = true
-        }
-    }
     var showJules by remember { mutableStateOf(false) }
     var showFavorites by remember { mutableStateOf(false) }
     val settings by settingsManager.settings.collectAsState()
@@ -411,9 +337,7 @@ fun MainUI(
         evaluateAgentSetup(settings, llamatikModelHelper, conversationalAgent)
     }
 
-    LaunchedEffect(showMap, showRoutePlanning, isPlaystoreDistribution) {
-        if (showMap || showRoutePlanning || isPlaystoreDistribution) onRequestMapDeps()
-    }
+    // Map dependency loader removed.
     val paletteIndex by AnimationPalettes.index.collectAsState()
     val palette = remember(paletteIndex) { AnimationPalettes.paletteFor(paletteIndex) }
     val fallbackUpdateFlow = remember { MutableStateFlow<AppUpdateInfo?>(null) }
@@ -445,96 +369,26 @@ fun MainUI(
                         onInitialRouteConsumed = { settingsInitialStack = null }
                     )
                 }
-                isPlaystoreDistribution && showDirectionsMap && mapDeps != null -> {
-                    BackHandler { showDirectionsMap = false }
-                    DirectionsMapScreen(
-                        route = routeForDirections,
-                        pois = stationsForDirections,
+                isPlaystoreDistribution && showMap -> {
+                    BackHandler { showMap = false }
+                    MapScreen(
                         settingsManager = settingsManager,
-                        onBack = { showDirectionsMap = false },
+                        authManager = authManager,
+                        store = store,
+                        palette = palette,
+                        initialCenter = initialMapCenter ?: lastMapCenter,
+                        initialZoom = if (initialMapCenter != null) 12f else lastMapZoom,
+                        onBack = { showMap = false; initialMapCenter = null },
+                        onCameraMove = { center, zoom ->
+                            lastMapCenter = center
+                            lastMapZoom = zoom
+                        },
+                        onPlanRoute = null,
                         onShowSettings = {
-                            settingsInitialStack = listOf(SettingsScreenPage.MapConfig)
+                            settingsInitialStack = listOf(SettingsScreenPage.Main)
                             showSettings = true
                         }
                     )
-                }
-                isPlaystoreDistribution && showMap && showRoutePlanning && mapDeps != null -> {
-                    RoutePlanningScreen(
-                        routePlanner = mapDeps!!.routePlanner,
-                        routingClient = mapDeps!!.routingClient,
-                        tollCalculator = mapDeps!!.tollCalculator,
-                        trafficProviderFactory = mapDeps!!.trafficProviderFactory,
-                        poiProvider = mapDeps!!.poiProvider,
-                        geocodingClient = mapDeps!!.geocodingClient,
-                        settingsManager = settingsManager,
-                        onBack = { showRoutePlanning = false; initialNavDestination = null },
-                        onShowOnMap = { route, pois ->
-                            routeForDirections = route
-                            stationsForDirections = pois
-                            showDirectionsMap = true
-                        },
-                        initialDestination = initialNavDestination
-                    )
-                }
-                isPlaystoreDistribution && showMap && mapDeps == null -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                }
-                isPlaystoreDistribution && showMap && mapDeps != null -> {
-                    BackHandler { showMap = false }
-                    if (settings.phoneMapEngine == MapEngine.MapLibre) {
-                        VectorMapScreen(
-                            poiProvider = mapDeps!!.poiProvider,
-                            availabilityProviderFactory = mapDeps!!.availabilityProviderFactory,
-                            trafficProviderFactory = mapDeps!!.trafficProviderFactory,
-                            settingsManager = settingsManager,
-                            authManager = authManager,
-                            store = store,
-                            palette = palette,
-                            initialCenter = initialMapCenter?.let { org.maplibre.android.geometry.LatLng(it.latitude, it.longitude) }
-                                ?: lastMapCenter?.let { org.maplibre.android.geometry.LatLng(it.latitude, it.longitude) },
-                            initialZoom = if (initialMapCenter != null) 12.0 else lastMapZoom.toDouble(),
-                            initialPoi = initialSelectedPoi,
-                            onBack = { showMap = false; initialMapCenter = null; initialSelectedPoi = null },
-                            onCameraMove = { center, zoom ->
-                                lastMapCenter = com.google.android.gms.maps.model.LatLng(center.latitude, center.longitude)
-                                lastMapZoom = zoom.toFloat()
-                            },
-                            onPlanRoute = { showRoutePlanning = true },
-                            onShowSettings = {
-                                settingsInitialStack = listOf(SettingsScreenPage.MapConfig)
-                                showSettings = true
-                            },
-                            communityRepo = mapDeps!!.communityRepo,
-                            favoritesRepo = mapDeps!!.favoritesRepo
-                        )
-                    } else {
-                        MapScreen(
-                            poiProvider = mapDeps!!.poiProvider,
-                            availabilityProviderFactory = mapDeps!!.availabilityProviderFactory,
-                            trafficProviderFactory = mapDeps!!.trafficProviderFactory,
-                            settingsManager = settingsManager,
-                            authManager = authManager,
-                            store = store,
-                            palette = palette,
-                            initialCenter = initialMapCenter ?: lastMapCenter,
-                            initialZoom = if (initialMapCenter != null) 12f else lastMapZoom,
-                            initialPoi = initialSelectedPoi,
-                            onBack = { showMap = false; initialMapCenter = null; initialSelectedPoi = null },
-                            onCameraMove = { center, zoom ->
-                                lastMapCenter = center
-                                lastMapZoom = zoom
-                            },
-                            onPlanRoute = { showRoutePlanning = true },
-                            onShowSettings = {
-                                settingsInitialStack = listOf(SettingsScreenPage.MapConfig)
-                                showSettings = true
-                            },
-                            communityRepo = mapDeps!!.communityRepo,
-                            favoritesRepo = mapDeps!!.favoritesRepo
-                        )
-                    }
                 }
                 showJules -> {
                     JulesScreen(
@@ -548,97 +402,26 @@ fun MainUI(
                 showHistory && !isPlaystoreDistribution -> {
                     HistoryScreen(state = state, store = store, onBack = { showHistory = false })
                 }
-                showDirectionsMap && mapDeps != null -> {
-                    BackHandler { showDirectionsMap = false }
-                    DirectionsMapScreen(
-                        route = routeForDirections,
-                        pois = stationsForDirections,
+                showMap -> {
+                    BackHandler { showMap = false }
+                    MapScreen(
                         settingsManager = settingsManager,
-                        onBack = { showDirectionsMap = false },
+                        authManager = authManager,
+                        store = store,
+                        palette = palette,
+                        initialCenter = initialMapCenter ?: lastMapCenter,
+                        initialZoom = if (initialMapCenter != null) 12f else lastMapZoom,
+                        onBack = { showMap = false; initialMapCenter = null },
+                        onCameraMove = { center, zoom ->
+                            lastMapCenter = center
+                            lastMapZoom = zoom
+                        },
+                        onPlanRoute = null,
                         onShowSettings = {
-                            settingsInitialStack = listOf(SettingsScreenPage.MapConfig)
+                            settingsInitialStack = listOf(SettingsScreenPage.Main)
                             showSettings = true
                         }
                     )
-                }
-                showMap && showRoutePlanning && mapDeps != null -> {
-                    RoutePlanningScreen(
-                        routePlanner = mapDeps!!.routePlanner,
-                        routingClient = mapDeps!!.routingClient,
-                        tollCalculator = mapDeps!!.tollCalculator,
-                        trafficProviderFactory = mapDeps!!.trafficProviderFactory,
-                        poiProvider = mapDeps!!.poiProvider,
-                        geocodingClient = mapDeps!!.geocodingClient,
-                        settingsManager = settingsManager,
-                        onBack = { showRoutePlanning = false; initialNavDestination = null },
-                        onShowOnMap = { route, pois ->
-                            routeForDirections = route
-                            stationsForDirections = pois
-                            showDirectionsMap = true
-                        },
-                        initialDestination = initialNavDestination
-                    )
-                }
-                showMap -> {
-                    BackHandler { showMap = false }
-                    if (mapDeps != null) {
-                        if (settings.phoneMapEngine == MapEngine.MapLibre) {
-                            VectorMapScreen(
-                                poiProvider = mapDeps!!.poiProvider,
-                                availabilityProviderFactory = mapDeps!!.availabilityProviderFactory,
-                                trafficProviderFactory = mapDeps!!.trafficProviderFactory,
-                                settingsManager = settingsManager,
-                                authManager = authManager,
-                                store = store,
-                                palette = palette,
-                            initialCenter = initialMapCenter?.let { org.maplibre.android.geometry.LatLng(it.latitude, it.longitude) }
-                                ?: lastMapCenter?.let { org.maplibre.android.geometry.LatLng(it.latitude, it.longitude) },
-                            initialZoom = if (initialMapCenter != null) 12.0 else lastMapZoom.toDouble(),
-                            initialPoi = initialSelectedPoi,
-                            onBack = { showMap = false; initialMapCenter = null; initialSelectedPoi = null },
-                            onCameraMove = { center, zoom ->
-                                lastMapCenter = com.google.android.gms.maps.model.LatLng(center.latitude, center.longitude)
-                                lastMapZoom = zoom.toFloat()
-                            },
-                                onPlanRoute = { showRoutePlanning = true },
-                                onShowSettings = {
-                                    settingsInitialStack = listOf(SettingsScreenPage.MapConfig)
-                                    showSettings = true
-                                },
-                                communityRepo = mapDeps!!.communityRepo,
-                                favoritesRepo = mapDeps!!.favoritesRepo
-                            )
-                        } else {
-                            MapScreen(
-                                poiProvider = mapDeps!!.poiProvider,
-                                availabilityProviderFactory = mapDeps!!.availabilityProviderFactory,
-                                trafficProviderFactory = mapDeps!!.trafficProviderFactory,
-                                settingsManager = settingsManager,
-                                authManager = authManager,
-                                store = store,
-                                palette = palette,
-                            initialCenter = initialMapCenter ?: lastMapCenter,
-                            initialZoom = if (initialMapCenter != null) 12f else lastMapZoom,
-                            initialPoi = initialSelectedPoi,
-                            onBack = { showMap = false; initialMapCenter = null; initialSelectedPoi = null },
-                            onCameraMove = { center, zoom ->
-                                lastMapCenter = center
-                                lastMapZoom = zoom
-                            },
-                                onPlanRoute = { showRoutePlanning = true },
-                                onShowSettings = {
-                                    settingsInitialStack = listOf(SettingsScreenPage.MapConfig)
-                                    showSettings = true
-                                },
-                                communityRepo = mapDeps!!.communityRepo,
-                                favoritesRepo = mapDeps!!.favoritesRepo
-                            )
-                        }
-                    } else {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    }
                 }
                 else -> {
                     DashboardVoiceScreen(
@@ -739,14 +522,11 @@ fun MainUIPreview() {
     val mockStore = rememberMockStore()
         val mockAuthManager = GoogleAuthManager(context, mockSettingsManager, { mockStore }, FirebaseAuth.getInstance())
 
-    val mapDepsFlow = remember { MutableStateFlow<MapDeps?>(null) }
     MainUI(
         state = mockState,
         store = mockStore,
         settingsManager = mockSettingsManager,
         authManager = mockAuthManager,
-        mapDepsState = mapDepsFlow,
-        onRequestMapDeps = {},
         julesClient = remember { JulesClient(HttpClient(OkHttp) {}) },
         julesRepository = remember {
             JulesRepository(
@@ -801,8 +581,6 @@ private fun MapScreenPreview() {
     val mockStore = rememberMockStore()
     val context = LocalContext.current
     MapScreen(
-        poiProvider = remember { MockPoiProvider() },
-        availabilityProviderFactory = null,
         settingsManager = mockSettingsManager,
         authManager = GoogleAuthManager(context, mockSettingsManager, { mockStore }, FirebaseAuth.getInstance()),
         store = mockStore,
