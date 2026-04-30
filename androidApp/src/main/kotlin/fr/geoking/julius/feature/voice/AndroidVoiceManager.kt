@@ -67,6 +67,8 @@ class AndroidVoiceManager(
         private const val BARGE_IN_RESTART_DELAY_MS = 250L
         /** Delay before starting barge-in STT so playback transients / initial echo are less likely to trigger recognition. */
         private const val BARGE_IN_START_DELAY_MS = 300L
+        /** Keep "continuous" mode truly continuous when SpeechRecognizer times out. */
+        private const val CONTINUOUS_LISTEN_RESTART_DELAY_MS = 200L
         private const val RMS_LOG_INTERVAL = 20
         private const val BUFFER_LOG_INTERVAL = 50
     }
@@ -94,6 +96,7 @@ class AndroidVoiceManager(
     private var heyJuliusActivationInProgress: Boolean = false
     private var bargeInRestartScheduled: Boolean = false
     private var delayedBargeInRunnable: Runnable? = null
+    private var continuousListenRestartScheduled: Boolean = false
     /** Whether the current TTS utterance may use barge-in (set in [speak], read in utterance onStart). */
     private var speakInterruptibleForCurrentUtterance: Boolean = true
     private var rmsCallCount: Int = 0
@@ -577,6 +580,25 @@ class AndroidVoiceManager(
         }
     }
 
+    private fun scheduleContinuousListeningRestart(reason: String) {
+        if (!isContinuousMode) return
+        if (isBargeInActive) return
+        if (continuousListenRestartScheduled) return
+        continuousListenRestartScheduled = true
+        android.util.Log.d(TAG, "scheduleContinuousListeningRestart: $reason")
+        mainHandler.postDelayed(
+            {
+                continuousListenRestartScheduled = false
+                if (!isContinuousMode) return@postDelayed
+                if (isBargeInActive) return@postDelayed
+                if (isRecording) return@postDelayed
+                if (_events.value == VoiceEvent.Speaking || _events.value == VoiceEvent.Processing) return@postDelayed
+                startListeningInternal(stopOutputs = false, bargeIn = false)
+            },
+            CONTINUOUS_LISTEN_RESTART_DELAY_MS
+        )
+    }
+
     private fun startBargeInListening() {
         startListeningInternal(stopOutputs = false, bargeIn = true)
     }
@@ -796,6 +818,13 @@ class AndroidVoiceManager(
         isBargeInActive = false
         val finalResult = text.trim()
         if (finalResult.isBlank()) {
+            // In continuous mode, keep listening even when the recognizer returns nothing.
+            if (isContinuousMode) {
+                _events.value = VoiceEvent.Listening
+                player.notifyStateChanged()
+                scheduleContinuousListeningRestart(reason = "finalizeListening(empty)")
+                return
+            }
             isContinuousMode = false
         }
         android.util.Log.d(TAG, "finalizeListening: finalResult=\"$finalResult\"")
@@ -890,6 +919,19 @@ class AndroidVoiceManager(
         }
 
         isBargeInActive = false
+
+        // In continuous mode, SpeechRecognizer can frequently return NO_MATCH / SPEECH_TIMEOUT between utterances.
+        // Instead of dropping back to Silence, immediately restart listening to match user expectations.
+        if (isContinuousMode &&
+            error != android.speech.SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS &&
+            (error == android.speech.SpeechRecognizer.ERROR_NO_MATCH || error == android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT)
+        ) {
+            _events.value = VoiceEvent.Listening
+            player.notifyStateChanged()
+            scheduleContinuousListeningRestart(reason = "onError($errorStr)")
+            return
+        }
+
         finalizeListening()
     }
     override fun onResults(results: android.os.Bundle?) {

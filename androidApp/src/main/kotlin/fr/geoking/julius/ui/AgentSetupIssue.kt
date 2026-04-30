@@ -66,8 +66,4 @@ fun evaluateAgentSetup(
 }
 
 /** Stack to open phone Settings on the current agent's API key / model download screen. */
-fun agentConfigSettingsPages(): List<SettingsScreenPage> = listOf(
-    SettingsScreenPage.Main,
-    SettingsScreenPage.Agent,
-    SettingsScreenPage.AgentConfig
-)
+fun agentConfigSettingsPages(): List<SettingsScreenPage> = listOf(SettingsScreenPage.Main)

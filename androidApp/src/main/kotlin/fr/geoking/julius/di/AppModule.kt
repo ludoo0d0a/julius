@@ -30,7 +30,6 @@ import fr.geoking.julius.persistence.RoomMessagePersistence
 import fr.geoking.julius.persistence.JulesDao
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import fr.geoking.julius.feature.settings.FirestoreSettingsSync
 import androidx.room.Room
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -352,7 +351,6 @@ val appModule = module {
     single<GitHubClient> { GitHubClient(get()) }
     single { FirebaseAuth.getInstance() }
     single { FirebaseFirestore.getInstance() }
-    single { FirestoreSettingsSync(get(), get()) }
     single<SettingsManager> { SettingsManager(androidContext(), get()) }
     single<GoogleAuthManager> {
         GoogleAuthManager(androidContext(), get(), { get<ConversationStore>() }, get())
