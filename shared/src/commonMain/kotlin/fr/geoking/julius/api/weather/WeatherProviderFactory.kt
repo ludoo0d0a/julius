@@ -1,23 +1,17 @@
 package fr.geoking.julius.api.weather
 
-import fr.geoking.julius.api.traffic.GeographicRegion
-
 /**
- * Picks a [WeatherProvider] by coordinates, same pattern as [fr.geoking.julius.api.traffic.TrafficProviderFactory].
- * Register more specific [GeographicRegion.Bbox] entries before [GeographicRegion.Everywhere].
+ * Picks a [WeatherProvider].
+ *
+ * Vehicle/POI-related routing special-casing was removed; keep this simple and return the first provider.
  */
 class WeatherProviderFactory(
-    private val regionsAndProviders: List<Pair<GeographicRegion, WeatherProvider>>
+    private val providers: List<WeatherProvider>
 ) {
     fun getProvider(latitude: Double, longitude: Double): WeatherProvider? =
-        regionsAndProviders.firstOrNull { (region, _) -> region.contains(latitude, longitude) }?.second
+        providers.firstOrNull()
 
     fun getProvidersForRoute(routePoints: List<Pair<Double, Double>>): List<WeatherProvider> {
-        if (routePoints.isEmpty()) return emptyList()
-        val seen = LinkedHashSet<WeatherProvider>()
-        for ((lat, lon) in routePoints) {
-            getProvider(lat, lon)?.let { seen.add(it) }
-        }
-        return seen.toList()
+        return providers
     }
 }
