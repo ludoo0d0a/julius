@@ -28,9 +28,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import fr.geoking.julius.*
+import fr.geoking.julius.agents.LlamatikModelHelper
+import fr.geoking.julius.agents.LlamatikModelVariant
 
-enum class SettingsScreenPage { Main, Agents, AgentDetails }
+enum class SettingsScreenPage { Main, Agents, AgentDetails, ModelDownload }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,6 +85,7 @@ fun SettingsScreen(
                             SettingsScreenPage.Main -> "Settings"
                             SettingsScreenPage.Agents -> "Agents"
                             SettingsScreenPage.AgentDetails -> selectedAgentForDetails?.name ?: "Agent Settings"
+                            SettingsScreenPage.ModelDownload -> "Download Model"
                         }
                     )
                 },
@@ -99,6 +103,8 @@ fun SettingsScreen(
         ) {
             when (currentPage) {
                 SettingsScreenPage.Main -> MainSettingsPage(
+                    settings = settings,
+                    authManager = authManager,
                     onNavigateToAgents = {
                         navigationStack.add(SettingsScreenPage.Agents)
                         @Suppress("UNUSED_EXPRESSION") Unit
@@ -120,7 +126,19 @@ fun SettingsScreen(
                         AgentDetailsPage(
                             agent = agent,
                             settings = settings,
-                            onSettingsChange = { settingsManager.saveSettings(it) }
+                            onSettingsChange = { settingsManager.saveSettings(it) },
+                            onNavigateToModelDownload = {
+                                navigationStack.add(SettingsScreenPage.ModelDownload)
+                                @Suppress("UNUSED_EXPRESSION") Unit
+                            }
+                        )
+                    }
+                }
+                SettingsScreenPage.ModelDownload -> {
+                    selectedAgentForDetails?.let { agent ->
+                        ModelDownloadPage(
+                            agent = agent,
+                            settingsManager = settingsManager
                         )
                     }
                 }
@@ -130,8 +148,32 @@ fun SettingsScreen(
 }
 
 @Composable
-fun MainSettingsPage(onNavigateToAgents: () -> Unit) {
+fun MainSettingsPage(
+    settings: AppSettings,
+    authManager: fr.geoking.julius.feature.auth.GoogleAuthManager,
+    onNavigateToAgents: () -> Unit
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+
     LazyColumn {
+        item { SettingsHeader("Account") }
+        item {
+            if (settings.isLoggedIn) {
+                SettingsListItem(
+                    title = settings.googleUserName ?: "Google Account",
+                    subtitle = "Signed in",
+                    onClick = { authManager.signOut { } }
+                )
+            } else {
+                SettingsListItem(
+                    title = "Google Account",
+                    subtitle = "Sign in to sync settings",
+                    onClick = { authManager.signIn(context) { _, _ -> } }
+                )
+            }
+        }
+
+        item { SettingsHeader("General") }
         item {
             SettingsListItem(
                 title = "Agents",
@@ -205,9 +247,19 @@ fun AgentsPage(
 fun AgentDetailsPage(
     agent: AgentType,
     settings: AppSettings,
-    onSettingsChange: (AppSettings) -> Unit
+    onSettingsChange: (AppSettings) -> Unit,
+    onNavigateToModelDownload: () -> Unit
 ) {
     Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
+        if (agent.isEmbedded) {
+            SettingsListItem(
+                title = "Download Model",
+                subtitle = "Select and download on-device model variants",
+                onClick = onNavigateToModelDownload
+            )
+            Spacer(Modifier.height(16.dp))
+        }
+
         when (agent) {
             AgentType.OpenAI -> {
                 OutlinedTextField(
@@ -324,9 +376,6 @@ fun AgentDetailsPage(
                     label = { Text("Model Path") },
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(Modifier.height(16.dp))
-                Text("Select model variant for download:", color = Color.Gray, fontSize = 14.sp)
-                // In a real app, this would be a dropdown or list of variants
             }
             else -> {
                 if (agent.isEmbedded) {
@@ -335,6 +384,124 @@ fun AgentDetailsPage(
                     Text("Configuration for this agent is handled automatically or via shared embedded settings.")
                 } else {
                     Text("Configuration for ${agent.name} coming soon.", color = Color.Gray)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ModelDownloadPage(
+    agent: AgentType,
+    settingsManager: SettingsManager
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val helper = remember { LlamatikModelHelper(context) }
+    val scope = rememberCoroutineScope()
+    val settings by settingsManager.settings.collectAsState()
+
+    var downloadVariant by remember { mutableStateOf<LlamatikModelVariant?>(null) }
+    var downloadBytes by remember { mutableLongStateOf(0L) }
+    var downloadTotal by remember { mutableStateOf<Long?>(null) }
+    var downloadError by remember { mutableStateOf<String?>(null) }
+
+    val variants = remember(agent) {
+        LlamatikModelVariant.entries.filter { it.forAgentName == agent.name }
+    }
+
+    LazyColumn(Modifier.fillMaxSize()) {
+        if (downloadVariant != null) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("Downloading ${downloadVariant?.displayName}", fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(8.dp))
+                        if (downloadError != null) {
+                            Text("Error: $downloadError", color = MaterialTheme.colorScheme.error)
+                        } else {
+                            val progress = if (downloadTotal != null && downloadTotal!! > 0) {
+                                downloadBytes.toFloat() / downloadTotal!!
+                            } else {
+                                0f
+                            }
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            val pct = (progress * 100).toInt()
+                            Text("$pct% (${downloadBytes / 1024 / 1024} MB / ${downloadTotal?.let { it / 1024 / 1024 } ?: "?"} MB)")
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Button(onClick = { downloadVariant = null; downloadError = null }) {
+                            Text("Cancel")
+                        }
+                    }
+                }
+            }
+        }
+
+        items(variants) { variant ->
+            val isDownloaded = helper.isVariantDownloaded(variant)
+            val isSelected = settings.selectedLlamatikModelVariant == variant.name
+
+            Surface(
+                modifier = Modifier.fillMaxWidth().clickable {
+                    if (isDownloaded) {
+                        val path = helper.getDownloadDestinationPath(variant)
+                        settingsManager.saveSettings(
+                            settings.copy(
+                                llamatikModelPath = path,
+                                selectedLlamatikModelVariant = variant.name
+                            )
+                        )
+                    } else if (downloadVariant == null) {
+                        downloadError = null
+                        downloadVariant = variant
+                        downloadBytes = 0L
+                        downloadTotal = null
+                        scope.launch {
+                            val result = helper.download(variant) { bytes, total ->
+                                downloadBytes = bytes
+                                downloadTotal = total
+                            }
+                            result.fold(
+                                onSuccess = { path ->
+                                    downloadVariant = null
+                                    settingsManager.saveSettings(
+                                        settingsManager.settings.value.copy(
+                                            llamatikModelPath = path,
+                                            selectedLlamatikModelVariant = variant.name
+                                        )
+                                    )
+                                },
+                                onFailure = { e ->
+                                    downloadError = e.message ?: "Download failed"
+                                }
+                            )
+                        }
+                    }
+                },
+                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(variant.displayName, fontWeight = FontWeight.SemiBold)
+                        Text(variant.sizeDescription, color = Color.Gray, fontSize = 14.sp)
+                        if (isDownloaded) {
+                            Text("Already downloaded", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                    }
+                    if (isSelected) {
+                        Icon(Icons.Default.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary)
+                    } else if (!isDownloaded && downloadVariant != variant) {
+                        Text("Download", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
