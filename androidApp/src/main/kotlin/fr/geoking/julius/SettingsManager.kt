@@ -17,8 +17,9 @@ import kotlinx.coroutines.launch
 /**
  * @param enabled If false, hidden from agent pickers and next-agent cycling; [DynamicAgentWrapper] may still resolve
  *   the type if stored settings reference it until migrated.
+ * @param isEmbedded True if the agent runs on-device (offline), false if it uses a remote API.
  */
-enum class AgentType(val enabled: Boolean = true) {
+enum class AgentType(val enabled: Boolean = true, val isEmbedded: Boolean = false) {
     OpenAI,
     /** Perplexity chat + ElevenLabs TTS; uses [AppSettings.perplexityKey]. */
     ElevenLabs,
@@ -31,17 +32,17 @@ enum class AgentType(val enabled: Boolean = true) {
     DeepSeek,
     Groq,
     OpenRouter,
-    Llamatik,
+    Llamatik(isEmbedded = true),
     /** On-device GGUF via Llamatik; default download Gemma-class model. */
-    GeminiNano,
-    RunAnywhere,
-    MlcLlm,
-    LlamaCpp,
+    GeminiNano(isEmbedded = true),
+    RunAnywhere(isEmbedded = true),
+    MlcLlm(isEmbedded = true),
+    LlamaCpp(isEmbedded = true),
     /** On-device GGUF via Llamatik; suggested Phi-2–class model (MediaPipe-style UI label). */
-    MediaPipe,
-    AiEdge,
-    PocketPal,
-    Offline
+    MediaPipe(isEmbedded = true),
+    AiEdge(isEmbedded = true),
+    PocketPal(isEmbedded = true),
+    Offline(isEmbedded = true)
 }
 
 val DEFAULT_AGENT = AgentType.Gemini
