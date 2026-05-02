@@ -59,6 +59,26 @@ fun nextSelectableAgent(current: AgentType): AgentType {
     return agents[(i + 1) % agents.size]
 }
 
+/** Next agent of the same type (embedded or remote) when cycling UI. */
+fun nextSelectableAgentOfType(current: AgentType): AgentType {
+    val agents = enabledAgentTypes().filter { it.isEmbedded == current.isEmbedded }
+    if (agents.isEmpty()) return current
+    val i = agents.indexOf(current)
+    if (i < 0) return agents.first()
+    return agents[(i + 1) % agents.size]
+}
+
+/** Toggles agent type (embedded vs remote) and returns the first enabled agent of the new type. */
+fun toggleAgentType(current: AgentType): AgentType {
+    val targetEmbedded = !current.isEmbedded
+    val agents = enabledAgentTypes().filter { it.isEmbedded == targetEmbedded }
+    return if (agents.isNotEmpty()) {
+        agents.first()
+    } else {
+        current
+    }
+}
+
 enum class AppTheme { Particles, Sphere, Waves, Fractal, Micro }
 enum class TextAnimation { None, Genie, Blur, Fade, Zoom, Falling }
 

@@ -43,6 +43,7 @@ fun VoiceMainContent(
     onMapClick: (() -> Unit)?,
     onJulesClick: () -> Unit = {},
     onAgentClick: (() -> Unit)? = null,
+    onToggleAgentType: (() -> Unit)? = null,
     setupIssue: AgentSetupIssue? = null,
     onOpenAgentSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -62,12 +63,13 @@ fun VoiceMainContent(
                 .padding(top = 16.dp, end = 16.dp)
         )
         VoiceStatusContent(
-            agentName = settings.selectedAgent.name,
+            agent = settings.selectedAgent,
             status = state.status,
             displayText = displayText,
             lastError = state.lastError,
             textAnimation = settings.textAnimation,
             onAgentClick = onAgentClick,
+            onToggleAgentType = onToggleAgentType,
             setupIssue = setupIssue,
             onOpenAgentSettings = onOpenAgentSettings,
             modifier = Modifier.align(Alignment.Center)

@@ -4,12 +4,19 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -61,18 +68,21 @@ private val WarningDetailFontSize = 13.sp
 
 /**
  * Center content: agent name, voice status, main text (transcript or last message), and optional error.
+ * @param agent Current selected agent.
  * @param onAgentClick Optional callback when the agent name is clicked (cycles to next agent on phone).
+ * @param onToggleAgentType Optional callback when the agent type icon is clicked (toggles embedded/remote).
  * @param setupIssue Proactive warning when API key or Llamatik model is missing; tap opens agent settings when [onOpenAgentSettings] is set.
  * @param onOpenAgentSettings Opens Settings on the current agent config (keys / model download).
  */
 @Composable
 fun VoiceStatusContent(
-    agentName: String,
+    agent: AgentType,
     status: VoiceEvent,
     displayText: String,
     lastError: DetailedError?,
     textAnimation: TextAnimation = TextAnimation.Fade,
     onAgentClick: (() -> Unit)? = null,
+    onToggleAgentType: (() -> Unit)? = null,
     setupIssue: AgentSetupIssue? = null,
     onOpenAgentSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -81,21 +91,40 @@ fun VoiceStatusContent(
         modifier = modifier.padding(horizontal = 40.dp, vertical = 36.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Agent label — compact, uppercase, letter-spaced; clickable to cycle to next agent
-        Text(
-            text = agentName.uppercase(),
-            color = Color(0xFF6366F1).copy(alpha = 0.85f),
-            fontSize = AgentLabelFontSize,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 1.2.sp,
-            modifier = Modifier.then(
-                if (onAgentClick != null) Modifier.clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) { onAgentClick() }
-                else Modifier
+        // Agent label — compact, uppercase, letter-spaced; icon toggles type, name cycles agents
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (agent.isEmbedded) Icons.Default.Home else Icons.Default.Public,
+                contentDescription = if (agent.isEmbedded) "Embedded agent" else "Remote agent",
+                tint = Color(0xFF6366F1).copy(alpha = 0.85f),
+                modifier = Modifier
+                    .size(16.dp)
+                    .then(
+                        if (onToggleAgentType != null) Modifier.clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { onToggleAgentType() }
+                        else Modifier
+                    )
             )
-        )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = agent.name.uppercase(),
+                color = Color(0xFF6366F1).copy(alpha = 0.85f),
+                fontSize = AgentLabelFontSize,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 1.2.sp,
+                modifier = Modifier.then(
+                    if (onAgentClick != null) Modifier.clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { onAgentClick() }
+                    else Modifier
+                )
+            )
+        }
         Spacer(modifier = Modifier.height(20.dp))
 
         if (status == VoiceEvent.Processing) {
@@ -227,7 +256,7 @@ fun VoiceStatusContent(
 @Composable
 private fun VoiceStatusContentSilencePreview() {
     VoiceStatusContent(
-        agentName = AgentType.Gemini.name,
+        agent = AgentType.Gemini,
         status = VoiceEvent.Silence,
         displayText = "Hi, how can I help you",
         lastError = null
@@ -238,7 +267,7 @@ private fun VoiceStatusContentSilencePreview() {
 @Composable
 private fun VoiceStatusContentListeningPreview() {
     VoiceStatusContent(
-        agentName = AgentType.Gemini.name,
+        agent = AgentType.Gemini,
         status = VoiceEvent.Listening,
         displayText = "What's the weather in Paris?",
         lastError = null
@@ -249,7 +278,7 @@ private fun VoiceStatusContentListeningPreview() {
 @Composable
 private fun VoiceStatusContentWithErrorPreview() {
     VoiceStatusContent(
-        agentName = AgentType.OpenAI.name,
+        agent = AgentType.OpenAI,
         status = VoiceEvent.Silence,
         displayText = "Hi, how can I help you",
         lastError = DetailedError(httpCode = 401, message = "Invalid API key", timestamp = 0L)
