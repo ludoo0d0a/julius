@@ -1,11 +1,15 @@
 package fr.geoking.julius.ui
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -17,7 +21,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.listSaver
@@ -25,10 +28,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import fr.geoking.julius.BuildConfig
+import fr.geoking.julius.feature.auth.GoogleAuthManager
 import fr.geoking.julius.*
 import fr.geoking.julius.agents.LlamatikModelHelper
 import fr.geoking.julius.agents.LlamatikModelVariant
@@ -39,7 +45,7 @@ enum class SettingsScreenPage { Main, Agents, AgentDetails, ModelDownload }
 @Composable
 fun SettingsScreen(
     settingsManager: SettingsManager,
-    authManager: fr.geoking.julius.feature.auth.GoogleAuthManager,
+    authManager: GoogleAuthManager,
     errorLog: List<Any>,
     onDismiss: () -> Unit,
     initialScreenStack: List<SettingsScreenPage>? = null,
@@ -150,30 +156,103 @@ fun SettingsScreen(
 @Composable
 fun MainSettingsPage(
     settings: AppSettings,
-    authManager: fr.geoking.julius.feature.auth.GoogleAuthManager,
-    onNavigateToAgents: () -> Unit
+    authManager: GoogleAuthManager,
+    onNavigateToAgents: () -> Unit,
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
+    val activity = remember(context) { context.findActivity() }
+    var authBusy by remember { mutableStateOf(false) }
+    var authMessage by remember { mutableStateOf<String?>(null) }
+    val webClientConfigured = remember {
+        val id = BuildConfig.GOOGLE_WEB_CLIENT_ID
+        id.isNotBlank() && !id.contains("placeholder", ignoreCase = true)
+    }
 
     LazyColumn {
-        item { SettingsHeader("Account") }
         item {
-            if (settings.isLoggedIn) {
-                SettingsListItem(
-                    title = settings.googleUserName ?: "Google Account",
-                    subtitle = "Signed in",
-                    onClick = { authManager.signOut { } }
+            SettingsHeader("Account")
+            Text(
+                "Sign in with Google to sync preferences with Firebase (Firestore) when enabled.",
+                color = Color.Gray,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp)
+            )
+            if (!webClientConfigured) {
+                Text(
+                    "Set GOOGLE_WEB_CLIENT_ID in local.properties (OAuth Web client from Google Cloud / Firebase) and rebuild.",
+                    color = MaterialTheme.colorScheme.tertiary,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp)
                 )
+            }
+            if (settings.isLoggedIn) {
+                Text(
+                    "Signed in as ${settings.googleUserName ?: "Google user"}",
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+                Button(
+                    onClick = {
+                        authBusy = true
+                        authMessage = null
+                        authManager.signOut { ok ->
+                            authBusy = false
+                            if (!ok) authMessage = "Sign out failed"
+                        }
+                    },
+                    enabled = !authBusy,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .fillMaxWidth()
+                ) {
+                    if (authBusy) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Sign out")
+                    }
+                }
             } else {
-                SettingsListItem(
-                    title = "Google Account",
-                    subtitle = "Sign in to sync settings",
-                    onClick = { authManager.signIn(context) { _, _ -> } }
+                Button(
+                    onClick = {
+                        val act = activity
+                        if (act == null) {
+                            authMessage = "Cannot start sign-in (no activity context)"
+                            return@Button
+                        }
+                        authBusy = true
+                        authMessage = null
+                        authManager.signIn(act) { success, err ->
+                            authBusy = false
+                            if (!success) authMessage = err ?: "Sign-in failed"
+                        }
+                    },
+                    enabled = !authBusy,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .fillMaxWidth()
+                ) {
+                    if (authBusy) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Sign in with Google")
+                    }
+                }
+            }
+            authMessage?.let { msg ->
+                Text(
+                    msg,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                 )
             }
         }
-
-        item { SettingsHeader("General") }
         item {
             SettingsListItem(
                 title = "Agents",
@@ -182,6 +261,12 @@ fun MainSettingsPage(
             )
         }
     }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
 
 @Composable
