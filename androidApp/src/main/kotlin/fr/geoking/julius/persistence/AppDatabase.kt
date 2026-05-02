@@ -12,7 +12,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         JulesActivityEntity::class,
         JulesSourceEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -227,6 +227,13 @@ abstract class AppDatabase : RoomDatabase() {
                     )
                     """.trimIndent()
                 )
+            }
+        }
+
+        val MIGRATION_12_13: Migration = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `prBranch` TEXT")
+                db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `prRepo` TEXT")
             }
         }
     }

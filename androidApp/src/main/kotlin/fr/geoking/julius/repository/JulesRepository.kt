@@ -195,9 +195,29 @@ class JulesRepository(
                 // If status changed, update lastUpdated too
                 val existing = julesDao.getSession(session.id)
                 val statusChanged = existing != null && (existing.prState != state || existing.prMergeable != detail.mergeable)
+
                 julesDao.updateSessionPrStatus(session.id, state, detail.mergeable)
+
+                val branch = detail.head?.ref
+                val repo = detail.repository?.fullName ?: detail.head?.repo?.fullName
+                julesDao.updateSessionGitHubDetails(session.id, branch, repo)
+
                 if (statusChanged) {
                     julesDao.updateSessionLastUpdated(session.id, System.currentTimeMillis())
+
+                    // Add a local activity to log the status change
+                    val activityId = "local_log_${java.util.UUID.randomUUID()}"
+                    val now = OffsetDateTime.now().toString()
+                    val logEntity = JulesActivityEntity(
+                        id = activityId,
+                        sessionId = session.id,
+                        originator = "system",
+                        text = "GitHub PR status changed to: ${state.uppercase()}",
+                        timestamp = now,
+                        sortTimestamp = System.currentTimeMillis(),
+                        type = "github_log"
+                    )
+                    julesDao.insertActivities(listOf(logEntity))
                 }
             } catch (e: Exception) {
                 android.util.Log.e("JulesRepository", "Failed to update PR status in DB", e)
@@ -595,10 +615,14 @@ class JulesRepository(
         }
     }
 
-    suspend fun mergePr(githubToken: String, prUrl: String): Result<Unit> {
+    suspend fun mergePr(githubToken: String, sessionId: String, prUrl: String): Result<Unit> {
         val prRef = parseGitHubPullRequestUrl(prUrl) ?: return Result.failure(Exception("Invalid PR URL"))
         return try {
             githubClient.mergePullRequest(githubToken, prRef.owner, prRef.repo, prRef.number)
+            val session = julesDao.getSession(sessionId)
+            if (session != null) {
+                updatePrStatus(githubToken, session)
+            }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

@@ -34,6 +34,9 @@ interface JulesDao {
     @Query("UPDATE jules_sessions SET prState = :state, prMergeable = :mergeable WHERE id = :sessionId")
     suspend fun updateSessionPrStatus(sessionId: String, state: String, mergeable: Boolean?)
 
+    @Query("UPDATE jules_sessions SET prBranch = :branch, prRepo = :repo WHERE id = :sessionId")
+    suspend fun updateSessionGitHubDetails(sessionId: String, branch: String?, repo: String?)
+
     @Query("UPDATE jules_sessions SET sessionState = :state WHERE id = :sessionId")
     suspend fun updateSessionState(sessionId: String, state: String?)
 
@@ -58,7 +61,7 @@ interface JulesDao {
     @Query("SELECT * FROM jules_activities WHERE sessionId = :sessionId ORDER BY sortTimestamp ASC")
     suspend fun getActivitiesBySession(sessionId: String): List<JulesActivityEntity>
 
-    @Query("DELETE FROM jules_activities WHERE sessionId = :sessionId")
+    @Query("DELETE FROM jules_activities WHERE sessionId = :sessionId AND isPendingOffline = 0 AND type != 'github_log'")
     suspend fun clearActivitiesBySession(sessionId: String)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

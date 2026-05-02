@@ -6,8 +6,10 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Merge
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -26,6 +28,8 @@ sealed class MessageBlock {
     data class Plan(val content: String) : MessageBlock()
     data class BulletTitle(val title: String) : MessageBlock()
     data class ActionList(val actions: List<String>) : MessageBlock()
+    data class GitHubPR(val url: String) : MessageBlock()
+    data class GitHubLog(val text: String) : MessageBlock()
 }
 
 fun parseJulesMessage(text: String): List<MessageBlock> {
@@ -75,6 +79,24 @@ fun parseJulesMessage(text: String): List<MessageBlock> {
                 }
                 blocks.add(MessageBlock.BulletTitle(line.removeSurrounding("**").trim()))
             }
+            line.contains("github.com/") && line.contains("/pull/") -> {
+                if (currentText.isNotEmpty()) {
+                    blocks.add(MessageBlock.Text(currentText.toString().trim()))
+                    currentText = StringBuilder()
+                }
+                // Try to extract the full URL from the line
+                val regex = Regex("https?://github\\.com/[^\\s/]+/[^\\s/]+/pull/\\d+")
+                val match = regex.find(line)
+                if (match != null) {
+                    blocks.add(MessageBlock.GitHubPR(match.value))
+                    val remaining = line.replace(match.value, "").trim()
+                    if (remaining.isNotEmpty()) {
+                        currentText.append(remaining).append("\n")
+                    }
+                } else {
+                    currentText.append(lines[i]).append("\n")
+                }
+            }
             line.getOrNull(0)?.isDigit() == true && line.contains(". ") -> {
                 if (currentText.isNotEmpty()) {
                     blocks.add(MessageBlock.Text(currentText.toString().trim()))
@@ -109,12 +131,24 @@ fun parseJulesMessage(text: String): List<MessageBlock> {
 fun JulesMessageContent(
     item: JulesChatItem,
     baseFontSize: Int = 14,
-    onSpeak: () -> Unit
+    onSpeak: () -> Unit,
+    onMergePr: ((String) -> Unit)? = null,
+    prDetails: fr.geoking.julius.persistence.JulesSessionEntity? = null
 ) {
-    val text = if (item is JulesChatItem.UserMessage) item.text
-    else (item as JulesChatItem.AgentMessage).let { if (it.subItems.size == 1) it.subItems.first().text else it.text }
-
-    val blocks = remember(text) { parseJulesMessage(text) }
+    val blocks = remember(item) {
+        if (item is JulesChatItem.UserMessage) {
+            parseJulesMessage(item.text)
+        } else {
+            val agent = item as JulesChatItem.AgentMessage
+            agent.subItems.flatMap { sub ->
+                if (sub.type == "github_log") {
+                    listOf(MessageBlock.GitHubLog(sub.text))
+                } else {
+                    parseJulesMessage(sub.text)
+                }
+            }
+        }
+    }
     val timestamp = if (item is JulesChatItem.UserMessage) item.createTime else (item as JulesChatItem.AgentMessage).createTime
 
     Column(
@@ -123,7 +157,7 @@ fun JulesMessageContent(
             .combinedClickable(onClick = {}, onLongClick = onSpeak)
     ) {
         blocks.forEach { block ->
-            RenderBlock(block, baseFontSize)
+            RenderBlock(block, baseFontSize, onMergePr, prDetails)
             Spacer(modifier = Modifier.height(8.dp))
         }
 
@@ -137,7 +171,12 @@ fun JulesMessageContent(
 }
 
 @Composable
-private fun RenderBlock(block: MessageBlock, baseFontSize: Int) {
+private fun RenderBlock(
+    block: MessageBlock,
+    baseFontSize: Int,
+    onMergePr: ((String) -> Unit)? = null,
+    prDetails: fr.geoking.julius.persistence.JulesSessionEntity? = null
+) {
     when (block) {
         is MessageBlock.Text -> {
             Text(block.content, color = Color.White, fontSize = baseFontSize.sp)
@@ -159,6 +198,132 @@ private fun RenderBlock(block: MessageBlock, baseFontSize: Int) {
                 }
             }
         }
+        is MessageBlock.GitHubPR -> {
+            GitHubPRCard(block.url, onMergePr, prDetails)
+        }
+        is MessageBlock.GitHubLog -> {
+            GitHubLogBlock(block.text)
+        }
+    }
+}
+
+@Composable
+private fun GitHubLogBlock(text: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.Black.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Code,
+            contentDescription = null,
+            tint = ColorHelper.JulesAccent,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text, color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun GitHubPRCard(
+    url: String,
+    onMergePr: ((String) -> Unit)?,
+    session: fr.geoking.julius.persistence.JulesSessionEntity?
+) {
+    androidx.compose.material3.Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.2f)),
+        shape = RoundedCornerShape(8.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = androidx.compose.material.icons.Icons.Default.Code,
+                    contentDescription = null,
+                    tint = ColorHelper.JulesAccent,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "GitHub Pull Request",
+                    color = ColorHelper.JulesAccent,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (session != null && session.prUrl == url) {
+                Text(
+                    text = session.prTitle ?: "No title",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                if (!session.prRepo.isNullOrBlank()) {
+                    Text(
+                        text = session.prRepo,
+                        color = Color.White.copy(alpha = 0.6f),
+                        fontSize = 11.sp
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.padding(top = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val (statusText, statusColor) = when (session.prState) {
+                        "merged" -> "Merged" to Color.Green
+                        "closed" -> "Closed" to Color.Red
+                        else -> "Open" to Color.Cyan
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .background(statusColor.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    ) {
+                        Text(statusText, color = statusColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    if (!session.prBranch.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = session.prBranch,
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 11.sp,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        )
+                    }
+                }
+
+                if (session.prState == "open" && session.prMergeable == true && onMergePr != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    androidx.compose.material3.Button(
+                        onClick = { onMergePr(url) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                            containerColor = Color.Green.copy(alpha = 0.2f),
+                            contentColor = Color.Green
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(androidx.compose.material.icons.Icons.Default.Merge, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Merge PR", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            } else {
+                // Fallback if session details not available
+                Text(url, color = Color.White, fontSize = 12.sp, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline)
+            }
+        }
     }
 }
 
@@ -175,7 +340,7 @@ private fun CollapsibleBlock(title: String, content: String, baseFontSize: Int, 
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
+                if (expanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
                 tint = if (isAccent) ColorHelper.JulesAccent else Color.White.copy(alpha = 0.7f),
                 modifier = Modifier.size(20.dp)
