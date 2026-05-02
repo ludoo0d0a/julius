@@ -225,9 +225,13 @@ class JulesRepository(
         }
     }
 
-    suspend fun archiveCompletedSessions(sourceName: String) {
+    suspend fun archiveCompletedSessions(sourceName: String? = null) {
         try {
-            val completed = julesDao.getCompletedSessions(sourceName)
+            val completed = if (sourceName != null) {
+                julesDao.getCompletedSessions(sourceName)
+            } else {
+                julesDao.getAllCompletedSessions()
+            }
             if (completed.isEmpty()) return
 
             coroutineScope {

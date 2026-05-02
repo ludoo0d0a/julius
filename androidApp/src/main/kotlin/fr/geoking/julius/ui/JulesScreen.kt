@@ -126,6 +126,7 @@ fun JulesScreen(
     var refreshing by remember { mutableStateOf(false) }
     var loadingSessions by remember { mutableStateOf(false) }
     var refreshingSessions by remember { mutableStateOf(false) }
+    val archivingSessionIds = remember { mutableStateListOf<String>() }
     var hideCompleted by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var inputText by remember { mutableStateOf("") }
@@ -428,7 +429,7 @@ fun JulesScreen(
             if (loading || loadingSessions || refreshing || refreshingSessions) {
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth().height(2.dp),
-                    color = JulesAccent,
+                    color = ColorHelper.JulesAccent,
                     trackColor = Color.Transparent
                 )
             } else {
@@ -588,16 +589,23 @@ fun JulesScreen(
                             },
                             onArchive = { session ->
                                 scope.launch {
+                                    archivingSessionIds.add(session.id)
                                     julesRepository.archiveSession(session.id)
                                     loadSessions()
+                                    archivingSessionIds.remove(session.id)
                                 }
                             },
                             onArchiveCompleted = {
                                 scope.launch {
-                                    julesRepository.archiveCompletedSessions(selectedSourceName ?: "")
+                                    val sourceName = selectedSourceName ?: ""
+                                    val completed = sessions.filter { it.isFinished && (sourceName.isEmpty() || it.sourceName == sourceName) }
+                                    archivingSessionIds.addAll(completed.map { it.id })
+                                    julesRepository.archiveCompletedSessions(sourceName.ifEmpty { null })
                                     loadSessions()
+                                    archivingSessionIds.removeAll(completed.map { it.id })
                                 }
                             },
+                            archivingSessionIds = archivingSessionIds,
                             isRefreshingSessions = refreshingSessions,
                             onRefreshSessions = { loadSessions(isRefresh = true) },
                             hideCompleted = hideCompleted,
@@ -1048,6 +1056,7 @@ private fun RepoAndSessionsContent(
     onGetPrDetails: (JulesSessionEntity, (GitHubClient.GitHubPullRequestDetail?) -> Unit) -> Unit,
     onArchive: (JulesSessionEntity) -> Unit,
     onArchiveCompleted: () -> Unit,
+    archivingSessionIds: List<String> = emptyList(),
     isRefreshingSessions: Boolean,
     onRefreshSessions: () -> Unit,
     hideCompleted: Boolean,
@@ -1146,14 +1155,22 @@ private fun RepoAndSessionsContent(
                             }
                         },
                         trailingContent = {
-                            Row {
-                                if (session.prUrl != null) {
-                                    IconButton(onClick = { onGetPrDetails(session) { showPrDetails = it } }) {
-                                        Icon(Icons.Default.Description, contentDescription = "Details")
+                            if (archivingSessionIds.contains(session.id)) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = ColorHelper.JulesAccent,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Row {
+                                    if (session.prUrl != null) {
+                                        IconButton(onClick = { onGetPrDetails(session) { showPrDetails = it } }) {
+                                            Icon(Icons.Default.Description, contentDescription = "Details")
+                                        }
                                     }
-                                }
-                                IconButton(onClick = { onArchive(session) }) {
-                                    Icon(Icons.Default.Archive, contentDescription = "Archive")
+                                    IconButton(onClick = { onArchive(session) }) {
+                                        Icon(Icons.Default.Archive, contentDescription = "Archive")
+                                    }
                                 }
                             }
                         },
