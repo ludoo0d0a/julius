@@ -53,6 +53,7 @@ import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.persistence.JulesActivityEntity
 import fr.geoking.julius.persistence.JulesDao
 import fr.geoking.julius.persistence.JulesSessionEntity
+import fr.geoking.julius.persistence.JulesSourceEntity
 import com.google.firebase.auth.FirebaseAuth
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.ui.UpdateAvailableDialog
@@ -551,6 +552,9 @@ fun MainUIPreview() {
                     override suspend fun insertActivities(activities: List<JulesActivityEntity>) {}
                     override suspend fun getActivitiesBySession(sessionId: String): List<JulesActivityEntity> = emptyList()
                     override suspend fun clearActivitiesBySession(sessionId: String) {}
+                    override suspend fun insertSources(sources: List<JulesSourceEntity>) {}
+                    override suspend fun getSources(): List<JulesSourceEntity> = emptyList()
+                    override suspend fun clearSources() {}
                 },
                 object : NetworkService {
                     override val status = MutableStateFlow(NetworkStatus())

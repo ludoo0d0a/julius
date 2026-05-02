@@ -57,4 +57,13 @@ interface JulesDao {
 
     @Query("DELETE FROM jules_activities WHERE sessionId = :sessionId")
     suspend fun clearActivitiesBySession(sessionId: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSources(sources: List<JulesSourceEntity>)
+
+    @Query("SELECT * FROM jules_sources")
+    suspend fun getSources(): List<JulesSourceEntity>
+
+    @Query("DELETE FROM jules_sources")
+    suspend fun clearSources()
 }

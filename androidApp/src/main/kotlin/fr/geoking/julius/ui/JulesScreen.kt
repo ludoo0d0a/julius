@@ -172,30 +172,15 @@ fun JulesScreen(
             if (isRefresh) refreshing = true else loading = true
             clearError()
             try {
-                val allSources = mutableMapOf<String, JulesClient.JulesSource>()
-                coroutineScope {
-                    apiKeys.map { key ->
-                        async {
-                            try {
-                                val resp = julesClient.listSources(key)
-                                synchronized(allSources) {
-                                    resp.sources.forEach { src ->
-                                        allSources[src.name] = src
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                android.util.Log.e("JulesScreen", "Failed to load sources for a key", e)
-                            }
-                        }
-                    }.awaitAll()
-                }
-                sources = allSources.values.toList()
-                sourcesLoaded = true
+                julesRepository.getSources(apiKeys).collectLatest { list ->
+                    sources = list
+                    sourcesLoaded = true
 
-                selectedSourceName?.let { id ->
-                    val found = sources.find { it.name == id }
-                    if (found != null) {
-                        selectedSourceDisplayName = found.githubRepo?.let { "${it.owner}/${it.repo}" } ?: found.name
+                    selectedSourceName?.let { id ->
+                        val found = sources.find { it.name == id }
+                        if (found != null) {
+                            selectedSourceDisplayName = found.githubRepo?.let { "${it.owner}/${it.repo}" } ?: found.name
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -409,7 +394,7 @@ fun JulesScreen(
                 if (sess != null) {
                     if (!sess.url.isNullOrBlank()) {
                         IconButton(onClick = {
-                            sess.url?.let { uriHandler.openUri(it) }
+                            uriHandler.openUri(sess.url)
                         }) {
                             Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open in web", tint = Color.White)
                         }
@@ -447,6 +432,15 @@ fun JulesScreen(
                 }
             }
 
+            if (loading || loadingSessions || refreshing || refreshingSessions) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth().height(2.dp),
+                    color = JulesAccent,
+                    trackColor = Color.Transparent
+                )
+            } else {
+                Spacer(modifier = Modifier.height(2.dp))
+            }
 
             when {
                 apiKeys.isEmpty() -> {
