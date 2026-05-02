@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import fr.geoking.julius.AppSettings
 import fr.geoking.julius.nextSelectableAgent
+import fr.geoking.julius.nextSelectableAgentOfType
+import fr.geoking.julius.toggleAgentType
 import fr.geoking.julius.AppTheme
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.shared.conversation.ConversationStore
@@ -102,7 +104,11 @@ fun PhoneMainScreen(
             setupIssue = setupIssue,
             onOpenAgentSettings = onOpenAgentSettings,
             onAgentClick = {
-                val nextAgent = nextSelectableAgent(settings.selectedAgent)
+                val nextAgent = nextSelectableAgentOfType(settings.selectedAgent)
+                settingsManager.saveSettings(settings.copy(selectedAgent = nextAgent))
+            },
+            onToggleAgentType = {
+                val nextAgent = toggleAgentType(settings.selectedAgent)
                 settingsManager.saveSettings(settings.copy(selectedAgent = nextAgent))
             }
         )
