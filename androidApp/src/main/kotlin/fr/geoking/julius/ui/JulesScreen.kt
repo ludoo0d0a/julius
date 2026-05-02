@@ -478,13 +478,16 @@ fun JulesScreen(
                                 }
                             },
                             loading = loading,
-                            onMergePr = {
-                                val prUrl = activeSession.prUrl ?: return@InConversationContent
+                            onMergePr = { prUrlOverride ->
+                                val prUrl = prUrlOverride ?: activeSession.prUrl ?: return@InConversationContent
                                 scope.launch {
                                     loading = true
-                                    val res = julesRepository.mergePr(githubToken, prUrl)
+                                    val res = julesRepository.mergePr(githubToken, activeSession.id, prUrl)
                                     if (res.isFailure) error = "Merge failed: ${res.exceptionOrNull()?.message}"
-                                    else loadSessions()
+                                    else {
+                                        loadSessions()
+                                        refreshActivitiesInternal(isRefresh = true)
+                                    }
                                     loading = false
                                 }
                             },
@@ -555,7 +558,7 @@ fun JulesScreen(
                             onMergePr = { session ->
                                 scope.launch {
                                     loading = true
-                                    val res = julesRepository.mergePr(githubToken, session.prUrl!!)
+                                    val res = julesRepository.mergePr(githubToken, session.id, session.prUrl!!)
                                     if (res.isFailure) error = "Merge failed"
                                     else loadSessions()
                                     loading = false
@@ -928,7 +931,7 @@ private fun InConversationContent(
     voiceManager: VoiceManager,
     onSend: () -> Unit,
     loading: Boolean,
-    onMergePr: () -> Unit,
+    onMergePr: (String?) -> Unit,
     onSolveConflicts: () -> Unit,
     onAutoSolveConflicts: () -> Unit,
     isRefreshing: Boolean,
@@ -964,7 +967,9 @@ private fun InConversationContent(
                         JulesMessageContent(
                             item = item,
                             baseFontSize = 14,
-                            onSpeak = { voiceManager.speak(if (item is JulesChatItem.UserMessage) item.text else (item as JulesChatItem.AgentMessage).text) }
+                            onSpeak = { voiceManager.speak(if (item is JulesChatItem.UserMessage) item.text else (item as JulesChatItem.AgentMessage).text) },
+                            onMergePr = { onMergePr(it) },
+                            prDetails = currentSession
                         )
                     }
                 }
@@ -977,7 +982,7 @@ private fun InConversationContent(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         if (currentSession.prMergeable == true) {
-                            FilledTonalButton(onClick = onMergePr) {
+                            FilledTonalButton(onClick = { onMergePr(null) }) {
                                 Text("Merge Pull Request", color = Color.Green)
                             }
                         } else if (currentSession.prMergeable == false) {

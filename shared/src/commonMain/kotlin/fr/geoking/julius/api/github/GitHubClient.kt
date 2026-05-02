@@ -97,13 +97,20 @@ class GitHubClient(
         val mergeable: Boolean? = null,
         @SerialName("mergeable_state") val mergeableState: String? = null,
         val head: GitHubRef? = null,
-        val base: GitHubRef? = null
+        val base: GitHubRef? = null,
+        val repository: GitHubRepoSummary? = null
+    )
+
+    @Serializable
+    data class GitHubRepoSummary(
+        @SerialName("full_name") val fullName: String = ""
     )
 
     @Serializable
     data class GitHubRef(
         val ref: String = "",
-        val sha: String = ""
+        val sha: String = "",
+        val repo: GitHubRepoSummary? = null
     )
 
     suspend fun getPullRequest(token: String, owner: String, repo: String, number: Int): GitHubPullRequestDetail {
