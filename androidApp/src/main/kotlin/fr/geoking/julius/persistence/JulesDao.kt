@@ -16,6 +16,9 @@ interface JulesDao {
     @Query("SELECT * FROM jules_sessions WHERE sourceName = :sourceName AND isArchived = 0 AND (prState IN ('merged', 'closed') OR (prUrl IS NULL AND sessionState IN ('COMPLETED', 'FAILED')))")
     suspend fun getCompletedSessions(sourceName: String): List<JulesSessionEntity>
 
+    @Query("SELECT * FROM jules_sessions WHERE isArchived = 0 AND (prState IN ('merged', 'closed') OR (prUrl IS NULL AND sessionState IN ('COMPLETED', 'FAILED')))")
+    suspend fun getAllCompletedSessions(): List<JulesSessionEntity>
+
     @Query("SELECT * FROM jules_sessions WHERE sourceName = :sourceName AND apiKey = :apiKey AND isArchived = 0")
     suspend fun getSessionsBySourceAndKey(sourceName: String, apiKey: String): List<JulesSessionEntity>
 
