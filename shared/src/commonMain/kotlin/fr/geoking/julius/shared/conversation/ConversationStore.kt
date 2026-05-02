@@ -137,17 +137,22 @@ open class ConversationStore(
             when (sttPreference()) {
                 SttEnginePreference.NativeOnly ->
                     if (agent.isSttSupported) agent.transcribe(audioData) else null
-                SttEnginePreference.LocalOnly ->
+                SttEnginePreference.LocalOnly -> {
+                    localTranscriber.reset()
                     localTranscriber.transcribe(audioData)
-                SttEnginePreference.LocalFirst ->
+                }
+                SttEnginePreference.LocalFirst -> {
+                    localTranscriber.reset()
                     localTranscriber.transcribe(audioData)
                         ?: if (agent.isSttSupported) agent.transcribe(audioData) else null
+                }
             }
         }
 
         voiceManager.events.onEach { event ->
-            // Clear transcript when entering Listening so partial results show with fresh letter-by-letter animation
-            val nextTranscript = if (event == VoiceEvent.Listening) "" else _state.value.currentTranscript
+            // Clear transcript only when status actually changes to Listening from a different state.
+            // This prevents wiping early partial results when onBeginningOfSpeech is triggered.
+            val nextTranscript = if (event == VoiceEvent.Listening && _state.value.status != VoiceEvent.Listening) "" else _state.value.currentTranscript
             _state.value = _state.value.copy(status = event, currentTranscript = nextTranscript)
         }.launchIn(scope)
 

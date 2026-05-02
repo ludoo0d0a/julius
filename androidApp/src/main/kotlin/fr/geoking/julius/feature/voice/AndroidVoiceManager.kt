@@ -48,7 +48,8 @@ import kotlin.text.iterator
 @UnstableApi
 class AndroidVoiceManager(
     private val context: Context,
-    private val settingsManager: SettingsManager
+    private val settingsManager: SettingsManager,
+    private val localTranscriber: fr.geoking.julius.shared.voice.LocalTranscriber? = null
 ) : VoiceManager, RecognitionListener, TextToSpeech.OnInitListener {
 
     private var carContext: CarContext? = null
@@ -323,6 +324,8 @@ class AndroidVoiceManager(
     private fun startCarListening(carContext: CarContext) {
         if (isRecording) return
         isRecording = true
+        _partialText.value = ""
+        _transcribedText.value = ""
         _events.value = VoiceEvent.Listening
         player.notifyStateChanged()
 
@@ -331,6 +334,7 @@ class AndroidVoiceManager(
                 @SuppressLint("MissingPermission")
                 val carAudioRecord = CarAudioRecord.create(carContext)
                 carAudioRecord.startRecording()
+                localTranscriber?.reset()
                 val baos = ByteArrayOutputStream()
                 val buffer = ByteArray(CarAudioRecord.AUDIO_CONTENT_BUFFER_SIZE)
 
@@ -340,7 +344,10 @@ class AndroidVoiceManager(
                     val read = carAudioRecord.read(buffer, 0, buffer.size)
                     if (read > 0) {
                         baos.write(buffer, 0, read)
-                        // In a real app, we would do VAD here to auto-stop
+                        val partial = localTranscriber?.transcribe(buffer.copyOf(read))
+                        if (!partial.isNullOrBlank()) {
+                            _partialText.value = partial
+                        }
                     } else if (read < 0) {
                         break
                     }
@@ -376,10 +383,17 @@ class AndroidVoiceManager(
             player.notifyStateChanged()
         }
 
+        // We already fed all audio chunks to localTranscriber during recording.
+        // Calling transcriber (which calls localTranscriber.transcribe) on the full audioData
+        // would duplicate the result because localTranscriber is stateful and hasn't been reset.
+        // Instead, we ensure we get the final result.
+        // For simplicity and to support all transcribers, we reset localTranscriber before the final batch transcription.
+        localTranscriber?.reset()
         val text = transcriber?.invoke(audioData) ?: ""
         Log.d(TAG, "Car transcription: \"$text\"")
 
         mainHandler.post {
+            _partialText.value = ""
             if (text.isNotBlank()) {
                 _transcribedText.value = text
             } else {

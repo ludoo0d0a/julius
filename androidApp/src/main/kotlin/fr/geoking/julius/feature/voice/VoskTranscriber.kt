@@ -32,9 +32,7 @@ class VoskTranscriber(
         if (audioData.isEmpty()) return@withContext null
         try {
             val rec = getOrCreateRecognizer() ?: return@withContext null
-            // Fresh utterance per buffer (Vosk/Kaldi state); matches typical Android batch usage.
             val result = synchronized(lock) {
-                rec.reset()
                 val accepted = rec.acceptWaveForm(audioData, audioData.size)
                 if (accepted) rec.result else rec.partialResult
             }
@@ -42,6 +40,12 @@ class VoskTranscriber(
         } catch (e: Exception) {
             Log.e(TAG, "Vosk recognition failed", e)
             null
+        }
+    }
+
+    override fun reset() {
+        synchronized(lock) {
+            recognizer?.reset()
         }
     }
 
@@ -115,7 +119,11 @@ class VoskTranscriber(
         if (json.isNullOrBlank()) return null
         return try {
             val obj = JSONObject(json)
-            if (obj.has("text")) obj.getString("text") else null
+            when {
+                obj.has("text") -> obj.getString("text")
+                obj.has("partial") -> obj.getString("partial")
+                else -> null
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse Vosk result", e)
             null
