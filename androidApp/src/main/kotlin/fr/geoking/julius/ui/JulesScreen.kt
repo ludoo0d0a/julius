@@ -97,17 +97,10 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import fr.geoking.julius.ui.components.JulesMessageContent
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-
-private val JulesBg = Color(0xFF0F172A)
-private val JulesCardUser = Color(0xFF334155)
-private val JulesCardAgent = Color(0xFF1E293B)
-private val JulesAccent = Color(0xFF818CF8)
-private val JulesErrorBg = Color(0xFF7F1D1D)
-private val JulesHeaderBg = Color(0xFF1E293B)
-private val JulesListBg = Color(0xFF1E293B)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -344,7 +337,7 @@ fun JulesScreen(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = JulesBg
+        color = ColorHelper.JulesBg
     ) {
         Column {
             Row(
@@ -378,9 +371,9 @@ fun JulesScreen(
                             session.prState == "closed" -> "Closed" to Color.Red
                             session.sessionState == "COMPLETED" -> "Completed" to Color.Green
                             session.sessionState == "FAILED" -> "Failed" to Color.Red
-                            session.sessionState == "AWAITING_PLAN_APPROVAL" -> "Waiting for approval" to JulesAccent
-                            session.sessionState == "PLANNING" -> "Planning…" to JulesAccent
-                            else -> (if (hasOutput) "Output available" else "In progress") to (if (hasOutput) JulesAccent else Color.White.copy(alpha = 0.6f))
+                            session.sessionState == "AWAITING_PLAN_APPROVAL" -> "Waiting for approval" to ColorHelper.JulesAccent
+                            session.sessionState == "PLANNING" -> "Planning…" to ColorHelper.JulesAccent
+                            else -> (if (hasOutput) "Output available" else "In progress") to (if (hasOutput) ColorHelper.JulesAccent else Color.White.copy(alpha = 0.6f))
                         }
                         val mergeabilityText = if (session.prState == "open" && session.prMergeable == false) " (Conflicts)" else ""
                         val prIdText = if (!session.prId.isNullOrBlank()) " #${session.prId}" else ""
@@ -636,7 +629,7 @@ fun JulesScreen(
             ModalBottomSheet(
                 onDismissRequest = { showActivitiesSheet = false },
                 sheetState = rememberModalBottomSheetState(),
-                containerColor = JulesListBg
+                containerColor = ColorHelper.JulesListBg
             ) {
                 ActivitiesSheet(rawActivities)
             }
@@ -646,7 +639,7 @@ fun JulesScreen(
         if (showConflictSheet && conflictSession != null) {
             ModalBottomSheet(
                 onDismissRequest = { showConflictSheet = false },
-                containerColor = JulesListBg,
+                containerColor = ColorHelper.JulesListBg,
                 modifier = Modifier.fillMaxSize()
             ) {
                 ConflictResolutionSheet(
@@ -677,7 +670,7 @@ private fun RepositoriesListContent(
     ) {
         if (loading && sources.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = JulesAccent)
+                CircularProgressIndicator(color = ColorHelper.JulesAccent)
             }
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -714,7 +707,7 @@ private fun RepositoriesListContent(
 private fun PRDetailsDialog(pr: GitHubClient.GitHubPullRequestDetail, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = JulesListBg,
+        containerColor = ColorHelper.JulesListBg,
         title = { Text(pr.title, color = Color.White) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
@@ -762,7 +755,7 @@ private fun ConflictResolutionSheet(
 
         if (loading) {
             Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = JulesAccent)
+                CircularProgressIndicator(color = ColorHelper.JulesAccent)
             }
         } else if (selectedFile == null) {
             LazyColumn {
@@ -788,7 +781,7 @@ private fun ConflictResolutionSheet(
                                 }
                             }
                             .padding(vertical = 4.dp),
-                        colors = CardDefaults.cardColors(containerColor = JulesHeaderBg)
+                        colors = CardDefaults.cardColors(containerColor = ColorHelper.JulesHeaderBg)
                     ) {
                         Text(file, color = Color.White, modifier = Modifier.padding(16.dp))
                     }
@@ -800,7 +793,7 @@ private fun ConflictResolutionSheet(
                 IconButton(onClick = { selectedFile = null }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                 }
-                Text(file, color = JulesAccent, fontWeight = FontWeight.Bold)
+                Text(file, color = ColorHelper.JulesAccent, fontWeight = FontWeight.Bold)
             }
 
             if (conflicts.isNotEmpty()) {
@@ -810,7 +803,7 @@ private fun ConflictResolutionSheet(
                         ConflictBlock(
                             title = "MINE",
                             content = conflict.mine,
-                            color = JulesAccent,
+                            color = ColorHelper.JulesAccent,
                             onSelect = {
                                 fileContent = fileContent.replace(conflict.fullMatch, conflict.mine + "\n")
                                 conflicts = julesRepository.parseConflicts(fileContent)
@@ -897,7 +890,7 @@ private fun ActivitiesSheet(activities: List<JulesClient.JulesActivity>) {
                 Row {
                     Text(
                         text = activity.originator,
-                        color = if (activity.originator == "user") JulesAccent else Color.Green,
+                        color = if (activity.originator == "user") ColorHelper.JulesAccent else Color.Green,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.weight(1f))
@@ -956,17 +949,17 @@ private fun InConversationContent(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-            items(chatItems) { item ->
+            items(chatItems, key = { it.id }) { item ->
                 val isUser = item is JulesChatItem.UserMessage
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
                 ) {
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = if (isUser) JulesCardUser else JulesCardAgent),
+                        colors = CardDefaults.cardColors(containerColor = if (isUser) ColorHelper.JulesCardUser else ColorHelper.JulesCardAgent),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        MessageText(
+                        JulesMessageContent(
                             item = item,
                             baseFontSize = 14,
                             onSpeak = { voiceManager.speak(if (item is JulesChatItem.UserMessage) item.text else (item as JulesChatItem.AgentMessage).text) }
@@ -1009,7 +1002,7 @@ private fun InConversationContent(
                 placeholder = { Text("Message Jules…") }
             )
             IconButton(onClick = onSend, enabled = inputText.isNotBlank() && !loading) {
-                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = JulesAccent)
+                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = ColorHelper.JulesAccent)
             }
         }
     }
@@ -1022,9 +1015,9 @@ private fun StatusBadge(session: JulesSessionEntity) {
         session.prState == "closed" -> "Closed" to Color.Red
         session.sessionState == "COMPLETED" -> "Completed" to Color.Green
         session.sessionState == "FAILED" -> "Failed" to Color.Red
-        session.sessionState == "AWAITING_PLAN_APPROVAL" -> "Wait Approval" to JulesAccent
-        session.sessionState == "PLANNING" -> "Planning" to JulesAccent
-        else -> (if (!session.prUrl.isNullOrBlank()) "Output" else "Active") to (if (!session.prUrl.isNullOrBlank()) JulesAccent else Color.White.copy(alpha = 0.6f))
+        session.sessionState == "AWAITING_PLAN_APPROVAL" -> "Wait Approval" to ColorHelper.JulesAccent
+        session.sessionState == "PLANNING" -> "Planning" to ColorHelper.JulesAccent
+        else -> (if (!session.prUrl.isNullOrBlank()) "Output" else "Active") to (if (!session.prUrl.isNullOrBlank()) ColorHelper.JulesAccent else Color.White.copy(alpha = 0.6f))
     }
 
     Surface(
@@ -1110,8 +1103,8 @@ private fun RepoAndSessionsContent(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
-                        cursorColor = JulesAccent,
-                        focusedBorderColor = JulesAccent.copy(alpha = 0.5f),
+                        cursorColor = ColorHelper.JulesAccent,
+                        focusedBorderColor = ColorHelper.JulesAccent.copy(alpha = 0.5f),
                         unfocusedBorderColor = Color.White.copy(alpha = 0.1f)
                     ),
                     shape = RoundedCornerShape(12.dp)
@@ -1148,7 +1141,7 @@ private fun RepoAndSessionsContent(
                         }
                     }
                 }
-                items(displaySessions) { session ->
+                items(displaySessions, key = { it.id }) { session ->
                     androidx.compose.material3.ListItem(
                         headlineContent = { Text(session.title.ifBlank { session.prompt }, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         supportingContent = {
@@ -1189,26 +1182,6 @@ private fun RepoAndSessionsContent(
     }
 }
 
-@Composable
-private fun MessageText(item: JulesChatItem, baseFontSize: Int, onSpeak: () -> Unit) {
-    val text = if (item is JulesChatItem.UserMessage) item.text
-               else (item as JulesChatItem.AgentMessage).let { if (it.subItems.size == 1) it.subItems.first().text else it.text }
-
-    Column(
-        modifier = Modifier
-            .padding(12.dp)
-            .combinedClickable(onClick = {}, onLongClick = onSpeak)
-    ) {
-        Text(text, color = Color.White, fontSize = baseFontSize.sp)
-        val ts = if (item is JulesChatItem.UserMessage) item.createTime else (item as JulesChatItem.AgentMessage).createTime
-        Text(
-            text = ts.takeLast(5),
-            color = Color.White.copy(alpha = 0.3f),
-            fontSize = 10.sp,
-            modifier = Modifier.align(Alignment.End)
-        )
-    }
-}
 
 @Composable
 private fun MiniProgressBar(currentStep: Int?) {
@@ -1216,7 +1189,7 @@ private fun MiniProgressBar(currentStep: Int?) {
     LinearProgressIndicator(
         progress = { currentStep.toFloat() / 5f },
         modifier = Modifier.fillMaxWidth().height(2.dp),
-        color = JulesAccent,
+        color = ColorHelper.JulesAccent,
         trackColor = Color.Transparent
     )
 }
@@ -1235,7 +1208,7 @@ private fun calculateProgressStep(session: JulesSessionEntity, items: List<Jules
 private fun ErrorCard(title: String, message: String, onDismiss: (() -> Unit)? = null) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
-        colors = CardDefaults.cardColors(containerColor = JulesErrorBg)
+        colors = CardDefaults.cardColors(containerColor = ColorHelper.JulesErrorBg)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row {

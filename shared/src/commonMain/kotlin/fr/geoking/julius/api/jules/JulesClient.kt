@@ -522,13 +522,20 @@ class JulesClient(
 
 @Serializable
 sealed class JulesChatItem {
+    abstract val id: String
+    abstract val createTime: String
+
     @Serializable
-    data class UserMessage(val id: String, val createTime: String, val text: String) : JulesChatItem()
+    data class UserMessage(
+        override val id: String,
+        override val createTime: String,
+        val text: String
+    ) : JulesChatItem()
 
     @Serializable
     data class AgentMessage(
-        val id: String,
-        val createTime: String,
+        override val id: String,
+        override val createTime: String,
         val title: String,
         val subItems: List<AgentSubItem> = emptyList(),
         val text: String = ""

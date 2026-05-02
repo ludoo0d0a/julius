@@ -20,6 +20,15 @@ object ColorHelper {
     val ColorPower200_300 = Color(0xFFF97316)
     val ColorPower300Plus = Color(0xFFEF4444)
 
+    // Jules Colors
+    val JulesBg = Color(0xFF0F172A)
+    val JulesCardUser = Color(0xFF334155)
+    val JulesCardAgent = Color(0xFF1E293B)
+    val JulesAccent = Color(0xFF818CF8)
+    val JulesErrorBg = Color(0xFF7F1D1D)
+    val JulesHeaderBg = Color(0xFF1E293B)
+    val JulesListBg = Color(0xFF1E293B)
+
     fun getFuelColor(fuelId: String?): Color? = when (fuelId) {
         "gazole" -> ColorGazole
         "gazole_plus" -> ColorGazolePlus
