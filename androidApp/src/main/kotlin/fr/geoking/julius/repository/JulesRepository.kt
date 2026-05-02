@@ -13,6 +13,7 @@ import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.persistence.JulesActivityEntity
 import fr.geoking.julius.persistence.JulesDao
 import fr.geoking.julius.persistence.JulesSessionEntity
+import fr.geoking.julius.persistence.JulesSourceEntity
 import fr.geoking.julius.shared.network.NetworkService
 import fr.geoking.julius.shared.network.NetworkException
 import kotlinx.serialization.encodeToString
@@ -35,6 +36,65 @@ class JulesRepository(
     private val settingsManager: SettingsManager
 ) {
     private val syncSemaphore = kotlinx.coroutines.sync.Semaphore(3)
+
+    fun getSources(apiKeys: List<String>): Flow<List<JulesClient.JulesSource>> = flow {
+        // 1. Emit from cache
+        val cached = julesDao.getSources()
+        if (cached.isNotEmpty()) {
+            emit(cached.map {
+                JulesClient.JulesSource(
+                    name = it.name,
+                    id = it.id,
+                    githubRepo = if (it.owner != null && it.repo != null) {
+                        JulesClient.JulesGitHubRepo(it.owner, it.repo)
+                    } else null
+                )
+            })
+        }
+
+        // 2. Refresh if needed (e.g. once a day)
+        val lastUpdated = cached.firstOrNull()?.lastUpdated ?: 0L
+        val oneDayMs = 24 * 60 * 60 * 1000L
+        if (System.currentTimeMillis() - lastUpdated > oneDayMs || cached.isEmpty()) {
+            try {
+                val allSources = mutableMapOf<String, JulesClient.JulesSource>()
+                coroutineScope {
+                    apiKeys.map { key ->
+                        async {
+                            try {
+                                val resp = julesClient.listSources(key)
+                                synchronized(allSources) {
+                                    resp.sources.forEach { src ->
+                                        allSources[src.name] = src
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("JulesRepository", "Failed to load sources for a key", e)
+                            }
+                        }
+                    }.awaitAll()
+                }
+
+                if (allSources.isNotEmpty()) {
+                    val now = System.currentTimeMillis()
+                    val entities = allSources.values.map {
+                        JulesSourceEntity(
+                            name = it.name,
+                            id = it.id,
+                            owner = it.githubRepo?.owner,
+                            repo = it.githubRepo?.repo,
+                            lastUpdated = now
+                        )
+                    }
+                    julesDao.clearSources()
+                    julesDao.insertSources(entities)
+                    emit(allSources.values.toList())
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("JulesRepository", "Failed to refresh sources", e)
+            }
+        }
+    }
 
     fun getSessions(apiKeys: List<String>, sourceName: String, githubToken: String): Flow<List<JulesSessionEntity>> = flow {
         // 1. Emit from cache
@@ -134,7 +194,7 @@ class JulesRepository(
             try {
                 // If status changed, update lastUpdated too
                 val existing = julesDao.getSession(session.id)
-                val statusChanged = existing?.prState != state || existing?.prMergeable != detail.mergeable
+                val statusChanged = existing != null && (existing.prState != state || existing.prMergeable != detail.mergeable)
                 julesDao.updateSessionPrStatus(session.id, state, detail.mergeable)
                 if (statusChanged) {
                     julesDao.updateSessionLastUpdated(session.id, System.currentTimeMillis())

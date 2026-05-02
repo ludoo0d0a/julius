@@ -9,9 +9,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
     entities = [
         ChatMessageEntity::class,
         JulesSessionEntity::class,
-        JulesActivityEntity::class
+        JulesActivityEntity::class,
+        JulesSourceEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -209,6 +210,23 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `apiKey` TEXT")
                 db.execSQL("ALTER TABLE `jules_activities` ADD COLUMN `activityJson` TEXT")
+            }
+        }
+
+        val MIGRATION_11_12: Migration = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `jules_sources` (
+                        `name` TEXT NOT NULL,
+                        `id` TEXT NOT NULL,
+                        `owner` TEXT,
+                        `repo` TEXT,
+                        `lastUpdated` INTEGER NOT NULL,
+                        PRIMARY KEY(`name`)
+                    )
+                    """.trimIndent()
+                )
             }
         }
     }
