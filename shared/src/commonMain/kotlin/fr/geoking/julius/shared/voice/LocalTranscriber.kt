@@ -11,6 +11,11 @@ interface LocalTranscriber {
      * @return Transcribed text, or null if not available / failed.
      */
     suspend fun transcribe(audioData: ByteArray): String?
+
+    /**
+     * Resets the transcriber state (e.g. for starting a new streaming session).
+     */
+    fun reset() {}
 }
 
 /**
@@ -19,4 +24,5 @@ interface LocalTranscriber {
  */
 object NoLocalTranscriber : LocalTranscriber {
     override suspend fun transcribe(audioData: ByteArray): String? = null
+    override fun reset() {}
 }
