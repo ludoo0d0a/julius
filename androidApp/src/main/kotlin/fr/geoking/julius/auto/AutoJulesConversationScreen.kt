@@ -5,6 +5,7 @@ import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.*
 import androidx.lifecycle.lifecycleScope
+import fr.geoking.julius.R
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.api.jules.JulesChatItem
 import fr.geoking.julius.api.jules.JulesClient
@@ -34,8 +35,11 @@ class AutoJulesConversationScreen(
     private var sending: Boolean = false
     private var lastError: String? = null
 
+    private var currentSessionState: JulesSessionEntity? = session
+
     init {
         startPolling()
+        startSessionPolling()
     }
 
     private fun startPolling() {
@@ -52,7 +56,26 @@ class AutoJulesConversationScreen(
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to poll activities", e)
                 }
-                delay(5000) // Poll every 5 seconds
+                delay(5000) // Poll activities every 5 seconds
+            }
+        }
+    }
+
+    private fun startSessionPolling() {
+        val githubToken = settingsManager.settings.value.githubApiKey
+        lifecycleScope.launch {
+            while (true) {
+                try {
+                    julesRepository.pollSessionStatus(session.id, githubToken)
+                    val updated = julesRepository.getSession(session.id)
+                    if (updated != null && updated.sessionState != currentSessionState?.sessionState) {
+                        currentSessionState = updated
+                        invalidate()
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to poll session status", e)
+                }
+                delay(30000) // Poll session status every 30 seconds
             }
         }
     }
@@ -60,6 +83,41 @@ class AutoJulesConversationScreen(
     override fun onGetTemplate(): Template {
         val listBuilder = ItemList.Builder()
             .setNoItemsMessage(if (loading) "Loading messages…" else "No messages in this conversation.")
+
+        val sess = currentSessionState ?: session
+        if (!sess.isFinished) {
+            val isPaused = sess.sessionState == "PAUSED"
+            listBuilder.addItem(
+                Row.Builder()
+                    .setTitle(if (isPaused) carContext.getString(R.string.resume) else carContext.getString(R.string.pause))
+                    .addText(if (isPaused) "Session is paused" else "Session is active")
+                    .setImage(
+                        CarIcon.Builder(
+                            androidx.core.graphics.drawable.IconCompat.createWithResource(
+                                carContext,
+                                if (isPaused) fr.geoking.julius.R.drawable.ic_home else fr.geoking.julius.R.drawable.ic_stop
+                            )
+                        ).build()
+                    )
+                    .setOnClickListener {
+                        lifecycleScope.launch {
+                            try {
+                                if (isPaused) julesRepository.resumeSession(sess.id)
+                                else julesRepository.pauseSession(sess.id)
+                                val updated = julesRepository.getSession(sess.id)
+                                if (updated != null) {
+                                    currentSessionState = updated
+                                    invalidate()
+                                }
+                            } catch (e: Exception) {
+                                lastError = "Action failed: ${e.message}"
+                                invalidate()
+                            }
+                        }
+                    }
+                    .build()
+            )
+        }
 
         if (sending) {
             listBuilder.addItem(

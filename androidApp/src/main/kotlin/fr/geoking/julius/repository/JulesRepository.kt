@@ -761,6 +761,30 @@ class JulesRepository(
     suspend fun approvePlan(apiKey: String, sessionId: String) {
         julesClient.approvePlan(apiKey, sessionId)
     }
+
+    suspend fun pauseSession(sessionId: String) {
+        try {
+            val session = julesDao.getSession(sessionId) ?: return
+            val apiKey = session.apiKey ?: settingsManager.settings.value.julesKeys.firstOrNull() ?: return
+            julesClient.pauseSession(apiKey, sessionId)
+            pollSessionStatus(sessionId, settingsManager.settings.value.githubApiKey)
+        } catch (e: Exception) {
+            android.util.Log.e("JulesRepository", "Failed to pause session $sessionId", e)
+            throw e
+        }
+    }
+
+    suspend fun resumeSession(sessionId: String) {
+        try {
+            val session = julesDao.getSession(sessionId) ?: return
+            val apiKey = session.apiKey ?: settingsManager.settings.value.julesKeys.firstOrNull() ?: return
+            julesClient.resumeSession(apiKey, sessionId)
+            pollSessionStatus(sessionId, settingsManager.settings.value.githubApiKey)
+        } catch (e: Exception) {
+            android.util.Log.e("JulesRepository", "Failed to resume session $sessionId", e)
+            throw e
+        }
+    }
 }
 
 /** Used/limit for optional daily session display in [JulesScreen]. */
