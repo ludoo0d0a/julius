@@ -370,27 +370,6 @@ fun MainUI(
                         onInitialRouteConsumed = { settingsInitialStack = null }
                     )
                 }
-                isPlaystoreDistribution && showMap -> {
-                    BackHandler { showMap = false }
-                    MapScreen(
-                        settingsManager = settingsManager,
-                        authManager = authManager,
-                        store = store,
-                        palette = palette,
-                        initialCenter = initialMapCenter ?: lastMapCenter,
-                        initialZoom = if (initialMapCenter != null) 12f else lastMapZoom,
-                        onBack = { showMap = false; initialMapCenter = null },
-                        onCameraMove = { center, zoom ->
-                            lastMapCenter = center
-                            lastMapZoom = zoom
-                        },
-                        onPlanRoute = null,
-                        onShowSettings = {
-                            settingsInitialStack = listOf(SettingsScreenPage.Main)
-                            showSettings = true
-                        }
-                    )
-                }
                 showJules -> {
                     JulesScreen(
                         onBack = { showJules = false },
@@ -400,7 +379,7 @@ fun MainUI(
                         voiceManager = voiceManager
                     )
                 }
-                showHistory && !isPlaystoreDistribution -> {
+                showHistory -> {
                     HistoryScreen(state = state, store = store, onBack = { showHistory = false })
                 }
                 showMap -> {
