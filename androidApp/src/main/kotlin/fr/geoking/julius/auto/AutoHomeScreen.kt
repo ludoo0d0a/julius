@@ -34,6 +34,7 @@ class AutoHomeScreen(
                     ).build()
                 )
                 .setOnClickListener {
+                    screenManager.push(AutoConversationScreen(carContext, store))
                     store.startListening(continuous = true)
                 }
                 .build()
