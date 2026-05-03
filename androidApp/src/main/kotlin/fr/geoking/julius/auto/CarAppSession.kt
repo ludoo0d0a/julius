@@ -7,6 +7,8 @@ import androidx.car.app.Session
 import androidx.car.app.model.Action
 import androidx.car.app.model.Template
 import fr.geoking.julius.JuliusApplication
+import fr.geoking.julius.feature.voice.AndroidVoiceManager
+import fr.geoking.julius.shared.voice.VoiceManager
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 
@@ -23,6 +25,8 @@ class CarAppSession : Session(), KoinComponent {
                 errorDetail = initError.message ?: initError.toString()
             )
         }
+
+        (get<VoiceManager>() as? AndroidVoiceManager)?.setCarContext(carContext)
 
         return AutoHomeScreen(
             carContext,
