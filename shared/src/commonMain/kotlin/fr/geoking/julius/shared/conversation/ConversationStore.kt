@@ -18,6 +18,7 @@ import fr.geoking.julius.shared.voice.SpeechLanguageResolver
 import fr.geoking.julius.shared.voice.SttEnginePreference
 import fr.geoking.julius.shared.voice.VoiceEvent
 import fr.geoking.julius.shared.voice.VoiceManager
+import fr.geoking.julius.shared.voice.TranscriptionResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -136,7 +137,7 @@ open class ConversationStore(
         voiceManager.setTranscriber { audioData ->
             when (sttPreference()) {
                 SttEnginePreference.NativeOnly ->
-                    if (agent.isSttSupported) agent.transcribe(audioData) else null
+                    if (agent.isSttSupported) agent.transcribe(audioData)?.let { TranscriptionResult(it, isFinal = true) } else null
                 SttEnginePreference.LocalOnly -> {
                     localTranscriber.reset()
                     localTranscriber.transcribe(audioData)
@@ -144,7 +145,7 @@ open class ConversationStore(
                 SttEnginePreference.LocalFirst -> {
                     localTranscriber.reset()
                     localTranscriber.transcribe(audioData)
-                        ?: if (agent.isSttSupported) agent.transcribe(audioData) else null
+                        ?: if (agent.isSttSupported) agent.transcribe(audioData)?.let { TranscriptionResult(it, isFinal = true) } else null
                 }
             }
         }

@@ -24,9 +24,19 @@ data class NetworkLog(
     val safeResponseBody: String get() = responseBody ?: ""
 }
 
+data class ActionLog(
+    val id: String,
+    val tag: String,
+    val message: String,
+    val timestamp: Long
+)
+
 object DebugLogStore {
     private val _logs = MutableStateFlow<List<NetworkLog>>(emptyList())
     val logs: StateFlow<List<NetworkLog>> = _logs.asStateFlow()
+
+    private val _actionLogs = MutableStateFlow<List<ActionLog>>(emptyList())
+    val actionLogs: StateFlow<List<ActionLog>> = _actionLogs.asStateFlow()
 
     private const val MAX_LOGS = 50
 
@@ -53,8 +63,28 @@ object DebugLogStore {
         }
     }
 
+    fun addActionLog(tag: String, message: String) {
+        val timestamp = fr.geoking.julius.shared.platform.getCurrentTimeMillis()
+        val log = ActionLog(
+            id = "act_$timestamp",
+            tag = tag,
+            message = message,
+            timestamp = timestamp
+        )
+        _actionLogs.update { current ->
+            val next = current.toMutableList()
+            next.add(0, log)
+            if (next.size > MAX_LOGS) {
+                next.take(MAX_LOGS)
+            } else {
+                next
+            }
+        }
+    }
+
     fun clearLogs() {
         _logs.value = emptyList()
+        _actionLogs.value = emptyList()
     }
 
     fun updateLogMetadata(url: String, metadata: Map<String, String>) {
