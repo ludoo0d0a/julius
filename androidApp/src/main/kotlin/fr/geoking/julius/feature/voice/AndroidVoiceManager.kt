@@ -40,6 +40,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -68,7 +69,8 @@ class AndroidVoiceManager(
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
 
-    fun setCarContext(carContext: CarContext) {
+    /** Non-null while an Android Auto [Session] is active; enables car mic + [CarAudioRecord] when [useCarMic] is on. */
+    fun setCarContext(carContext: CarContext?) {
         this.carContext = carContext
     }
 
@@ -79,6 +81,8 @@ class AndroidVoiceManager(
         private const val BARGE_IN_START_DELAY_MS = 300L
         /** Keep "continuous" mode truly continuous when SpeechRecognizer times out. */
         private const val CONTINUOUS_LISTEN_RESTART_DELAY_MS = 200L
+        /** Car mic capture runs until [stopListening] or this cap (no VAD); avoids an infinite read loop on AA. */
+        private const val MAX_CAR_RECORDING_MS = 30_000L
         private const val RMS_LOG_INTERVAL = 20
         private const val BUFFER_LOG_INTERVAL = 50
     }
@@ -448,6 +452,13 @@ class AndroidVoiceManager(
         player.notifyStateChanged()
 
         carRecordingJob = scope.launch(Dispatchers.IO) {
+            val maxDurationStop = launch {
+                delay(MAX_CAR_RECORDING_MS)
+                if (isRecording) {
+                    Log.d(TAG, "Car recording: max duration reached (${MAX_CAR_RECORDING_MS}ms), stopping")
+                    isRecording = false
+                }
+            }
             try {
                 if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                     Log.e(TAG, "RECORD_AUDIO permission not granted for car mic")
@@ -509,6 +520,9 @@ class AndroidVoiceManager(
                     _events.value = VoiceEvent.Silence
                     player.notifyStateChanged()
                 }
+            } finally {
+                maxDurationStop.cancel()
+                isRecording = false
             }
         }
     }

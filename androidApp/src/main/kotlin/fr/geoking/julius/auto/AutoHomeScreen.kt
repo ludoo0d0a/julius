@@ -27,15 +27,14 @@ class AutoHomeScreen(
         listBuilder.addItem(
             Row.Builder()
                 .setTitle("Talk to Julius")
-                .addText("Start a voice conversation")
+                .addText("Voice or keyboard via search bar")
                 .setImage(
                     CarIcon.Builder(
                         IconCompat.createWithResource(carContext, R.drawable.ic_speaker)
                     ).build()
                 )
                 .setOnClickListener {
-                    screenManager.push(AutoConversationScreen(carContext, store))
-                    store.startListening(continuous = true)
+                    screenManager.push(AutoJuliusConversationScreen(carContext, store))
                 }
                 .build()
         )
