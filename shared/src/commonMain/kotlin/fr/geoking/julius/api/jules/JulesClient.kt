@@ -234,6 +234,44 @@ class JulesClient(
         }
     }
 
+    suspend fun pauseSession(apiKey: String, sessionId: String) {
+        val token = apiKeyHeader(apiKey)
+        val url = "$baseUrl/sessions/$sessionId:pause"
+        val response = client.post(url) {
+            header("X-Goog-Api-Key", token)
+            contentType(ContentType.Application.Json)
+            setBody(JsonObject(emptyMap()))
+        }
+        if (response.status.value !in 200..299) {
+            val body = response.bodyAsText()
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Jules pauseSession: $body",
+                url = url,
+                provider = "Jules"
+            )
+        }
+    }
+
+    suspend fun resumeSession(apiKey: String, sessionId: String) {
+        val token = apiKeyHeader(apiKey)
+        val url = "$baseUrl/sessions/$sessionId:resume"
+        val response = client.post(url) {
+            header("X-Goog-Api-Key", token)
+            contentType(ContentType.Application.Json)
+            setBody(JsonObject(emptyMap()))
+        }
+        if (response.status.value !in 200..299) {
+            val body = response.bodyAsText()
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "Jules resumeSession: $body",
+                url = url,
+                provider = "Jules"
+            )
+        }
+    }
+
     // --- Send message ---
 
     @Serializable

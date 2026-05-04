@@ -227,7 +227,7 @@ open class ConversationStore(
             .trim()
             .replace(Regex("[^\\p{L}\\p{N}\\s]"), " ")
             .replace(Regex("\\s+"), " ")
-        return Regex("\\bstop\\b").containsMatchIn(normalized)
+        return Regex("\\b(stop|pause)\\b").containsMatchIn(normalized)
     }
 
     fun stopAllActions() {

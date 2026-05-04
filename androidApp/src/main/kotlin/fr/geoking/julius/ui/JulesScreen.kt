@@ -36,6 +36,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Merge
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -359,6 +361,7 @@ fun JulesScreen(
                             session.sessionState == "FAILED" -> "Failed" to Color.Red
                             session.sessionState == "AWAITING_PLAN_APPROVAL" -> "Waiting for approval" to ColorHelper.JulesAccent
                             session.sessionState == "PLANNING" -> "Planning…" to ColorHelper.JulesAccent
+                            session.sessionState == "PAUSED" -> "Paused" to Color.Yellow
                             else -> (if (hasOutput) "Output available" else "In progress") to (if (hasOutput) ColorHelper.JulesAccent else Color.White.copy(alpha = 0.6f))
                         }
                         val mergeabilityText = if (session.prState == "open" && session.prMergeable == false) " (Conflicts)" else ""
@@ -386,6 +389,31 @@ fun JulesScreen(
                     }
                 }
                 if (sess != null) {
+                    if (!sess.isFinished) {
+                        IconButton(onClick = {
+                            scope.launch {
+                                loading = true
+                                try {
+                                    if (sess.sessionState == "PAUSED") {
+                                        julesRepository.resumeSession(sess.id)
+                                    } else {
+                                        julesRepository.pauseSession(sess.id)
+                                    }
+                                    loadSessions()
+                                } catch (e: Exception) {
+                                    error = "Failed to toggle pause: ${e.message}"
+                                } finally {
+                                    loading = false
+                                }
+                            }
+                        }) {
+                            Icon(
+                                if (sess.sessionState == "PAUSED") Icons.Default.PlayArrow else Icons.Default.Pause,
+                                contentDescription = if (sess.sessionState == "PAUSED") "Resume" else "Pause",
+                                tint = Color.White
+                            )
+                        }
+                    }
                     if (!sess.url.isNullOrBlank()) {
                         IconButton(onClick = {
                             uriHandler.openUri(sess.url)
@@ -1024,6 +1052,7 @@ private fun StatusBadge(session: JulesSessionEntity) {
         session.sessionState == "FAILED" -> "Failed" to Color.Red
         session.sessionState == "AWAITING_PLAN_APPROVAL" -> "Wait Approval" to ColorHelper.JulesAccent
         session.sessionState == "PLANNING" -> "Planning" to ColorHelper.JulesAccent
+        session.sessionState == "PAUSED" -> "Paused" to Color.Yellow
         else -> (if (!session.prUrl.isNullOrBlank()) "Output" else "Active") to (if (!session.prUrl.isNullOrBlank()) ColorHelper.JulesAccent else Color.White.copy(alpha = 0.6f))
     }
 
