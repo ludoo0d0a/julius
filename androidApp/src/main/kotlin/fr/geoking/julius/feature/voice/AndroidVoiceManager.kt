@@ -35,6 +35,7 @@ import fr.geoking.julius.SpeakingInterruptMode
 import fr.geoking.julius.shared.logging.DebugLogStore
 import fr.geoking.julius.shared.voice.VoiceEvent
 import fr.geoking.julius.shared.voice.VoiceManager
+import fr.geoking.julius.shared.voice.TranscriptionResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -49,7 +50,6 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
-import kotlin.text.iterator
 
 @UnstableApi
 class AndroidVoiceManager(
@@ -61,6 +61,8 @@ class AndroidVoiceManager(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var carContext: CarContext? = null
     private var isRecording = false
+    private var phoneRecordingJob: Job? = null
+    private var carRecordingJob: Job? = null
     private var wakeWordDetectionJob: Job? = null
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -109,7 +111,7 @@ class AndroidVoiceManager(
     private var speakInterruptibleForCurrentUtterance: Boolean = true
     private var rmsCallCount: Int = 0
     private var bufferCallCount: Int = 0
-    private var transcriber: (suspend (ByteArray) -> String?)? = null
+    private var transcriber: (suspend (ByteArray) -> TranscriptionResult?)? = null
 
     private val player = object : SimpleBasePlayer(context.mainLooper) {
         fun notifyStateChanged() {
@@ -320,11 +322,19 @@ class AndroidVoiceManager(
         isContinuousMode = continuous
         requestAudioFocus()
         val currentCarContext = carContext
+
+        val useLocal = settingsManager.settings.value.sttEnginePreference != fr.geoking.julius.shared.voice.SttEnginePreference.NativeOnly
+                && localTranscriber?.isAvailable() == true
+
         // Use the car's microphone whenever a car context is available and the setting is enabled.
-        // We no longer gate this on a specific Gradle flavor so that non-flavored builds work.
         if (currentCarContext != null && settingsManager.settings.value.useCarMic) {
-            startCarListening(currentCarContext)
-        } else if (settingsManager.settings.value.sttEnginePreference != fr.geoking.julius.shared.voice.SttEnginePreference.NativeOnly) {
+            if (useLocal) {
+                startCarListening(currentCarContext)
+            } else {
+                // Fallback to native (which might not work well on car without special car-context handling in SpeechRecognizer, but it's what we have)
+                startListeningInternal(stopOutputs = true, bargeIn = false)
+            }
+        } else if (useLocal) {
             startPhoneRecording()
         } else {
             startListeningInternal(stopOutputs = true, bargeIn = false)
@@ -387,9 +397,15 @@ class AndroidVoiceManager(
                     if (read > 0) {
                         val chunk = buffer.copyOf(read)
                         baos.write(chunk)
-                        val partial = localTranscriber?.transcribe(chunk)
-                        if (!partial.isNullOrBlank()) {
-                            _partialText.value = partial
+                        val result = localTranscriber?.transcribe(chunk)
+                        if (result != null) {
+                            if (result.text.isNotBlank()) {
+                                _partialText.value = result.text
+                            }
+                            if (result.isFinal) {
+                                mainHandler.post { stopListening() }
+                                break
+                            }
                         }
                     } else if (read < 0) {
                         break
@@ -431,7 +447,7 @@ class AndroidVoiceManager(
         _events.value = VoiceEvent.Listening
         player.notifyStateChanged()
 
-        scope.launch(Dispatchers.IO) {
+        carRecordingJob = scope.launch(Dispatchers.IO) {
             try {
                 if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                     Log.e(TAG, "RECORD_AUDIO permission not granted for car mic")
@@ -452,13 +468,20 @@ class AndroidVoiceManager(
 
                 Log.d(TAG, "Car recording started")
 
-                while (isRecording) {
+                while (isRecording && isActive) {
                     val read = carAudioRecord.read(buffer, 0, buffer.size)
                     if (read > 0) {
-                        baos.write(buffer, 0, read)
-                        val partial = localTranscriber?.transcribe(buffer.copyOf(read))
-                        if (!partial.isNullOrBlank()) {
-                            _partialText.value = partial
+                        val chunk = buffer.copyOf(read)
+                        baos.write(chunk)
+                        val result = localTranscriber?.transcribe(chunk)
+                        if (result != null) {
+                            if (result.text.isNotBlank()) {
+                                _partialText.value = result.text
+                            }
+                            if (result.isFinal) {
+                                mainHandler.post { stopListening() }
+                                break
+                            }
                         }
                     } else if (read < 0) {
                         break
@@ -480,6 +503,7 @@ class AndroidVoiceManager(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Car recording failed", e)
+                DebugLogStore.addActionLog("Voice", "Car recording failed: ${e.message}")
                 isRecording = false
                 mainHandler.post {
                     _events.value = VoiceEvent.Silence
@@ -497,7 +521,8 @@ class AndroidVoiceManager(
 
         // Reset localTranscriber before final batch transcription (it might have been used for partials)
         localTranscriber?.reset()
-        val text = transcriber?.invoke(audioData) ?: ""
+        val result = transcriber?.invoke(audioData)
+        val text = result?.text ?: ""
         Log.d(TAG, "$source transcription: \"$text\"")
         DebugLogStore.addActionLog("Voice", "$source transcription: \"$text\"")
 
@@ -508,11 +533,14 @@ class AndroidVoiceManager(
             } else {
                 _events.value = VoiceEvent.Silence
                 player.notifyStateChanged()
+                if (isContinuousMode) {
+                    scheduleContinuousListeningRestart(reason = "processAudioData(empty)")
+                }
             }
         }
     }
 
-    override fun setTranscriber(transcriber: suspend (ByteArray) -> String?) {
+    override fun setTranscriber(transcriber: suspend (ByteArray) -> TranscriptionResult?) {
         this.transcriber = transcriber
     }
 
@@ -521,6 +549,10 @@ class AndroidVoiceManager(
         isContinuousMode = false
         if (isRecording) {
             isRecording = false
+            phoneRecordingJob?.cancel()
+            phoneRecordingJob = null
+            carRecordingJob?.cancel()
+            carRecordingJob = null
         } else {
             mainHandler.post {
                 speechRecognizer?.stopListening()

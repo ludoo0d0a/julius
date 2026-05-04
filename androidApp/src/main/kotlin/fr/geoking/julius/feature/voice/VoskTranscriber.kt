@@ -3,6 +3,7 @@ package fr.geoking.julius.feature.voice
 import android.content.Context
 import android.util.Log
 import fr.geoking.julius.shared.voice.LocalTranscriber
+import fr.geoking.julius.shared.voice.TranscriptionResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -28,15 +29,19 @@ class VoskTranscriber(
 
     private val lock = Any()
 
-    override suspend fun transcribe(audioData: ByteArray): String? = withContext(Dispatchers.IO) {
+    override suspend fun transcribe(audioData: ByteArray): TranscriptionResult? = withContext(Dispatchers.IO) {
         if (audioData.isEmpty()) return@withContext null
         try {
             val rec = getOrCreateRecognizer() ?: return@withContext null
-            val result = synchronized(lock) {
+            val (json, accepted) = synchronized(lock) {
                 val accepted = rec.acceptWaveForm(audioData, audioData.size)
-                if (accepted) rec.result else rec.partialResult
+                val result = if (accepted) rec.result else rec.partialResult
+                result to accepted
             }
-            parseTextFromResult(result)?.takeIf { it.isNotBlank() }
+            val text = parseTextFromResult(json)
+            if (text != null) {
+                TranscriptionResult(text, isFinal = accepted)
+            } else null
         } catch (e: Exception) {
             Log.e(TAG, "Vosk recognition failed", e)
             null
@@ -46,6 +51,27 @@ class VoskTranscriber(
     override fun reset() {
         synchronized(lock) {
             recognizer?.reset()
+        }
+    }
+
+    override fun isAvailable(): Boolean {
+        if (model != null) return true
+        val path = modelDirPath?.takeIf { File(it, "am/final.mdl").exists() }
+            ?: getExistingModelPath()
+        return path != null
+    }
+
+    private fun getExistingModelPath(): String? {
+        val baseDir = File(context.filesDir, "vosk_model")
+        val children = baseDir.list() ?: emptyArray()
+        val existing = children.firstOrNull { File(baseDir, "$it/am/final.mdl").exists() }
+        if (existing != null) return File(baseDir, existing).absolutePath
+        // Check assets without copying just to see if it's there
+        return try {
+            val childrenAssets = context.assets.list("models/vosk") ?: emptyArray()
+            if (childrenAssets.isNotEmpty()) "pending_copy" else null
+        } catch (e: Exception) {
+            null
         }
     }
 

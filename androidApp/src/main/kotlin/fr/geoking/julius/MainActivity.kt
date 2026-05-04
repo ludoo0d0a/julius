@@ -594,7 +594,7 @@ private fun rememberMockStore(): ConversationStore = remember {
             override fun speak(text: String, languageTag: String?, isInterruptible: Boolean) {}
             override fun playAudio(bytes: ByteArray) {}
             override fun stopSpeaking() {}
-            override fun setTranscriber(transcriber: suspend (ByteArray) -> String?) {}
+            override fun setTranscriber(transcriber: suspend (ByteArray) -> fr.geoking.julius.shared.voice.TranscriptionResult?) {}
         },
         actionExecutor = null
     ) {}
