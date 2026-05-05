@@ -10,7 +10,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- POI category doesn't require media playback foreground service. -->
+    <!-- BorderMonitorService runs as a location foreground service; declare types in Play Console. -->
 
     <!-- Android Auto permissions -->
 
