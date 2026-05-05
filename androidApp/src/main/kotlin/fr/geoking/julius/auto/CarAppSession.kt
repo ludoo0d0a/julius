@@ -27,6 +27,18 @@ class CarAppSession : Session(), KoinComponent {
     }
 
     override fun onCreateScreen(intent: Intent): Screen {
+        // Start border monitoring service from Android Auto as well
+        try {
+            val serviceIntent = Intent(carContext, BorderMonitorService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                carContext.startForegroundService(serviceIntent)
+            } else {
+                carContext.startService(serviceIntent)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CarAppSession", "Failed to start BorderMonitorService", e)
+        }
+
         (get<VoiceManager>() as? AndroidVoiceManager)?.setCarContext(carContext)
 
         val initError = JuliusApplication.initError

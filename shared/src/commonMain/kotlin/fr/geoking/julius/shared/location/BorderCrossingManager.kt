@@ -2,6 +2,7 @@ package fr.geoking.julius.shared.location
 
 import fr.geoking.julius.shared.conversation.ConversationStore
 import fr.geoking.julius.shared.network.NetworkService
+import fr.geoking.julius.shared.platform.PlatformNotificationManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -9,7 +10,8 @@ import kotlinx.coroutines.launch
 class BorderCrossingManager(
     private val scope: CoroutineScope,
     private val networkService: NetworkService,
-    private val conversationStore: ConversationStore
+    private val conversationStore: ConversationStore,
+    private val notificationManager: PlatformNotificationManager
 ) {
     private var lastCountryCode: String? = null
 
@@ -29,10 +31,17 @@ class BorderCrossingManager(
                         else -> " Your network is connected to ${status.telephonyCountryCode}."
                     }
 
-                    val message = "Welcome to $countryName! You are connected to ${status.operatorName}$networkInfo.$networkSwitchInfo"
+                    val fullMessage = "Welcome to $countryName! You are connected to ${status.operatorName}$networkInfo.$networkSwitchInfo"
+                    val toastMessage = "Welcome to $countryName; network ${status.operatorName}$networkInfo"
+
+                    // Show high priority notification (HUN)
+                    notificationManager.showHighPriorityNotification(
+                        title = "Border Crossed",
+                        message = toastMessage
+                    )
 
                     // Add message to UI and speak it (interruptible)
-                    conversationStore.onUserFinishedSpeaking("CROSS_BORDER_EVENT_INTERNAL: $message")
+                    conversationStore.onUserFinishedSpeaking("CROSS_BORDER_EVENT_INTERNAL: $fullMessage")
                 }
                 if (currentCountry != null) {
                     lastCountryCode = currentCountry

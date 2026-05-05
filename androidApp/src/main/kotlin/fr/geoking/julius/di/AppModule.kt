@@ -7,7 +7,9 @@ import fr.geoking.julius.feature.network.AndroidNetworkService
 import fr.geoking.julius.feature.weather.AndroidWeatherLookup
 import fr.geoking.julius.AppSettings
 import fr.geoking.julius.feature.permission.AndroidPermissionManager
+import fr.geoking.julius.feature.notification.AndroidNotificationManager
 import fr.geoking.julius.feature.auth.GoogleAuthManager
+import fr.geoking.julius.shared.platform.PlatformNotificationManager
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.agents.*
@@ -375,6 +377,10 @@ val appModule = module {
         AndroidPermissionManager(androidContext())
     }
 
+    single<PlatformNotificationManager> {
+        AndroidNotificationManager(androidContext())
+    }
+
     single { OpenMeteoGeocodingClient(get()) }
     single { OpenMeteoWeatherProvider(get(), providerId = "Open-Meteo") }
     single { MetNorwayWeatherProvider(get()) }
@@ -446,6 +452,15 @@ val appModule = module {
 
     single { JulesRepository(androidContext(), get(), get(), get(), get(), get()) }
 
+    single<BorderCrossingManager> {
+        BorderCrossingManager(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            networkService = get(),
+            conversationStore = get(),
+            notificationManager = get()
+        )
+    }
+
     single<ConversationStore> {
         val settingsManager = get<SettingsManager>()
         val db = get<AppDatabase>()
@@ -457,7 +472,7 @@ val appModule = module {
             null
         }
 
-        val store = ConversationStore(
+        ConversationStore(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             agent = get(),
             voiceManager = get(),
@@ -467,15 +482,6 @@ val appModule = module {
             sttPreference = { settingsManager.settings.value.sttEnginePreference },
             persistence = persistence
         )
-
-        // Initialize BorderCrossingManager here to ensure it starts with the store
-        BorderCrossingManager(
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
-            networkService = get(),
-            conversationStore = store
-        )
-
-        store
     }
 }
 
