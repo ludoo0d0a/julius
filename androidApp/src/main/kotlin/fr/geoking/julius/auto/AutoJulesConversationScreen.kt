@@ -12,6 +12,7 @@ import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.persistence.JulesSessionEntity
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.conversation.ConversationStore
+import fr.geoking.julius.shared.voice.VoiceEvent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -34,12 +35,34 @@ class AutoJulesConversationScreen(
     private var loading: Boolean = true
     private var sending: Boolean = false
     private var lastError: String? = null
+    private var lastSentFromStt: String? = null
 
     private var currentSessionState: JulesSessionEntity? = session
 
     init {
+        // This screen uses STT as an input method, but messages should go to Jules (not the main conversational agent).
+        store.autoSendFinalTranscripts = false
+
         startPolling()
         startSessionPolling()
+
+        lifecycleScope.launch {
+            store.state.collectLatest {
+                invalidate()
+            }
+        }
+
+        lifecycleScope.launch {
+            store.voiceManager.transcribedText.collectLatest { text ->
+                val trimmed = text.trim()
+                if (trimmed.isBlank()) return@collectLatest
+                if (sending) return@collectLatest
+                if (trimmed == lastSentFromStt) return@collectLatest
+
+                lastSentFromStt = trimmed
+                sendMessage(trimmed)
+            }
+        }
     }
 
     private fun startPolling() {
@@ -83,6 +106,29 @@ class AutoJulesConversationScreen(
     override fun onGetTemplate(): Template {
         val listBuilder = ItemList.Builder()
             .setNoItemsMessage(if (loading) "Loading messages…" else "No messages in this conversation.")
+
+        val state = store.state.value
+        val isActive = state.status == VoiceEvent.Listening || state.status == VoiceEvent.Speaking || state.status == VoiceEvent.Processing
+        if (state.status == VoiceEvent.Listening) {
+            val statusText = if (state.currentTranscript.isBlank()) carContext.getString(R.string.listening) else state.currentTranscript
+            listBuilder.addItem(
+                Row.Builder()
+                    .setTitle(statusText.take(200))
+                    .build()
+            )
+        } else if (state.status == VoiceEvent.Processing) {
+            listBuilder.addItem(
+                Row.Builder()
+                    .setTitle(carContext.getString(R.string.thinking))
+                    .build()
+            )
+        } else if (state.status == VoiceEvent.Speaking) {
+            listBuilder.addItem(
+                Row.Builder()
+                    .setTitle(carContext.getString(R.string.speaking))
+                    .build()
+            )
+        }
 
         val sess = currentSessionState ?: session
         if (!sess.isFinished) {
@@ -152,6 +198,24 @@ class AutoJulesConversationScreen(
             )
         }
 
+        val micAction = if (isActive) {
+            Action.Builder()
+                .setTitle(carContext.getString(R.string.stop))
+                .setOnClickListener {
+                    store.stopAllActions()
+                    store.clearTranscript()
+                }
+                .build()
+        } else {
+            Action.Builder()
+                .setTitle(carContext.getString(R.string.start_listening))
+                .setOnClickListener {
+                    store.clearTranscript()
+                    store.startListening(continuous = false)
+                }
+                .build()
+        }
+
         return SearchTemplate.Builder(object : SearchTemplate.SearchCallback {
             override fun onSearchTextChanged(searchText: String) {
                 lastCapturedPrompt = searchText
@@ -165,6 +229,12 @@ class AutoJulesConversationScreen(
             }
         })
             .setHeaderAction(Action.BACK)
+            .setHeader(
+                Header.Builder()
+                    .setStartHeaderAction(Action.BACK)
+                    .addEndHeaderAction(micAction)
+                    .build()
+            )
             .setSearchHint("Send message to Jules…")
             .setInitialSearchText(lastCapturedPrompt ?: "")
             .setItemList(listBuilder.build())
@@ -179,6 +249,7 @@ class AutoJulesConversationScreen(
             try {
                 julesRepository.sendMessage(session.id, prompt)
                 lastCapturedPrompt = null
+                store.clearTranscript()
                 // Refresh immediately
                 julesRepository.getActivities(session.id).collectLatest { items ->
                     chatItems = items
