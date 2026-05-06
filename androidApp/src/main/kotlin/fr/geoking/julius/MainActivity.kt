@@ -60,7 +60,6 @@ import fr.geoking.julius.ui.UpdateAvailableDialog
 import fr.geoking.julius.ui.anim.AnimationPalettes
 import com.google.android.play.core.appupdate.AppUpdateInfo
 import fr.geoking.julius.update.InAppUpdateHelper
-import fr.geoking.julius.auto.BorderMonitorService
 import fr.geoking.julius.feature.auth.GoogleAuthManager
 import fr.geoking.julius.feature.permission.AndroidPermissionManager
 import fr.geoking.julius.intent.IntentNavigationHelper
@@ -163,17 +162,6 @@ class MainActivity : ComponentActivity() {
             val networkService: NetworkService = get()
             android.util.Log.d("MainActivity", "Dependencies resolved successfully.")
 
-            // Start border monitoring service
-            try {
-                val serviceIntent = Intent(this, BorderMonitorService::class.java)
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    startForegroundService(serviceIntent)
-                } else {
-                    startService(serviceIntent)
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("MainActivity", "Failed to start BorderMonitorService", e)
-            }
 
             if (!BuildConfig.IS_PLAYSTORE_DISTRIBUTION) {
                 permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
