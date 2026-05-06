@@ -42,6 +42,8 @@ These providers cover multiple regions or provide fallback data when specific lo
 
 ## 📍 Country-Specific Coverage
 
+> This document is the reference for the in-app **Settings → Sources** screen.
+
 ### 🇦🇷 Argentina
 | Provider | Format | Access | Source Type | Multinational | OCPI | Update Time |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |

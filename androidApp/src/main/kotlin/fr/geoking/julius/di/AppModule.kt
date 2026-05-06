@@ -384,7 +384,14 @@ val appModule = module {
     single { OpenMeteoGeocodingClient(get()) }
     single { OpenMeteoWeatherProvider(get(), providerId = "Open-Meteo") }
     single { MetNorwayWeatherProvider(get()) }
-    single { WeatherProviderFactory(listOf(get<OpenMeteoWeatherProvider>(), get<MetNorwayWeatherProvider>())) }
+    single {
+        WeatherProviderFactory(
+            listOf(
+                fr.geoking.julius.api.traffic.GeographicRegion.Everywhere to get<OpenMeteoWeatherProvider>(),
+                fr.geoking.julius.api.traffic.GeographicRegion.Everywhere to get<MetNorwayWeatherProvider>()
+            )
+        )
+    }
 
     // Map/route/POI/transit/traffic/toll are in mapModule; load via MapModuleLoader when opening map.
 
