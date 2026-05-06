@@ -24,6 +24,23 @@ This guide provides step-by-step instructions on how to configure your Google Pl
   - **Admin (all permissions)**: This is the simplest option, but you can also grant more granular permissions if needed.
 - Click **Invite user** to save the changes.
 
+### 4. Declare foreground service usage (required if the app uses FGS)
+
+Julius uses **`BorderMonitorService`**, a **location** foreground service (`FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_LOCATION` in the manifest). Google Play will reject or block rollout with:
+
+> *You must let us know whether your app uses any Foreground Service permissions.*
+
+until you complete the in-console declaration.
+
+1. Open [Google Play Console](https://play.google.com/console) → your app.
+2. Go to **Policy** → **App content** (or **Monitor and improve** → **App content**, depending on console layout).
+3. Find **Foreground service permissions** (or the policy checklist item for foreground services) and start the declaration.
+4. Answer that the app **uses** foreground services.
+5. Select type **`Location`** and describe the feature in plain language, for example: *“Runs only when the user enables border-crossing monitoring; uses location in the background to detect border crossings and shows a persistent notification while active.”*
+6. Submit and wait until the declaration shows as **Complete** / no longer blocking.
+
+Official help: [Understanding foreground service and full-screen intent requirements](https://support.google.com/googleplay/android-developer/answer/13392821).
+
 ## Step 2: GitHub Secrets Configuration
 
 You need to add the following secrets to your GitHub repository to allow the workflow to access the Play Store and sign the release.
@@ -118,6 +135,10 @@ This error means the keystore in `SIGNING_KEY` does not match the one Google Pla
 3. **Update GitHub secrets** with that keystore: re-encode it, set `SIGNING_KEY`, and ensure `ALIAS`, `KEY_STORE_PASSWORD`, and `KEY_PASSWORD` match.
 
 If you no longer have the original keystore, you cannot update the app. See [Google's key loss guidance](https://support.google.com/googleplay/android-developer/answer/9842756).
+
+### "You must let us know whether your app uses any Foreground Service permissions"
+
+The uploaded AAB is fine if the manifest matches your real FGS usage. This message means the **Play Console declaration** for foreground service types is missing or incomplete. Complete **App content → Foreground service permissions** (see **Step 1.4** above), then retry the release.
 
 ## Conclusion
 
