@@ -229,10 +229,9 @@ class AutoJulesConversationScreen(
             }
         })
             .setHeaderAction(Action.BACK)
-            .setHeader(
-                Header.Builder()
-                    .setStartHeaderAction(Action.BACK)
-                    .addEndHeaderAction(micAction)
+            .setActionStrip(
+                ActionStrip.Builder()
+                    .addAction(micAction)
                     .build()
             )
             .setSearchHint("Send message to Jules…")
