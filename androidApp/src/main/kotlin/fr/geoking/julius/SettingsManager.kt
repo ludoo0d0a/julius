@@ -504,15 +504,42 @@ open class SettingsManager(
         saveSettingsInternal(finalSettings)
     }
 
+    private fun resolveBuildDefault(currentValue: String, buildDefault: String): String {
+        if (currentValue.isNotBlank()) return currentValue
+        if (buildDefault.isNotBlank()) return buildDefault
+        return ""
+    }
+
     private fun saveSettingsInternal(settings: AppSettings, upload: Boolean = true) {
-        val settings = if (!settings.selectedAgent.enabled) {
+        val resolved = settings.copy(
+            openAiKey = resolveBuildDefault(settings.openAiKey, fr.geoking.julius.BuildConfig.OPENAI_KEY),
+            elevenLabsKey = resolveBuildDefault(settings.elevenLabsKey, fr.geoking.julius.BuildConfig.ELEVENLABS_KEY),
+            perplexityKey = resolveBuildDefault(settings.perplexityKey, fr.geoking.julius.BuildConfig.PERPLEXITY_KEY),
+            geminiKey = resolveBuildDefault(settings.geminiKey, fr.geoking.julius.BuildConfig.GEMINI_KEY),
+            deepgramKey = resolveBuildDefault(settings.deepgramKey, fr.geoking.julius.BuildConfig.DEEPGRAM_KEY),
+            firebaseAiKey = resolveBuildDefault(settings.firebaseAiKey, fr.geoking.julius.BuildConfig.FIREBASE_AI_KEY),
+            firebaseAiModel = resolveBuildDefault(settings.firebaseAiModel, fr.geoking.julius.BuildConfig.FIREBASE_AI_MODEL),
+            opencodeZenKey = resolveBuildDefault(settings.opencodeZenKey, fr.geoking.julius.BuildConfig.OPENCODE_ZEN_KEY),
+            completionsMeKey = resolveBuildDefault(settings.completionsMeKey, fr.geoking.julius.BuildConfig.COMPLETIONS_ME_KEY),
+            apifreellmKey = resolveBuildDefault(settings.apifreellmKey, fr.geoking.julius.BuildConfig.APIFREELLM_KEY),
+            deepSeekKey = resolveBuildDefault(settings.deepSeekKey, fr.geoking.julius.BuildConfig.DEEPSEEK_KEY),
+            groqKey = resolveBuildDefault(settings.groqKey, fr.geoking.julius.BuildConfig.GROQ_KEY),
+            openRouterKey = resolveBuildDefault(settings.openRouterKey, fr.geoking.julius.BuildConfig.OPENROUTER_KEY),
+            githubApiKey = resolveBuildDefault(settings.githubApiKey, fr.geoking.julius.BuildConfig.GITHUB_TOKEN),
+            mobiliteitLuxembourgKey = resolveBuildDefault(
+                settings.mobiliteitLuxembourgKey,
+                fr.geoking.julius.BuildConfig.MOBILITEIT_LUXEMBOURG_KEY
+            )
+        )
+
+        val settings = if (!resolved.selectedAgent.enabled) {
             android.util.Log.w(
                 "SettingsManager",
-                "Refusing to persist disabled agent ${settings.selectedAgent.name}; using $DEFAULT_AGENT"
+                "Refusing to persist disabled agent ${resolved.selectedAgent.name}; using $DEFAULT_AGENT"
             )
-            settings.copy(selectedAgent = DEFAULT_AGENT)
+            resolved.copy(selectedAgent = DEFAULT_AGENT)
         } else {
-            settings
+            resolved
         }
         prefs.edit()
             .putBoolean("map_traffic_enabled", settings.mapTrafficEnabled)
