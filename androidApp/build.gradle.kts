@@ -1,5 +1,9 @@
 import com.android.build.api.dsl.ApplicationExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -197,6 +201,130 @@ afterEvaluate {
     }
 }
 
+// ---- 16KB page size compatibility guard (Android 15+) ----
+// Android apps that ship native 64-bit libraries must ensure ELF PT_LOAD segments have p_align >= 16KB.
+// This task inspects embedded .so inside resolved AAR/JARs and fails fast if any are incompatible.
+val checkNative16kPageSize = tasks.register("checkNative16kPageSize") {
+    group = "verification"
+    description = "Fails if any dependency ships 64-bit .so not compatible with 16KB page size."
+
+    doLast {
+        fun u16le(b: ByteArray, o: Int): Int = (b[o].toInt() and 0xff) or ((b[o + 1].toInt() and 0xff) shl 8)
+        fun u32le(b: ByteArray, o: Int): Long =
+            (b[o].toLong() and 0xff) or
+                ((b[o + 1].toLong() and 0xff) shl 8) or
+                ((b[o + 2].toLong() and 0xff) shl 16) or
+                ((b[o + 3].toLong() and 0xff) shl 24)
+
+        fun u64le(b: ByteArray, o: Int): Long {
+            val lo = u32le(b, o)
+            val hi = u32le(b, o + 4)
+            return lo or (hi shl 32)
+        }
+
+        fun isPowerOfTwo(x: Long): Boolean = x > 0 && (x and (x - 1)) == 0L
+
+        fun readAtMost(input: InputStream, maxBytes: Int): ByteArray {
+            val out = ByteArrayOutputStream(minOf(maxBytes, 64 * 1024))
+            val buf = ByteArray(32 * 1024)
+            var remaining = maxBytes
+            while (remaining > 0) {
+                val r = input.read(buf, 0, minOf(buf.size, remaining))
+                if (r <= 0) break
+                out.write(buf, 0, r)
+                remaining -= r
+            }
+            return out.toByteArray()
+        }
+
+        data class ElfCheckResult(val ok: Boolean, val reason: String)
+
+        fun checkElf16kCompatible(bytes: ByteArray): ElfCheckResult {
+            if (bytes.size < 64) return ElfCheckResult(ok = false, reason = "too small to be ELF")
+            if (!(bytes[0] == 0x7f.toByte() && bytes[1] == 'E'.code.toByte() && bytes[2] == 'L'.code.toByte() && bytes[3] == 'F'.code.toByte())) {
+                return ElfCheckResult(ok = false, reason = "not an ELF file")
+            }
+            val elfClass = bytes[4].toInt() and 0xff // 1=32-bit, 2=64-bit
+            val elfData = bytes[5].toInt() and 0xff // 1=little, 2=big
+            if (elfData != 1) return ElfCheckResult(ok = false, reason = "big-endian ELF not supported by checker")
+            if (elfClass != 2) return ElfCheckResult(ok = true, reason = "32-bit ELF (ignored for 16KB check)")
+
+            val ePhoff = u64le(bytes, 32).toInt()
+            val ePhentsize = u16le(bytes, 54)
+            val ePhnum = u16le(bytes, 56)
+            if (ePhentsize <= 0 || ePhnum <= 0) return ElfCheckResult(ok = false, reason = "missing program headers")
+
+            val phTableEnd = ePhoff + (ePhentsize * ePhnum)
+            if (phTableEnd > bytes.size) {
+                return ElfCheckResult(ok = false, reason = "ELF header table not fully present (need $phTableEnd bytes, have ${bytes.size})")
+            }
+
+            val requiredAlign = 16 * 1024L
+            val badAlignments = mutableSetOf<Long>()
+            for (i in 0 until ePhnum) {
+                val base = ePhoff + i * ePhentsize
+                // Elf64_Phdr layout:
+                // p_type(4), p_flags(4), p_offset(8), p_vaddr(8), p_paddr(8), p_filesz(8), p_memsz(8), p_align(8)
+                val pType = u32le(bytes, base).toInt()
+                if (pType != 1) continue // PT_LOAD
+                val pAlign = u64le(bytes, base + 48)
+                if (pAlign < requiredAlign || !isPowerOfTwo(pAlign)) badAlignments.add(pAlign)
+            }
+
+            return if (badAlignments.isEmpty()) {
+                ElfCheckResult(ok = true, reason = "ok")
+            } else {
+                ElfCheckResult(ok = false, reason = "PT_LOAD p_align not 16KB-compatible: ${badAlignments.sorted().joinToString()}")
+            }
+        }
+
+        val artifacts = configurations.getByName("runtimeClasspath").resolvedConfiguration.resolvedArtifacts
+        val problems = mutableListOf<String>()
+
+        for (art in artifacts) {
+            val file = art.file
+            if (!file.isFile) continue
+            val name = "${art.moduleVersion.id.group}:${art.name}:${art.moduleVersion.id.version}"
+            val ext = file.extension.lowercase()
+            if (ext != "aar" && ext != "jar") continue
+
+            ZipFile(file).use { zip ->
+                val entries = buildList<ZipEntry> {
+                    val en = zip.entries()
+                    while (en.hasMoreElements()) {
+                        val e = en.nextElement()
+                        if (!e.isDirectory && e.name.endsWith(".so")) add(e)
+                    }
+                }
+                if (entries.isEmpty()) return@use
+                for (e in entries) {
+                    // Read enough to include ELF header + program headers; cap to 2MB to avoid OOM on large libs.
+                    zip.getInputStream(e).use { input ->
+                        val head = readAtMost(input, 2 * 1024 * 1024)
+                        val r = checkElf16kCompatible(head)
+                        if (!r.ok) {
+                            problems += "$name -> ${e.name}: ${r.reason}"
+                        }
+                    }
+                }
+            }
+        }
+
+        if (problems.isNotEmpty()) {
+            throw GradleException(
+                buildString {
+                    appendLine("Found native 64-bit libraries incompatible with 16KB page size (Android 15+):")
+                    problems.sorted().forEach { appendLine(" - $it") }
+                    appendLine()
+                    appendLine("Fix: update/replace the offending dependency with a 16KB-page-size-compatible build (p_align >= 16384).")
+                }
+            )
+        } else {
+            logger.lifecycle("Native 16KB page size check: OK (no incompatible 64-bit .so found in runtimeClasspath)")
+        }
+    }
+}
+
 dependencies {
     implementation(project(":shared"))
     
@@ -284,5 +412,10 @@ android {
             jvmTarget.set(JvmTarget.JVM_17)
         }
     }
+}
+
+// Run the guard as part of `./gradlew :androidApp:check` and CI `check` pipelines.
+tasks.matching { it.name == "check" }.configureEach {
+    dependsOn(checkNative16kPageSize)
 }
 

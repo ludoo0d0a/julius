@@ -148,8 +148,6 @@ fun JulesScreen(
     val handleBack = {
         if (currentSession != null) {
             currentSession = null
-        } else if (selectedSourceName != null) {
-            selectedSourceName = null
         } else {
             onBack()
         }
