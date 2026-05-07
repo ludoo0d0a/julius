@@ -19,7 +19,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Android Auto screen to view a Jules conversation and send messages.
- * Uses SearchTemplate to provide a text/voice input zone and display chat history.
+ * Uses ListTemplate (voice-only) to stay available while driving.
  */
 class AutoJulesConversationScreen(
     carContext: CarContext,
@@ -31,7 +31,6 @@ class AutoJulesConversationScreen(
 ) : Screen(carContext) {
 
     private var chatItems: List<JulesChatItem> = emptyList()
-    private var lastCapturedPrompt: String? = null
     private var loading: Boolean = true
     private var sending: Boolean = false
     private var lastError: String? = null
@@ -216,27 +215,16 @@ class AutoJulesConversationScreen(
                 .build()
         }
 
-        return SearchTemplate.Builder(object : SearchTemplate.SearchCallback {
-            override fun onSearchTextChanged(searchText: String) {
-                lastCapturedPrompt = searchText
-            }
-
-            override fun onSearchSubmitted(searchText: String) {
-                lastCapturedPrompt = searchText
-                if (searchText.isNotBlank()) {
-                    sendMessage(searchText)
-                }
-            }
-        })
-            .setHeaderAction(Action.BACK)
-            .setActionStrip(
-                ActionStrip.Builder()
-                    .addAction(micAction)
+        val sessTitle = (currentSessionState ?: session).title.ifBlank { "Jules" }
+        return ListTemplate.Builder()
+            .setSingleList(listBuilder.build())
+            .setHeader(
+                Header.Builder()
+                    .setTitle(sessTitle.take(60))
+                    .setStartHeaderAction(Action.BACK)
+                    .addEndHeaderAction(micAction)
                     .build()
             )
-            .setSearchHint("Send message to Jules…")
-            .setInitialSearchText(lastCapturedPrompt ?: "")
-            .setItemList(listBuilder.build())
             .build()
     }
 
@@ -247,7 +235,6 @@ class AutoJulesConversationScreen(
         lifecycleScope.launch {
             try {
                 julesRepository.sendMessage(session.id, prompt)
-                lastCapturedPrompt = null
                 store.clearTranscript()
                 // Refresh immediately
                 julesRepository.getActivities(session.id).collectLatest { items ->

@@ -10,11 +10,12 @@ import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.persistence.JulesSessionEntity
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.conversation.ConversationStore
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /**
  * Android Auto screen to create a new Jules session.
- * Uses SearchTemplate for voice/text input.
+ * Uses ListTemplate (voice-only) to stay available while driving.
  */
 class AutoJulesNewSessionScreen(
     carContext: CarContext,
@@ -26,9 +27,26 @@ class AutoJulesNewSessionScreen(
     private val sourceDisplayName: String
 ) : Screen(carContext) {
 
-    private var lastCapturedPrompt: String? = null
     private var loading: Boolean = false
     private var error: String? = null
+    private var lastSentFromStt: String? = null
+
+    init {
+        // This screen uses STT as an input method, but prompts should create a new Jules session.
+        store.autoSendFinalTranscripts = false
+
+        lifecycleScope.launch {
+            store.voiceManager.transcribedText.collectLatest { text ->
+                val trimmed = text.trim()
+                if (trimmed.isBlank()) return@collectLatest
+                if (loading) return@collectLatest
+                if (trimmed == lastSentFromStt) return@collectLatest
+
+                lastSentFromStt = trimmed
+                createSession(trimmed)
+            }
+        }
+    }
 
     override fun onGetTemplate(): Template {
         if (loading) {
@@ -43,23 +61,32 @@ class AutoJulesNewSessionScreen(
             list.addItem(Row.Builder().setTitle("Error").addText(it.take(200)).build())
         }
         list.addItem(Row.Builder().setTitle("Repository").addText(sourceDisplayName).build())
+        list.addItem(
+            Row.Builder()
+                .setTitle("Describe the task")
+                .addText("Tap “Start listening” and speak your request.")
+                .build()
+        )
 
-        return SearchTemplate.Builder(object : SearchTemplate.SearchCallback {
-            override fun onSearchTextChanged(searchText: String) {
-                lastCapturedPrompt = searchText
+        val listeningAction = Action.Builder()
+            .setTitle(carContext.getString(fr.geoking.julius.R.string.start_listening))
+            .setOnClickListener {
+                error = null
+                store.clearTranscript()
+                store.startListening(continuous = false)
+                invalidate()
             }
+            .build()
 
-            override fun onSearchSubmitted(searchText: String) {
-                lastCapturedPrompt = searchText
-                if (searchText.isNotBlank()) {
-                    createSession(searchText)
-                }
-            }
-        })
-            .setHeaderAction(Action.BACK)
-            .setSearchHint("What should Jules do?")
-            .setInitialSearchText(lastCapturedPrompt ?: "")
-            .setItemList(list.build())
+        return ListTemplate.Builder()
+            .setSingleList(list.build())
+            .setHeader(
+                Header.Builder()
+                    .setTitle("New Conversation")
+                    .setStartHeaderAction(Action.BACK)
+                    .addEndHeaderAction(listeningAction)
+                    .build()
+            )
             .build()
     }
 
