@@ -5,23 +5,10 @@ on:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      changesNotSentForReview:
-        description: 'If true, upload only and finish the release in Play Console yourself (managed publishing / draft-style).'
-        required: true
-        type: boolean
-        default: false
 
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
-    env:
-      CHANGES_NOT_SENT_FOR_REVIEW: >-
-        ${{
-          (github.event.inputs.changesNotSentForReview != null && (github.event.inputs.changesNotSentForReview == 'true' || github.event.inputs.changesNotSentForReview == true)) ||
-          (github.event.inputs.changesNotSentForReview == null && (vars.CHANGES_NOT_SENT_FOR_REVIEW == 'true' || vars.CHANGES_NOT_SENT_FOR_REVIEW == true)) ||
-          false
-        }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -112,4 +99,4 @@ jobs:
           tracks: internal
           status: completed
           whatsNewDirectory: .github/play-release-notes
-          changesNotSentForReview: ${{ env.CHANGES_NOT_SENT_FOR_REVIEW == 'true' || env.CHANGES_NOT_SENT_FOR_REVIEW == true }}
+          changesNotSentForReview: false
