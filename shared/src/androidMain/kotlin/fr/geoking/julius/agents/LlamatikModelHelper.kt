@@ -17,6 +17,7 @@ enum class LlamatikModelVariant(
     val forAgentName: String,
     val displayName: String,
     val sizeDescription: String,
+    val approxSizeBytes: Long,
     val fileName: String,
     val downloadUrl: String
 ) {
@@ -25,6 +26,7 @@ enum class LlamatikModelVariant(
         "Llamatik",
         displayName = "Gemma 4 E4B IT (Q5_K_M)",
         sizeDescription = "~3.1 GB, GGUF",
+        approxSizeBytes = 3_100_000_000L,
         fileName = "gemma-4-E4B-it-Q5_K_M.gguf",
         downloadUrl = "https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q5_K_M.gguf"
     ),
@@ -32,6 +34,7 @@ enum class LlamatikModelVariant(
         "Llamatik",
         displayName = "Gemma 4 E2B IT (Q4_K_M)",
         sizeDescription = "~1.5 GB, GGUF",
+        approxSizeBytes = 1_500_000_000L,
         fileName = "gemma-4-E2B-it-Q4_K_M.gguf",
         downloadUrl = "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf"
     ),
@@ -39,6 +42,7 @@ enum class LlamatikModelVariant(
         "Llamatik",
         displayName = "Phi-2 (Q4_0)",
         sizeDescription = "~1.6 GB, GGUF",
+        approxSizeBytes = 1_600_000_000L,
         fileName = "phi-2.Q4_0.gguf",
         downloadUrl = "https://huggingface.co/TheBloke/phi-2-GGUF/resolve/main/phi-2.Q4_0.gguf"
     ),
@@ -46,6 +50,7 @@ enum class LlamatikModelVariant(
         "Llamatik",
         displayName = "Gemma 2B IT (Q4_K_M)",
         sizeDescription = "~1.7 GB, GGUF",
+        approxSizeBytes = 1_700_000_000L,
         fileName = "gemma-2-2b-it-Q4_K_M.gguf",
         downloadUrl = "https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf"
     ),
@@ -53,6 +58,7 @@ enum class LlamatikModelVariant(
         "Llamatik",
         displayName = "Llama 3.2 1B (Q4_K_M)",
         sizeDescription = "~800 MB, GGUF",
+        approxSizeBytes = 800_000_000L,
         fileName = "Llama-3.2-1B-Instruct-Q4_K_M.gguf",
         downloadUrl = "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf"
     ),
@@ -60,6 +66,7 @@ enum class LlamatikModelVariant(
         "Llamatik",
         displayName = "TinyLlama 1.1B (Q4_K_M)",
         sizeDescription = "~670 MB, GGUF",
+        approxSizeBytes = 670_000_000L,
         fileName = "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
         downloadUrl = "https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
     ),
@@ -67,6 +74,7 @@ enum class LlamatikModelVariant(
         "LlamaCpp",
         displayName = "Qwen 2.5 0.5B (Q4_K_M)",
         sizeDescription = "~400 MB, GGUF",
+        approxSizeBytes = 400_000_000L,
         fileName = "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
         downloadUrl = "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
     ),
@@ -74,6 +82,7 @@ enum class LlamatikModelVariant(
         "PocketPal",
         displayName = "SmolLM2 135M (Q4_K_M)",
         sizeDescription = "~100 MB, GGUF",
+        approxSizeBytes = 100_000_000L,
         fileName = "SmolLM2-135M-Instruct-Q4_K_M.gguf",
         downloadUrl = "https://huggingface.co/bartowski/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct-Q4_K_M.gguf"
     ),
@@ -81,6 +90,7 @@ enum class LlamatikModelVariant(
         "PocketPal",
         displayName = "Qwen 2.5 0.5B (Q4_K_M)",
         sizeDescription = "~400 MB, GGUF",
+        approxSizeBytes = 400_000_000L,
         fileName = "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
         downloadUrl = "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
     ),
@@ -90,6 +100,7 @@ enum class LlamatikModelVariant(
         "GeminiNano",
         displayName = "Gemma 3 270M IT (Q8, LiteRT-LM)",
         sizeDescription = "~290 MB, .litertlm",
+        approxSizeBytes = 290_000_000L,
         fileName = "gemma3-270m-it-q8.litertlm",
         downloadUrl = "https://huggingface.co/litert-community/gemma-3-270m-it/resolve/main/gemma3-270m-it-q8.litertlm"
     ),
@@ -97,6 +108,7 @@ enum class LlamatikModelVariant(
         "MediaPipe",
         displayName = "Gemma 3 270M IT (Q8, LiteRT-LM)",
         sizeDescription = "~290 MB, .litertlm",
+        approxSizeBytes = 290_000_000L,
         fileName = "gemma3-270m-it-q8.litertlm",
         downloadUrl = "https://huggingface.co/litert-community/gemma-3-270m-it/resolve/main/gemma3-270m-it-q8.litertlm"
     ),
@@ -104,6 +116,7 @@ enum class LlamatikModelVariant(
         "AiEdge",
         displayName = "Gemma 3 270M IT (Q8, LiteRT-LM)",
         sizeDescription = "~290 MB, .litertlm",
+        approxSizeBytes = 290_000_000L,
         fileName = "gemma3-270m-it-q8.litertlm",
         downloadUrl = "https://huggingface.co/litert-community/gemma-3-270m-it/resolve/main/gemma3-270m-it-q8.litertlm"
     ),
@@ -113,6 +126,7 @@ enum class LlamatikModelVariant(
         "GeminiNano",
         displayName = "Gemma 2B IT (Q4_K_M)",
         sizeDescription = "~1.7 GB, GGUF",
+        approxSizeBytes = 1_700_000_000L,
         fileName = "gemma-2-2b-it-Q4_K_M.gguf",
         downloadUrl = "https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf"
     ),
@@ -120,6 +134,7 @@ enum class LlamatikModelVariant(
         "MediaPipe",
         displayName = "Phi-2 (Q4_0)",
         sizeDescription = "~1.6 GB, GGUF",
+        approxSizeBytes = 1_600_000_000L,
         fileName = "phi-2.Q4_0.gguf",
         downloadUrl = "https://huggingface.co/TheBloke/phi-2-GGUF/resolve/main/phi-2.Q4_0.gguf"
     ),
@@ -129,6 +144,7 @@ enum class LlamatikModelVariant(
         "AiEdge",
         displayName = "Qwen 2.5 0.5B (Q4_K_M)",
         sizeDescription = "~400 MB, GGUF",
+        approxSizeBytes = 400_000_000L,
         fileName = "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
         downloadUrl = "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
     ),
@@ -136,6 +152,7 @@ enum class LlamatikModelVariant(
         "RunAnywhere",
         displayName = "SmolLM2 135M (Q4_K_M)",
         sizeDescription = "~100 MB, GGUF",
+        approxSizeBytes = 100_000_000L,
         fileName = "SmolLM2-135M-Instruct-Q4_K_M.gguf",
         downloadUrl = "https://huggingface.co/bartowski/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct-Q4_K_M.gguf"
     ),
@@ -145,6 +162,7 @@ enum class LlamatikModelVariant(
         "MlcLlm",
         displayName = "Phi-2 (Q4_0)",
         sizeDescription = "~1.6 GB, GGUF",
+        approxSizeBytes = 1_600_000_000L,
         fileName = "phi-2.Q4_0.gguf",
         downloadUrl = "https://huggingface.co/TheBloke/phi-2-GGUF/resolve/main/phi-2.Q4_0.gguf"
     )
@@ -168,7 +186,20 @@ class LlamatikModelHelper(private val context: Context) {
         val path = modelPath.trim()
         if (path.isBlank()) return false
         return if (isAbsolutePath(path)) {
-            File(path).exists()
+            val file = File(path)
+            if (!file.exists()) return false
+
+            // Size check if it matches a known variant
+            val variant = LlamatikModelVariant.entries.find { getDownloadDestinationPath(it) == path }
+            if (variant != null) {
+                val minSize = (variant.approxSizeBytes * 0.9).toLong()
+                if (file.length() < minSize) {
+                    // Return false but don't delete here to avoid race conditions during active downloads.
+                    // Overwriting will happen on next download attempt.
+                    return false
+                }
+            }
+            true
         } else {
             try {
                 context.assets.open(path).close()
@@ -180,7 +211,12 @@ class LlamatikModelHelper(private val context: Context) {
     }
 
     fun isVariantDownloaded(variant: LlamatikModelVariant): Boolean =
-        fileForVariant(variant).exists()
+        isModelDownloaded(getDownloadDestinationPath(variant))
+
+    fun deleteVariant(variant: LlamatikModelVariant): Boolean {
+        val file = fileForVariant(variant)
+        return if (file.exists()) file.delete() else false
+    }
 
     fun getDisplayPath(modelPath: String): String {
         val path = modelPath.trim()
@@ -224,6 +260,13 @@ class LlamatikModelHelper(private val context: Context) {
                         onProgress(bytesDownloaded, totalBytes)
                     }
                 }
+            }
+
+            // Final size validation
+            val minSize = (variant.approxSizeBytes * 0.9).toLong()
+            if (destFile.length() < minSize) {
+                destFile.delete()
+                return@withContext Result.failure(Exception("Download incomplete: file too small"))
             }
 
             Result.success(destFile.absolutePath)

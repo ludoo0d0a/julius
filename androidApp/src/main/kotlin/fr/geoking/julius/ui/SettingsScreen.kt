@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.listSaver
@@ -359,6 +360,7 @@ fun AgentDetailsPage(
     val variants = remember(agent) {
         LlamatikModelVariant.entries.filter { it.forAgentName == agent.name }
     }
+    var refreshTrigger by remember { mutableIntStateOf(0) }
 
     Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
         when (agent) {
@@ -510,8 +512,6 @@ fun AgentDetailsPage(
                                 progress = { progress },
                                 modifier = Modifier.fillMaxWidth(),
                             )
-                            val pct = (progress * 100).toInt()
-                            Text("$pct% (${downloadBytes / 1024 / 1024} MB / ${downloadTotal?.let { it / 1024 / 1024 } ?: "?"} MB)")
                         }
                         Spacer(Modifier.height(8.dp))
                         Button(onClick = { downloadVariant = null; downloadError = null }) {
@@ -522,7 +522,7 @@ fun AgentDetailsPage(
             }
 
             variants.forEach { variant ->
-                val isDownloaded = helper.isVariantDownloaded(variant)
+                val isDownloaded = remember(variant, refreshTrigger) { helper.isVariantDownloaded(variant) }
                 val isSelected = settings.selectedLlamatikModelVariant == variant.name
 
                 Surface(
@@ -548,6 +548,7 @@ fun AgentDetailsPage(
                                 result.fold(
                                     onSuccess = { path ->
                                         downloadVariant = null
+                                        refreshTrigger++
                                         settingsManager.saveSettings(
                                             settingsManager.settings.value.copy(
                                                 llamatikModelPath = path,
@@ -576,6 +577,23 @@ fun AgentDetailsPage(
                                 Text("Already downloaded", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
                         }
+                        if (isDownloaded) {
+                            IconButton(onClick = {
+                                helper.deleteVariant(variant)
+                                refreshTrigger++
+                                if (isSelected) {
+                                    onSettingsChange(
+                                        settings.copy(
+                                            llamatikModelPath = LlamatikModelHelper.DEFAULT_ASSET_PATH,
+                                            selectedLlamatikModelVariant = ""
+                                        )
+                                    )
+                                }
+                            }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Gray)
+                            }
+                        }
+
                         if (isSelected) {
                             Icon(Icons.Default.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary)
                         } else if (!isDownloaded && downloadVariant != variant) {
