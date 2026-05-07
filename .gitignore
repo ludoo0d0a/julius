@@ -34,3 +34,7 @@ androidApp/release/*
 
 julius-app.keystore.base64.txt
 .autopilot.json
+
+# Firebase config (must be provided locally per developer / CI secret)
+androidApp/google-services.json
+androidApp/src/*/google-services.json

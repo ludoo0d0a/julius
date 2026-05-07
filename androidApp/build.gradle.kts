@@ -419,3 +419,46 @@ tasks.matching { it.name == "check" }.configureEach {
     dependsOn(checkNative16kPageSize)
 }
 
+// ---- Firebase sanity check ----
+// Fail fast when `google-services.json` is still the repo placeholder, since it causes
+// runtime Firebase Auth errors like "API key not valid".
+val verifyGoogleServicesJson = tasks.register("verifyGoogleServicesJson") {
+    group = "verification"
+    description = "Fails if androidApp/google-services.json contains placeholder Firebase values."
+
+    doLast {
+        val gs = project.file("google-services.json")
+        if (!gs.exists()) {
+            throw GradleException(
+                "Missing google-services.json in :androidApp.\n" +
+                    "Fix: Firebase Console → Project settings → Your apps (Android) → Download google-services.json\n" +
+                    "and place it at androidApp/google-services.json (or androidApp/src/<flavor>/google-services.json)."
+            )
+        }
+
+        val text = gs.readText()
+        fun hasPlaceholder(s: String): Boolean =
+            s.contains("placeholder", ignoreCase = true) ||
+                s.contains("julius-ai-placeholder", ignoreCase = true) ||
+                s.contains("123456789012") ||
+                s.contains("abcdef1234567890", ignoreCase = true)
+
+        if (hasPlaceholder(text)) {
+            throw GradleException(
+                "androidApp/google-services.json still contains placeholder Firebase values.\n" +
+                    "This will break Firebase Auth (\"API key not valid\").\n\n" +
+                    "Fix:\n" +
+                    " - Firebase Console → Project settings → Your apps (Android)\n" +
+                    " - Ensure package name is \"fr.geoking.julius\"\n" +
+                    " - Download a fresh google-services.json\n" +
+                    " - Replace androidApp/google-services.json with the downloaded file\n"
+            )
+        }
+    }
+}
+
+// Ensure we fail before packaging / running the app.
+tasks.matching { it.name == "preBuild" }.configureEach {
+    dependsOn(verifyGoogleServicesJson)
+}
+

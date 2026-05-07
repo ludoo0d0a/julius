@@ -39,9 +39,6 @@ class BorderCrossingManager(
                         title = "Border Crossed",
                         message = toastMessage
                     )
-
-                    // Add message to UI and speak it (interruptible)
-                    conversationStore.onUserFinishedSpeaking("CROSS_BORDER_EVENT_INTERNAL: $fullMessage")
                 }
                 if (currentCountry != null) {
                     lastCountryCode = currentCountry

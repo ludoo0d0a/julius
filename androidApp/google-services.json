@@ -1,26 +1,21 @@
 {
   "project_info": {
-    "project_number": "123456789012",
-    "project_id": "julius-ai-placeholder",
-    "storage_bucket": "julius-ai-placeholder.appspot.com"
+    "project_number": "68887306490",
+    "project_id": "julius-7dbb7",
+    "storage_bucket": "julius-7dbb7.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:123456789012:android:abcdef1234567890",
+        "mobilesdk_app_id": "1:68887306490:android:ecc2b8cdedfb6f3c562943",
         "android_client_info": {
           "package_name": "fr.geoking.julius"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "placeholder-client-id.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "placeholder-api-key"
+          "current_key": "AIzaSyBZoZbQLNKXEa6CTx-FV20PgEKSWtEgOrQ"
         }
       ],
       "services": {
