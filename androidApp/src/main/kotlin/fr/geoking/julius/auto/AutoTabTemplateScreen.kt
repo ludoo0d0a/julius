@@ -12,7 +12,7 @@ import androidx.car.app.model.TabTemplate
 import androidx.car.app.model.Template
 
 class AutoTabTemplateScreen(carContext: CarContext) : Screen(carContext) {
-    private var activeTabId = "fuel"
+    private var activeTabId = "ev"
 
     override fun onGetTemplate(): Template = safeCarTemplate(carContext, "AutoTabTemplateScreen") {
         val tabBuilder = TabTemplate.Builder(object : TabTemplate.TabCallback {
@@ -22,12 +22,6 @@ class AutoTabTemplateScreen(carContext: CarContext) : Screen(carContext) {
             }
         })
             .setHeaderAction(Action.BACK)
-            .addTab(
-                Tab.Builder()
-                    .setTitle("Fuel")
-                    .setContentId("fuel")
-                    .build()
-            )
             .addTab(
                 Tab.Builder()
                     .setTitle("Electric")

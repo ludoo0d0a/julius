@@ -55,6 +55,8 @@ See [Encrypted secrets](https://docs.github.com/en/actions/security-guides/encry
 
 - Open the JSON file you downloaded when creating the service account.
 - Copy the **entire** content of the file and paste it into the secret's value field.
+- Make sure this JSON contains (at least) `client_email`, `private_key`, and `type: "service_account"`.
+- Do **not** paste Firebase `google-services.json` here — it is for the Android app and does not contain `client_email`.
 
 ### 2. `SIGNING_KEY`
 

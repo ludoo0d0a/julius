@@ -1,10 +1,9 @@
 package fr.geoking.julius
 
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.core.content.ContextCompat
 import android.app.Activity
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -28,6 +27,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.content.ContextCompat
 import fr.geoking.julius.AppSettings
 import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.agents.AgentResponse
@@ -40,7 +40,6 @@ import fr.geoking.julius.shared.network.NetworkService
 import fr.geoking.julius.shared.network.NetworkStatus
 import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.ui.JulesScreen
-import fr.geoking.julius.ui.MapScreen
 import fr.geoking.julius.ui.HistoryScreen
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.ui.SettingsScreenPage
@@ -62,8 +61,6 @@ import com.google.android.play.core.appupdate.AppUpdateInfo
 import fr.geoking.julius.update.InAppUpdateHelper
 import fr.geoking.julius.feature.auth.GoogleAuthManager
 import fr.geoking.julius.feature.permission.AndroidPermissionManager
-import fr.geoking.julius.intent.IntentNavigationHelper
-import fr.geoking.julius.intent.NavDestination
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -95,7 +92,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private val inAppUpdateHelper by lazy { InAppUpdateHelper(applicationContext) }
-    private val pendingNavDestination = MutableStateFlow<NavDestination?>(null)
+    private val pendingNavDestination = MutableStateFlow<String?>(null)
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -104,10 +101,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent) {
-        val nav = IntentNavigationHelper.parseNavIntent(intent)
-        if (nav != null) {
-            pendingNavDestination.value = nav
-        }
+        // Mobility intent handling removed.
         // POI/libre-map lab paths removed.
     }
 
@@ -124,11 +118,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         android.util.Log.d("MainActivity", "onCreate start")
-
-        val hasLocationPermission = ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
 
         // Request notification permission for Android 13+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -250,7 +239,7 @@ private fun MainActivityComposeRoot(
     networkService: NetworkService,
     inAppUpdateHelper: InAppUpdateHelper,
     updateResultLauncher: ActivityResultLauncher<IntentSenderRequest>,
-    pendingNavDestination: MutableStateFlow<NavDestination?>,
+    pendingNavDestination: MutableStateFlow<String?>,
     isPlaystoreDistribution: Boolean
 ) {
     android.util.Log.d("MainActivity", "Compose setContent block running")
@@ -271,14 +260,6 @@ private fun MainActivityComposeRoot(
         }
     }
 
-    val context = LocalContext.current
-    val hasLocationPermission = remember(context) {
-        androidx.core.content.ContextCompat.checkSelfPermission(
-            context,
-            android.Manifest.permission.ACCESS_FINE_LOCATION
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-    }
-
     MainUI(
         state = state,
         store = store,
@@ -293,7 +274,7 @@ private fun MainActivityComposeRoot(
         onStartUpdate = { info -> inAppUpdateHelper.startUpdate(info, updateResultLauncher) },
         pendingNavDestinationFlow = pendingNavDestination,
         isPlaystoreDistribution = isPlaystoreDistribution,
-        hasLocationPermission = hasLocationPermission
+        hasLocationPermission = false
     )
 }
 
@@ -310,29 +291,23 @@ fun MainUI(
     networkService: NetworkService,
     inAppUpdateHelper: InAppUpdateHelper? = null,
     onStartUpdate: (AppUpdateInfo) -> Unit = {},
-    pendingNavDestinationFlow: kotlinx.coroutines.flow.MutableStateFlow<NavDestination?>? = null,
+    pendingNavDestinationFlow: kotlinx.coroutines.flow.MutableStateFlow<String?>? = null,
     isPlaystoreDistribution: Boolean = false,
     hasLocationPermission: Boolean = false
 ) {
-    val pendingNavFlow = pendingNavDestinationFlow ?: remember { MutableStateFlow<NavDestination?>(null) }
+    val pendingNavFlow = pendingNavDestinationFlow ?: remember { MutableStateFlow<String?>(null) }
     val networkStatus by networkService.status.collectAsState()
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var settingsInitialStack by rememberSaveable { mutableStateOf<List<SettingsScreenPage>?>(null) }
     var showHistory by remember { mutableStateOf(false) }
     /** Play Store flavor uses a dashboard home first; full flavor starts on the voice screen. */
     var showMap by remember { mutableStateOf(false) }
-    var initialNavDestination by remember { mutableStateOf<NavDestination?>(null) }
-    var initialMapCenter by remember { mutableStateOf<com.google.android.gms.maps.model.LatLng?>(null) }
-    var lastMapCenter by remember { mutableStateOf<com.google.android.gms.maps.model.LatLng?>(null) }
-    var lastMapZoom by remember { mutableStateOf(12f) }
 
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         pendingNavFlow.collect { nav ->
             if (nav != null) {
-                initialNavDestination = nav
-                showMap = true
                 pendingNavFlow.value = null
             }
         }
@@ -390,27 +365,7 @@ fun MainUI(
                 showHistory -> {
                     HistoryScreen(state = state, store = store, onBack = { showHistory = false })
                 }
-                showMap -> {
-                    BackHandler { showMap = false }
-                    MapScreen(
-                        settingsManager = settingsManager,
-                        authManager = authManager,
-                        store = store,
-                        palette = palette,
-                        initialCenter = initialMapCenter ?: lastMapCenter,
-                        initialZoom = if (initialMapCenter != null) 12f else lastMapZoom,
-                        onBack = { showMap = false; initialMapCenter = null },
-                        onCameraMove = { center, zoom ->
-                            lastMapCenter = center
-                            lastMapZoom = zoom
-                        },
-                        onPlanRoute = null,
-                        onShowSettings = {
-                            settingsInitialStack = listOf(SettingsScreenPage.Main)
-                            showSettings = true
-                        }
-                    )
-                }
+                // Map UI entry removed (mobility feature removed).
                 else -> {
                     DashboardVoiceScreen(
                         state = state,
@@ -565,21 +520,6 @@ fun MainUIPreview() {
                 override suspend fun getCurrentStatus() = status.value
             }
         }
-    )
-}
-
-@Composable
-private fun MapScreenPreview() {
-    val mockSettingsManager = rememberMockSettingsManager()
-    val mockStore = rememberMockStore()
-    val context = LocalContext.current
-    MapScreen(
-        settingsManager = mockSettingsManager,
-        authManager = GoogleAuthManager(context, mockSettingsManager, { mockStore }, FirebaseAuth.getInstance()),
-        store = mockStore,
-        palette = AnimationPalettes.paletteFor(0),
-        onBack = {},
-        onShowSettings = {}
     )
 }
 

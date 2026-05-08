@@ -75,9 +75,6 @@ jobs:
           JULES_KEY: ${{ secrets.JULES_KEY }}
           GOOGLE_MAPS_KEY: ${{ secrets.GOOGLE_MAPS_KEY }}
           GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
-          OPENCHARGEMAP_KEY: ${{ secrets.OPENCHARGEMAP_KEY }}
-          ECO_MOVEMENT_URL: ${{ secrets.ECO_MOVEMENT_URL }}
-          ECO_MOVEMENT_TOKEN: ${{ secrets.ECO_MOVEMENT_TOKEN }}
         run: |
           ./gradlew :androidApp:bundlePlaystoreRelease \
             -Pandroid.injected.signing.store.file=${{ github.workspace }}/release.keystore \
@@ -89,6 +86,41 @@ jobs:
         run: |
           mkdir -p .github/play-release-notes
           echo "Automated test build #${{ github.run_number }}" > .github/play-release-notes/whatsnew-en-US
+
+      - name: Validate Google Play service account JSON
+        env:
+          SERVICE_ACCOUNT_JSON: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$SERVICE_ACCOUNT_JSON" ]; then
+            echo "::error::Missing or empty GitHub secret SERVICE_ACCOUNT_JSON"
+            echo "See PLAY_STORE_GUIDE.md (Step 2.1) and paste the *service account key JSON* (not google-services.json)."
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          import json, os, sys
+          raw = os.environ.get("SERVICE_ACCOUNT_JSON", "").strip()
+          try:
+            data = json.loads(raw)
+          except Exception as e:
+            print(f"::error::SERVICE_ACCOUNT_JSON is not valid JSON: {e}")
+            sys.exit(1)
+
+          missing = [k for k in ("type", "client_email", "private_key") if not data.get(k)]
+          if missing:
+            print("::error::SERVICE_ACCOUNT_JSON is missing required field(s): " + ", ".join(missing))
+            print("Expected a Google Cloud *service account key* JSON with fields: type, client_email, private_key.")
+            print("Common mistake: pasting Firebase android `google-services.json` (it has project_info/client/api_key but no client_email).")
+            sys.exit(1)
+
+          if data.get("type") != "service_account":
+            print(f"::error::SERVICE_ACCOUNT_JSON.type must be 'service_account' (got {data.get('type')!r})")
+            sys.exit(1)
+
+          # Don't print secrets, just confirm shape.
+          email = data.get("client_email", "")
+          print(f"Service account JSON OK (client_email: {email})")
+          PY
 
       - name: Deploy to Google Play
         uses: r0adkll/upload-google-play@v1

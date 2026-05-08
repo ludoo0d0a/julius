@@ -51,9 +51,7 @@ class ActionParserTest {
     @Test
     fun testParseNavigate() {
         val action = ActionParser.parseActionFromResponse("navigate to Paris")
-        assertNotNull(action)
-        assertEquals(ActionType.NAVIGATE, action.type)
-        assertEquals("Paris", action.target)
+        assertNull(action, "Navigation should not be parsed anymore")
     }
 
     @Test
@@ -73,24 +71,22 @@ class ActionParserTest {
 
         for (input in actions) {
             val action = ActionParser.parseActionFromResponse(input)
-            assertNotNull(action, "Failed to parse action for: $input")
-            assertEquals(ActionType.FIND_ELECTRIC_STATIONS, action.type)
+            assertNull(action, "Electric station search should not be parsed anymore: $input")
         }
     }
 
     @Test
-    fun testParseHybridStations() {
+    fun testParseParking() {
         val actions = listOf(
-            "find hybrid station nearby",
-            "find electric and fuel station nearby",
-            "find electric and gas station",
-            "trouve borne et station essence"
+            "find parking nearby",
+            "parking",
+            "trouve un parking",
+            "je veux me garer"
         )
 
         for (input in actions) {
             val action = ActionParser.parseActionFromResponse(input)
-            assertNotNull(action, "Failed to parse action for: $input")
-            assertEquals(ActionType.FIND_HYBRID_STATIONS, action.type)
+            assertNull(action, "Mobility actions should not be parsed anymore: $input")
         }
     }
 }

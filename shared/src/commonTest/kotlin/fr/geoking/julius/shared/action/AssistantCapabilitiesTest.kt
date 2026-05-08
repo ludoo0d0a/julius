@@ -30,9 +30,9 @@ class AssistantCapabilitiesTest {
 
     @Test
     fun summaryMatchesLanguageTag() {
-        assertTrue(AssistantCapabilities.capabilitiesSummary("en-US").contains("Navigation", ignoreCase = true))
-        assertTrue(AssistantCapabilities.capabilitiesSummary("fr-FR").contains("Navigation", ignoreCase = true))
-        assertTrue(AssistantCapabilities.capabilitiesSummary("fr").contains("météo", ignoreCase = true))
+        assertTrue(AssistantCapabilities.capabilitiesSummary("en-US").contains("battery", ignoreCase = true))
+        assertTrue(AssistantCapabilities.capabilitiesSummary("fr-FR").contains("batterie", ignoreCase = true))
+        assertTrue(AssistantCapabilities.capabilitiesSummary("fr").contains("alarme", ignoreCase = true))
     }
 
     @Test

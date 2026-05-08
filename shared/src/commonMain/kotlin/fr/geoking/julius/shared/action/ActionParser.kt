@@ -60,26 +60,12 @@ object ActionParser {
                 return DeviceAction(type = ActionType.GET_VOLUME_LEVEL)
             }
 
-            // Get location - English: where am i, current location | French: où suis-je, ma position, ma localisation
-            lowerText.contains("where am i") || lowerText.contains("current location") ||
-            lowerText.contains("où suis-je") || lowerText.contains("ou suis-je") ||
-            lowerText.contains("ma position") || lowerText.contains("ma localisation") -> {
-                return DeviceAction(type = ActionType.GET_LOCATION)
-            }
-
             // Get network status - English: network status, mobile data, roaming | French: état du réseau, données mobiles, itinérance
             lowerText.contains("network status") || lowerText.contains("mobile data") ||
             lowerText.contains("roaming status") || lowerText.contains("état du réseau") ||
             lowerText.contains("etat du réseau") || lowerText.contains("données mobiles") ||
             lowerText.contains("itinérance") || lowerText.contains("itinerance") -> {
                 return DeviceAction(type = ActionType.GET_NETWORK_STATUS)
-            }
-
-            // Show map - English: show map, open map | French: afficher la carte, ouvrir la carte
-            lowerText.contains("show map") || lowerText.contains("open map") ||
-            lowerText.contains("afficher la carte") || lowerText.contains("ouvre la carte") ||
-            lowerText.contains("ouvrir la carte") -> {
-                return DeviceAction(type = ActionType.SHOW_MAP)
             }
             
             // Send message commands - English: send message, text | French: envoyer message, envoyer sms, envoyer texto
@@ -96,21 +82,6 @@ object ActionParser {
                 )
             }
             
-            // Navigate commands - English: navigate to, directions to, go to, drive to
-            // French: naviguer vers, aller à, se rendre à, conduire à
-            lowerText.contains("navigate to") || lowerText.contains("directions to") || 
-            lowerText.contains("go to") || lowerText.contains("drive to") ||
-            lowerText.contains("naviguer vers") || lowerText.contains("aller à") ||
-            lowerText.contains("se rendre à") || lowerText.contains("conduire à") ||
-            lowerText.contains("va à") || lowerText.contains("va vers") ||
-            lowerText.contains("itinéraire vers") -> {
-                val destination = extractDestination(text)
-                return DeviceAction(
-                    type = ActionType.NAVIGATE,
-                    target = destination,
-                    data = emptyMap()
-                )
-            }
             
             
             // Set alarm commands - English: set alarm, alarm for | French: mettre réveil, réveil pour
@@ -131,99 +102,9 @@ object ActionParser {
                 )
             }
 
-            // Find hybrid stations (electric + fuel)
-            lowerText.contains("hybrid station") ||
-            lowerText.contains("hybrid car station") ||
-            lowerText.contains("electric and fuel station") ||
-            lowerText.contains("electric and gas station") ||
-            lowerText.contains("borne et station essence") ||
-            lowerText.contains("borne et station carburant") -> {
-                return DeviceAction(type = ActionType.FIND_HYBRID_STATIONS)
-            }
-
-            // Find gas stations
-            lowerText.contains("gas station") || lowerText.contains("station essence") ||
-            lowerText.contains("trouver de l'essence") || lowerText.contains("carburant") -> {
-                return DeviceAction(type = ActionType.FIND_GAS_STATIONS)
-            }
-
-            // Find electric stations
-            lowerText.contains("electric station") || lowerText.contains("charging station") ||
-            lowerText.contains("recharger") || lowerText.contains("borne électrique") ||
-            lowerText.contains("borne electrique") || lowerText.contains("electric reloading") -> {
-                return DeviceAction(type = ActionType.FIND_ELECTRIC_STATIONS)
-            }
-
-            // Find parking
-            lowerText.contains("parking") || lowerText.contains("garer") -> {
-                return DeviceAction(type = ActionType.FIND_PARKING)
-            }
-
-            // Find restaurants
-            lowerText.contains("restaurant") || lowerText.contains("trouver à manger") ||
-            lowerText.contains("où manger") -> {
-                return DeviceAction(type = ActionType.FIND_RESTAURANTS)
-            }
-
-            // Find fast food
-            lowerText.contains("fast food") || lowerText.contains("mcdo") ||
-            lowerText.contains("burger king") -> {
-                return DeviceAction(type = ActionType.FIND_FASTFOOD)
-            }
-
-            // Find service area
-            lowerText.contains("service area") || lowerText.contains("aire de repos") ||
-            lowerText.contains("aire d'autoroute") -> {
-                return DeviceAction(type = ActionType.FIND_SERVICE_AREA)
-            }
-
-            // Find radars
-            lowerText.contains("radar") || lowerText.contains("speed camera") ||
-            lowerText.contains("contrôle de vitesse") -> {
-                return DeviceAction(type = ActionType.FIND_RADARS)
-            }
-
-            // Weather — target null uses device location when executor supports it
-            lowerText.contains("weather") || lowerText.contains("météo") || lowerText.contains("meteo") ||
-            lowerText.contains("quel temps") || lowerText.contains("quelle météo") ||
-            lowerText.contains("what's the weather") || lowerText.contains("what is the weather") -> {
-                return DeviceAction(type = ActionType.GET_WEATHER, target = extractWeatherLocation(text))
-            }
-
-            // Get traffic
-            lowerText.contains("traffic") || lowerText.contains("trafic") ||
-            lowerText.contains("bouchon") -> {
-                return DeviceAction(type = ActionType.GET_TRAFFIC)
-            }
-
             // Play audiobook
             lowerText.contains("audiobook") || lowerText.contains("livre audio") -> {
                 return DeviceAction(type = ActionType.PLAY_AUDIOBOOK)
-            }
-
-            // Emergency call
-            lowerText.contains("emergency call") || lowerText.contains("appeler les secours") ||
-            lowerText.contains("112") || lowerText.contains("samu") || lowerText.contains("police") -> {
-                return DeviceAction(type = ActionType.EMERGENCY_CALL)
-            }
-
-            // Call contact
-            lowerText.contains("call ") || lowerText.contains("calling ") ||
-            lowerText.contains("appeler ") || lowerText.contains("appelle ") -> {
-                val target = extractCallTarget(text)
-                return DeviceAction(type = ActionType.CALL_CONTACT, target = target)
-            }
-
-            // Find hospital
-            lowerText.contains("hospital") || lowerText.contains("hôpital") ||
-            lowerText.contains("urgences") -> {
-                return DeviceAction(type = ActionType.FIND_HOSPITAL)
-            }
-
-            // Roadside assistance
-            lowerText.contains("roadside assistance") || lowerText.contains("dépannage") ||
-            lowerText.contains("assistance") -> {
-                return DeviceAction(type = ActionType.ROADSIDE_ASSISTANCE)
             }
         }
         
@@ -351,31 +232,6 @@ object ActionParser {
         return null
     }
 
-    private fun extractDestination(text: String): String? {
-        val patterns = listOf(
-            // English patterns
-            Regex("(?:navigate to|directions to|go to|drive to) (.+)", RegexOption.IGNORE_CASE),
-            // French patterns
-            Regex("(?:naviguer vers|aller à|se rendre à|conduire à|va à|va vers|itinéraire vers) (.+)", RegexOption.IGNORE_CASE)
-        )
-        
-        for (pattern in patterns) {
-            val match = pattern.find(text)
-            if (match != null) {
-                var destination = match.groupValues[1].trim()
-                // Remove trailing punctuation and action words (English and French)
-                destination = destination.removeSuffix(".")
-                    .removeSuffix(" please")
-                    .removeSuffix(" s'il vous plaît")
-                    .removeSuffix(" stp")
-                    .removeSuffix(" merci")
-                    .trim()
-                return destination
-            }
-        }
-        return null
-    }
-    
     private fun extractTime(text: String): Pair<Int, Int> {
         // Try to extract time like "3:30" or "3 pm" or "15:00" (English)
         // Or "3h30" or "15h00" or "3 heures" (French)
@@ -452,42 +308,6 @@ object ActionParser {
         }
     }
 
-    private fun extractWeatherLocation(text: String): String? {
-        val patterns = listOf(
-            Regex("""weather\s+(?:in|at|for)\s+(.+)""", RegexOption.IGNORE_CASE),
-            Regex("""what(?:'s| is)\s+the\s+weather\s+(?:in|at|for)\s+(.+)""", RegexOption.IGNORE_CASE),
-            Regex("""météo\s+(?:à|a|en|pour)\s+(.+)""", RegexOption.IGNORE_CASE),
-            Regex("""meteo\s+(?:a|à|en|pour)\s+(.+)""", RegexOption.IGNORE_CASE),
-            Regex("""temps\s+(?:à|a|en|pour)\s+(.+)""", RegexOption.IGNORE_CASE),
-            Regex("""quel temps\s+(?:à|a|en|pour)\s+(.+)""", RegexOption.IGNORE_CASE),
-            Regex("""quelle météo\s+(?:à|a|en|pour)\s+(.+)""", RegexOption.IGNORE_CASE)
-        )
-        for (pattern in patterns) {
-            val match = pattern.find(text) ?: continue
-            return match.groupValues[1].trim()
-                .removeSuffix(".")
-                .removeSuffix("?")
-                .trim()
-                .takeIf { it.isNotBlank() }
-        }
-        return null
-    }
-
-    private fun extractCallTarget(text: String): String? {
-        val patterns = listOf(
-            Regex("call(?:ing)? (.+)", RegexOption.IGNORE_CASE),
-            Regex("appeler (.+)", RegexOption.IGNORE_CASE),
-            Regex("appelle (.+)", RegexOption.IGNORE_CASE)
-        )
-        for (pattern in patterns) {
-            val match = pattern.find(text)
-            if (match != null) {
-                return match.groupValues[1].trim().removeSuffix(".")
-            }
-        }
-        return null
-    }
-    
     private fun resolveAppPackage(appName: String): String? {
         // Common app package mappings (English and French names)
         val appPackages = mapOf(

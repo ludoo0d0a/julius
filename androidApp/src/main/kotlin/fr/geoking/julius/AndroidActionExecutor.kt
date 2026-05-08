@@ -3,15 +3,9 @@ package fr.geoking.julius
 import android.Manifest
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.location.Address
-import android.location.Geocoder
-import android.location.LocationManager
 import android.media.AudioManager
 import android.net.Uri
-import android.os.BatteryManager
-import android.os.Build
 import android.provider.AlarmClock
 import android.provider.MediaStore
 import fr.geoking.julius.shared.action.ActionExecutor
@@ -21,12 +15,10 @@ import fr.geoking.julius.shared.action.DeviceAction
 import fr.geoking.julius.shared.network.NetworkService
 import fr.geoking.julius.shared.network.NetworkType
 import fr.geoking.julius.shared.platform.PermissionManager
-import fr.geoking.julius.shared.weather.WeatherLookup
 
 class AndroidActionExecutor(
     private val context: Context,
     private val permissionManager: PermissionManager,
-    private val weatherLookup: WeatherLookup,
     private val networkService: NetworkService
 ) : ActionExecutor {
 
@@ -39,28 +31,11 @@ class AndroidActionExecutor(
                     message = "SMS sending is temporarily disabled in this build."
                 )
                 ActionType.PLAY_MUSIC -> playMusic(action.target)
-                ActionType.NAVIGATE -> navigate(action.target, action.data)
                 ActionType.SET_ALARM -> setAlarm(action.data)
-                ActionType.GET_LOCATION -> getLocation()
                 ActionType.GET_BATTERY_LEVEL -> getBatteryLevel()
                 ActionType.GET_VOLUME_LEVEL -> getVolumeLevels()
                 ActionType.REQUEST_PERMISSION -> requestPermission(action.target)
-                ActionType.FIND_GAS_STATIONS -> findGasStations()
-                ActionType.FIND_ELECTRIC_STATIONS -> findElectricStations()
-                ActionType.FIND_HYBRID_STATIONS -> findHybridStations()
-                ActionType.FIND_PARKING -> findNearby("parking")
-                ActionType.FIND_RESTAURANTS -> findNearby("restaurant")
-                ActionType.FIND_FASTFOOD -> findNearby("fast food")
-                ActionType.FIND_SERVICE_AREA -> findNearby("rest area")
-                ActionType.GET_TRAFFIC -> getTraffic()
-                ActionType.GET_WEATHER -> weatherLookup.getCurrentWeather(action.target)
                 ActionType.PLAY_AUDIOBOOK -> playAudiobook()
-                ActionType.CALL_CONTACT -> callContact(action.target)
-                ActionType.FIND_HOSPITAL -> findNearby("hospital")
-                ActionType.FIND_RADARS -> findNearby("radar")
-                ActionType.SHOW_MAP -> showMap()
-                ActionType.ROADSIDE_ASSISTANCE -> roadsideAssistance()
-                ActionType.EMERGENCY_CALL -> emergencyCall()
                 ActionType.GET_NETWORK_STATUS -> getNetworkStatus()
                 ActionType.OTHER -> executeOtherAction(action)
             }
@@ -151,39 +126,6 @@ class AndroidActionExecutor(
         }
     }
 
-    private fun navigate(destination: String?, data: Map<String, String>): ActionResult {
-        if (destination == null) {
-            return ActionResult(false, "Destination missing")
-        }
-
-        try {
-            val query = destination.replace(" ", "+")
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                this.data = Uri.parse("geo:0,0?q=$query")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                setPackage("com.google.android.apps.maps") // Prefer Google Maps
-            }
-            
-            if (intent.resolveActivity(context.packageManager) != null) {
-                context.startActivity(intent)
-                return ActionResult(true, "Navigating to $destination")
-            } else {
-                // Fallback to generic geo intent
-                val intent2 = Intent(Intent.ACTION_VIEW).apply {
-                    this.data = Uri.parse("geo:0,0?q=$query")
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                if (intent2.resolveActivity(context.packageManager) != null) {
-                    context.startActivity(intent2)
-                    return ActionResult(true, "Navigating to $destination")
-                }
-                return ActionResult(false, "No navigation app available")
-            }
-        } catch (e: Exception) {
-            return ActionResult(false, "Failed to navigate: ${e.message}")
-        }
-    }
-
     private fun setAlarm(data: Map<String, String>): ActionResult {
         try {
             val hour = data["hour"]?.toIntOrNull() ?: return ActionResult(false, "Hour missing")
@@ -208,39 +150,16 @@ class AndroidActionExecutor(
         }
     }
 
-    private suspend fun getLocation(): ActionResult {
-        if (!permissionManager.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-            return ActionResult(false, "Location permission not granted. Please ask user to allow location access.")
-        }
-
-        return try {
-            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-            val location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-
-            if (location != null) {
-                val addressInfo = getAddressInfo(location.latitude, location.longitude)
-                ActionResult(true, "Current location: lat=${location.latitude}, lon=${location.longitude}.$addressInfo")
-            } else {
-                ActionResult(false, "Could not determine current location. GPS might be disabled or no fix yet.")
-            }
-        } catch (e: Exception) {
-            ActionResult(false, "Error getting location: ${e.message}")
-        }
-    }
-
     private fun getBatteryLevel(): ActionResult {
         return try {
-            val batteryStatus: Intent? = IntentFilter(Intent.ACTION_BATTERY_CHANGED).let { filter ->
-                context.registerReceiver(null, filter)
-            }
-            val level: Int = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-            val scale: Int = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+            val intent = context.registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val level = intent?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = intent?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1) ?: -1
             val batteryPct = level * 100 / scale.toFloat()
 
-            val status = batteryStatus?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-            val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                             status == BatteryManager.BATTERY_STATUS_FULL
+            val status = intent?.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1) ?: -1
+            val isCharging = status == android.os.BatteryManager.BATTERY_STATUS_CHARGING ||
+                status == android.os.BatteryManager.BATTERY_STATUS_FULL
 
             ActionResult(true, "Battery level: ${batteryPct.toInt()}%, Charging: $isCharging")
         } catch (e: Exception) {
@@ -264,107 +183,6 @@ class AndroidActionExecutor(
         }
     }
 
-    private fun findGasStations(): ActionResult {
-        return try {
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse("julius://map/gas_stations")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                `package` = context.packageName
-            }
-            context.startActivity(intent)
-            ActionResult(true, "Opening internal gas station search")
-        } catch (e: Exception) {
-            // Fallback to external if internal fails
-            findNearby("gas station")
-        }
-    }
-
-    private fun findElectricStations(): ActionResult {
-        return try {
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse("julius://map/electric_stations")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                `package` = context.packageName
-            }
-            context.startActivity(intent)
-            ActionResult(true, "Opening internal electric station search")
-        } catch (e: Exception) {
-            // Fallback to external if internal fails
-            findNearby("electric charging station")
-        }
-    }
-
-    private fun findHybridStations(): ActionResult {
-        return try {
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse("julius://map/hybrid_stations")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                `package` = context.packageName
-            }
-            context.startActivity(intent)
-            ActionResult(true, "Opening internal hybrid station search")
-        } catch (e: Exception) {
-            // Fallback to external if internal fails
-            findNearby("electric charging station or gas station")
-        }
-    }
-
-    private fun showMap(): ActionResult {
-        return try {
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse("julius://map/current_location")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                `package` = context.packageName
-            }
-            context.startActivity(intent)
-            ActionResult(true, "Opening map at current location")
-        } catch (e: Exception) {
-            // Fallback to external if internal fails
-            findNearby("")
-        }
-    }
-
-    private fun findNearby(query: String): ActionResult {
-        return try {
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse("geo:0,0?q=$query")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                setPackage("com.google.android.apps.maps")
-            }
-            if (intent.resolveActivity(context.packageManager) != null) {
-                context.startActivity(intent)
-                ActionResult(true, "Searching for $query nearby")
-            } else {
-                val intent2 = Intent(Intent.ACTION_VIEW).apply {
-                    data = Uri.parse("geo:0,0?q=$query")
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(intent2)
-                ActionResult(true, "Searching for $query nearby")
-            }
-        } catch (e: Exception) {
-            ActionResult(false, "Failed to find $query: ${e.message}")
-        }
-    }
-
-    private fun getTraffic(): ActionResult {
-        return try {
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse("google.navigation:q=0,0&layer=t")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                setPackage("com.google.android.apps.maps")
-            }
-            if (intent.resolveActivity(context.packageManager) != null) {
-                context.startActivity(intent)
-                ActionResult(true, "Showing traffic layer")
-            } else {
-                ActionResult(false, "Maps app not available for traffic layer")
-            }
-        } catch (e: Exception) {
-            ActionResult(false, "Failed to get traffic: ${e.message}")
-        }
-    }
-
     private fun playAudiobook(): ActionResult {
         return try {
             val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -379,39 +197,6 @@ class AndroidActionExecutor(
             }
         } catch (e: Exception) {
             ActionResult(false, "Failed to play audiobook: ${e.message}")
-        }
-    }
-
-    private fun callContact(number: String?): ActionResult {
-        if (number == null) return ActionResult(false, "No number or contact specified")
-        return try {
-            val intent = Intent(Intent.ACTION_DIAL).apply {
-                data = Uri.parse("tel:$number")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(intent)
-            ActionResult(true, "Opening dialer for $number")
-        } catch (e: Exception) {
-            ActionResult(false, "Failed to call contact: ${e.message}")
-        }
-    }
-
-    private fun roadsideAssistance(): ActionResult {
-        // Broad search or common roadside numbers depending on locale could go here.
-        // For now, search for roadside assistance nearby.
-        return findNearby("roadside assistance")
-    }
-
-    private fun emergencyCall(): ActionResult {
-        return try {
-            val intent = Intent(Intent.ACTION_DIAL).apply {
-                data = Uri.parse("tel:112")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(intent)
-            ActionResult(true, "Opening dialer for emergency call (112)")
-        } catch (e: Exception) {
-            ActionResult(false, "Failed to initiate emergency call: ${e.message}")
         }
     }
 
@@ -474,38 +259,6 @@ class AndroidActionExecutor(
             ActionResult(true, "Permission $permission granted")
         } else {
             ActionResult(false, "Permission $permission denied by user")
-        }
-    }
-
-    private suspend fun getAddressInfo(latitude: Double, longitude: Double): String {
-        return try {
-            val geocoder = Geocoder(context, java.util.Locale.getDefault())
-            val addresses = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                kotlin.coroutines.suspendCoroutine { continuation ->
-                    geocoder.getFromLocation(latitude, longitude, 1, object : Geocoder.GeocodeListener {
-                        override fun onGeocode(addresses: MutableList<Address>) {
-                            continuation.resumeWith(Result.success(addresses))
-                        }
-                        override fun onError(errorMessage: String?) {
-                            continuation.resumeWith(Result.success(emptyList<Address>()))
-                        }
-                    })
-                }
-            } else {
-                @Suppress("DEPRECATION")
-                geocoder.getFromLocation(latitude, longitude, 1)
-            }
-
-            if (!addresses.isNullOrEmpty()) {
-                val address = addresses[0]
-                val parts = mutableListOf<String>()
-                for (i in 0..address.maxAddressLineIndex) {
-                    parts.add(address.getAddressLine(i))
-                }
-                " Address: ${parts.joinToString(", ")}."
-            } else ""
-        } catch (e: Exception) {
-            ""
         }
     }
 

@@ -6,7 +6,6 @@ import fr.geoking.julius.shared.voice.SttEnginePreference
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import fr.geoking.julius.api.geocoding.GeocodedPlace
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import kotlinx.coroutines.CoroutineScope
@@ -102,14 +101,6 @@ enum class PerplexityModel(val modelName: String, val displayName: String) {
     GEMMA_2_27B_IT("gemma-2-27b-it", "Gemma 2 27B")
 }
 
-enum class CarMapMode { Native, Custom }
-enum class MapEngine { Google, MapLibre }
-enum class MapTheme(val styleUrl: String) {
-    Dark("https://tiles.openfreemap.org/styles/dark"),
-    Modern("https://tiles.openfreemap.org/styles/bright"),
-    Standard("https://tiles.openfreemap.org/styles/liberty")
-}
-
 enum class OpenAiModel(val modelName: String, val displayName: String) {
     GPT_4O("gpt-4o", "GPT-4o"),
     GPT_4O_MINI("gpt-4o-mini", "GPT-4o mini"),
@@ -126,15 +117,8 @@ enum class GeminiModel(val modelName: String, val displayName: String) {
 }
 
 data class AppSettings(
-    /** Show Google traffic layer on the map (green / yellow / red). */
-    val mapTrafficEnabled: Boolean = false,
     /** Whether to log network requests/responses for debugging on the map screen. */
     val debugLoggingEnabled: Boolean = false,
-    /** Map engine to use on the phone (Google or MapLibre). */
-    val phoneMapEngine: MapEngine = MapEngine.Google,
-    /** Map theme for the MapLibre engine (Dark, Modern, Standard). */
-    val mapTheme: MapTheme = MapTheme.Dark,
-    val carMapMode: CarMapMode = CarMapMode.Native,
     val openAiKey: String = "",
     val openAiModel: OpenAiModel = OpenAiModel.GPT_4O,
     val elevenLabsKey: String = "",
@@ -181,10 +165,6 @@ data class AppSettings(
     val lastJulesRepoName: String = "",
     val googleUserName: String? = null,
     val isLoggedIn: Boolean = false,
-    /** Optional API key for Luxembourg mobiliteit.lu (request from opendata-api@atp.etat.lu). */
-    val mobiliteitLuxembourgKey: String = "",
-    /** Last 10 unique destinations. */
-    val routeHistory: List<GeocodedPlace> = emptyList(),
     val lastCountryCode: String? = null
 )
 
@@ -240,12 +220,6 @@ open class SettingsManager(
         val lastJulesRepoName = prefs.getString("last_jules_repo_name", "") ?: ""
         val googleUserName = prefs.getString("google_user_name", null)
         val isLoggedIn = prefs.getBoolean("is_logged_in", false)
-        val routeHistoryJson = prefs.getString("route_history", "[]") ?: "[]"
-        val routeHistory = try {
-            Json.decodeFromString<List<GeocodedPlace>>(routeHistoryJson)
-        } catch (e: Exception) {
-            emptyList()
-        }
         val lastCountryCode = prefs.getString("last_country_code", null)
 
         // Persist build-time keys (from env/local.properties) when prefs were empty so they show in settings and are reused
@@ -260,32 +234,11 @@ open class SettingsManager(
 
         val speakingInterruptMode = loadSpeakingInterruptMode()
 
-        val mapTrafficEnabled = prefs.getBoolean("map_traffic_enabled", false)
         val debugLoggingEnabled = prefs.getBoolean("debug_logging_enabled", false)
-        val mobiliteitLuxembourgKey = prefs.getString("mobiliteit_luxembourg_key", "")?.takeIf { it.isNotEmpty() }
-            ?: fr.geoking.julius.BuildConfig.MOBILITEIT_LUXEMBOURG_KEY
-        val phoneMapEngine = try {
-            MapEngine.valueOf(prefs.getString("phone_map_engine", MapEngine.Google.name) ?: MapEngine.Google.name)
-        } catch (e: IllegalArgumentException) {
-            MapEngine.Google
-        }
-        val mapTheme = try {
-            MapTheme.valueOf(prefs.getString("map_theme", MapTheme.Dark.name) ?: MapTheme.Dark.name)
-        } catch (e: IllegalArgumentException) {
-            MapTheme.Dark
-        }
-        val carMapMode = try {
-            CarMapMode.valueOf(prefs.getString("car_map_mode", CarMapMode.Native.name) ?: CarMapMode.Native.name)
-        } catch (e: IllegalArgumentException) {
-            CarMapMode.Native
-        }
+        // Mobility/map preferences removed.
 
         return AppSettings(
-            mapTrafficEnabled = mapTrafficEnabled,
             debugLoggingEnabled = debugLoggingEnabled,
-            phoneMapEngine = phoneMapEngine,
-            mapTheme = mapTheme,
-            carMapMode = carMapMode,
             openAiKey = openAiKey,
             openAiModel = try {
                 OpenAiModel.valueOf(prefs.getString("openai_model", OpenAiModel.GPT_4O.name) ?: OpenAiModel.GPT_4O.name)
@@ -376,12 +329,10 @@ open class SettingsManager(
             },
             llamatikModelPath = prefs.getString("llamatik_model_path", "models/phi-2.Q4_0.gguf") ?: "models/phi-2.Q4_0.gguf",
             selectedLlamatikModelVariant = prefs.getString("selected_llamatik_model_variant", "Gemma4_E4B_Gguf") ?: "Gemma4_E4B_Gguf",
-            mobiliteitLuxembourgKey = mobiliteitLuxembourgKey,
             lastJulesRepoId = lastJulesRepoId,
             lastJulesRepoName = lastJulesRepoName,
             googleUserName = googleUserName,
             isLoggedIn = isLoggedIn,
-            routeHistory = routeHistory,
             lastCountryCode = lastCountryCode
         )
     }
@@ -449,11 +400,6 @@ open class SettingsManager(
         edit.apply()
     }
 
-    open fun setMapTrafficEnabled(value: Boolean) {
-        prefs.edit().putBoolean("map_traffic_enabled", value).apply()
-        _settings.value = _settings.value.copy(mapTrafficEnabled = value)
-    }
-
     open fun setDebugLoggingEnabled(value: Boolean) {
         prefs.edit().putBoolean("debug_logging_enabled", value).apply()
         _settings.value = _settings.value.copy(debugLoggingEnabled = value)
@@ -462,28 +408,6 @@ open class SettingsManager(
     open fun setSttEnginePreference(preference: SttEnginePreference) {
         prefs.edit().putString("stt_engine_preference", preference.name).apply()
         _settings.value = _settings.value.copy(sttEnginePreference = preference)
-    }
-
-    open fun setCarMapMode(mode: CarMapMode) {
-        prefs.edit().putString("car_map_mode", mode.name).apply()
-        _settings.value = _settings.value.copy(carMapMode = mode)
-    }
-
-    open fun setPhoneMapEngine(engine: MapEngine) {
-        prefs.edit().putString("phone_map_engine", engine.name).apply()
-        _settings.value = _settings.value.copy(phoneMapEngine = engine)
-    }
-
-    open fun setMapTheme(theme: MapTheme) {
-        prefs.edit().putString("map_theme", theme.name).apply()
-        _settings.value = _settings.value.copy(mapTheme = theme)
-    }
-
-    open fun addRouteHistory(place: GeocodedPlace) {
-        val current = _settings.value.routeHistory
-        val filtered = current.filter { it.label != place.label || it.latitude != place.latitude || it.longitude != place.longitude }
-        val updated = (listOf(place) + filtered).take(10)
-        saveSettings(_settings.value.copy(routeHistory = updated))
     }
 
     open fun saveSettings(settings: AppSettings) {
@@ -526,10 +450,6 @@ open class SettingsManager(
             groqKey = resolveBuildDefault(settings.groqKey, fr.geoking.julius.BuildConfig.GROQ_KEY),
             openRouterKey = resolveBuildDefault(settings.openRouterKey, fr.geoking.julius.BuildConfig.OPENROUTER_KEY),
             githubApiKey = resolveBuildDefault(settings.githubApiKey, fr.geoking.julius.BuildConfig.GITHUB_TOKEN),
-            mobiliteitLuxembourgKey = resolveBuildDefault(
-                settings.mobiliteitLuxembourgKey,
-                fr.geoking.julius.BuildConfig.MOBILITEIT_LUXEMBOURG_KEY
-            )
         )
 
         val settings = if (!resolved.selectedAgent.enabled) {
@@ -542,12 +462,7 @@ open class SettingsManager(
             resolved
         }
         prefs.edit()
-            .putBoolean("map_traffic_enabled", settings.mapTrafficEnabled)
             .putBoolean("debug_logging_enabled", settings.debugLoggingEnabled)
-            .putString("mobiliteit_luxembourg_key", settings.mobiliteitLuxembourgKey)
-            .putString("car_map_mode", settings.carMapMode.name)
-            .putString("phone_map_engine", settings.phoneMapEngine.name)
-            .putString("map_theme", settings.mapTheme.name)
             .putString("openai_key", settings.openAiKey)
             .putString("openai_model", settings.openAiModel.name)
             .putString("elevenlabs_key", settings.elevenLabsKey)
@@ -591,7 +506,6 @@ open class SettingsManager(
             .putString("last_jules_repo_name", settings.lastJulesRepoName)
             .putString("google_user_name", settings.googleUserName)
             .putBoolean("is_logged_in", settings.isLoggedIn)
-            .putString("route_history", Json.encodeToString(settings.routeHistory))
             .apply { settings.lastCountryCode?.let { putString("last_country_code", it) } ?: remove("last_country_code") }
             .apply()
 
@@ -639,11 +553,7 @@ open class SettingsManager(
         selectedLlamatikModelVariant: String = _settings.value.selectedLlamatikModelVariant
     ) {
         val newSettings = AppSettings(
-            mapTrafficEnabled = _settings.value.mapTrafficEnabled,
             debugLoggingEnabled = _settings.value.debugLoggingEnabled,
-            phoneMapEngine = _settings.value.phoneMapEngine,
-            mapTheme = _settings.value.mapTheme,
-            carMapMode = _settings.value.carMapMode,
             openAiKey = openAiKey,
             openAiModel = openAiModel,
             elevenLabsKey = elevenLabsKey,
@@ -685,7 +595,6 @@ open class SettingsManager(
             lastJulesRepoName = _settings.value.lastJulesRepoName,
             googleUserName = _settings.value.googleUserName,
             isLoggedIn = _settings.value.isLoggedIn,
-            routeHistory = _settings.value.routeHistory,
             lastCountryCode = _settings.value.lastCountryCode
         )
         saveSettings(newSettings)

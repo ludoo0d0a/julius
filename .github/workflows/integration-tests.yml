@@ -24,13 +24,6 @@ jobs:
       - name: Run Integration Tests
         env:
           RUN_REAL_API_TESTS: "true"
-          OPENCHARGEMAP_KEY: ${{ secrets.OPENCHARGEMAP_KEY }}
-          FUELPRICES_DK_KEY: ${{ secrets.FUELPRICES_DK_KEY }}
-          NSW_FUELCHECK_API_KEY: ${{ secrets.NSW_FUELCHECK_API_KEY }}
-          NSW_FUELCHECK_API_SECRET: ${{ secrets.NSW_FUELCHECK_API_SECRET }}
-          FASTNED_KEY: ${{ secrets.FASTNED_KEY }}
-          ECO_MOVEMENT_URL: ${{ secrets.ECO_MOVEMENT_URL }}
-          ECO_MOVEMENT_TOKEN: ${{ secrets.ECO_MOVEMENT_TOKEN }}
           TOMTOM_KEY: ${{ secrets.TOMTOM_KEY }}
           JULES_KEY: ${{ secrets.JULES_KEY }}
           GEMINI_KEY: ${{ secrets.GEMINI_KEY }}

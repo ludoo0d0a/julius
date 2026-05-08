@@ -14,25 +14,10 @@ object LocalExtendedToolSupport {
     fun newLocalToolCallId(): String = "local_" + Random.nextLong().toULong().toString(16)
 
     fun briefAckForExtendedAction(action: DeviceAction): String = when (action.type) {
-        ActionType.GET_LOCATION -> "Getting your location."
-        ActionType.SHOW_MAP -> "Opening the map."
         ActionType.GET_BATTERY_LEVEL -> "Checking battery level."
         ActionType.GET_VOLUME_LEVEL -> "Checking volume levels."
-        ActionType.NAVIGATE -> "Starting navigation."
-        ActionType.GET_WEATHER -> "Getting weather."
-        ActionType.GET_TRAFFIC -> "Loading traffic."
-        ActionType.FIND_GAS_STATIONS, ActionType.FIND_ELECTRIC_STATIONS, ActionType.FIND_HYBRID_STATIONS ->
-            "Searching nearby stations."
-        ActionType.FIND_PARKING -> "Searching parking."
-        ActionType.FIND_RESTAURANTS -> "Searching restaurants."
-        ActionType.FIND_FASTFOOD -> "Searching fast food."
-        ActionType.FIND_SERVICE_AREA -> "Searching service areas."
         ActionType.PLAY_MUSIC -> "Playing music."
         ActionType.PLAY_AUDIOBOOK -> "Playing audiobook."
-        ActionType.CALL_CONTACT -> "Calling."
-        ActionType.EMERGENCY_CALL -> "Emergency call."
-        ActionType.FIND_HOSPITAL -> "Finding a hospital."
-        ActionType.ROADSIDE_ASSISTANCE -> "Roadside assistance."
         else -> "OK."
     }
 

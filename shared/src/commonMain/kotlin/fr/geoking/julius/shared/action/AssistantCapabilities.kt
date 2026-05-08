@@ -85,18 +85,13 @@ object AssistantCapabilities {
         append(
             "I can chat and answer questions with your selected assistant, and run actions on your phone for driving. "
         )
-        append("Navigation: go to an address or place in Maps. ")
-        append(
-            "Nearby on the map: gas stations, electric charging, parking, restaurants, fast food, service areas, hospitals, and speed cameras where data is available. "
-        )
-        append("Road and conditions: traffic and current weather, here or for a city you name. ")
+        append("I can run a few on-device actions. ")
         append(
             "Device: battery level, volume levels, approximate location when allowed, open apps by name, play specific music or audiobooks, set an alarm. "
         )
-        append("Safety: roadside assistance, emergency call, call a number you specify. ")
         append("Sending SMS from the assistant is not available in this build. ")
         append(
-            "Ask naturally, for example: navigate to…, weather in…, find charging nearby, or what's the traffic like."
+            "Ask naturally, for example: play music…, set an alarm…, what's my battery level, or open Spotify."
         )
     }
 
@@ -104,18 +99,13 @@ object AssistantCapabilities {
         append(
             "Je peux discuter et répondre à des questions avec l’assistant que vous avez choisi, et lancer des actions sur le téléphone pour la conduite. "
         )
-        append("Navigation : aller à une adresse ou un lieu dans Plans / Maps. ")
-        append(
-            "À proximité sur la carte : stations-service, recharge électrique, parking, restaurants, fast-food, aires de service, hôpitaux, radars si les données sont disponibles. "
-        )
-        append("Route et conditions : trafic et météo actuelle, ici ou pour une ville que vous citez. ")
+        append("Je peux aussi lancer quelques actions sur l’appareil. ")
         append(
             "Téléphone : niveau de batterie, volumes, position approximative si autorisé, ouvrir des apps par nom, lancer de la musique spécifique ou un livre audio, régler une alarme. "
         )
-        append("Sécurité : dépannage, appel d’urgence, appeler un numéro que vous donnez. ")
         append("L’envoi de SMS depuis l’assistant n’est pas disponible dans cette version. ")
         append(
-            "Demandez naturellement, par exemple : naviguer vers…, météo à…, borne de recharge à côté, ou comment est le trafic."
+            "Demandez naturellement, par exemple : joue…, règle une alarme…, quel est le niveau de batterie, ou ouvre Spotify."
         )
     }
 }

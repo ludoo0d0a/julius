@@ -4,7 +4,6 @@ import android.content.Context
 import fr.geoking.julius.feature.voice.AndroidVoiceManager
 import fr.geoking.julius.AndroidActionExecutor
 import fr.geoking.julius.feature.network.AndroidNetworkService
-import fr.geoking.julius.feature.weather.AndroidWeatherLookup
 import fr.geoking.julius.AppSettings
 import fr.geoking.julius.feature.permission.AndroidPermissionManager
 import fr.geoking.julius.feature.notification.AndroidNotificationManager
@@ -21,13 +20,9 @@ import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.feature.voice.VoskTranscriber
 import fr.geoking.julius.shared.action.ActionExecutor
 import fr.geoking.julius.shared.platform.PermissionManager
-import fr.geoking.julius.shared.weather.WeatherLookup
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.api.github.GitHubClient
-import fr.geoking.julius.api.weather.MetNorwayWeatherProvider
-import fr.geoking.julius.api.weather.OpenMeteoGeocodingClient
-import fr.geoking.julius.api.weather.OpenMeteoWeatherProvider
-import fr.geoking.julius.api.weather.WeatherProviderFactory
+ 
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.conversation.MessagePersistence
 import fr.geoking.julius.shared.network.NetworkException
@@ -381,24 +376,6 @@ val appModule = module {
         AndroidNotificationManager(androidContext())
     }
 
-    single { OpenMeteoGeocodingClient(get()) }
-    single { OpenMeteoWeatherProvider(get(), providerId = "Open-Meteo") }
-    single { MetNorwayWeatherProvider(get()) }
-    single {
-        WeatherProviderFactory(
-            listOf(
-                fr.geoking.julius.api.traffic.GeographicRegion.Everywhere to get<OpenMeteoWeatherProvider>(),
-                fr.geoking.julius.api.traffic.GeographicRegion.Everywhere to get<MetNorwayWeatherProvider>()
-            )
-        )
-    }
-
-    // Map/route/POI/transit/traffic/toll are in mapModule; load via MapModuleLoader when opening map.
-
-    single<WeatherLookup> {
-        AndroidWeatherLookup(androidContext(), get())
-    }
-
     single<NetworkService> {
         AndroidNetworkService(
             androidContext(),
@@ -408,7 +385,7 @@ val appModule = module {
     }
 
     single<ActionExecutor> {
-        AndroidActionExecutor(androidContext(), get(), get(), get())
+        AndroidActionExecutor(androidContext(), get(), get())
     }
 
     single { VoskTranscriber(androidContext(), modelDirPath = null) }

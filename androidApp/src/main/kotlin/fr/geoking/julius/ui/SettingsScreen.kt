@@ -42,7 +42,7 @@ import fr.geoking.julius.*
 import fr.geoking.julius.agents.LlamatikModelHelper
 import fr.geoking.julius.agents.LlamatikModelVariant
 
-enum class SettingsScreenPage { Main, Agents, AgentDetails, Sources }
+enum class SettingsScreenPage { Main, Agents, AgentDetails }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,7 +99,6 @@ fun SettingsScreen(
                             SettingsScreenPage.Main -> "Settings"
                             SettingsScreenPage.Agents -> "Agents"
                             SettingsScreenPage.AgentDetails -> selectedAgentForDetails?.name ?: "Agent Settings"
-                            SettingsScreenPage.Sources -> "Sources"
                         }
                     )
                 },
@@ -121,11 +120,6 @@ fun SettingsScreen(
                     authManager = authManager,
                     onNavigateToAgents = {
                         navigationStack.add(SettingsScreenPage.Agents)
-                        @Suppress("UNUSED_EXPRESSION") Unit
-                    }
-                    ,
-                    onNavigateToSources = {
-                        navigationStack.add(SettingsScreenPage.Sources)
                         @Suppress("UNUSED_EXPRESSION") Unit
                     }
                 )
@@ -150,9 +144,6 @@ fun SettingsScreen(
                         )
                     }
                 }
-                SettingsScreenPage.Sources -> {
-                    DataSourcesPage(onBack = { goBack() })
-                }
             }
         }
     }
@@ -163,7 +154,6 @@ fun MainSettingsPage(
     settings: AppSettings,
     authManager: GoogleAuthManager,
     onNavigateToAgents: () -> Unit,
-    onNavigateToSources: () -> Unit,
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
@@ -264,13 +254,6 @@ fun MainSettingsPage(
                 title = "Agents",
                 subtitle = "Manage AI providers and on-device models",
                 onClick = { onNavigateToAgents() }
-            )
-        }
-        item {
-            SettingsListItem(
-                title = "Sources",
-                subtitle = "Fuel prices & EV charging coverage",
-                onClick = { onNavigateToSources() }
             )
         }
     }

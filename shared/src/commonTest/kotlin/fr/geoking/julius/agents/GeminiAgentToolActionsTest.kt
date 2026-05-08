@@ -30,13 +30,13 @@ class GeminiAgentToolActionsTest {
                                     "parts": [
                                       {
                                         "functionCall": {
-                                          "name": "find_electric_stations_nearby",
+                                          "name": "get_battery_level",
                                           "args": {}
                                         }
                                       },
                                       {
                                         "functionCall": {
-                                          "name": "find_hybrid_stations_nearby",
+                                          "name": "get_volume_levels",
                                           "args": {}
                                         }
                                       }
@@ -63,19 +63,19 @@ class GeminiAgentToolActionsTest {
     }
 
     @Test
-    fun testGeminiMapsElectricAndHybridToolCallsToActionTypes(): Unit = runBlocking {
+    fun testGeminiBatteryAndVolumeToolCallsToActionTypes(): Unit = runBlocking {
         val agent = GeminiAgent(
             client = createMockClient(),
             apiKey = "test-key",
             toolsEnabled = true
         )
 
-        val response = agent.process("Find charging and hybrid stations nearby")
+        val response = agent.process("What's my battery and volume?")
         val toolCalls = response.toolCalls
 
         assertNotNull(toolCalls)
         assertEquals(2, toolCalls.size)
-        assertTrue(toolCalls.any { it.action.type == ActionType.FIND_ELECTRIC_STATIONS })
-        assertTrue(toolCalls.any { it.action.type == ActionType.FIND_HYBRID_STATIONS })
+        assertTrue(toolCalls.any { it.action.type == ActionType.GET_BATTERY_LEVEL })
+        assertTrue(toolCalls.any { it.action.type == ActionType.GET_VOLUME_LEVEL })
     }
 }

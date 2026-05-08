@@ -76,10 +76,10 @@ Add map controls with icons (required for map action strips):
 | Feature | Julius | ChargeMap-style (e.g. ChargeMap, PlugShare) |
 |--------|--------|---------------------------------------------|
 | **Map & POIs** | | |
-| Map with charging stations | ✅ Multiple sources (DataGouvElec, OpenChargeMap, Routex, Etalab, etc.) | ✅ |
+| Map with charging stations | ❌ | ✅ |
 | Connector types (Type 2, CCS, CHAdeMO, E/F) | ✅ Display + filter | ✅ |
 | Power (kW) | ✅ Display + min-power filter | ✅ |
-| Tarification / pricing | ✅ Plain text (IRVE); fuel prices (DataGouv/Etalab) | ✅ Often structured |
+| Tarification / pricing | ✅ Plain text (IRVE) | ✅ Often structured |
 | Opening hours | ✅ IRVE horaires (as-is) | ✅ |
 | Filter by connector | ✅ | ✅ |
 | Filter by power / operator | ✅ | ✅ |

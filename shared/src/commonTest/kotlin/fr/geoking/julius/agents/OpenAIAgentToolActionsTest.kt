@@ -31,18 +31,10 @@ class OpenAIAgentToolActionsTest {
                                     "content": "I can help with nearby stations.",
                                     "tool_calls": [
                                       {
-                                        "id": "tc-electric",
+                                        "id": "tc-battery",
                                         "type": "function",
                                         "function": {
-                                          "name": "find_electric_stations_nearby",
-                                          "arguments": "{}"
-                                        }
-                                      },
-                                      {
-                                        "id": "tc-hybrid",
-                                        "type": "function",
-                                        "function": {
-                                          "name": "find_hybrid_stations_nearby",
+                                          "name": "get_battery_level",
                                           "arguments": "{}"
                                         }
                                       }
@@ -77,19 +69,18 @@ class OpenAIAgentToolActionsTest {
     }
 
     @Test
-    fun testOpenAiMapsElectricAndHybridToolCallsToActionTypes(): Unit = runBlocking {
+    fun testOpenAiBatteryToolCallsToActionTypes(): Unit = runBlocking {
         val agent = OpenAIAgent(
             client = createMockClient(),
             apiKey = "test-key",
             toolsEnabled = true
         )
 
-        val response = agent.process("Find charging and hybrid stations nearby")
+        val response = agent.process("What's my battery level?")
         val toolCalls = response.toolCalls
 
         assertNotNull(toolCalls)
-        assertEquals(2, toolCalls.size)
-        assertTrue(toolCalls.any { it.action.type == ActionType.FIND_ELECTRIC_STATIONS })
-        assertTrue(toolCalls.any { it.action.type == ActionType.FIND_HYBRID_STATIONS })
+        assertEquals(1, toolCalls.size)
+        assertTrue(toolCalls.any { it.action.type == ActionType.GET_BATTERY_LEVEL })
     }
 }

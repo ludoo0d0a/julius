@@ -157,27 +157,8 @@ class OpenAIAgent(
 
         val tools = if (toolsEnabled) {
             listOf(
-                Tool("function", FunctionDef("get_location", "Get the user's current GPS location and address", buildJsonObject { put("type", "object") })),
-                Tool("function", FunctionDef("show_map", "Open the map at the user's current location", buildJsonObject { put("type", "object") })),
                 Tool("function", FunctionDef("get_battery_level", "Get the current battery level percentage of the device", buildJsonObject { put("type", "object") })),
                 Tool("function", FunctionDef("get_volume_levels", "Get the current system volume levels (media, alarm, ring)", buildJsonObject { put("type", "object") })),
-                Tool("function", FunctionDef("find_gas_stations_nearby", "Find nearby gas stations or fuel prices", buildJsonObject { put("type", "object") })),
-                Tool("function", FunctionDef("find_electric_stations_nearby", "Find nearby electric charging stations", buildJsonObject { put("type", "object") })),
-                Tool("function", FunctionDef("find_hybrid_stations_nearby", "Find nearby electric charging stations and fuel stations for hybrid cars", buildJsonObject { put("type", "object") })),
-                Tool("function", FunctionDef("find_parking_nearby", "Find nearby parking spaces", buildJsonObject { put("type", "object") })),
-                Tool("function", FunctionDef("find_restaurants_nearby", "Find nearby restaurants", buildJsonObject { put("type", "object") })),
-                Tool("function", FunctionDef("find_fastfood_nearby", "Find nearby fast food outlets", buildJsonObject { put("type", "object") })),
-                Tool("function", FunctionDef("find_service_area_nearby", "Find nearby highway service areas or rest stops", buildJsonObject { put("type", "object") })),
-                Tool("function", FunctionDef("get_traffic_info", "Get current traffic information and show traffic layer", buildJsonObject { put("type", "object") })),
-                Tool("function", FunctionDef("get_weather", "Get current weather (temperature, conditions). Use when the user asks about weather, temperature, or if it will rain. For a named city or place pass location; for 'here' or current position omit location.", buildJsonObject {
-                    put("type", "object")
-                    put("properties", buildJsonObject {
-                        put("location", buildJsonObject {
-                            put("type", "string")
-                            put("description", "City or place name (e.g. Paris, Tokyo). Leave empty for the user's current GPS location.")
-                        })
-                    })
-                })),
                 Tool("function", FunctionDef("play_music", "Play music or start a music app. Specify the song name, artist, or album if provided.", buildJsonObject {
                     put("type", "object")
                     put("properties", buildJsonObject {
@@ -188,29 +169,7 @@ class OpenAIAgent(
                     })
                 })),
                 Tool("function", FunctionDef("play_audiobook", "Play an audiobook or start an audiobook app", buildJsonObject { put("type", "object") })),
-                Tool("function", FunctionDef("call_contact", "Call a specific contact or phone number", buildJsonObject {
-                    put("type", "object")
-                    put("properties", buildJsonObject {
-                        put("number", buildJsonObject {
-                            put("type", "string")
-                            put("description", "The phone number or contact name to call")
-                        })
-                    })
-                    put("required", Json.parseToJsonElement("[\"number\"]"))
-                })),
-                Tool("function", FunctionDef("find_nearest_hospital", "Find the nearest hospital or emergency room", buildJsonObject { put("type", "object") })),
-                Tool("function", FunctionDef("request_roadside_assistance", "Request roadside assistance or breakdown service", buildJsonObject { put("type", "object") })),
-                Tool("function", FunctionDef("emergency_call", "Initiate an emergency call (e.g., 112)", buildJsonObject { put("type", "object") })),
-                Tool("function", FunctionDef("navigate_to", "Navigate to a specific destination", buildJsonObject {
-                    put("type", "object")
-                    put("properties", buildJsonObject {
-                        put("destination", buildJsonObject {
-                            put("type", "string")
-                            put("description", "The destination address or place name")
-                        })
-                    })
-                    put("required", Json.parseToJsonElement("[\"destination\"]"))
-                }))
+                
             )
         } else null
 
@@ -257,15 +216,6 @@ class OpenAIAgent(
             val target = try {
                 val args = json.parseToJsonElement(tc.function.arguments).jsonObject
                 when (tc.function.name) {
-                    "call_contact" -> args["number"]?.toString()?.removeSurrounding("\"")
-                    "navigate_to" -> args["destination"]?.toString()?.removeSurrounding("\"")
-                    "get_weather" -> {
-                        when (val loc = args["location"]) {
-                            null, is JsonNull -> null
-                            is JsonPrimitive -> loc.content.trim().takeIf { it.isNotBlank() }
-                            else -> null
-                        }
-                    }
                     "play_music" -> args["query"]?.toString()?.removeSurrounding("\"")
                     else -> null
                 }
