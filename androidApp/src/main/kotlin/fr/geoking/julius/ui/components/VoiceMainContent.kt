@@ -48,7 +48,8 @@ fun VoiceMainContent(
     onOpenAgentSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val displayText by store.displayText.collectAsState(initial = "")
+    // Main phone UI should not "type" live transcripts while listening.
+    val displayText by store.displayTextNoTranscript.collectAsState(initial = "")
 
     Box(
         modifier = modifier

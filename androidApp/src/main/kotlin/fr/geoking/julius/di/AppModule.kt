@@ -440,7 +440,6 @@ val appModule = module {
         BorderCrossingManager(
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
             networkService = get(),
-            conversationStore = get(),
             notificationManager = get()
         )
     }

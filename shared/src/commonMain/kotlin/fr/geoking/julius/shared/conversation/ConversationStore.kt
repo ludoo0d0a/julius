@@ -99,6 +99,11 @@ open class ConversationStore(
         }
     }.stateIn(scope, SharingStarted.Eagerly, "Hi, how can I help you")
 
+    /** UI-friendly text that never shows live transcript (prevents "typing" effect when listening). */
+    val displayTextNoTranscript: StateFlow<String> = combine(_state, _userName, _preferredSpeechLanguageTag) { s, name, lang ->
+        s.messages.lastOrNull()?.text ?: getGreeting(name, lang)
+    }.stateIn(scope, SharingStarted.Eagerly, "Hi, how can I help you")
+
     private fun getGreeting(name: String?, lang: String?): String {
         val baseLang = lang?.take(2)?.lowercase()
         return when (baseLang) {
