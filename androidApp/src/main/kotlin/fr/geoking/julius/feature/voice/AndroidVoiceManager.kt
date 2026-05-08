@@ -33,6 +33,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.SpeakingInterruptMode
 import fr.geoking.julius.shared.logging.DebugLogStore
+import fr.geoking.julius.shared.platform.PermissionManager
 import fr.geoking.julius.shared.voice.VoiceEvent
 import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.shared.voice.TranscriptionResult
@@ -56,6 +57,7 @@ import java.util.Locale
 class AndroidVoiceManager(
     private val context: Context,
     private val settingsManager: SettingsManager,
+    private val permissionManager: PermissionManager,
     private val localTranscriber: fr.geoking.julius.shared.voice.LocalTranscriber? = null
 ) : VoiceManager, RecognitionListener, TextToSpeech.OnInitListener {
 
@@ -324,24 +326,43 @@ class AndroidVoiceManager(
         Log.d(TAG, "mic on: startListening(continuous=$continuous)")
         DebugLogStore.addActionLog("Voice", "startListening(continuous=$continuous)")
         isContinuousMode = continuous
-        requestAudioFocus()
-        val currentCarContext = carContext
 
-        val useLocal = settingsManager.settings.value.sttEnginePreference != fr.geoking.julius.shared.voice.SttEnginePreference.NativeOnly
-                && localTranscriber?.isAvailable() == true
+        // Request mic permission on-demand (Play Store builds won't auto-request on startup).
+        scope.launch(Dispatchers.Main) {
+            val granted = try {
+                permissionManager.requestPermission(Manifest.permission.RECORD_AUDIO)
+            } catch (t: Throwable) {
+                false
+            }
+            if (!granted) {
+                Log.e(TAG, "RECORD_AUDIO permission not granted")
+                DebugLogStore.addActionLog("Voice", "Permission denied: RECORD_AUDIO (requested)")
+                _events.value = VoiceEvent.Silence
+                player.notifyStateChanged()
+                abandonAudioFocus()
+                return@launch
+            }
 
-        // Use the car's microphone whenever a car context is available and the setting is enabled.
-        if (currentCarContext != null && settingsManager.settings.value.useCarMic) {
-            if (useLocal) {
-                startCarListening(currentCarContext)
+            requestAudioFocus()
+            val currentCarContext = carContext
+
+            val useLocal =
+                settingsManager.settings.value.sttEnginePreference != fr.geoking.julius.shared.voice.SttEnginePreference.NativeOnly &&
+                    localTranscriber?.isAvailable() == true
+
+            // Use the car's microphone whenever a car context is available and the setting is enabled.
+            if (currentCarContext != null && settingsManager.settings.value.useCarMic) {
+                if (useLocal) {
+                    startCarListening(currentCarContext)
+                } else {
+                    // Fallback to native
+                    startListeningInternal(stopOutputs = true, bargeIn = false)
+                }
+            } else if (useLocal) {
+                startPhoneRecording()
             } else {
-                // Fallback to native (which might not work well on car without special car-context handling in SpeechRecognizer, but it's what we have)
                 startListeningInternal(stopOutputs = true, bargeIn = false)
             }
-        } else if (useLocal) {
-            startPhoneRecording()
-        } else {
-            startListeningInternal(stopOutputs = true, bargeIn = false)
         }
     }
 

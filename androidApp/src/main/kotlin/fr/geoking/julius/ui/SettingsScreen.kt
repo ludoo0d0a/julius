@@ -41,6 +41,7 @@ import fr.geoking.julius.feature.auth.GoogleAuthManager
 import fr.geoking.julius.*
 import fr.geoking.julius.agents.LlamatikModelHelper
 import fr.geoking.julius.agents.LlamatikModelVariant
+import fr.geoking.julius.shared.voice.SttEnginePreference
 
 enum class SettingsScreenPage { Main, Agents, AgentDetails }
 
@@ -117,6 +118,7 @@ fun SettingsScreen(
             when (currentPage) {
                 SettingsScreenPage.Main -> MainSettingsPage(
                     settings = settings,
+                    settingsManager = settingsManager,
                     authManager = authManager,
                     onNavigateToAgents = {
                         navigationStack.add(SettingsScreenPage.Agents)
@@ -152,6 +154,7 @@ fun SettingsScreen(
 @Composable
 fun MainSettingsPage(
     settings: AppSettings,
+    settingsManager: SettingsManager,
     authManager: GoogleAuthManager,
     onNavigateToAgents: () -> Unit,
 ) {
@@ -255,6 +258,56 @@ fun MainSettingsPage(
                 subtitle = "Manage AI providers and on-device models",
                 onClick = { onNavigateToAgents() }
             )
+        }
+        item {
+            SettingsHeader("Speech-to-text")
+            Text(
+                "Choose which engine is used to transcribe your speech when you tap Speak.",
+                color = Color.Gray,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp)
+            )
+
+            val current = settingsManager.settings.value
+            val selected = current.sttEnginePreference
+
+            fun setPref(p: SttEnginePreference) {
+                settingsManager.saveSettings(current.copy(sttEnginePreference = p))
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { setPref(SttEnginePreference.LocalOnly) }
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                RadioButton(
+                    selected = selected == SttEnginePreference.LocalOnly,
+                    onClick = { setPref(SttEnginePreference.LocalOnly) }
+                )
+                Column(Modifier.padding(start = 8.dp)) {
+                    Text("Vosk", fontWeight = FontWeight.SemiBold)
+                    Text("Offline/local recognition (recommended)", color = Color.Gray, fontSize = 12.sp)
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { setPref(SttEnginePreference.NativeOnly) }
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                RadioButton(
+                    selected = selected == SttEnginePreference.NativeOnly,
+                    onClick = { setPref(SttEnginePreference.NativeOnly) }
+                )
+                Column(Modifier.padding(start = 8.dp)) {
+                    Text("Native", fontWeight = FontWeight.SemiBold)
+                    Text("Android SpeechRecognizer / cloud (if available)", color = Color.Gray, fontSize = 12.sp)
+                }
+            }
         }
     }
 }

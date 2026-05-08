@@ -38,3 +38,6 @@ julius-app.keystore.base64.txt
 # Firebase config (must be provided locally per developer / CI secret)
 androidApp/google-services.json
 androidApp/src/*/google-services.json
+
+# Service account credentials (never commit)
+androidApp/sa-julius.json
