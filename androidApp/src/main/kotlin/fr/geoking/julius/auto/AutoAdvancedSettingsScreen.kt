@@ -70,20 +70,6 @@ class AutoAdvancedSettingsScreen(
 
         listBuilder.addItem(
             Row.Builder()
-                .setTitle("Hands-free Wake Word")
-                .addText("Say 'Julius' to start")
-                .setToggle(
-                    Toggle.Builder { checked ->
-                        val current = settingsManager.settings.value
-                        settingsManager.saveSettings(current.copy(wakeWordEnabled = checked))
-                        invalidate()
-                    }.setChecked(settings.wakeWordEnabled).build()
-                )
-                .build()
-        )
-
-        listBuilder.addItem(
-            Row.Builder()
                 .setTitle("Interrupt while speaking")
                 .addText(autoSpeakingInterruptSummary(settings.speakingInterruptMode))
                 .setOnClickListener {

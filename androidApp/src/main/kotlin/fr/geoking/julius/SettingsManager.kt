@@ -149,7 +149,6 @@ data class AppSettings(
     val fractalQuality: FractalQuality = FractalQuality.Medium,
     val fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium,
     val extendedActionsEnabled: Boolean = true,
-    val wakeWordEnabled: Boolean = false,
     /** Mic during assistant speech: off, wake phrase only, or any speech (see migration from legacy boolean). */
     val speakingInterruptMode: SpeakingInterruptMode = SpeakingInterruptMode.ANY_SPEECH,
     val useCarMic: Boolean = false,
@@ -313,7 +312,6 @@ open class SettingsManager(
                 FractalColorIntensity.Medium
             },
             extendedActionsEnabled = prefs.getBoolean("extended_actions_enabled", true),
-            wakeWordEnabled = prefs.getBoolean("wake_word_enabled", false),
             speakingInterruptMode = speakingInterruptMode,
             useCarMic = prefs.getBoolean("use_car_mic", false),
             muteMediaOnCar = prefs.getBoolean("mute_media_on_car", false),
@@ -493,7 +491,6 @@ open class SettingsManager(
             .putString("fractal_quality", settings.fractalQuality.name)
             .putString("fractal_color_intensity", settings.fractalColorIntensity.name)
             .putBoolean("extended_actions_enabled", settings.extendedActionsEnabled)
-            .putBoolean("wake_word_enabled", settings.wakeWordEnabled)
             .putString("speaking_interrupt_mode", settings.speakingInterruptMode.name)
             .remove("hey_julius_during_speaking_enabled")
             .putBoolean("use_car_mic", settings.useCarMic)
@@ -507,6 +504,7 @@ open class SettingsManager(
             .putString("google_user_name", settings.googleUserName)
             .putBoolean("is_logged_in", settings.isLoggedIn)
             .apply { settings.lastCountryCode?.let { putString("last_country_code", it) } ?: remove("last_country_code") }
+            .remove("wake_word_enabled")
             .apply()
 
         // Update StateFlow immediately with the new values to ensure UI and agent switching update right away
@@ -544,7 +542,6 @@ open class SettingsManager(
         fractalQuality: FractalQuality = FractalQuality.Medium,
         fractalColorIntensity: FractalColorIntensity = FractalColorIntensity.Medium,
         extendedActionsEnabled: Boolean = true,
-        wakeWordEnabled: Boolean = false,
         speakingInterruptMode: SpeakingInterruptMode = _settings.value.speakingInterruptMode,
         useCarMic: Boolean = false,
         muteMediaOnCar: Boolean = false,
@@ -583,7 +580,6 @@ open class SettingsManager(
             fractalQuality = fractalQuality,
             fractalColorIntensity = fractalColorIntensity,
             extendedActionsEnabled = extendedActionsEnabled,
-            wakeWordEnabled = wakeWordEnabled,
             speakingInterruptMode = speakingInterruptMode,
             useCarMic = useCarMic,
             muteMediaOnCar = muteMediaOnCar,

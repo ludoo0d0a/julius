@@ -12,7 +12,6 @@ import fr.geoking.julius.shared.platform.PlatformNotificationManager
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.AgentType
 import fr.geoking.julius.agents.*
-import fr.geoking.julius.shared.location.BorderCrossingManager
 import fr.geoking.julius.shared.conversation.ConversationStore
 import fr.geoking.julius.shared.voice.LocalTranscriber
 import fr.geoking.julius.shared.network.NetworkService
@@ -435,14 +434,6 @@ val appModule = module {
     single<JulesDao> { get<AppDatabase>().julesDao() }
 
     single { JulesRepository(androidContext(), get(), get(), get(), get(), get()) }
-
-    single<BorderCrossingManager> {
-        BorderCrossingManager(
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
-            networkService = get(),
-            notificationManager = get()
-        )
-    }
 
     single<ConversationStore> {
         val settingsManager = get<SettingsManager>()

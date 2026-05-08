@@ -66,7 +66,6 @@ class AndroidVoiceManager(
     private var isRecording = false
     private var phoneRecordingJob: Job? = null
     private var carRecordingJob: Job? = null
-    private var wakeWordDetectionJob: Job? = null
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
@@ -78,11 +77,6 @@ class AndroidVoiceManager(
 
     companion object {
         private const val TAG = "Julius/Voice"
-        private const val BARGE_IN_RESTART_DELAY_MS = 250L
-        /** Delay before starting barge-in STT so playback transients / initial echo are less likely to trigger recognition. */
-        private const val BARGE_IN_START_DELAY_MS = 300L
-        /** Keep "continuous" mode truly continuous when SpeechRecognizer times out. */
-        private const val CONTINUOUS_LISTEN_RESTART_DELAY_MS = 200L
         /** Car mic capture runs until [stopListening] or this cap (no VAD); avoids an infinite read loop on AA. */
         private const val MAX_CAR_RECORDING_MS = 30_000L
         private const val RMS_LOG_INTERVAL = 20
@@ -106,15 +100,6 @@ class AndroidVoiceManager(
     private var currentLanguageTag: String? = null
     private var pendingLanguageTag: String? = null
     private var isRecognizerActive: Boolean = false
-    private var isContinuousMode: Boolean = false
-    private var isBargeInActive: Boolean = false
-    private var isHeyJuliusKeywordBargeIn: Boolean = false
-    private var heyJuliusActivationInProgress: Boolean = false
-    private var bargeInRestartScheduled: Boolean = false
-    private var delayedBargeInRunnable: Runnable? = null
-    private var continuousListenRestartScheduled: Boolean = false
-    /** Whether the current TTS utterance may use barge-in (set in [speak], read in utterance onStart). */
-    private var speakInterruptibleForCurrentUtterance: Boolean = true
     private var rmsCallCount: Int = 0
     private var bufferCallCount: Int = 0
     private var transcriber: (suspend (ByteArray) -> TranscriptionResult?)? = null
@@ -126,7 +111,8 @@ class AndroidVoiceManager(
 
         override fun getState(): State {
             val playbackState = when (_events.value) {
-                VoiceEvent.Listening, VoiceEvent.PassiveListening, VoiceEvent.Speaking, VoiceEvent.Processing -> STATE_READY
+                VoiceEvent.Listening, VoiceEvent.Speaking, VoiceEvent.Processing -> STATE_READY
+                VoiceEvent.PassiveListening -> STATE_READY
                 VoiceEvent.Silence -> STATE_IDLE
             }
             val playWhenReady = _events.value != VoiceEvent.Silence
@@ -148,7 +134,7 @@ class AndroidVoiceManager(
                                     .setTitle("Julius")
                                     .setArtist(when (_events.value) {
                                         VoiceEvent.Listening -> "Listening..."
-                                        VoiceEvent.PassiveListening -> "Waiting for keyword..."
+                                        VoiceEvent.PassiveListening -> "Listening..."
                                         VoiceEvent.Speaking -> "Speaking..."
                                         VoiceEvent.Processing -> "Thinking..."
                                         VoiceEvent.Silence -> "Idle"
@@ -165,7 +151,7 @@ class AndroidVoiceManager(
 
         override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {
             if (playWhenReady) {
-                startListening(continuous = true)
+                startListening(continuous = false)
             } else {
                 stopSpeaking()
                 stopListening()
@@ -246,7 +232,6 @@ class AndroidVoiceManager(
     }
 
     init {
-        observeSettings()
         // Defer TTS and MediaPlayer creation off the main thread to avoid ANR.
         // TextToSpeech constructor can block for several seconds on first use.
         scope.launch(Dispatchers.IO) {
@@ -268,22 +253,14 @@ class AndroidVoiceManager(
                             _events.value = VoiceEvent.Speaking
                             player.notifyStateChanged()
                         }
-                        if (speakInterruptibleForCurrentUtterance) {
-                            scheduleDelayedBargeInStart()
-                        }
                     }
 
                     override fun onDone(utteranceId: String?) {
                         mainHandler.post {
-                            cancelDelayedBargeInStart()
                             if (_events.value == VoiceEvent.Speaking) {
                                 _events.value = VoiceEvent.Silence
                                 player.notifyStateChanged()
                                 abandonAudioFocus()
-                            }
-                            stopBargeInListening()
-                            if (isContinuousMode) {
-                                startListening(continuous = true)
                             }
                         }
                     }
@@ -298,15 +275,10 @@ class AndroidVoiceManager(
                 })
                 mediaPlayer = newMediaPlayer
                 mediaPlayer?.setOnCompletionListener {
-                    cancelDelayedBargeInStart()
                     if (_events.value == VoiceEvent.Speaking) {
                         _events.value = VoiceEvent.Silence
                         player.notifyStateChanged()
                         abandonAudioFocus()
-                    }
-                    stopBargeInListening()
-                    if (isContinuousMode) {
-                        startListening(continuous = true)
                     }
                 }
             }
@@ -325,7 +297,6 @@ class AndroidVoiceManager(
     override fun startListening(continuous: Boolean) {
         Log.d(TAG, "mic on: startListening(continuous=$continuous)")
         DebugLogStore.addActionLog("Voice", "startListening(continuous=$continuous)")
-        isContinuousMode = continuous
 
         // Request mic permission on-demand (Play Store builds won't auto-request on startup).
         scope.launch(Dispatchers.Main) {
@@ -356,12 +327,12 @@ class AndroidVoiceManager(
                     startCarListening(currentCarContext)
                 } else {
                     // Fallback to native
-                    startListeningInternal(stopOutputs = true, bargeIn = false)
+                    startListeningInternal(stopOutputs = true)
                 }
             } else if (useLocal) {
                 startPhoneRecording()
             } else {
-                startListeningInternal(stopOutputs = true, bargeIn = false)
+                startListeningInternal(stopOutputs = true)
             }
         }
     }
@@ -568,9 +539,7 @@ class AndroidVoiceManager(
             } else {
                 _events.value = VoiceEvent.Silence
                 player.notifyStateChanged()
-                if (isContinuousMode) {
-                    scheduleContinuousListeningRestart(reason = "processAudioData(empty)")
-                }
+                abandonAudioFocus()
             }
         }
     }
@@ -581,7 +550,6 @@ class AndroidVoiceManager(
 
     override fun stopListening() {
         Log.d(TAG, "mic off: stopListening()")
-        isContinuousMode = false
         if (isRecording) {
             isRecording = false
             phoneRecordingJob?.cancel()
@@ -598,54 +566,16 @@ class AndroidVoiceManager(
         }
     }
 
-    private fun scheduleDelayedBargeInStart() {
-        cancelDelayedBargeInStart()
-        val r = Runnable {
-            delayedBargeInRunnable = null
-            startBargeInWhileSpeakingIfNeeded()
-        }
-        delayedBargeInRunnable = r
-        mainHandler.postDelayed(r, BARGE_IN_START_DELAY_MS)
-    }
-
-    private fun cancelDelayedBargeInStart() {
-        delayedBargeInRunnable?.let { mainHandler.removeCallbacks(it) }
-        delayedBargeInRunnable = null
-    }
-
-    private fun cancelActiveRecognitionForSpeechOutput() {
-        cancelDelayedBargeInStart()
-        isBargeInActive = false
-        bargeInRestartScheduled = false
-        if (isRecording) {
-            isRecording = false
-        }
-        if (isRecognizerActive) {
-            isRecognizerActive = false
-            mainHandler.post { speechRecognizer?.cancel() }
-        }
-    }
-
     override fun speak(text: String, languageTag: String?, isInterruptible: Boolean) {
-        // With interrupt mode OFF, cancel recognition so TTS is not cut by leftover STT.
-        if (settingsManager.settings.value.speakingInterruptMode == SpeakingInterruptMode.OFF || !isInterruptible) {
-            cancelActiveRecognitionForSpeechOutput()
-        }
+        // Basic/simple: no barge-in or wake-word while speaking.
         requestAudioFocus()
         _events.value = VoiceEvent.Speaking
         player.notifyStateChanged()
         updateTtsLanguage(languageTag)
-        speakInterruptibleForCurrentUtterance =
-            isInterruptible &&
-                settingsManager.settings.value.speakingInterruptMode != SpeakingInterruptMode.OFF
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "voice_ai_utterance")
     }
 
     override fun playAudio(bytes: ByteArray) {
-        // Same rationale as speak().
-        if (settingsManager.settings.value.speakingInterruptMode == SpeakingInterruptMode.OFF) {
-            cancelActiveRecognitionForSpeechOutput()
-        }
         requestAudioFocus()
         _events.value = VoiceEvent.Speaking
         player.notifyStateChanged()
@@ -664,14 +594,9 @@ class AndroidVoiceManager(
             e.printStackTrace()
             _events.value = VoiceEvent.Silence // Reset on error
         }
-        if (settingsManager.settings.value.speakingInterruptMode != SpeakingInterruptMode.OFF) {
-            scheduleDelayedBargeInStart()
-        }
     }
 
     override fun stopSpeaking() {
-        cancelDelayedBargeInStart()
-        isContinuousMode = false
         tts?.stop()
         try {
             if (mediaPlayer?.isPlaying == true) {
@@ -680,7 +605,6 @@ class AndroidVoiceManager(
         } catch (e: IllegalStateException) {
             e.printStackTrace()
         }
-        stopBargeInListening()
         _events.value = VoiceEvent.Silence
         player.notifyStateChanged()
         abandonAudioFocus()
@@ -726,9 +650,9 @@ class AndroidVoiceManager(
         }
     }
 
-    private fun startListeningInternal(stopOutputs: Boolean, bargeIn: Boolean) {
+    private fun startListeningInternal(stopOutputs: Boolean) {
         val intent = buildRecognizerIntent()
-        android.util.Log.d(TAG, "startListeningInternal stopOutputs=$stopOutputs bargeIn=$bargeIn")
+        android.util.Log.d(TAG, "startListeningInternal stopOutputs=$stopOutputs")
         mainHandler.post {
             val recognizer = getOrCreateRecognizer() ?: run {
                 android.util.Log.e(TAG, "getOrCreateRecognizer() returned null, cannot start")
@@ -749,198 +673,17 @@ class AndroidVoiceManager(
                 recognizer.cancel()
             }
             isRecognizerActive = true
-            isBargeInActive = bargeIn
-            bargeInRestartScheduled = false
             rmsCallCount = 0
             bufferCallCount = 0
 
-            // Don't clear transcript/partial text when running the hidden barge-in recognizer
-            // (it would wipe the UI while Julius is speaking).
-            if (!bargeIn) {
-                _partialText.value = ""
-                _transcribedText.value = ""
-            }
+            _partialText.value = ""
+            _transcribedText.value = ""
 
             android.util.Log.d(TAG, "SpeechRecognizer.startListening() called")
             recognizer.startListening(intent)
-            if (!bargeIn) {
-                _events.value = VoiceEvent.Listening
-                player.notifyStateChanged()
-            }
+            _events.value = VoiceEvent.Listening
+            player.notifyStateChanged()
         }
-    }
-
-    private fun scheduleContinuousListeningRestart(reason: String) {
-        if (!isContinuousMode) return
-        if (isBargeInActive) return
-        if (continuousListenRestartScheduled) return
-        continuousListenRestartScheduled = true
-        android.util.Log.d(TAG, "scheduleContinuousListeningRestart: $reason")
-        mainHandler.postDelayed(
-            {
-                continuousListenRestartScheduled = false
-                if (!isContinuousMode) return@postDelayed
-                if (isBargeInActive) return@postDelayed
-                if (isRecording) return@postDelayed
-                if (_events.value == VoiceEvent.Speaking || _events.value == VoiceEvent.Processing) return@postDelayed
-                startListeningInternal(stopOutputs = false, bargeIn = false)
-            },
-            CONTINUOUS_LISTEN_RESTART_DELAY_MS
-        )
-    }
-
-    private fun startBargeInListening() {
-        startListeningInternal(stopOutputs = false, bargeIn = true)
-    }
-
-    private fun stopBargeInListening() {
-        if (!isBargeInActive) return
-        isBargeInActive = false
-        isHeyJuliusKeywordBargeIn = false
-        heyJuliusActivationInProgress = false
-        if (isRecognizerActive) {
-            speechRecognizer?.cancel()
-            isRecognizerActive = false
-        }
-    }
-
-    private fun startBargeInWhileSpeakingIfNeeded() {
-        when (settingsManager.settings.value.speakingInterruptMode) {
-            SpeakingInterruptMode.OFF -> return
-            SpeakingInterruptMode.WAKE_WORD, SpeakingInterruptMode.ANY_SPEECH -> Unit
-        }
-        if (_events.value != VoiceEvent.Speaking) return
-        if (isRecording) return
-        if (heyJuliusActivationInProgress) return
-        if (isRecognizerActive && isBargeInActive) return
-
-        isHeyJuliusKeywordBargeIn =
-            settingsManager.settings.value.speakingInterruptMode == SpeakingInterruptMode.WAKE_WORD
-        startBargeInListening()
-    }
-
-    private fun normalizeForKeyword(text: String): String {
-        // Keep letters/numbers/spaces only, collapse whitespace, lowercase.
-        val cleaned = buildString(text.length) {
-            for (c in text) {
-                if (c.isLetterOrDigit() || c.isWhitespace()) append(c) else append(' ')
-            }
-        }
-        return cleaned
-            .lowercase(java.util.Locale.ROOT)
-            .trim()
-            .replace(Regex("\\s+"), " ")
-    }
-
-    private fun isHeyJulius(text: String): Boolean {
-        val n = normalizeForKeyword(text)
-        // Supports: "hey julius", "dis julius", "ok julius"
-        return Regex("\\b(hey|dis|ok)\\s+julius\\b").containsMatchIn(n)
-    }
-
-    private fun isStopKeyword(text: String): Boolean {
-        val n = normalizeForKeyword(text)
-        // Supports: "stop", "arrête", "arrete"
-        return Regex("\\b(stop|arrête|arrete)\\b").containsMatchIn(n)
-    }
-
-    private fun activateStopKeyword() {
-        cancelDelayedBargeInStart()
-        isContinuousMode = false
-        android.util.Log.d(TAG, "\"stop\" detected: stop outputs + cancel recognition")
-        tts?.stop()
-        try {
-            if (mediaPlayer?.isPlaying == true) {
-                mediaPlayer?.stop()
-            }
-        } catch (e: IllegalStateException) {
-            e.printStackTrace()
-        }
-
-        stopBargeInListening()
-        if (isRecording) {
-            isRecording = false
-        }
-        if (isRecognizerActive) {
-            mainHandler.post { speechRecognizer?.cancel() }
-            isRecognizerActive = false
-        }
-
-        _partialText.value = ""
-        _transcribedText.value = ""
-        _events.value = VoiceEvent.Silence
-        player.notifyStateChanged()
-        abandonAudioFocus()
-    }
-
-    private fun activateHeyJulius() {
-        if (heyJuliusActivationInProgress) return
-        cancelDelayedBargeInStart()
-        heyJuliusActivationInProgress = true
-        android.util.Log.d(TAG, "Hey Julius detected: interrupt + startListening")
-
-        // Stop audio output, but keep audio focus so we can immediately listen.
-        if (_events.value == VoiceEvent.Speaking) {
-            tts?.stop()
-            try {
-                if (mediaPlayer?.isPlaying == true) {
-                    mediaPlayer?.stop()
-                }
-            } catch (e: IllegalStateException) {
-                e.printStackTrace()
-            }
-        }
-
-        // Cancel barge-in recognizer and restart normal listening shortly after.
-        isHeyJuliusKeywordBargeIn = false
-        if (isRecognizerActive) {
-            mainHandler.post { speechRecognizer?.cancel() }
-            isRecognizerActive = false
-        }
-        isBargeInActive = false
-
-        mainHandler.postDelayed(
-            {
-                heyJuliusActivationInProgress = false
-                startListening(continuous = true)
-            },
-            BARGE_IN_RESTART_DELAY_MS
-        )
-    }
-
-    private fun observeSettings() {
-        scope.launch(Dispatchers.Main) {
-            settingsManager.settings.collect { settings ->
-                if (settings.wakeWordEnabled) {
-                    startWakeWordDetection()
-                } else {
-                    stopWakeWordDetection()
-                }
-            }
-        }
-    }
-
-    private fun startWakeWordDetection() {
-        if (wakeWordDetectionJob != null) return
-        android.util.Log.d(TAG, "Starting wake word detection")
-        wakeWordDetectionJob = scope.launch(Dispatchers.Main) {
-            while (isActive) {
-                if (_events.value == VoiceEvent.Silence && !isRecording && !isRecognizerActive && !isBargeInActive) {
-                    android.util.Log.d(TAG, "Idle: starting passive listening for wake word")
-                    isHeyJuliusKeywordBargeIn = true
-                    startListeningInternal(stopOutputs = false, bargeIn = true)
-                    _events.value = VoiceEvent.PassiveListening
-                    player.notifyStateChanged()
-                }
-                kotlinx.coroutines.delay(1000)
-            }
-        }
-    }
-
-    private fun stopWakeWordDetection() {
-        android.util.Log.d(TAG, "Stopping wake word detection")
-        wakeWordDetectionJob?.cancel()
-        wakeWordDetectionJob = null
     }
 
     private fun requestAudioFocus() {
@@ -972,19 +715,6 @@ class AndroidVoiceManager(
         }
     }
 
-    private fun scheduleBargeInRestart() {
-        if (bargeInRestartScheduled) return
-        bargeInRestartScheduled = true
-        mainHandler.postDelayed({
-            bargeInRestartScheduled = false
-            if (_events.value == VoiceEvent.Speaking || (_events.value == VoiceEvent.PassiveListening && settingsManager.settings.value.wakeWordEnabled)) {
-                startBargeInListening()
-            } else {
-                isBargeInActive = false
-            }
-        }, BARGE_IN_RESTART_DELAY_MS)
-    }
-
     private fun getOrCreateRecognizer(): android.speech.SpeechRecognizer? {
         if (speechRecognizer == null) {
             speechRecognizer = android.speech.SpeechRecognizer.createSpeechRecognizer(context)
@@ -1005,64 +735,29 @@ class AndroidVoiceManager(
 
     private fun finalizeListening(text: String = "") {
         isRecognizerActive = false
-        isBargeInActive = false
         val finalResult = text.trim()
         if (finalResult.isBlank()) {
-            // In continuous mode, keep listening even when the recognizer returns nothing.
-            if (isContinuousMode) {
-                _events.value = VoiceEvent.Listening
-                player.notifyStateChanged()
-                scheduleContinuousListeningRestart(reason = "finalizeListening(empty)")
-                return
-            }
-            isContinuousMode = false
+            _events.value = VoiceEvent.Silence
+            player.notifyStateChanged()
+            abandonAudioFocus()
+            return
         }
         android.util.Log.d(TAG, "finalizeListening: finalResult=\"$finalResult\"")
 
         _partialText.value = ""
-
-        if (finalResult.isNotBlank()) {
-            // Signal processing if we have text
-            _events.value = VoiceEvent.Processing
-            player.notifyStateChanged()
-            // Setting this triggers ConversationStore.onUserFinishedSpeaking
-            _transcribedText.value = finalResult
-        } else {
-            if (_events.value != VoiceEvent.Silence) {
-                _events.value = VoiceEvent.Silence
-                player.notifyStateChanged()
-                abandonAudioFocus()
-            }
-        }
+        _transcribedText.value = finalResult
+        _events.value = VoiceEvent.Silence
+        player.notifyStateChanged()
+        abandonAudioFocus()
     }
 
     // RecognitionListener
     override fun onReadyForSpeech(params: android.os.Bundle?) {
         android.util.Log.d(TAG, "onReadyForSpeech: mic ready, listening for speech")
-        // Keep Speaking or PassiveListening state when listening for barge-in
-        if (isBargeInActive && (_events.value == VoiceEvent.Speaking || _events.value == VoiceEvent.PassiveListening)) {
-            // Keep current state
-        } else {
-            _events.value = VoiceEvent.Listening
-            player.notifyStateChanged()
-        }
+        _events.value = VoiceEvent.Listening
+        player.notifyStateChanged()
     }
     override fun onBeginningOfSpeech() {
-        if (_events.value == VoiceEvent.Speaking) {
-            // Stop outputs immediately when speech starts, regardless of barge-in mode, to let the user lead.
-            tts?.stop()
-            try {
-                if (mediaPlayer?.isPlaying == true) {
-                    mediaPlayer?.stop()
-                }
-            } catch (e: IllegalStateException) {
-                e.printStackTrace()
-            }
-        }
-        // Transition out of hidden barge-in/keyword modes as we are now actively listening to user input.
-        isBargeInActive = false
-        isHeyJuliusKeywordBargeIn = false
-
         _events.value = VoiceEvent.Listening
         player.notifyStateChanged()
         android.util.Log.d(TAG, "onBeginningOfSpeech: speech detected")
@@ -1082,10 +777,8 @@ class AndroidVoiceManager(
     }
     override fun onEndOfSpeech() {
         android.util.Log.d(TAG, "onEndOfSpeech: waiting for final result")
-        if (!(isBargeInActive && _events.value == VoiceEvent.Speaking)) {
-            _events.value = VoiceEvent.Processing
-            player.notifyStateChanged()
-        }
+        _events.value = VoiceEvent.Processing
+        player.notifyStateChanged()
     }
     override fun onError(error: Int) {
         val errorStr = when (error) {
@@ -1103,25 +796,6 @@ class AndroidVoiceManager(
         android.util.Log.w(TAG, "onError: code=$error $errorStr")
         isRecognizerActive = false
 
-        if (isBargeInActive && (_events.value == VoiceEvent.Speaking || _events.value == VoiceEvent.PassiveListening)) {
-            scheduleBargeInRestart()
-            return
-        }
-
-        isBargeInActive = false
-
-        // In continuous mode, SpeechRecognizer can frequently return NO_MATCH / SPEECH_TIMEOUT between utterances.
-        // Instead of dropping back to Silence, immediately restart listening to match user expectations.
-        if (isContinuousMode &&
-            error != android.speech.SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS &&
-            (error == android.speech.SpeechRecognizer.ERROR_NO_MATCH || error == android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT)
-        ) {
-            _events.value = VoiceEvent.Listening
-            player.notifyStateChanged()
-            scheduleContinuousListeningRestart(reason = "onError($errorStr)")
-            return
-        }
-
         finalizeListening()
     }
     override fun onResults(results: android.os.Bundle?) {
@@ -1131,40 +805,6 @@ class AndroidVoiceManager(
         val text = matches?.firstOrNull() ?: ""
         android.util.Log.d(TAG, "onResults: \"$text\"")
 
-        if (isBargeInActive && (_events.value == VoiceEvent.Speaking || _events.value == VoiceEvent.PassiveListening)) {
-            if (isHeyJuliusKeywordBargeIn && text.isNotBlank() && isHeyJulius(text)) {
-                activateHeyJulius()
-                return
-            }
-            if (isHeyJuliusKeywordBargeIn && text.isNotBlank() && isStopKeyword(text)) {
-                activateStopKeyword()
-                return
-            }
-
-            // Keyword-only mode or passive listening: ignore non-keyword speech while Julius is speaking or idle
-            if (isHeyJuliusKeywordBargeIn) {
-                scheduleBargeInRestart()
-                return
-            }
-
-            if (_events.value == VoiceEvent.Speaking && text.isNotBlank()) {
-                // If we detected speech during normal barge-in, stop TTS and process it
-                tts?.stop()
-                try {
-                    if (mediaPlayer?.isPlaying == true) {
-                        mediaPlayer?.stop()
-                    }
-                } catch (e: IllegalStateException) {
-                    e.printStackTrace()
-                }
-                isBargeInActive = false
-                finalizeListening(text)
-            } else {
-                scheduleBargeInRestart()
-            }
-            return
-        }
-
         finalizeListening(text)
     }
     override fun onPartialResults(partialResults: android.os.Bundle?) {
@@ -1173,20 +813,6 @@ class AndroidVoiceManager(
 
         if (text.isNotBlank()) {
             android.util.Log.d(TAG, "onPartialResults: partial=\"$text\"")
-
-            if (isBargeInActive && (_events.value == VoiceEvent.Speaking || _events.value == VoiceEvent.PassiveListening)) {
-                if (isHeyJuliusKeywordBargeIn) {
-                    if (isHeyJulius(text)) {
-                        activateHeyJulius()
-                    } else if (isStopKeyword(text)) {
-                        activateStopKeyword()
-                    }
-                    // Don't touch UI transcript while speaking/passive; barge-in is hidden.
-                    return
-                }
-                // ANY_SPEECH: do not stop playback on partials (reduces echo/loop); onBeginningOfSpeech + onResults handle interrupt.
-                return
-            }
 
             _partialText.value = text
         }

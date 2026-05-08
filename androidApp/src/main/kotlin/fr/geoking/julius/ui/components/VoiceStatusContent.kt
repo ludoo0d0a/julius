@@ -46,7 +46,7 @@ fun StatusChip(
     status: VoiceEvent,
     modifier: Modifier = Modifier
 ) {
-    val text = if (status == VoiceEvent.PassiveListening) "Wake Word" else status.name
+    val text = status.name
     Text(
         text = text,
         color = Color.White.copy(alpha = 0.6f),
@@ -144,16 +144,12 @@ fun VoiceStatusContent(
             )
         } else {
             // Main display text — larger, better line height, centered
-            val text = when {
-                status == VoiceEvent.PassiveListening -> "Dis 'Hey Julius'"
-                status == VoiceEvent.Silence && displayText.isBlank() -> "Dis 'Hey Julius'"
-                else -> displayText.ifEmpty { " " }
-            }
+            val text = displayText.ifEmpty { " " }
 
             AnimatedLetterText(
                 text = text,
                 animation = textAnimation,
-                color = if (status == VoiceEvent.PassiveListening || (status == VoiceEvent.Silence && displayText.isBlank())) Color.White.copy(alpha = 0.5f) else Color.White,
+                color = Color.White,
                 style = TextStyle(
                     fontSize = DisplayTextFontSize,
                     lineHeight = DisplayTextLineHeight,

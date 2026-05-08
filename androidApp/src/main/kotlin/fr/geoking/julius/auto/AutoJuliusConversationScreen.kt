@@ -55,7 +55,7 @@ class AutoJuliusConversationScreen(
                         .addText("Speaking…")
                         .build()
                 )
-            VoiceEvent.Listening, VoiceEvent.PassiveListening ->
+            VoiceEvent.Listening ->
                 listBuilder.addItem(
                     Row.Builder()
                         .setTitle("Listening")
@@ -63,6 +63,7 @@ class AutoJuliusConversationScreen(
                         .build()
                 )
             VoiceEvent.Silence -> Unit
+            VoiceEvent.PassiveListening -> Unit
         }
 
         state.currentTranscript.trim().takeIf { it.isNotEmpty() }?.let { draft ->
