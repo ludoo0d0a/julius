@@ -40,7 +40,7 @@ import fr.geoking.julius.ui.AgentSetupIssue
 private val AgentLabelFontSize = 11.sp
 private val StatusBadgeFontSize = 12.sp
 
-/** Reusable status pill (Silence, Listening, PassiveListening, Processing, Speaking). */
+/** Reusable status pill (Silence, Listening, Processing, Speaking). */
 @Composable
 fun StatusChip(
     status: VoiceEvent,

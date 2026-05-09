@@ -210,7 +210,7 @@ class AutoJulesConversationScreen(
                 .setTitle(carContext.getString(R.string.start_listening))
                 .setOnClickListener {
                     store.clearTranscript()
-                    store.startListening(continuous = false)
+                    store.startListening()
                 }
                 .build()
         }

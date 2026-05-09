@@ -4,7 +4,6 @@ import kotlinx.coroutines.flow.Flow
 
 enum class VoiceEvent {
     Listening,
-    PassiveListening,
     Processing,
     Silence,
     Speaking
@@ -15,7 +14,7 @@ interface VoiceManager {
     val transcribedText: Flow<String>
     val partialText: Flow<String>
 
-    fun startListening(continuous: Boolean = false)
+    fun startListening()
     fun stopListening()
     fun setTranscriber(transcriber: suspend (ByteArray) -> TranscriptionResult?)
     fun speak(text: String, languageTag: String? = null, isInterruptible: Boolean = true)

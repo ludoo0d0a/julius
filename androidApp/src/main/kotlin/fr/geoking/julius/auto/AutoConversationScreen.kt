@@ -94,7 +94,7 @@ class AutoConversationScreen(
         } else {
             Action.Builder()
                 .setTitle(carContext.getString(R.string.start_listening))
-                .setOnClickListener { store.startListening(continuous = true) }
+                .setOnClickListener { store.startListening() }
                 .build()
         }
 

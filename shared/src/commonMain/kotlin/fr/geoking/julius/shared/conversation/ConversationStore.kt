@@ -411,8 +411,8 @@ open class ConversationStore(
         }
     }
     
-    fun startListening(continuous: Boolean = false) {
-        voiceManager.startListening(continuous)
+    fun startListening() {
+        voiceManager.startListening()
     }
     
     fun stopListening() {

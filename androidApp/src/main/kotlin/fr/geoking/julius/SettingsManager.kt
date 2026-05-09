@@ -152,7 +152,6 @@ data class AppSettings(
     /** Mic during assistant speech: off, wake phrase only, or any speech (see migration from legacy boolean). */
     val speakingInterruptMode: SpeakingInterruptMode = SpeakingInterruptMode.ANY_SPEECH,
     val useCarMic: Boolean = false,
-    val muteMediaOnCar: Boolean = false,
     /** STT engine for car mic path: LocalOnly (Vosk only), LocalFirst (Vosk then agent), NativeOnly (agent only). */
     val sttEnginePreference: SttEnginePreference = SttEnginePreference.LocalFirst,
     val textAnimation: TextAnimation = TextAnimation.Fade,
@@ -314,7 +313,6 @@ open class SettingsManager(
             extendedActionsEnabled = prefs.getBoolean("extended_actions_enabled", true),
             speakingInterruptMode = speakingInterruptMode,
             useCarMic = prefs.getBoolean("use_car_mic", false),
-            muteMediaOnCar = prefs.getBoolean("mute_media_on_car", false),
             sttEnginePreference = try {
                 SttEnginePreference.valueOf(prefs.getString("stt_engine_preference", SttEnginePreference.LocalFirst.name) ?: SttEnginePreference.LocalFirst.name)
             } catch (e: IllegalArgumentException) {
@@ -494,7 +492,6 @@ open class SettingsManager(
             .putString("speaking_interrupt_mode", settings.speakingInterruptMode.name)
             .remove("hey_julius_during_speaking_enabled")
             .putBoolean("use_car_mic", settings.useCarMic)
-            .putBoolean("mute_media_on_car", settings.muteMediaOnCar)
             .putString("stt_engine_preference", settings.sttEnginePreference.name)
             .putString("text_animation", settings.textAnimation.name)
             .putString("llamatik_model_path", settings.llamatikModelPath)
@@ -505,6 +502,7 @@ open class SettingsManager(
             .putBoolean("is_logged_in", settings.isLoggedIn)
             .apply { settings.lastCountryCode?.let { putString("last_country_code", it) } ?: remove("last_country_code") }
             .remove("wake_word_enabled")
+            .remove("mute_media_on_car")
             .apply()
 
         // Update StateFlow immediately with the new values to ensure UI and agent switching update right away
@@ -544,7 +542,6 @@ open class SettingsManager(
         extendedActionsEnabled: Boolean = true,
         speakingInterruptMode: SpeakingInterruptMode = _settings.value.speakingInterruptMode,
         useCarMic: Boolean = false,
-        muteMediaOnCar: Boolean = false,
         sttEnginePreference: SttEnginePreference = _settings.value.sttEnginePreference,
         llamatikModelPath: String = _settings.value.llamatikModelPath,
         selectedLlamatikModelVariant: String = _settings.value.selectedLlamatikModelVariant
@@ -582,7 +579,6 @@ open class SettingsManager(
             extendedActionsEnabled = extendedActionsEnabled,
             speakingInterruptMode = speakingInterruptMode,
             useCarMic = useCarMic,
-            muteMediaOnCar = muteMediaOnCar,
             sttEnginePreference = sttEnginePreference,
             textAnimation = _settings.value.textAnimation,
             llamatikModelPath = llamatikModelPath,

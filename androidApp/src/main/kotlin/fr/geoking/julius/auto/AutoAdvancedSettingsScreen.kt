@@ -32,20 +32,6 @@ class AutoAdvancedSettingsScreen(
 
         listBuilder.addItem(
             Row.Builder()
-                .setTitle("Mute Media")
-                .addText("Pause other audio when Julius is active")
-                .setToggle(
-                    Toggle.Builder { checked ->
-                        val current = settingsManager.settings.value
-                        settingsManager.saveSettings(current.copy(muteMediaOnCar = checked))
-                        invalidate()
-                    }.setChecked(settings.muteMediaOnCar).build()
-                )
-                .build()
-        )
-
-        listBuilder.addItem(
-            Row.Builder()
                 .setTitle("Use Car Microphone")
                 .addText("Android Auto session only")
                 .setToggle(

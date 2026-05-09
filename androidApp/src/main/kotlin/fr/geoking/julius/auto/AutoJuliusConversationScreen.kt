@@ -63,7 +63,6 @@ class AutoJuliusConversationScreen(
                         .build()
                 )
             VoiceEvent.Silence -> Unit
-            VoiceEvent.PassiveListening -> Unit
         }
 
         state.currentTranscript.trim().takeIf { it.isNotEmpty() }?.let { draft ->

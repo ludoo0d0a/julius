@@ -73,7 +73,7 @@ class AutoJulesNewSessionScreen(
             .setOnClickListener {
                 error = null
                 store.clearTranscript()
-                store.startListening(continuous = false)
+                store.startListening()
                 invalidate()
             }
             .build()

@@ -31,7 +31,6 @@ import androidx.media3.session.MediaSession
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import fr.geoking.julius.SettingsManager
-import fr.geoking.julius.SpeakingInterruptMode
 import fr.geoking.julius.shared.logging.DebugLogStore
 import fr.geoking.julius.shared.platform.PermissionManager
 import fr.geoking.julius.shared.voice.VoiceEvent
@@ -112,7 +111,6 @@ class AndroidVoiceManager(
         override fun getState(): State {
             val playbackState = when (_events.value) {
                 VoiceEvent.Listening, VoiceEvent.Speaking, VoiceEvent.Processing -> STATE_READY
-                VoiceEvent.PassiveListening -> STATE_READY
                 VoiceEvent.Silence -> STATE_IDLE
             }
             val playWhenReady = _events.value != VoiceEvent.Silence
@@ -134,7 +132,6 @@ class AndroidVoiceManager(
                                     .setTitle("Julius")
                                     .setArtist(when (_events.value) {
                                         VoiceEvent.Listening -> "Listening..."
-                                        VoiceEvent.PassiveListening -> "Listening..."
                                         VoiceEvent.Speaking -> "Speaking..."
                                         VoiceEvent.Processing -> "Thinking..."
                                         VoiceEvent.Silence -> "Idle"
@@ -151,7 +148,7 @@ class AndroidVoiceManager(
 
         override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {
             if (playWhenReady) {
-                startListening(continuous = false)
+                startListening()
             } else {
                 stopSpeaking()
                 stopListening()
@@ -224,7 +221,7 @@ class AndroidVoiceManager(
                     controller: MediaSession.ControllerInfo,
                     mediaItems: MutableList<MediaItem>
                 ): ListenableFuture<List<MediaItem>> {
-                    startListening(continuous = true)
+                    startListening()
                     return Futures.immediateFuture(mediaItems)
                 }
             }
@@ -294,15 +291,17 @@ class AndroidVoiceManager(
         }
     }
 
-    override fun startListening(continuous: Boolean) {
-        Log.d(TAG, "mic on: startListening(continuous=$continuous)")
-        DebugLogStore.addActionLog("Voice", "startListening(continuous=$continuous)")
+    override fun startListening() {
+        Log.d(TAG, "mic on: startListening()")
+        DebugLogStore.addActionLog("Voice", "startListening()")
 
         // Request mic permission on-demand (Play Store builds won't auto-request on startup).
         scope.launch(Dispatchers.Main) {
             val granted = try {
-                permissionManager.requestPermission(Manifest.permission.RECORD_AUDIO)
-            } catch (t: Throwable) {
+                // Fast-path: if already granted, don't rely on any UI callback wiring.
+                permissionManager.hasPermission(Manifest.permission.RECORD_AUDIO) ||
+                    permissionManager.requestPermission(Manifest.permission.RECORD_AUDIO)
+            } catch (_: Throwable) {
                 false
             }
             if (!granted) {
@@ -314,7 +313,6 @@ class AndroidVoiceManager(
                 return@launch
             }
 
-            requestAudioFocus()
             val currentCarContext = carContext
 
             val useLocal =
@@ -687,8 +685,6 @@ class AndroidVoiceManager(
     }
 
     private fun requestAudioFocus() {
-        if (!settingsManager.settings.value.muteMediaOnCar) return
-
         android.util.Log.d(TAG, "Requesting Audio Focus")
         val playbackAttributes = android.media.AudioAttributes.Builder()
             .setUsage(android.media.AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
