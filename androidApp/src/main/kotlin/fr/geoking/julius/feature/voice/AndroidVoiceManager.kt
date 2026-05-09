@@ -295,6 +295,10 @@ class AndroidVoiceManager(
         Log.d(TAG, "mic on: startListening()")
         DebugLogStore.addActionLog("Voice", "startListening()")
 
+        // Signal Listening immediately so the UI responds without waiting for async permission check.
+        _events.value = VoiceEvent.Listening
+        player.notifyStateChanged()
+
         // Request mic permission on-demand (Play Store builds won't auto-request on startup).
         scope.launch(Dispatchers.Main) {
             val granted = try {

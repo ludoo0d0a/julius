@@ -23,6 +23,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -76,6 +77,7 @@ open class ConversationStore(
     val state: StateFlow<ConversationState> = _state.asStateFlow()
 
     private var activeProcessingJob: Job? = null
+    private var silenceTimeoutJob: Job? = null
 
     /** Last assistant text sent to TTS / aligned with last played cloud audio (for echo-loop filtering). */
     private var lastAssistantOutputForEchoFilter: String = ""
@@ -192,6 +194,7 @@ open class ConversationStore(
     private companion object {
         private const val ECHO_FILTER_WINDOW_MS = 2500L
         private const val ECHO_JACCARD_THRESHOLD = 0.55
+        private const val LISTEN_SILENCE_TIMEOUT_MS = 5_000L
     }
 
     private fun normalizeForEchoCompare(s: String): String =
@@ -237,6 +240,8 @@ open class ConversationStore(
     }
 
     fun stopAllActions() {
+        silenceTimeoutJob?.cancel()
+        silenceTimeoutJob = null
         activeProcessingJob?.cancel()
         activeProcessingJob = null
         voiceManager.stopSpeaking()
@@ -413,9 +418,21 @@ open class ConversationStore(
     
     fun startListening() {
         voiceManager.startListening()
+        silenceTimeoutJob?.cancel()
+        silenceTimeoutJob = scope.launch {
+            delay(LISTEN_SILENCE_TIMEOUT_MS)
+            val s = _state.value
+            if (s.status == VoiceEvent.Listening && s.currentTranscript.isBlank()) {
+                log.d { "Silence timeout: no speech after ${LISTEN_SILENCE_TIMEOUT_MS}ms, stopping" }
+                voiceManager.stopListening()
+                _state.value = _state.value.copy(status = VoiceEvent.Silence)
+            }
+        }
     }
-    
+
     fun stopListening() {
+        silenceTimeoutJob?.cancel()
+        silenceTimeoutJob = null
         voiceManager.stopListening()
     }
 
