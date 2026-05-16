@@ -44,6 +44,7 @@ import fr.geoking.julius.ui.HistoryScreen
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.ui.SettingsScreenPage
 import fr.geoking.julius.ui.DashboardVoiceScreen
+import fr.geoking.julius.ui.VoskTestScreen
 import fr.geoking.julius.agents.LlamatikModelHelper
 import fr.geoking.julius.ui.agentConfigSettingsPages
 import fr.geoking.julius.ui.evaluateAgentSetup
@@ -300,6 +301,7 @@ fun MainUI(
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var settingsInitialStack by rememberSaveable { mutableStateOf<List<SettingsScreenPage>?>(null) }
     var showHistory by remember { mutableStateOf(false) }
+    var showVoskTest by remember { mutableStateOf(false) }
     /** Play Store flavor uses a dashboard home first; full flavor starts on the voice screen. */
     var showMap by remember { mutableStateOf(false) }
 
@@ -365,6 +367,13 @@ fun MainUI(
                 showHistory -> {
                     HistoryScreen(state = state, store = store, onBack = { showHistory = false })
                 }
+                showVoskTest -> {
+                    VoskTestScreen(
+                        voiceManager = voiceManager,
+                        settingsManager = settingsManager,
+                        onBack = { showVoskTest = false }
+                    )
+                }
                 // Map UI entry removed (mobility feature removed).
                 else -> {
                     DashboardVoiceScreen(
@@ -380,6 +389,7 @@ fun MainUI(
                         },
                         onHistoryClick = { showHistory = true },
                         onJulesClick = { showJules = true },
+                        onVoskTestClick = { showVoskTest = true },
                         setupIssue = setupIssue,
                         onOpenAgentSettings = {
                             settingsInitialStack = agentConfigSettingsPages()
