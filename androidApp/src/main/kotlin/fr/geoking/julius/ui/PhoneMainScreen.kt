@@ -53,6 +53,7 @@ fun PhoneMainScreen(
     onHistoryClick: () -> Unit = {},
     onMapClick: (() -> Unit)?,
     onJulesClick: () -> Unit = {},
+    onVoskTestClick: () -> Unit = {},
     setupIssue: AgentSetupIssue? = null,
     onOpenAgentSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -101,6 +102,7 @@ fun PhoneMainScreen(
             onHistoryClick = onHistoryClick,
             onMapClick = onMapClick,
             onJulesClick = onJulesClick,
+            onVoskTestClick = onVoskTestClick,
             setupIssue = setupIssue,
             onOpenAgentSettings = onOpenAgentSettings,
             onAgentClick = {

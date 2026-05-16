@@ -10,6 +10,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,6 +46,7 @@ fun VoiceMainContent(
     onHistoryClick: () -> Unit = {},
     onMapClick: (() -> Unit)?,
     onJulesClick: () -> Unit = {},
+    onVoskTestClick: (() -> Unit)? = null,
     onAgentClick: (() -> Unit)? = null,
     onToggleAgentType: (() -> Unit)? = null,
     setupIssue: AgentSetupIssue? = null,
@@ -123,6 +128,20 @@ fun VoiceMainContent(
                 .align(Alignment.BottomEnd)
                 .padding(end = 72.dp, bottom = 48.dp)
         )
+        if (onVoskTestClick != null) {
+            IconButton(
+                onClick = onVoskTestClick,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(top = 16.dp, start = 16.dp)
+            ) {
+                Icon(
+                    Icons.Default.BugReport,
+                    contentDescription = "Vosk Test",
+                    tint = Color.White.copy(alpha = 0.3f)
+                )
+            }
+        }
         if (onMapClick != null) {
             MapButton(
                 onClick = onMapClick,

@@ -23,6 +23,7 @@ fun DashboardVoiceScreen(
     onSettingsClick: () -> Unit,
     onHistoryClick: () -> Unit = {},
     onJulesClick: () -> Unit = {},
+    onVoskTestClick: () -> Unit = {},
     setupIssue: AgentSetupIssue? = null,
     onOpenAgentSettings: (() -> Unit)? = null,
 ) {
@@ -37,6 +38,7 @@ fun DashboardVoiceScreen(
         onHistoryClick = onHistoryClick,
         onMapClick = null,
         onJulesClick = onJulesClick,
+        onVoskTestClick = onVoskTestClick,
         setupIssue = setupIssue,
         onOpenAgentSettings = onOpenAgentSettings,
         modifier = androidx.compose.ui.Modifier
