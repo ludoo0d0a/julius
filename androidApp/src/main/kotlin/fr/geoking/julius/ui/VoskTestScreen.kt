@@ -30,6 +30,15 @@ fun VoskTestScreen(
     val partialText by voiceManager.partialText.collectAsState(initial = "")
     val finalText by voiceManager.transcribedText.collectAsState(initial = "")
     val settings by settingsManager.settings.collectAsState()
+    var lastClickTime by remember { mutableLongStateOf(0L) }
+    var isPending by remember { mutableStateOf(false) }
+    val isListening = events == VoiceEvent.Listening || events == VoiceEvent.Processing
+
+    LaunchedEffect(events) {
+        if (events == VoiceEvent.Listening || events == VoiceEvent.Processing) {
+            isPending = false
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -81,25 +90,40 @@ fun VoskTestScreen(
 
             Button(
                 onClick = {
-                    if (events == VoiceEvent.Listening) {
+                    val now = System.currentTimeMillis()
+                    if (now - lastClickTime < 500L) return@Button
+                    lastClickTime = now
+
+                    if (isListening) {
                         voiceManager.stopListening()
                     } else {
+                        isPending = true
                         voiceManager.startListening()
                     }
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (events == VoiceEvent.Listening) Color.Red else Color(0xFF3B82F6)
+                    containerColor = if (isListening) Color.Red else Color(0xFF3B82F6)
                 ),
                 modifier = Modifier.size(120.dp),
                 shape = MaterialTheme.shapes.extraLarge
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = if (events == VoiceEvent.Listening) Icons.Default.Stop else Icons.Default.Mic,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp)
+                    if (isPending && !isListening) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(48.dp))
+                    } else {
+                        Icon(
+                            imageVector = if (isListening) Icons.Default.Stop else Icons.Default.Mic,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp)
+                        )
+                    }
+                    Text(
+                        when {
+                            isPending && !isListening -> "Starting..."
+                            isListening -> "Stop"
+                            else -> "Start"
+                        }
                     )
-                    Text(if (events == VoiceEvent.Listening) "Stop" else "Start")
                 }
             }
 

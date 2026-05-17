@@ -155,10 +155,10 @@ class MainActivity : ComponentActivity() {
 
             if (!BuildConfig.IS_PLAYSTORE_DISTRIBUTION) {
                 permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                (permissionManager as? AndroidPermissionManager)?.setOnPermissionRequest { permission, deferred ->
-                    permissionDeferred = deferred
-                    permissionLauncher.launch(permission)
-                }
+            }
+            (permissionManager as? AndroidPermissionManager)?.setOnPermissionRequest { permission, deferred ->
+                permissionDeferred = deferred
+                permissionLauncher.launch(permission)
             }
 
             android.util.Log.d("MainActivity", "Calling setContent...")

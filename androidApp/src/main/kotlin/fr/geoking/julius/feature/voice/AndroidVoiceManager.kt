@@ -292,6 +292,10 @@ class AndroidVoiceManager(
     }
 
     override fun startListening() {
+        if (_events.value == VoiceEvent.Listening) {
+            Log.d(TAG, "startListening() called but already listening, ignoring")
+            return
+        }
         Log.d(TAG, "mic on: startListening()")
         DebugLogStore.addActionLog("Voice", "startListening()")
 
@@ -323,18 +327,21 @@ class AndroidVoiceManager(
                 settingsManager.settings.value.sttEnginePreference != fr.geoking.julius.shared.voice.SttEnginePreference.NativeOnly &&
                     localTranscriber?.isAvailable() == true
 
+            // Stop any active TTS or media before starting mic
+            stopSpeakingInternal()
+
             // Use the car's microphone whenever a car context is available and the setting is enabled.
             if (currentCarContext != null && settingsManager.settings.value.useCarMic) {
                 if (useLocal) {
                     startCarListening(currentCarContext)
                 } else {
                     // Fallback to native
-                    startListeningInternal(stopOutputs = true)
+                    startListeningInternal(stopOutputs = false) // stopSpeakingInternal already called
                 }
             } else if (useLocal) {
                 startPhoneRecording()
             } else {
-                startListeningInternal(stopOutputs = true)
+                startListeningInternal(stopOutputs = false) // stopSpeakingInternal already called
             }
         }
     }
@@ -375,7 +382,7 @@ class AndroidVoiceManager(
                 )
 
                 if (recorder.state != AudioRecord.STATE_INITIALIZED) {
-                    Log.e(TAG, "AudioRecord initialization failed")
+                    Log.e(TAG, "AudioRecord initialization failed: state=${recorder.state}")
                     isRecording = false
                     mainHandler.post {
                         _events.value = VoiceEvent.Silence
@@ -652,24 +659,31 @@ class AndroidVoiceManager(
         }
     }
 
+    private fun stopSpeakingInternal() {
+        try {
+            if (mediaPlayer?.isPlaying == true) {
+                mediaPlayer?.stop()
+            }
+        } catch (e: IllegalStateException) {
+            e.printStackTrace()
+        }
+        tts?.stop()
+    }
+
     private fun startListeningInternal(stopOutputs: Boolean) {
         val intent = buildRecognizerIntent()
         android.util.Log.d(TAG, "startListeningInternal stopOutputs=$stopOutputs")
         mainHandler.post {
             val recognizer = getOrCreateRecognizer() ?: run {
                 android.util.Log.e(TAG, "getOrCreateRecognizer() returned null, cannot start")
+                _events.value = VoiceEvent.Silence
+                player.notifyStateChanged()
+                abandonAudioFocus()
                 return@post
             }
 
             if (stopOutputs) {
-                try {
-                    if (mediaPlayer?.isPlaying == true) {
-                        mediaPlayer?.stop()
-                    }
-                } catch (e: IllegalStateException) {
-                    e.printStackTrace()
-                }
-                tts?.stop()
+                stopSpeakingInternal()
             }
             if (isRecognizerActive) {
                 recognizer.cancel()
