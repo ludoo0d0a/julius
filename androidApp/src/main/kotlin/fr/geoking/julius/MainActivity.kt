@@ -38,6 +38,8 @@ import fr.geoking.julius.shared.voice.VoiceEvent
 import fr.geoking.julius.shared.platform.PermissionManager
 import fr.geoking.julius.shared.network.NetworkService
 import fr.geoking.julius.shared.network.NetworkStatus
+import fr.geoking.julius.shared.voice.LocalTranscriber
+import fr.geoking.julius.shared.voice.NoLocalTranscriber
 import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.ui.JulesScreen
 import fr.geoking.julius.ui.HistoryScreen
@@ -148,6 +150,7 @@ class MainActivity : ComponentActivity() {
             val julesClient: JulesClient = get()
             val julesRepository: JulesRepository = get()
             val voiceManager: VoiceManager = get()
+            val localTranscriber: LocalTranscriber = get()
             val conversationalAgent: ConversationalAgent = get()
             val networkService: NetworkService = get()
             android.util.Log.d("MainActivity", "Dependencies resolved successfully.")
@@ -169,6 +172,7 @@ class MainActivity : ComponentActivity() {
                 julesClient = julesClient,
                 julesRepository = julesRepository,
                 voiceManager = voiceManager,
+                localTranscriber = localTranscriber,
                 conversationalAgent = conversationalAgent,
                 networkService = networkService,
                 isPlaystoreDistribution = BuildConfig.IS_PLAYSTORE_DISTRIBUTION
@@ -191,6 +195,7 @@ class MainActivity : ComponentActivity() {
         julesClient: JulesClient,
         julesRepository: JulesRepository,
         voiceManager: VoiceManager,
+        localTranscriber: LocalTranscriber,
         conversationalAgent: ConversationalAgent,
         networkService: NetworkService,
         isPlaystoreDistribution: Boolean
@@ -204,6 +209,7 @@ class MainActivity : ComponentActivity() {
                     julesClient = julesClient,
                     julesRepository = julesRepository,
                     voiceManager = voiceManager,
+                    localTranscriber = localTranscriber,
                     conversationalAgent = conversationalAgent,
                     networkService = networkService,
                     inAppUpdateHelper = inAppUpdateHelper,
@@ -236,6 +242,7 @@ private fun MainActivityComposeRoot(
     julesClient: JulesClient,
     julesRepository: JulesRepository,
     voiceManager: VoiceManager,
+    localTranscriber: LocalTranscriber,
     conversationalAgent: ConversationalAgent,
     networkService: NetworkService,
     inAppUpdateHelper: InAppUpdateHelper,
@@ -269,6 +276,7 @@ private fun MainActivityComposeRoot(
         julesClient = julesClient,
         julesRepository = julesRepository,
         voiceManager = voiceManager,
+        localTranscriber = localTranscriber,
         conversationalAgent = conversationalAgent,
         networkService = networkService,
         inAppUpdateHelper = inAppUpdateHelper,
@@ -288,6 +296,7 @@ fun MainUI(
     julesClient: JulesClient,
     julesRepository: JulesRepository,
     voiceManager: VoiceManager,
+    localTranscriber: LocalTranscriber,
     conversationalAgent: ConversationalAgent,
     networkService: NetworkService,
     inAppUpdateHelper: InAppUpdateHelper? = null,
@@ -371,6 +380,7 @@ fun MainUI(
                     VoskTestScreen(
                         voiceManager = voiceManager,
                         settingsManager = settingsManager,
+                        localTranscriber = localTranscriber,
                         onBack = { showVoskTest = false }
                     )
                 }
@@ -518,6 +528,7 @@ fun MainUIPreview() {
             )
         },
         voiceManager = mockStore.voiceManager,
+        localTranscriber = NoLocalTranscriber,
         conversationalAgent = remember {
             object : ConversationalAgent {
                 override suspend fun process(input: String) =

@@ -54,6 +54,15 @@ class VoskTranscriber(
         }
     }
 
+    override fun flushPendingFinal(): String? {
+        synchronized(lock) {
+            val rec = recognizer ?: return null
+            val text = parseTextFromResult(rec.finalResult)?.trim()
+            rec.reset()
+            return text?.takeIf { it.isNotEmpty() }
+        }
+    }
+
     override fun isAvailable(): Boolean {
         if (model != null) return true
         val path = modelDirPath?.takeIf { File(it, "am/final.mdl").exists() }

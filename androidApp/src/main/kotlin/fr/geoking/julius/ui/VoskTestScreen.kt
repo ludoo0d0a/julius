@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.shared.voice.LocalTranscriber
 import fr.geoking.julius.shared.voice.SttEnginePreference
 import fr.geoking.julius.shared.voice.VoiceEvent
 import fr.geoking.julius.shared.voice.VoiceManager
@@ -24,7 +25,8 @@ import fr.geoking.julius.shared.voice.VoiceManager
 fun VoskTestScreen(
     voiceManager: VoiceManager,
     settingsManager: SettingsManager,
-    onBack: () -> Unit
+    localTranscriber: LocalTranscriber,
+    onBack: () -> Unit,
 ) {
     val events by voiceManager.events.collectAsState(initial = VoiceEvent.Silence)
     val partialText by voiceManager.partialText.collectAsState(initial = "")
@@ -32,12 +34,23 @@ fun VoskTestScreen(
     val settings by settingsManager.settings.collectAsState()
     var lastClickTime by remember { mutableLongStateOf(0L) }
     var isPending by remember { mutableStateOf(false) }
-    val isListening = events == VoiceEvent.Listening || events == VoiceEvent.Processing
+
+    val isListening = events == VoiceEvent.Listening
+    val isMicSessionActive = events == VoiceEvent.Listening || events == VoiceEvent.Processing
 
     LaunchedEffect(events) {
-        if (events == VoiceEvent.Listening || events == VoiceEvent.Processing) {
+        if (isMicSessionActive) {
             isPending = false
         }
+    }
+
+    val voskAvailable = remember(localTranscriber) { localTranscriber.isAvailable() }
+    val useVosk = settings.sttEnginePreference != SttEnginePreference.NativeOnly
+
+    val liveText = remember(finalText, partialText) {
+        listOf(finalText.trim(), partialText.trim())
+            .filter { it.isNotEmpty() }
+            .joinToString(" ")
     }
 
     Scaffold(
@@ -67,6 +80,24 @@ fun VoskTestScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
+                text = "Push-to-talk: tap mic to start, tap Stop when done (like dictation).",
+                color = Color(0xFF94A3B8),
+                fontSize = 13.sp,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            Text(
+                text = when {
+                    !useVosk -> "Engine: Native (switch to Vosk below)"
+                    voskAvailable -> "Vosk model: ready"
+                    else -> "Vosk model: not found (add under assets/models/vosk/)"
+                },
+                color = if (useVosk && voskAvailable) Color(0xFF4ADE80) else Color(0xFFFBBF24),
+                fontSize = 13.sp,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            Text(
                 text = "STT Engine Preference",
                 color = Color.White,
                 fontSize = 18.sp,
@@ -76,7 +107,7 @@ fun VoskTestScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Native", color = Color.White)
                 Switch(
-                    checked = settings.sttEnginePreference != SttEnginePreference.NativeOnly,
+                    checked = useVosk,
                     onCheckedChange = { isVosk ->
                         val newPref = if (isVosk) SttEnginePreference.LocalOnly else SttEnginePreference.NativeOnly
                         settingsManager.setSttEnginePreference(newPref)
@@ -94,33 +125,35 @@ fun VoskTestScreen(
                     if (now - lastClickTime < 500L) return@Button
                     lastClickTime = now
 
-                    if (isListening) {
+                    if (isMicSessionActive) {
                         voiceManager.stopListening()
                     } else {
                         isPending = true
                         voiceManager.startListening()
                     }
                 },
+                enabled = (useVosk && voskAvailable) || !useVosk,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isListening) Color.Red else Color(0xFF3B82F6)
+                    containerColor = if (isMicSessionActive) Color.Red else Color(0xFF3B82F6),
+                    disabledContainerColor = Color(0xFF334155)
                 ),
                 modifier = Modifier.size(120.dp),
                 shape = MaterialTheme.shapes.extraLarge
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    if (isPending && !isListening) {
+                    if (isPending && !isMicSessionActive) {
                         CircularProgressIndicator(color = Color.White, modifier = Modifier.size(48.dp))
                     } else {
                         Icon(
-                            imageVector = if (isListening) Icons.Default.Stop else Icons.Default.Mic,
+                            imageVector = if (isMicSessionActive) Icons.Default.Stop else Icons.Default.Mic,
                             contentDescription = null,
                             modifier = Modifier.size(48.dp)
                         )
                     }
                     Text(
                         when {
-                            isPending && !isListening -> "Starting..."
-                            isListening -> "Stop"
+                            isPending && !isMicSessionActive -> "Starting..."
+                            isMicSessionActive -> "Stop"
                             else -> "Start"
                         }
                     )
@@ -134,21 +167,31 @@ fun VoskTestScreen(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Partial Result:", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                    Text("Live (session):", color = Color(0xFF94A3B8), fontSize = 12.sp)
                     Text(
-                        text = partialText.ifBlank { "(waiting...)" },
+                        text = liveText.ifBlank { if (isListening) "(listening…)" else "(tap Start)" },
                         color = Color.White,
-                        fontSize = 16.sp,
+                        fontSize = 18.sp,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color(0xFF334155))
+
+                    Text("Partial:", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                    Text(
+                        text = partialText.ifBlank { "—" },
+                        color = Color(0xFFCBD5E1),
+                        fontSize = 14.sp,
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color(0xFF334155))
 
-                    Text("Final Result:", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                    Text("Committed finals:", color = Color(0xFF94A3B8), fontSize = 12.sp)
                     Text(
-                        text = finalText.ifBlank { "(none)" },
+                        text = finalText.ifBlank { "—" },
                         color = Color.Cyan,
-                        fontSize = 18.sp,
+                        fontSize = 16.sp,
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
@@ -158,7 +201,7 @@ fun VoskTestScreen(
 
             Text(
                 text = "Status: ${events.name}",
-                color = Color(0xFF94A3B8),
+                color = if (isListening) Color(0xFF4ADE80) else Color(0xFF94A3B8),
                 fontSize = 14.sp
             )
         }

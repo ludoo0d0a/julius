@@ -25,6 +25,11 @@ interface LocalTranscriber {
     fun reset() {}
 
     /**
+     * Flushes any pending recognition result after streaming stops (e.g. last partial phrase).
+     */
+    fun flushPendingFinal(): String? = null
+
+    /**
      * Whether the local transcriber is available (e.g. model loaded).
      */
     fun isAvailable(): Boolean = false
