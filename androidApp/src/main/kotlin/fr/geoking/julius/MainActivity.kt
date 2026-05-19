@@ -604,6 +604,8 @@ fun MainUIPreview() {
                     override suspend fun getMaxPosition(): Int? = null
                     override suspend fun getNextPendingFeature(): fr.geoking.julius.persistence.FeatureEntity? = null
                     override suspend fun getActiveFeaturesCount(): Int = 0
+                    override suspend fun getActiveFeatures(): List<fr.geoking.julius.persistence.FeatureEntity> = emptyList()
+                    override suspend fun getRecentlyStartedFeaturesCount(since: Long): Int = 0
                 },
                 jRepo
             )

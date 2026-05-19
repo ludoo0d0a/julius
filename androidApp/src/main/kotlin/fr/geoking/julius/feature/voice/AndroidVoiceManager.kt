@@ -825,15 +825,7 @@ class AndroidVoiceManager(
     }
 
     private fun finalizeListening(text: String = "") {
-        if (isManualStopMode) {
-            Log.d(TAG, "finalizeListening: manual stop mode active, ignoring auto-stop. Current text: \"$text\"")
-            // In manual mode, we might want to keep the partial text or results,
-            // but we don't want to finish the session yet.
-            if (text.isNotBlank()) {
-                _partialText.value = text
-            }
-            return
-        }
+        isManualStopMode = false
         isRecognizerActive = false
         val finalResult = text.trim()
         if (finalResult.isBlank()) {

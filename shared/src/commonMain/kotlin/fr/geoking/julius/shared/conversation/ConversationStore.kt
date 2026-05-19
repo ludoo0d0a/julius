@@ -124,7 +124,7 @@ open class ConversationStore(
      * When false, incoming final transcriptions will NOT be auto-sent to the conversational agent.
      * This is useful for flows that reuse STT (e.g. Android Auto "Jules" prompt creation).
      */
-    var autoSendFinalTranscripts: Boolean = false
+    var autoSendFinalTranscripts: Boolean = true
 
     init {
         scope.launch {
