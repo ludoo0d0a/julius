@@ -52,10 +52,10 @@ class JulesRepository(
             })
         }
 
-        // 2. Refresh if needed (e.g. once a day)
+        // 2. Refresh if needed (e.g. once a month = 30 days)
         val lastUpdated = cached.firstOrNull()?.lastUpdated ?: 0L
-        val oneDayMs = 24 * 60 * 60 * 1000L
-        if (System.currentTimeMillis() - lastUpdated > oneDayMs || cached.isEmpty()) {
+        val ttlMs = 30L * 24 * 60 * 60 * 1000L
+        if (System.currentTimeMillis() - lastUpdated > ttlMs || cached.isEmpty()) {
             try {
                 val allSources = mutableMapOf<String, JulesClient.JulesSource>()
                 coroutineScope {

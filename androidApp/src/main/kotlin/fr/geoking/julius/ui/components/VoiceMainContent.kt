@@ -46,6 +46,7 @@ fun VoiceMainContent(
     onHistoryClick: () -> Unit = {},
     onMapClick: (() -> Unit)?,
     onJulesClick: () -> Unit = {},
+    onFeaturesClick: () -> Unit = {},
     onVoskTestClick: (() -> Unit)? = null,
     onAgentClick: (() -> Unit)? = null,
     onToggleAgentType: (() -> Unit)? = null,
@@ -127,6 +128,12 @@ fun VoiceMainContent(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 72.dp, bottom = 48.dp)
+        )
+        FeaturesButton(
+            onClick = onFeaturesClick,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 120.dp, bottom = 48.dp)
         )
         if (onVoskTestClick != null) {
             IconButton(
