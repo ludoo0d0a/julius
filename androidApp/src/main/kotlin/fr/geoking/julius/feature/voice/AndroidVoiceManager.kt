@@ -99,6 +99,7 @@ class AndroidVoiceManager(
     private var currentLanguageTag: String? = null
     private var pendingLanguageTag: String? = null
     private var isRecognizerActive: Boolean = false
+    private var isManualStopMode: Boolean = false
     private var rmsCallCount: Int = 0
     private var bufferCallCount: Int = 0
     private var transcriber: (suspend (ByteArray) -> TranscriptionResult?)? = null
@@ -296,12 +297,18 @@ class AndroidVoiceManager(
     }
 
     override fun startListening() {
+        startListening(isManualStop = false)
+    }
+
+    override fun startListening(isManualStop: Boolean) {
         if (_events.value == VoiceEvent.Listening) {
             Log.d(TAG, "startListening() called but already listening, ignoring")
             return
         }
-        Log.d(TAG, "mic on: startListening()")
-        DebugLogStore.addActionLog("Voice", "startListening()")
+        Log.d(TAG, "mic on: startListening(isManualStop=$isManualStop)")
+        DebugLogStore.addActionLog("Voice", "startListening(isManualStop=$isManualStop)")
+
+        this.isManualStopMode = isManualStop
 
         // Signal Listening immediately so the UI responds without waiting for async permission check.
         _events.value = VoiceEvent.Listening
@@ -516,10 +523,12 @@ class AndroidVoiceManager(
 
         carRecordingJob = scope.launch(Dispatchers.IO) {
             val maxDurationStop = launch {
-                delay(MAX_CAR_RECORDING_MS)
-                if (isRecording) {
-                    Log.d(TAG, "Car recording: max duration reached (${MAX_CAR_RECORDING_MS}ms), stopping")
-                    isRecording = false
+                if (!isManualStopMode) {
+                    delay(MAX_CAR_RECORDING_MS)
+                    if (isRecording) {
+                        Log.d(TAG, "Car recording: max duration reached (${MAX_CAR_RECORDING_MS}ms), stopping")
+                        isRecording = false
+                    }
                 }
             }
             try {
@@ -625,6 +634,7 @@ class AndroidVoiceManager(
 
     override fun stopListening() {
         Log.d(TAG, "mic off: stopListening()")
+        isManualStopMode = false
         if (isRecording) {
             // Let the recording coroutine finish (release mic, flush Vosk); do not cancel abruptly.
             isRecording = false
@@ -815,6 +825,15 @@ class AndroidVoiceManager(
     }
 
     private fun finalizeListening(text: String = "") {
+        if (isManualStopMode) {
+            Log.d(TAG, "finalizeListening: manual stop mode active, ignoring auto-stop. Current text: \"$text\"")
+            // In manual mode, we might want to keep the partial text or results,
+            // but we don't want to finish the session yet.
+            if (text.isNotBlank()) {
+                _partialText.value = text
+            }
+            return
+        }
         isRecognizerActive = false
         val finalResult = text.trim()
         if (finalResult.isBlank()) {

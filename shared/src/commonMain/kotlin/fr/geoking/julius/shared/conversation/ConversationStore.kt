@@ -416,16 +416,18 @@ open class ConversationStore(
         }
     }
     
-    fun startListening() {
-        voiceManager.startListening()
+    fun startListening(isManualStop: Boolean = false) {
+        voiceManager.startListening(isManualStop)
         silenceTimeoutJob?.cancel()
-        silenceTimeoutJob = scope.launch {
-            delay(LISTEN_SILENCE_TIMEOUT_MS)
-            val s = _state.value
-            if (s.status == VoiceEvent.Listening && s.currentTranscript.isBlank()) {
-                log.d { "Silence timeout: no speech after ${LISTEN_SILENCE_TIMEOUT_MS}ms, stopping" }
-                voiceManager.stopListening()
-                _state.value = _state.value.copy(status = VoiceEvent.Silence)
+        if (!isManualStop) {
+            silenceTimeoutJob = scope.launch {
+                delay(LISTEN_SILENCE_TIMEOUT_MS)
+                val s = _state.value
+                if (s.status == VoiceEvent.Listening && s.currentTranscript.isBlank()) {
+                    log.d { "Silence timeout: no speech after ${LISTEN_SILENCE_TIMEOUT_MS}ms, stopping" }
+                    voiceManager.stopListening()
+                    _state.value = _state.value.copy(status = VoiceEvent.Silence)
+                }
             }
         }
     }

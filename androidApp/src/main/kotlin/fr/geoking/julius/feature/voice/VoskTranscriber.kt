@@ -67,19 +67,59 @@ class VoskTranscriber(
         if (model != null) return true
         val path = modelDirPath?.takeIf { File(it, "am/final.mdl").exists() }
             ?: getExistingModelPath()
+        Log.d(TAG, "isAvailable: path=$path")
         return path != null
     }
 
     private fun getExistingModelPath(): String? {
         val baseDir = File(context.filesDir, "vosk_model")
-        val children = baseDir.list() ?: emptyArray()
-        val existing = children.firstOrNull { File(baseDir, "$it/am/final.mdl").exists() }
-        if (existing != null) return File(baseDir, existing).absolutePath
-        // Check assets without copying just to see if it's there
+
+        // 1. Check if model is directly in vosk_model
+        if (File(baseDir, "am/final.mdl").exists()) {
+            return baseDir.absolutePath
+        }
+
+        // 2. Check subdirectories in vosk_model (common if unzipped with a folder)
+        val children = baseDir.listFiles() ?: emptyArray()
+        for (child in children) {
+            if (child.isDirectory && File(child, "am/final.mdl").exists()) {
+                return child.absolutePath
+            }
+        }
+
+        // 3. Check assets without copying just to see if it's there
         return try {
-            val childrenAssets = context.assets.list("models/vosk") ?: emptyArray()
-            if (childrenAssets.isNotEmpty()) "pending_copy" else null
+            val assetsPath = "models/vosk"
+            val assetFiles = context.assets.list(assetsPath) ?: emptyArray()
+            if (assetFiles.isEmpty()) {
+                Log.d(TAG, "getExistingModelPath: no files in assets/$assetsPath")
+                return null
+            }
+
+            // Look for am/final.mdl in assets
+            if (assetFiles.contains("am")) {
+                val amFiles = context.assets.list("$assetsPath/am") ?: emptyArray()
+                if (amFiles.contains("final.mdl")) {
+                    Log.d(TAG, "getExistingModelPath: found model directly in assets/$assetsPath")
+                    return "pending_copy"
+                }
+            }
+
+            // Look in one level of subdirectories in assets
+            for (subDir in assetFiles) {
+                val subFiles = context.assets.list("$assetsPath/$subDir") ?: emptyArray()
+                if (subFiles.contains("am")) {
+                    val subAmFiles = context.assets.list("$assetsPath/$subDir/am") ?: emptyArray()
+                    if (subAmFiles.contains("final.mdl")) {
+                        Log.d(TAG, "getExistingModelPath: found model in assets/$assetsPath/$subDir")
+                        return "pending_copy"
+                    }
+                }
+            }
+
+            null
         } catch (e: Exception) {
+            Log.e(TAG, "Error checking assets for Vosk model", e)
             null
         }
     }

@@ -107,7 +107,7 @@ fun VoiceMainContent(
                     when (state.status) {
                         VoiceEvent.Speaking -> store.stopSpeaking()
                         VoiceEvent.Listening -> store.stopListening()
-                        else -> store.startListening()
+                        else -> store.startListening(isManualStop = true)
                     }
                 }
             )

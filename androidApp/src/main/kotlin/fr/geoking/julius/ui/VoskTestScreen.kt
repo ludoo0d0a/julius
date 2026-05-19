@@ -129,7 +129,7 @@ fun VoskTestScreen(
                         voiceManager.stopListening()
                     } else {
                         isPending = true
-                        voiceManager.startListening()
+                        voiceManager.startListening(isManualStop = true)
                     }
                 },
                 enabled = (useVosk && voskAvailable) || !useVosk,
