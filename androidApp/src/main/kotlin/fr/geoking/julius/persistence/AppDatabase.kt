@@ -10,14 +10,16 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ChatMessageEntity::class,
         JulesSessionEntity::class,
         JulesActivityEntity::class,
-        JulesSourceEntity::class
+        JulesSourceEntity::class,
+        FeatureEntity::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun julesDao(): JulesDao
+    abstract fun featureDao(): FeatureDao
 
     companion object {
         // v1 -> v2: no schema change; we keep data across upgrades.
@@ -234,6 +236,29 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `prBranch` TEXT")
                 db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `prRepo` TEXT")
+            }
+        }
+
+        val MIGRATION_13_14: Migration = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `features` (
+                        `id` TEXT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `description` TEXT NOT NULL,
+                        `priority` INTEGER NOT NULL DEFAULT 0,
+                        `position` INTEGER NOT NULL DEFAULT 0,
+                        `sourceName` TEXT NOT NULL,
+                        `sessionId` TEXT,
+                        `status` TEXT NOT NULL DEFAULT 'PENDING',
+                        `errorMessage` TEXT,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent()
+                )
             }
         }
     }

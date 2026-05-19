@@ -111,7 +111,8 @@ fun JulesScreen(
     julesClient: JulesClient,
     julesRepository: JulesRepository,
     settingsManager: SettingsManager,
-    voiceManager: VoiceManager
+    voiceManager: VoiceManager,
+    initialSession: JulesSessionEntity? = null
 ) {
     val settings by settingsManager.settings.collectAsState()
     val networkStatus by julesRepository.getNetworkService().status.collectAsState()
@@ -121,7 +122,7 @@ fun JulesScreen(
 
     var sources by remember { mutableStateOf<List<JulesClient.JulesSource>>(emptyList()) }
     var sessions by remember { mutableStateOf<List<JulesSessionEntity>>(emptyList()) }
-    var currentSession by remember { mutableStateOf<JulesSessionEntity?>(null) }
+    var currentSession by remember { mutableStateOf<JulesSessionEntity?>(initialSession) }
     var quota by remember { mutableStateOf<JulesQuota?>(null) }
     val chatItems = remember { mutableStateListOf<JulesChatItem>() }
     var loading by remember { mutableStateOf(false) }
@@ -264,6 +265,13 @@ fun JulesScreen(
     LaunchedEffect(apiKeys) {
         if (apiKeys.isNotEmpty()) loadSources()
         else sourcesLoaded = true
+    }
+
+    LaunchedEffect(initialSession) {
+        if (initialSession != null) {
+            selectedSourceName = initialSession.sourceName
+            currentSession = initialSession
+        }
     }
 
     // If the user previously selected a repo, jump directly into it.

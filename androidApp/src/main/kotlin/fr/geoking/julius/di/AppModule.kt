@@ -23,6 +23,7 @@ import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.api.github.GitHubClient
  
 import fr.geoking.julius.repository.JulesRepository
+import fr.geoking.julius.repository.FeatureRepository
 import fr.geoking.julius.shared.conversation.MessagePersistence
 import fr.geoking.julius.shared.network.NetworkException
 import fr.geoking.julius.persistence.AppDatabase
@@ -414,7 +415,8 @@ val appModule = module {
                         AppDatabase.MIGRATION_9_10,
                         AppDatabase.MIGRATION_10_11,
                         AppDatabase.MIGRATION_11_12,
-                        AppDatabase.MIGRATION_12_13
+                        AppDatabase.MIGRATION_12_13,
+                        AppDatabase.MIGRATION_13_14
                     )
             )
         } catch (e: Throwable) {
@@ -432,8 +434,10 @@ val appModule = module {
     }
 
     single<JulesDao> { get<AppDatabase>().julesDao() }
+    single { get<AppDatabase>().featureDao() }
 
     single { JulesRepository(androidContext(), get(), get(), get(), get(), get()) }
+    single { FeatureRepository(androidContext(), get(), get()) }
 
     single<ConversationStore> {
         val settingsManager = get<SettingsManager>()
