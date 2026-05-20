@@ -33,7 +33,6 @@ class FeatureRepository(
             updatedAt = System.currentTimeMillis()
         )
         featureDao.insertFeature(feature)
-        scheduleWorker()
     }
 
     suspend fun updateFeature(feature: FeatureEntity) {
@@ -50,13 +49,21 @@ class FeatureRepository(
         }
     }
 
-    suspend fun linkSession(featureId: String, sessionId: String) {
-        val feature = featureDao.getFeature(featureId) ?: return
+    suspend fun startFeature(featureId: String, apiKeys: List<String>): String {
+        val feature = featureDao.getFeature(featureId) ?: throw Exception("Feature not found")
+        val sessionId = julesRepository.createSession(
+            apiKeys = apiKeys,
+            prompt = feature.description,
+            source = feature.sourceName,
+            title = feature.title
+        )
         featureDao.updateFeature(feature.copy(
             sessionId = sessionId,
-            status = "IN_PROGRESS",
+            status = "QUEUED",
             updatedAt = System.currentTimeMillis()
         ))
+        scheduleWorker()
+        return sessionId
     }
 
     fun scheduleWorker() {

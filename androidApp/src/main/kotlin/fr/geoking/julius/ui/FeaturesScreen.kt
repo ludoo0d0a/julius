@@ -305,13 +305,7 @@ fun FeatureDetailContent(
                 Button(
                     onClick = {
                         scope.launch {
-                            val sessionId = julesRepository.createSession(
-                                apiKeys = apiKeys,
-                                prompt = feature.description,
-                                source = feature.sourceName,
-                                title = feature.title
-                            )
-                            featureRepository.linkSession(feature.id, sessionId)
+                            val sessionId = featureRepository.startFeature(feature.id, apiKeys)
                             val session = julesRepository.getSession(sessionId)
                             if (session != null) onOpenConversation(session)
                         }
