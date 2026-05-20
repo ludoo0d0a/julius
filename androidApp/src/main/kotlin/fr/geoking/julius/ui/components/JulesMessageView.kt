@@ -44,15 +44,15 @@ fun parseJulesMessage(text: String): List<MessageBlock> {
         val line = lines[i].trim()
 
         when {
-            line.startsWith("###") -> {
+            line.startsWith("##") -> {
                 if (currentText.isNotEmpty()) {
                     blocks.add(MessageBlock.Text(currentText.toString().trim()))
                     currentText = StringBuilder()
                 }
-                val title = line.removePrefix("###").trim()
+                val title = line.trim().replace(Regex("^#+"), "").trim().removeSuffix(".")
                 val content = mutableListOf<String>()
                 i++
-                while (i < lines.size && !lines[i].trim().startsWith("###") && !lines[i].trim().startsWith("<plan>")) {
+                while (i < lines.size && !lines[i].trim().startsWith("##") && !lines[i].trim().startsWith("<plan>")) {
                     content.add(lines[i])
                     i++
                 }
@@ -66,7 +66,7 @@ fun parseJulesMessage(text: String): List<MessageBlock> {
                 }
                 val content = mutableListOf<String>()
                 i++
-                while (i < lines.size && !lines[i].trim().startsWith("</plan>") && !lines[i].trim().startsWith("###")) {
+                while (i < lines.size && !lines[i].trim().startsWith("</plan>") && !lines[i].trim().startsWith("##")) {
                     content.add(lines[i])
                     i++
                 }
