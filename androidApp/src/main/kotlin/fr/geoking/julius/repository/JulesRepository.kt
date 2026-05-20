@@ -732,9 +732,50 @@ class JulesRepository(
     }
 
     suspend fun getPrDetails(githubToken: String, prUrl: String): Result<GitHubClient.GitHubPullRequestDetail> {
-        val prRef = parseGitHubPullRequestUrl(prUrl) ?: return Result.failure(Exception("Invalid PR URL"))
+        val prRef = fr.geoking.julius.api.github.parseGitHubPullRequestUrl(prUrl) ?: return Result.failure(Exception("Invalid PR URL"))
         return try {
             val detail = githubClient.getPullRequest(githubToken, prRef.owner, prRef.repo, prRef.number)
+            Result.success(detail)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getGitHubResourceDetails(githubToken: String, url: String): Result<GitHubClient.GitHubPullRequestDetail?> {
+        val prRef = fr.geoking.julius.api.github.parseGitHubPullRequestUrl(url)
+        if (prRef != null) {
+            return getPrDetails(githubToken, url)
+        }
+
+        val branchRef = fr.geoking.julius.api.github.parseGitHubBranchUrl(url)
+        if (branchRef != null) {
+            return try {
+                // Find open PR for this branch
+                val prs = githubClient.listPullRequests(githubToken, branchRef.owner, branchRef.repo, state = "open", head = "${branchRef.owner}:${branchRef.branch}")
+                if (prs.isNotEmpty()) {
+                    getPrDetails(githubToken, prs.first().htmlUrl)
+                } else {
+                    Result.success(null) // No PR found for this branch
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+        return Result.failure(Exception("Unsupported GitHub URL"))
+    }
+
+    suspend fun createPullRequest(
+        githubToken: String,
+        owner: String,
+        repo: String,
+        head: String,
+        base: String,
+        title: String,
+        body: String?
+    ): Result<GitHubClient.GitHubPullRequestDetail> {
+        return try {
+            val detail = githubClient.createPullRequest(githubToken, owner, repo, title, head, base, body)
             Result.success(detail)
         } catch (e: Exception) {
             Result.failure(e)
