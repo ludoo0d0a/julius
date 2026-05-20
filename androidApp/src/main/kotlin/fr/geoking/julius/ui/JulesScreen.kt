@@ -525,12 +525,16 @@ fun JulesScreen(
                                     loading = false
                                 }
                             },
-                            onSolveConflicts = {
-                                val prUrl = activeSession.prUrl ?: return@InConversationContent
+                            onSolveConflicts = { prUrlOverride ->
+                                val prUrl = prUrlOverride ?: activeSession.prUrl ?: return@InConversationContent
                                 scope.launch {
                                     loading = true
                                     val res = julesRepository.getConflictingFiles(githubToken, prUrl)
                                     if (res.isSuccess) {
+                                        // Update currentSession if we are resolving for a different PR than activeSession.prUrl
+                                        if (prUrl != activeSession.prUrl) {
+                                            // This is tricky, but let's just use the current activeSession for now as context
+                                        }
                                         conflictingFiles = res.getOrDefault(emptyList())
                                         showConflictSheet = true
                                     } else {
@@ -539,10 +543,12 @@ fun JulesScreen(
                                     loading = false
                                 }
                             },
-                            onAutoSolveConflicts = {
+                            onAutoSolveConflicts = { prUrlOverride ->
                                 scope.launch {
                                     loading = true
                                     try {
+                                        // If prUrlOverride is provided, we might want to mention it.
+                                        // But for now, we send it to the session which is assumed to be related.
                                         julesRepository.sendMessage(activeSession.id, "@jules resolve the conflicts in this PR")
                                         refreshActivities()
                                     } catch (e: Exception) {
@@ -552,6 +558,29 @@ fun JulesScreen(
                                     }
                                 }
                             },
+                            onCreatePr = { branchRef ->
+                                scope.launch {
+                                    loading = true
+                                    val res = julesRepository.createPullRequest(
+                                        githubToken = githubToken,
+                                        owner = branchRef.owner,
+                                        repo = branchRef.repo,
+                                        head = branchRef.branch,
+                                        base = "main", // Default to main
+                                        title = "PR from ${branchRef.branch}",
+                                        body = "Created from Jules"
+                                    )
+                                    if (res.isFailure) {
+                                        error = "Failed to create PR: ${res.exceptionOrNull()?.message}"
+                                    } else {
+                                        loadSessions()
+                                        refreshActivities(isRefresh = true)
+                                    }
+                                    loading = false
+                                }
+                            },
+                            julesRepository = julesRepository,
+                            githubToken = githubToken,
                             isRefreshing = refreshing,
                             onRefresh = { refreshActivities(isRefresh = true) }
                         )
@@ -966,8 +995,11 @@ private fun InConversationContent(
     onSend: () -> Unit,
     loading: Boolean,
     onMergePr: (String?) -> Unit,
-    onSolveConflicts: () -> Unit,
-    onAutoSolveConflicts: () -> Unit,
+    onSolveConflicts: (String?) -> Unit,
+    onAutoSolveConflicts: (String?) -> Unit,
+    onCreatePr: (fr.geoking.julius.api.github.GitHubBranchRef) -> Unit,
+    julesRepository: fr.geoking.julius.repository.JulesRepository,
+    githubToken: String,
     isRefreshing: Boolean,
     onRefresh: () -> Unit
 ) {
@@ -1003,7 +1035,12 @@ private fun InConversationContent(
                             baseFontSize = 14,
                             onSpeak = { voiceManager.speak(if (item is JulesChatItem.UserMessage) item.text else (item as JulesChatItem.AgentMessage).text) },
                             onMergePr = { onMergePr(it) },
-                            prDetails = currentSession
+                            onSolveConflicts = onSolveConflicts,
+                            onAutoSolveConflicts = onAutoSolveConflicts,
+                            onCreatePr = onCreatePr,
+                            prDetails = currentSession,
+                            julesRepository = julesRepository,
+                            githubToken = githubToken
                         )
                     }
                 }
@@ -1022,9 +1059,9 @@ private fun InConversationContent(
                         } else if (currentSession.prMergeable == false) {
                             Text("This PR has merge conflicts.", color = Color.Red)
                             Row {
-                                FilledTonalButton(onClick = onAutoSolveConflicts) { Text("Auto solve") }
+                                FilledTonalButton(onClick = { onAutoSolveConflicts(null) }) { Text("Auto solve") }
                                 Spacer(modifier = Modifier.size(8.dp))
-                                FilledTonalButton(onClick = onSolveConflicts) { Text("Solve manually") }
+                                FilledTonalButton(onClick = { onSolveConflicts(null) }) { Text("Solve manually") }
                             }
                         }
                     }

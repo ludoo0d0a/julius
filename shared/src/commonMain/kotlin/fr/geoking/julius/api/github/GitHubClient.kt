@@ -62,13 +62,15 @@ class GitHubClient(
         token: String,
         owner: String,
         repo: String,
-        state: String = "open"
+        state: String = "open",
+        head: String? = null
     ): List<GitHubPullRequestSummary> {
         requireToken(token)
         val url = "$baseUrl/repos/$owner/$repo/pulls"
         val response = client.get(url) {
             githubHeaders(token)
             parameter("state", state)
+            if (head != null) parameter("head", head)
             parameter("per_page", "30")
             parameter("sort", "updated")
             parameter("direction", "desc")
@@ -289,6 +291,42 @@ class GitHubClient(
             )
         }
     }
+
+    @Serializable
+    private data class CreatePullRequestBody(
+        val title: String,
+        val head: String,
+        val base: String,
+        val body: String? = null
+    )
+
+    suspend fun createPullRequest(
+        token: String,
+        owner: String,
+        repo: String,
+        title: String,
+        head: String,
+        base: String,
+        body: String? = null
+    ): GitHubPullRequestDetail {
+        requireToken(token)
+        val url = "$baseUrl/repos/$owner/$repo/pulls"
+        val response = client.post(url) {
+            githubHeaders(token)
+            contentType(ContentType.Application.Json)
+            setBody(CreatePullRequestBody(title, head, base, body))
+        }
+        val responseBody = response.bodyAsText()
+        if (response.status.value !in 200..299) {
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "GitHub create PR: $responseBody",
+                url = url,
+                provider = "GitHub"
+            )
+        }
+        return json.decodeFromString(GitHubPullRequestDetail.serializer(), responseBody)
+    }
 }
 
 data class GitHubPrRef(val owner: String, val repo: String, val number: Int)
@@ -296,4 +334,13 @@ data class GitHubPrRef(val owner: String, val repo: String, val number: Int)
 fun parseGitHubPullRequestUrl(url: String): GitHubPrRef? {
     val m = Regex("github\\.com/([^/]+)/([^/]+)/pull/(\\d+)", RegexOption.IGNORE_CASE).find(url.trim()) ?: return null
     return GitHubPrRef(m.groupValues[1], m.groupValues[2], m.groupValues[3].toInt())
+}
+
+data class GitHubBranchRef(val owner: String, val repo: String, val branch: String)
+
+fun parseGitHubBranchUrl(url: String): GitHubBranchRef? {
+    // GitHub branch URLs are in the form https://github.com/owner/repo/tree/branch-name
+    // Branch name can contain slashes, so we match everything after 'tree/' until a space or end of string.
+    val m = Regex("github\\.com/([^/]+)/([^/]+)/tree/(\\S+)", RegexOption.IGNORE_CASE).find(url.trim()) ?: return null
+    return GitHubBranchRef(m.groupValues[1], m.groupValues[2], m.groupValues[3])
 }

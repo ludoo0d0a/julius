@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Merge
 import androidx.compose.material3.Icon
@@ -29,6 +30,7 @@ sealed class MessageBlock {
     data class BulletTitle(val title: String) : MessageBlock()
     data class ActionList(val actions: List<String>) : MessageBlock()
     data class GitHubPR(val url: String) : MessageBlock()
+    data class GitHubBranch(val url: String) : MessageBlock()
     data class GitHubLog(val text: String) : MessageBlock()
 }
 
@@ -97,6 +99,23 @@ fun parseJulesMessage(text: String): List<MessageBlock> {
                     currentText.append(lines[i]).append("\n")
                 }
             }
+            line.contains("github.com/") && line.contains("/tree/") -> {
+                if (currentText.isNotEmpty()) {
+                    blocks.add(MessageBlock.Text(currentText.toString().trim()))
+                    currentText = StringBuilder()
+                }
+                val regex = Regex("https?://github\\.com/[^\\s/]+/[^\\s/]+/tree/[^/\\s?]+")
+                val match = regex.find(line)
+                if (match != null) {
+                    blocks.add(MessageBlock.GitHubBranch(match.value))
+                    val remaining = line.replace(match.value, "").trim()
+                    if (remaining.isNotEmpty()) {
+                        currentText.append(remaining).append("\n")
+                    }
+                } else {
+                    currentText.append(lines[i]).append("\n")
+                }
+            }
             line.getOrNull(0)?.isDigit() == true && line.contains(". ") -> {
                 if (currentText.isNotEmpty()) {
                     blocks.add(MessageBlock.Text(currentText.toString().trim()))
@@ -133,7 +152,12 @@ fun JulesMessageContent(
     baseFontSize: Int = 14,
     onSpeak: () -> Unit,
     onMergePr: ((String) -> Unit)? = null,
-    prDetails: fr.geoking.julius.persistence.JulesSessionEntity? = null
+    onSolveConflicts: ((String) -> Unit)? = null,
+    onAutoSolveConflicts: ((String) -> Unit)? = null,
+    onCreatePr: ((fr.geoking.julius.api.github.GitHubBranchRef) -> Unit)? = null,
+    prDetails: fr.geoking.julius.persistence.JulesSessionEntity? = null,
+    julesRepository: fr.geoking.julius.repository.JulesRepository? = null,
+    githubToken: String? = null
 ) {
     val blocks = remember(item) {
         if (item is JulesChatItem.UserMessage) {
@@ -157,7 +181,17 @@ fun JulesMessageContent(
             .combinedClickable(onClick = {}, onLongClick = onSpeak)
     ) {
         blocks.forEach { block ->
-            RenderBlock(block, baseFontSize, onMergePr, prDetails)
+            RenderBlock(
+                block = block,
+                baseFontSize = baseFontSize,
+                onMergePr = onMergePr,
+                onSolveConflicts = onSolveConflicts,
+                onAutoSolveConflicts = onAutoSolveConflicts,
+                onCreatePr = onCreatePr,
+                prDetails = prDetails,
+                julesRepository = julesRepository,
+                githubToken = githubToken
+            )
             Spacer(modifier = Modifier.height(8.dp))
         }
 
@@ -175,7 +209,12 @@ private fun RenderBlock(
     block: MessageBlock,
     baseFontSize: Int,
     onMergePr: ((String) -> Unit)? = null,
-    prDetails: fr.geoking.julius.persistence.JulesSessionEntity? = null
+    onSolveConflicts: ((String) -> Unit)? = null,
+    onAutoSolveConflicts: ((String) -> Unit)? = null,
+    onCreatePr: ((fr.geoking.julius.api.github.GitHubBranchRef) -> Unit)? = null,
+    prDetails: fr.geoking.julius.persistence.JulesSessionEntity? = null,
+    julesRepository: fr.geoking.julius.repository.JulesRepository? = null,
+    githubToken: String? = null
 ) {
     when (block) {
         is MessageBlock.Text -> {
@@ -199,7 +238,28 @@ private fun RenderBlock(
             }
         }
         is MessageBlock.GitHubPR -> {
-            GitHubPRCard(block.url, onMergePr, prDetails)
+            GitHubResourceCard(
+                url = block.url,
+                onMergePr = onMergePr,
+                onSolveConflicts = onSolveConflicts,
+                onAutoSolveConflicts = onAutoSolveConflicts,
+                onCreatePr = onCreatePr,
+                session = prDetails,
+                julesRepository = julesRepository,
+                githubToken = githubToken
+            )
+        }
+        is MessageBlock.GitHubBranch -> {
+            GitHubResourceCard(
+                url = block.url,
+                onMergePr = onMergePr,
+                onSolveConflicts = onSolveConflicts,
+                onAutoSolveConflicts = onAutoSolveConflicts,
+                onCreatePr = onCreatePr,
+                session = prDetails,
+                julesRepository = julesRepository,
+                githubToken = githubToken
+            )
         }
         is MessageBlock.GitHubLog -> {
             GitHubLogBlock(block.text)
@@ -228,11 +288,40 @@ private fun GitHubLogBlock(text: String) {
 }
 
 @Composable
-private fun GitHubPRCard(
+private fun GitHubResourceCard(
     url: String,
     onMergePr: ((String) -> Unit)?,
-    session: fr.geoking.julius.persistence.JulesSessionEntity?
+    onSolveConflicts: ((String) -> Unit)? = null,
+    onAutoSolveConflicts: ((String) -> Unit)? = null,
+    onCreatePr: ((fr.geoking.julius.api.github.GitHubBranchRef) -> Unit)? = null,
+    session: fr.geoking.julius.persistence.JulesSessionEntity?,
+    julesRepository: fr.geoking.julius.repository.JulesRepository? = null,
+    githubToken: String? = null
 ) {
+    var details by remember { mutableStateOf<fr.geoking.julius.api.github.GitHubClient.GitHubPullRequestDetail?>(null) }
+    var loading by remember { mutableStateOf(false) }
+
+    LaunchedEffect(url, session, githubToken) {
+        if (githubToken != null && julesRepository != null) {
+            if (session == null || session.prUrl != url) {
+                loading = true
+                val res = julesRepository.getGitHubResourceDetails(githubToken, url)
+                details = res.getOrNull()
+                loading = false
+            }
+        }
+    }
+
+    val prTitle = details?.title ?: (if (session != null && session.prUrl == url) session.prTitle else null)
+    val prRepo = details?.repository?.fullName ?: (if (session != null && session.prUrl == url) session.prRepo else null)
+    val prState = details?.state?.let { if (details?.merged == true) "merged" else it } ?: (if (session != null && session.prUrl == url) session.prState else null)
+    val prMergeable = details?.mergeable ?: (if (session != null && session.prUrl == url) session.prMergeable else null)
+    val prBranch = details?.head?.ref ?: (if (session != null && session.prUrl == url) session.prBranch else null)
+    val prNumber = details?.number ?: (if (session != null && session.prUrl == url) session.prId?.toIntOrNull() else null)
+
+    val isBranch = url.contains("/tree/")
+    val branchRef = remember(url) { fr.geoking.julius.api.github.parseGitHubBranchUrl(url) }
+
     androidx.compose.material3.Card(
         modifier = Modifier.fillMaxWidth(),
         colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.2f)),
@@ -249,26 +338,30 @@ private fun GitHubPRCard(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "GitHub Pull Request",
+                    text = if (isBranch && prState == null) "GitHub Branch" else "GitHub Pull Request",
                     color = ColorHelper.JulesAccent,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 )
+                if (loading) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 1.dp, color = ColorHelper.JulesAccent)
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            if (session != null && session.prUrl == url) {
+            if (prTitle != null || prRepo != null || prState != null) {
                 Text(
-                    text = session.prTitle ?: "No title",
+                    text = prTitle ?: "No title",
                     color = Color.White,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
 
-                if (!session.prRepo.isNullOrBlank()) {
+                if (!prRepo.isNullOrBlank()) {
                     Text(
-                        text = session.prRepo,
+                        text = prRepo,
                         color = Color.White.copy(alpha = 0.6f),
                         fontSize = 11.sp
                     )
@@ -278,10 +371,11 @@ private fun GitHubPRCard(
                     modifier = Modifier.padding(top = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val (statusText, statusColor) = when (session.prState) {
+                    val (statusText, statusColor) = when (prState) {
                         "merged" -> "Merged" to Color.Green
                         "closed" -> "Closed" to Color.Red
-                        else -> "Open" to Color.Cyan
+                        "open" -> "Open" to Color.Cyan
+                        else -> "Unknown" to Color.Gray
                     }
 
                     Box(
@@ -292,36 +386,94 @@ private fun GitHubPRCard(
                         Text(statusText, color = statusColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
 
-                    if (!session.prBranch.isNullOrBlank()) {
+                    val branchToShow = prBranch ?: branchRef?.branch
+                    if (!branchToShow.isNullOrBlank()) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = session.prBranch,
+                            text = branchToShow,
                             color = Color.White.copy(alpha = 0.6f),
                             fontSize = 11.sp,
                             fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                         )
                     }
-                }
 
-                if (session.prState == "open" && session.prMergeable == true && onMergePr != null) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    androidx.compose.material3.Button(
-                        onClick = { onMergePr(url) },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                            containerColor = Color.Green.copy(alpha = 0.2f),
-                            contentColor = Color.Green
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(androidx.compose.material.icons.Icons.Default.Merge, contentDescription = null, modifier = Modifier.size(16.dp))
+                    if (prNumber != null) {
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Merge PR", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "#$prNumber",
+                            color = Color.White.copy(alpha = 0.4f),
+                            fontSize = 11.sp
+                        )
                     }
                 }
+
+                if (prState == "open") {
+                    if (prMergeable == true && onMergePr != null) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        androidx.compose.material3.Button(
+                            onClick = { onMergePr(url) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                containerColor = Color.Green.copy(alpha = 0.2f),
+                                contentColor = Color.Green
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(androidx.compose.material.icons.Icons.Default.Merge, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Merge PR", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                    } else if (prMergeable == false) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("This PR has merge conflicts.", color = Color.Red, fontSize = 12.sp)
+                        Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                            androidx.compose.material3.FilledTonalButton(
+                                onClick = { onAutoSolveConflicts?.invoke(url) },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Auto solve", fontSize = 12.sp)
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            androidx.compose.material3.FilledTonalButton(
+                                onClick = { onSolveConflicts?.invoke(url) },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Manual solve", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            } else if (isBranch && branchRef != null && prState == null && !loading) {
+                Text(
+                    text = branchRef.branch,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${branchRef.owner}/${branchRef.repo}",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 11.sp
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                androidx.compose.material3.Button(
+                    onClick = { onCreatePr?.invoke(branchRef) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = ColorHelper.JulesAccent.copy(alpha = 0.2f),
+                        contentColor = ColorHelper.JulesAccent
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(androidx.compose.material.icons.Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Publish Branch", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
             } else {
-                // Fallback if session details not available
-                Text(url, color = Color.White, fontSize = 12.sp, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline)
+                // Fallback
+                Text(url, color = Color.White, fontSize = 12.sp, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline, modifier = Modifier.clickable { /* open url? */ })
             }
         }
     }
