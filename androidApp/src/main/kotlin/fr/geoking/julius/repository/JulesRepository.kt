@@ -570,6 +570,32 @@ class JulesRepository(
         if (apiKey != null) {
         try {
             val resp = julesClient.listActivities(apiKey, sessionId, pageSize = 50)
+
+            // Sync PR info from activities to session if found
+            for (activity in resp.activities) {
+                val pr = activity.outputs?.firstOrNull()?.pullRequest ?: activity.sessionCompleted?.outputs?.firstOrNull()?.pullRequest
+                if (pr?.url != null) {
+                    val existing = julesDao.getSession(sessionId)
+                    if (existing != null && existing.prUrl != pr.url) {
+                        val updated = existing.copy(
+                            prUrl = pr.url,
+                            prTitle = pr.title,
+                            prId = pr.id,
+                            lastUpdated = System.currentTimeMillis()
+                        )
+                        julesDao.insertSessions(listOf(updated))
+                        val githubToken = settingsManager.settings.value.githubApiKey
+                        if (githubToken.isNotBlank()) {
+                            try {
+                                updatePrStatus(githubToken, updated)
+                            } catch (e: Exception) {
+                                // Ignore GitHub update errors here
+                            }
+                        }
+                    }
+                }
+            }
+
             val items = julesClient.activitiesToChatItems(resp.activities)
 
             val entities = mutableListOf<JulesActivityEntity>()
