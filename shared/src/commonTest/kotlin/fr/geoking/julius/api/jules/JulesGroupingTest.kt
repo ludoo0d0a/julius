@@ -34,7 +34,7 @@ class JulesGroupingTest {
                 id = "4",
                 createTime = "2024-01-01T10:03:00Z",
                 originator = "agent",
-                sessionCompleted = JsonObject(emptyMap())
+                sessionCompleted = JulesClient.SessionCompleted()
             )
         )
 
@@ -56,6 +56,56 @@ class JulesGroupingTest {
         assertEquals("Session completed.", completed.title)
         assertEquals(1, completed.subItems.size)
         assertEquals("Session completed.", completed.text)
+    }
+
+    @Test
+    fun testExtractPrFromSessionCompleted() {
+        val activities = listOf(
+            JulesClient.JulesActivity(
+                id = "1",
+                createTime = "2024-01-01T10:00:00Z",
+                originator = "agent",
+                sessionCompleted = JulesClient.SessionCompleted(
+                    outputs = listOf(
+                        JulesClient.JulesOutput(
+                            pullRequest = JulesClient.JulesPullRequest(
+                                url = "https://github.com/owner/repo/pull/123",
+                                title = "Feature implementation"
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        val chatItems = client.activitiesToChatItems(activities)
+        assertEquals(1, chatItems.size)
+        val msg = chatItems[0] as JulesChatItem.AgentMessage
+        assertEquals("Session completed.\n\nhttps://github.com/owner/repo/pull/123", msg.text)
+    }
+
+    @Test
+    fun testExtractPrFromTopLevelOutputs() {
+        val activities = listOf(
+            JulesClient.JulesActivity(
+                id = "1",
+                createTime = "2024-01-01T10:00:00Z",
+                originator = "agent",
+                description = "Task finished",
+                outputs = listOf(
+                    JulesClient.JulesOutput(
+                        pullRequest = JulesClient.JulesPullRequest(
+                            url = "https://github.com/owner/repo/pull/456"
+                        )
+                    )
+                )
+            )
+        )
+
+        val chatItems = client.activitiesToChatItems(activities)
+        assertEquals(1, chatItems.size)
+        val msg = chatItems[0] as JulesChatItem.AgentMessage
+        assertEquals("Task finished\n\nhttps://github.com/owner/repo/pull/456", msg.text)
     }
 
     @Test
