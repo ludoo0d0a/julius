@@ -24,6 +24,8 @@ import fr.geoking.julius.api.github.GitHubClient
  
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.repository.FeatureRepository
+import fr.geoking.julius.repository.GitHubBuildRepository
+import fr.geoking.julius.settings.ProjectWorkflowPreferences
 import fr.geoking.julius.shared.conversation.MessagePersistence
 import fr.geoking.julius.shared.network.NetworkException
 import fr.geoking.julius.persistence.AppDatabase
@@ -439,6 +441,8 @@ val appModule = module {
 
     single { JulesRepository(androidContext(), get(), get(), get(), get(), get()) }
     single { FeatureRepository(androidContext(), get(), get()) }
+    single { ProjectWorkflowPreferences(androidContext()) }
+    single { GitHubBuildRepository(get(), get()) }
 
     single<ConversationStore> {
         val settingsManager = get<SettingsManager>()

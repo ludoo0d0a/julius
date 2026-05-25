@@ -292,6 +292,71 @@ class GitHubClient(
         }
     }
 
+    // --- GitHub Actions (workflows / runs / jobs) ---
+
+    suspend fun listWorkflows(token: String, owner: String, repo: String): List<GitHubWorkflow> {
+        requireToken(token)
+        val url = "$baseUrl/repos/$owner/$repo/actions/workflows"
+        val response = client.get(url) {
+            githubHeaders(token)
+            parameter("per_page", "100")
+        }
+        val body = response.bodyAsText()
+        if (response.status.value != 200) {
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "GitHub list workflows: $body",
+                url = url,
+                provider = "GitHub"
+            )
+        }
+        return json.decodeFromString(GitHubWorkflowsResponse.serializer(), body).workflows
+    }
+
+    suspend fun listWorkflowRuns(
+        token: String,
+        owner: String,
+        repo: String,
+        workflowId: Long,
+        perPage: Int = 30
+    ): List<GitHubWorkflowRun> {
+        requireToken(token)
+        val url = "$baseUrl/repos/$owner/$repo/actions/workflows/$workflowId/runs"
+        val response = client.get(url) {
+            githubHeaders(token)
+            parameter("per_page", perPage.toString())
+        }
+        val body = response.bodyAsText()
+        if (response.status.value != 200) {
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "GitHub list workflow runs: $body",
+                url = url,
+                provider = "GitHub"
+            )
+        }
+        return json.decodeFromString(GitHubWorkflowRunsResponse.serializer(), body).workflowRuns
+    }
+
+    suspend fun listRunJobs(token: String, owner: String, repo: String, runId: Long): List<GitHubWorkflowJob> {
+        requireToken(token)
+        val url = "$baseUrl/repos/$owner/$repo/actions/runs/$runId/jobs"
+        val response = client.get(url) {
+            githubHeaders(token)
+            parameter("per_page", "100")
+        }
+        val body = response.bodyAsText()
+        if (response.status.value != 200) {
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "GitHub list run jobs: $body",
+                url = url,
+                provider = "GitHub"
+            )
+        }
+        return json.decodeFromString(GitHubWorkflowJobsResponse.serializer(), body).jobs
+    }
+
     @Serializable
     private data class CreatePullRequestBody(
         val title: String,
