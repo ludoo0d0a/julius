@@ -407,7 +407,10 @@ fun AddFeatureDialog(
                         readOnly = true,
                         label = { Text("Source Repository") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        modifier = Modifier.menuAnchor()
+                        modifier = Modifier.menuAnchor(
+                            type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                            enabled = true,
+                        )
                     )
                     ExposedDropdownMenu(
                         expanded = expanded,

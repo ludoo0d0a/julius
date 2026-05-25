@@ -2,8 +2,6 @@ import com.android.build.api.dsl.ApplicationExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
-import java.util.zip.ZipEntry
-import java.util.zip.ZipFile
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -187,7 +185,7 @@ afterEvaluate {
 
 // ---- 16KB page size compatibility guard (Android 15+) ----
 // Android apps that ship native 64-bit libraries must ensure ELF PT_LOAD segments have p_align >= 16KB.
-// This task inspects embedded .so inside resolved AAR/JARs and fails fast if any are incompatible.
+// Scans merged release native libs (same .so set that ships in the APK) after merge*ReleaseNativeLibs.
 val checkNative16kPageSize = tasks.register("checkNative16kPageSize") {
     group = "verification"
     description = "Fails if any dependency ships 64-bit .so not compatible with 16KB page size."
@@ -262,36 +260,45 @@ val checkNative16kPageSize = tasks.register("checkNative16kPageSize") {
             }
         }
 
-        val artifacts = configurations.getByName("runtimeClasspath").resolvedConfiguration.resolvedArtifacts
+        val mergedNativeRoot = layout.buildDirectory.dir("intermediates/merged_native_libs").get().asFile
+        if (!mergedNativeRoot.isDirectory) {
+            throw GradleException(
+                "Merged native libs not found at ${mergedNativeRoot.absolutePath}. " +
+                    "Run merge*ReleaseNativeLibs first (e.g. ./gradlew :androidApp:mergeFullReleaseNativeLibs)."
+            )
+        }
+
         val problems = mutableListOf<String>()
+        val checkedLibs = mutableListOf<String>()
 
-        for (art in artifacts) {
-            val file = art.file
-            if (!file.isFile) continue
-            val name = "${art.moduleVersion.id.group}:${art.name}:${art.moduleVersion.id.version}"
-            val ext = file.extension.lowercase()
-            if (ext != "aar" && ext != "jar") continue
-
-            ZipFile(file).use { zip ->
-                val entries = buildList<ZipEntry> {
-                    val en = zip.entries()
-                    while (en.hasMoreElements()) {
-                        val e = en.nextElement()
-                        if (!e.isDirectory && e.name.endsWith(".so")) add(e)
+        mergedNativeRoot.listFiles()
+            ?.filter { it.isDirectory && it.name.endsWith("Release", ignoreCase = true) }
+            ?.forEach { variantDir ->
+                variantDir.listFiles()
+                    ?.filter { it.isDirectory && it.name.startsWith("merge") }
+                    ?.forEach { mergeDir ->
+                        val libRoot = mergeDir.resolve("out/lib")
+                        if (!libRoot.isDirectory) return@forEach
+                        libRoot.walkTopDown()
+                            .filter { it.isFile && it.extension == "so" }
+                            .forEach { soFile ->
+                                checkedLibs += "${variantDir.name}/${soFile.relativeTo(libRoot).path}"
+                                soFile.inputStream().use { input ->
+                                    val head = readAtMost(input, 2 * 1024 * 1024)
+                                    val r = checkElf16kCompatible(head)
+                                    if (!r.ok) {
+                                        problems += "${variantDir.name} -> ${soFile.relativeTo(libRoot).path}: ${r.reason}"
+                                    }
+                                }
+                            }
                     }
-                }
-                if (entries.isEmpty()) return@use
-                for (e in entries) {
-                    // Read enough to include ELF header + program headers; cap to 2MB to avoid OOM on large libs.
-                    zip.getInputStream(e).use { input ->
-                        val head = readAtMost(input, 2 * 1024 * 1024)
-                        val r = checkElf16kCompatible(head)
-                        if (!r.ok) {
-                            problems += "$name -> ${e.name}: ${r.reason}"
-                        }
-                    }
-                }
             }
+
+        if (checkedLibs.isEmpty()) {
+            throw GradleException(
+                "No release native libraries found under ${mergedNativeRoot.absolutePath}. " +
+                    "Run merge*ReleaseNativeLibs before checkNative16kPageSize."
+            )
         }
 
         if (problems.isNotEmpty()) {
@@ -304,8 +311,19 @@ val checkNative16kPageSize = tasks.register("checkNative16kPageSize") {
                 }
             )
         } else {
-            logger.lifecycle("Native 16KB page size check: OK (no incompatible 64-bit .so found in runtimeClasspath)")
+            logger.lifecycle(
+                "Native 16KB page size check: OK (${checkedLibs.size} libs across release variants)"
+            )
         }
+    }
+}
+
+afterEvaluate {
+    val mergeReleaseNativeLibTasks = tasks.matching {
+        it.name.startsWith("merge") && it.name.endsWith("ReleaseNativeLibs")
+    }
+    checkNative16kPageSize.configure {
+        dependsOn(mergeReleaseNativeLibTasks)
     }
 }
 

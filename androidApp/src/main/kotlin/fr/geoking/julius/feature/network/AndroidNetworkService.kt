@@ -145,8 +145,7 @@ class AndroidNetworkService(
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     telephonyManager.signalStrength?.level ?: 0
                 } else {
-                    @Suppress("DEPRECATION")
-                    telephonyManager.signalStrength?.level ?: 0
+                    0
                 }
             }
             else -> 0

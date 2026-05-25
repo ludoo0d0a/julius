@@ -87,7 +87,6 @@ class DataGouvClient(
                     val str = prix.content
                     runCatching { json.parseToJsonElement(str) }.getOrNull() as? JsonArray ?: return emptyList()
                 }
-                else -> emptyList()
             }
 
         return entries.mapNotNull { el ->

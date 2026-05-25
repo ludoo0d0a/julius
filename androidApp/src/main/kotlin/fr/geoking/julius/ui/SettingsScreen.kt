@@ -63,7 +63,7 @@ fun SettingsScreen(
     var navigationStack = rememberSaveable(
         saver = listSaver(
             save = { it.map { page -> page.name } },
-            restore = { it.map { name -> SettingsScreenPage.valueOf(name as String) }.toMutableStateList() }
+            restore = { it.map { name -> SettingsScreenPage.valueOf(name) }.toMutableStateList() }
         )
     ) {
         mutableStateListOf<SettingsScreenPage>().apply {
@@ -271,11 +271,10 @@ fun MainSettingsPage(
                 modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp)
             )
 
-            val current = settingsManager.settings.value
-            val selected = current.sttEnginePreference
+            val selected = settings.sttEnginePreference
 
             fun setPref(p: SttEnginePreference) {
-                settingsManager.saveSettings(current.copy(sttEnginePreference = p))
+                settingsManager.saveSettings(settings.copy(sttEnginePreference = p))
             }
 
             var voskModelReady by remember { mutableStateOf(VoskModelHelper(context).isModelDownloaded()) }
@@ -337,7 +336,7 @@ fun AgentsPage(
     var filterMode by remember { mutableIntStateOf(0) } // 0: All, 1: Remote, 2: Embedded
 
     Column {
-        TabRow(selectedTabIndex = filterMode) {
+        PrimaryTabRow(selectedTabIndex = filterMode) {
             Tab(selected = filterMode == 0, onClick = { filterMode = 0 }) {
                 Text("All", modifier = Modifier.padding(12.dp))
             }

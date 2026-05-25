@@ -6,6 +6,7 @@ import androidx.car.app.Session
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import fr.geoking.julius.JuliusApplication
+import androidx.media3.common.util.UnstableApi
 import fr.geoking.julius.feature.voice.AndroidVoiceManager
 import fr.geoking.julius.shared.voice.VoiceManager
 import org.koin.core.component.KoinComponent
@@ -14,6 +15,7 @@ import org.koin.core.component.get
 /**
  * Android Auto session entry point.
  */
+@androidx.annotation.OptIn(UnstableApi::class)
 class CarAppSession : Session(), KoinComponent {
 
     init {

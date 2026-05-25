@@ -26,14 +26,12 @@ class AutoPlaceListNavigationTemplateScreen(carContext: CarContext) : Screen(car
                 Header.Builder()
                     .setTitle("PlaceListNavigationTemplate (List Only)")
                     .setStartHeaderAction(Action.BACK)
+                    .addEndHeaderAction(
+                        Action.Builder().setTitle("Exit").setOnClickListener { screenManager.pop() }.build()
+                    )
                     .build()
             )
             .setSingleList(listBuilder.build())
-            .setActionStrip(
-                androidx.car.app.model.ActionStrip.Builder()
-                    .addAction(Action.Builder().setTitle("Exit").setOnClickListener { screenManager.pop() }.build())
-                    .build()
-            )
             .build()
     }
 }

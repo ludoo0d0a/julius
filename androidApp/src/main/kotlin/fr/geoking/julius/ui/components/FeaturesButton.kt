@@ -1,7 +1,7 @@
 package fr.geoking.julius.ui.components
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -16,7 +16,7 @@ fun FeaturesButton(
 ) {
     IconButton(onClick = onClick, modifier = modifier) {
         Icon(
-            Icons.Default.List,
+            Icons.AutoMirrored.Filled.List,
             contentDescription = "Features",
             tint = Color.White.copy(alpha = 0.7f)
         )
