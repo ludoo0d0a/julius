@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -248,6 +249,13 @@ fun FeatureDetailContent(
     var isEditing by remember { mutableStateOf(false) }
     var editedTitle by remember { mutableStateOf(feature.title) }
     var editedDescription by remember { mutableStateOf(feature.description) }
+    var sessions by remember { mutableStateOf<List<JulesSessionEntity>>(emptyList()) }
+
+    LaunchedEffect(feature.id) {
+        julesRepository.getSessions(apiKeys, feature.sourceName, "").collect { list ->
+            sessions = list.filter { it.featureId == feature.id }
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         if (isEditing) {
@@ -287,40 +295,56 @@ fun FeatureDetailContent(
             Spacer(modifier = Modifier.height(16.dp))
             Text(feature.description, color = Color.White.copy(alpha = 0.8f))
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(24.dp))
+            Text("Conversations", color = Color.White, fontWeight = FontWeight.Bold)
 
-            if (feature.sessionId != null) {
-                Button(
-                    onClick = {
-                        scope.launch {
-                            val session = julesRepository.getSession(feature.sessionId)
-                            if (session != null) onOpenConversation(session)
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Open Conversation")
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                items(sessions) { session ->
+                    androidx.compose.material3.ListItem(
+                        headlineContent = { Text(session.title.ifBlank { session.prompt }, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        supportingContent = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                StatusBadge(session.sessionState ?: "Active")
+                                Spacer(modifier = Modifier.size(8.dp))
+                                Text(session.updateTime?.take(16) ?: "", fontSize = 12.sp)
+                            }
+                        },
+                        trailingContent = {
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+                        },
+                        modifier = Modifier.clickable { onOpenConversation(session) },
+                        colors = androidx.compose.material3.ListItemDefaults.colors(
+                            containerColor = Color.Transparent,
+                            headlineColor = Color.White,
+                            supportingColor = Color.White.copy(alpha = 0.6f)
+                        )
+                    )
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
                 }
-            } else {
-                Button(
-                    onClick = {
-                        scope.launch {
-                            val sessionId = julesRepository.createSession(
+            }
+
+            Button(
+                onClick = {
+                    scope.launch {
+                        val sessionId = if (sessions.isEmpty()) {
+                            featureRepository.startFeature(feature.id, apiKeys)
+                        } else {
+                            julesRepository.createSession(
                                 apiKeys = apiKeys,
                                 prompt = feature.description,
                                 source = feature.sourceName,
-                                title = feature.title
+                                title = feature.title,
+                                featureId = feature.id
                             )
-                            featureRepository.linkSession(feature.id, sessionId)
-                            val session = julesRepository.getSession(sessionId)
-                            if (session != null) onOpenConversation(session)
                         }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = apiKeys.isNotEmpty()
-                ) {
-                    Text("Start Conversation")
-                }
+                        val session = julesRepository.getSession(sessionId)
+                        if (session != null) onOpenConversation(session)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = apiKeys.isNotEmpty()
+            ) {
+                Text(if (sessions.isEmpty()) "Start Conversation" else "New Conversation")
             }
         }
     }

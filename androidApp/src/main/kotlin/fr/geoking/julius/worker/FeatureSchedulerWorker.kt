@@ -23,38 +23,6 @@ class FeatureSchedulerWorker(
     private val githubClient: GitHubClient by inject()
 
     override suspend fun doWork(): Result {
-        val now = System.currentTimeMillis()
-        val since = now - TimeUnit.DAYS.toMillis(1)
-        val recentlyStartedCount = featureDao.getRecentlyStartedFeaturesCount(since)
-
-        if (recentlyStartedCount < 15) {
-            val activeCount = featureDao.getActiveFeaturesCount()
-            if (activeCount < 3) {
-                val nextFeature = featureDao.getNextPendingFeature()
-                if (nextFeature != null) {
-                    try {
-                        val settings = settingsManager.settings.value
-                        val apiKeys = settings.julesKeys
-                        if (apiKeys.isNotEmpty()) {
-                            val sessionId = julesRepository.createSession(
-                                apiKeys = apiKeys,
-                                prompt = nextFeature.description,
-                                source = nextFeature.sourceName,
-                                title = nextFeature.title
-                            )
-                            featureDao.updateFeature(nextFeature.copy(
-                                sessionId = sessionId,
-                                status = "QUEUED",
-                                updatedAt = System.currentTimeMillis()
-                            ))
-                        }
-                    } catch (e: Exception) {
-                        android.util.Log.e("FeatureSchedulerWorker", "Failed to push feature ${nextFeature.id}", e)
-                    }
-                }
-            }
-        }
-
         // Check status of in-progress features
         val activeFeatures = featureDao.getActiveFeatures()
         val githubToken = settingsManager.settings.value.githubApiKey
@@ -86,11 +54,10 @@ class FeatureSchedulerWorker(
             }
         }
 
-        // Reschedule if there are pending features or if we have active features to poll
-        val hasPending = featureDao.getNextPendingFeature() != null
+        // Reschedule if we have active features to poll
         val hasActive = featureDao.getActiveFeaturesCount() > 0
 
-        if (hasPending || hasActive) {
+        if (hasActive) {
             reschedule()
         }
 

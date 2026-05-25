@@ -124,7 +124,15 @@ class JulesRepository(
                             val pr = session.outputs?.firstOrNull()?.pullRequest
                             val existing = try { julesDao.getSession(sessionId) } catch (e: Exception) { null }
 
-                            val newLastUpdated = existing?.lastUpdated ?: System.currentTimeMillis()
+                            val apiUpdateTime = try {
+                                if (!session.updateTime.isNullOrBlank()) {
+                                    OffsetDateTime.parse(session.updateTime).toInstant().toEpochMilli()
+                                } else 0L
+                            } catch (e: Exception) { 0L }
+
+                            val newLastUpdated = maxOf(existing?.lastUpdated ?: 0L, apiUpdateTime).let {
+                                if (it == 0L) System.currentTimeMillis() else it
+                            }
 
                             currentEntities.add(JulesSessionEntity(
                                 id = sessionId,
@@ -142,7 +150,8 @@ class JulesRepository(
                                 updateTime = session.updateTime,
                                 isArchived = existing?.isArchived ?: false,
                                 lastUpdated = newLastUpdated,
-                                apiKey = key
+                                apiKey = key,
+                                featureId = existing?.featureId
                             ))
                         }
 
@@ -283,7 +292,16 @@ class JulesRepository(
         }
     }
 
-    suspend fun createSession(apiKeys: List<String>, prompt: String, source: String, title: String): String {
+    suspend fun linkSessionToFeature(sessionId: String, featureId: String?) {
+        try {
+            julesDao.updateSessionFeature(sessionId, featureId)
+            julesDao.updateSessionLastUpdated(sessionId, System.currentTimeMillis())
+        } catch (e: Exception) {
+            android.util.Log.e("JulesRepository", "Failed to link session $sessionId to feature $featureId", e)
+        }
+    }
+
+    suspend fun createSession(apiKeys: List<String>, prompt: String, source: String, title: String, featureId: String? = null): String {
         val isOnline = networkService.status.value.isConnected
         if (isOnline) {
             val apiKey = apiKeys.firstOrNull() ?: throw Exception("No API key available")
@@ -309,7 +327,8 @@ class JulesRepository(
                 updateTime = session.updateTime,
                 isArchived = false,
                 lastUpdated = System.currentTimeMillis(),
-                apiKey = apiKey
+                apiKey = apiKey,
+                featureId = featureId
             )
             julesDao.insertSessions(listOf(entity))
             return session.id
@@ -328,7 +347,8 @@ class JulesRepository(
                 isArchived = false,
                 lastUpdated = System.currentTimeMillis(),
                 isPendingOffline = true,
-                queuedAt = System.currentTimeMillis()
+                queuedAt = System.currentTimeMillis(),
+                featureId = featureId
             )
             julesDao.insertSessions(listOf(entity))
             scheduleSync()
@@ -413,7 +433,8 @@ class JulesRepository(
                             lastUpdated = System.currentTimeMillis(),
                             isPendingOffline = false,
                             queuedAt = null,
-                            apiKey = apiKey
+                            apiKey = apiKey,
+                            featureId = session.featureId
                         )
                         julesDao.insertSessions(listOf(updatedEntity))
                         julesDao.updateActivitiesSessionId(session.id, newSession.id)
@@ -570,6 +591,32 @@ class JulesRepository(
         if (apiKey != null) {
         try {
             val resp = julesClient.listActivities(apiKey, sessionId, pageSize = 50)
+
+            // Sync PR info from activities to session if found
+            for (activity in resp.activities) {
+                val pr = activity.outputs?.firstOrNull()?.pullRequest ?: activity.sessionCompleted?.outputs?.firstOrNull()?.pullRequest
+                if (pr?.url != null) {
+                    val existing = julesDao.getSession(sessionId)
+                    if (existing != null && existing.prUrl != pr.url) {
+                        val updated = existing.copy(
+                            prUrl = pr.url,
+                            prTitle = pr.title,
+                            prId = pr.id,
+                            lastUpdated = System.currentTimeMillis()
+                        )
+                        julesDao.insertSessions(listOf(updated))
+                        val githubToken = settingsManager.settings.value.githubApiKey
+                        if (githubToken.isNotBlank()) {
+                            try {
+                                updatePrStatus(githubToken, updated)
+                            } catch (e: Exception) {
+                                // Ignore GitHub update errors here
+                            }
+                        }
+                    }
+                }
+            }
+
             val items = julesClient.activitiesToChatItems(resp.activities)
 
             val entities = mutableListOf<JulesActivityEntity>()
@@ -732,9 +779,50 @@ class JulesRepository(
     }
 
     suspend fun getPrDetails(githubToken: String, prUrl: String): Result<GitHubClient.GitHubPullRequestDetail> {
-        val prRef = parseGitHubPullRequestUrl(prUrl) ?: return Result.failure(Exception("Invalid PR URL"))
+        val prRef = fr.geoking.julius.api.github.parseGitHubPullRequestUrl(prUrl) ?: return Result.failure(Exception("Invalid PR URL"))
         return try {
             val detail = githubClient.getPullRequest(githubToken, prRef.owner, prRef.repo, prRef.number)
+            Result.success(detail)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getGitHubResourceDetails(githubToken: String, url: String): Result<GitHubClient.GitHubPullRequestDetail?> {
+        val prRef = fr.geoking.julius.api.github.parseGitHubPullRequestUrl(url)
+        if (prRef != null) {
+            return getPrDetails(githubToken, url)
+        }
+
+        val branchRef = fr.geoking.julius.api.github.parseGitHubBranchUrl(url)
+        if (branchRef != null) {
+            return try {
+                // Find open PR for this branch
+                val prs = githubClient.listPullRequests(githubToken, branchRef.owner, branchRef.repo, state = "open", head = "${branchRef.owner}:${branchRef.branch}")
+                if (prs.isNotEmpty()) {
+                    getPrDetails(githubToken, prs.first().htmlUrl)
+                } else {
+                    Result.success(null) // No PR found for this branch
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+        return Result.failure(Exception("Unsupported GitHub URL"))
+    }
+
+    suspend fun createPullRequest(
+        githubToken: String,
+        owner: String,
+        repo: String,
+        head: String,
+        base: String,
+        title: String,
+        body: String?
+    ): Result<GitHubClient.GitHubPullRequestDetail> {
+        return try {
+            val detail = githubClient.createPullRequest(githubToken, owner, repo, title, head, base, body)
             Result.success(detail)
         } catch (e: Exception) {
             Result.failure(e)

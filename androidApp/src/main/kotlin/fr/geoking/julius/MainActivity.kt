@@ -41,6 +41,7 @@ import fr.geoking.julius.shared.network.NetworkStatus
 import fr.geoking.julius.shared.voice.LocalTranscriber
 import fr.geoking.julius.shared.voice.NoLocalTranscriber
 import fr.geoking.julius.shared.voice.VoiceManager
+import fr.geoking.julius.designassistant.DesignAssistantHost
 import fr.geoking.julius.ui.JulesScreen
 import fr.geoking.julius.ui.HistoryScreen
 import fr.geoking.julius.ui.SettingsScreen
@@ -343,6 +344,7 @@ fun MainUI(
     var showJules by remember { mutableStateOf(false) }
     var julesInitialSession by remember { mutableStateOf<JulesSessionEntity?>(null) }
     var showFeatures by remember { mutableStateOf(false) }
+    var showDesignAssistant by remember { mutableStateOf(false) }
     var showFavorites by remember { mutableStateOf(false) }
     val settings by settingsManager.settings.collectAsState()
     val llamatikModelHelper = remember(context) { LlamatikModelHelper(context.applicationContext) }
@@ -382,6 +384,9 @@ fun MainUI(
                         onInitialRouteConsumed = { settingsInitialStack = null }
                     )
                 }
+                showDesignAssistant -> {
+                    DesignAssistantHost(onBack = { showDesignAssistant = false })
+                }
                 showJules -> {
                     JulesScreen(
                         onBack = {
@@ -390,6 +395,7 @@ fun MainUI(
                         },
                         julesClient = julesClient,
                         julesRepository = julesRepository,
+                        featureRepository = featureRepository,
                         settingsManager = settingsManager,
                         voiceManager = voiceManager,
                         buildRepository = buildRepository,
@@ -437,6 +443,7 @@ fun MainUI(
                         },
                         onHistoryClick = { showHistory = true },
                         onJulesClick = { showJules = true },
+                        onJulesLongClick = { showDesignAssistant = true },
                         onFeaturesClick = { showFeatures = true },
                         onVoskTestClick = { showVoskTest = true },
                         setupIssue = setupIssue,
@@ -549,6 +556,7 @@ fun MainUIPreview() {
                     override suspend fun updateSessionGitHubDetails(sessionId: String, branch: String?, repo: String?) {}
                     override suspend fun updateSessionState(sessionId: String, state: String?) {}
                     override suspend fun updateSessionLastUpdated(sessionId: String, lastUpdated: Long) {}
+                    override suspend fun updateSessionFeature(sessionId: String, featureId: String?) {}
                     override suspend fun getPendingOfflineSessions(): List<JulesSessionEntity> = emptyList()
                     override suspend fun getPendingOfflineActivities(): List<JulesActivityEntity> = emptyList()
                     override suspend fun deleteSession(sessionId: String) {}
@@ -586,6 +594,7 @@ fun MainUIPreview() {
                     override suspend fun updateSessionGitHubDetails(sessionId: String, branch: String?, repo: String?) {}
                     override suspend fun updateSessionState(sessionId: String, state: String?) {}
                     override suspend fun updateSessionLastUpdated(sessionId: String, lastUpdated: Long) {}
+                    override suspend fun updateSessionFeature(sessionId: String, featureId: String?) {}
                     override suspend fun getPendingOfflineSessions(): List<JulesSessionEntity> = emptyList()
                     override suspend fun getPendingOfflineActivities(): List<JulesActivityEntity> = emptyList()
                     override suspend fun deleteSession(sessionId: String) {}

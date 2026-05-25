@@ -92,14 +92,17 @@ class VoskTranscriber(
     }
 
     private fun getExistingModelPath(): String? {
-        val baseDir = File(context.filesDir, "vosk_model")
+        // 1. Check for models downloaded via VoskModelHelper
+        val downloadedPath = VoskModelHelper(context).getModelPath()
+        if (downloadedPath != null) return downloadedPath
 
-        // 1. Check if model is directly in vosk_model
+        // 2. Legacy check if model is directly in vosk_model
+        val baseDir = File(context.filesDir, "vosk_model")
         if (File(baseDir, "am/final.mdl").exists()) {
             return baseDir.absolutePath
         }
 
-        // 2. Check subdirectories in vosk_model (common if unzipped with a folder)
+        // 3. Legacy check subdirectories in vosk_model (common if unzipped with a folder)
         val children = baseDir.listFiles() ?: emptyArray()
         for (child in children) {
             if (child.isDirectory && File(child, "am/final.mdl").exists()) {
@@ -107,7 +110,7 @@ class VoskTranscriber(
             }
         }
 
-        // 3. Check assets without copying just to see if it's there
+        // 4. Check assets without copying just to see if it's there
         return try {
             val assetsPath = "models/vosk"
             val assetFiles = context.assets.list(assetsPath) ?: emptyArray()
@@ -159,9 +162,10 @@ class VoskTranscriber(
         synchronized(lock) {
             if (model != null) return model
             val path = modelDirPath?.takeIf { File(it, "am/final.mdl").exists() }
+                ?: VoskModelHelper(context).getModelPath()
                 ?: ensureModelFromAssets()
             if (path == null) {
-                Log.w(TAG, "No Vosk model path available; add model to assets/models/vosk/ or set path")
+                Log.w(TAG, "No Vosk model path available; add model to assets/models/vosk/ or download one")
                 return null
             }
             model = Model(path)
