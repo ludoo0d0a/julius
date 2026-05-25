@@ -57,7 +57,9 @@ import fr.geoking.julius.persistence.JulesDao
 import fr.geoking.julius.persistence.JulesSessionEntity
 import fr.geoking.julius.persistence.JulesSourceEntity
 import com.google.firebase.auth.FirebaseAuth
+import fr.geoking.julius.repository.GitHubBuildRepository
 import fr.geoking.julius.repository.JulesRepository
+import fr.geoking.julius.settings.ProjectWorkflowPreferences
 import fr.geoking.julius.ui.UpdateAvailableDialog
 import fr.geoking.julius.ui.anim.AnimationPalettes
 import com.google.android.play.core.appupdate.AppUpdateInfo
@@ -149,6 +151,7 @@ class MainActivity : ComponentActivity() {
             val permissionManager: PermissionManager = get()
             val julesClient: JulesClient = get()
             val julesRepository: JulesRepository = get()
+            val buildRepository: GitHubBuildRepository = get()
             val featureRepository: fr.geoking.julius.repository.FeatureRepository = get()
             val voiceManager: VoiceManager = get()
             val localTranscriber: LocalTranscriber = get()
@@ -172,6 +175,7 @@ class MainActivity : ComponentActivity() {
                 authManager = authManager,
                 julesClient = julesClient,
                 julesRepository = julesRepository,
+                buildRepository = buildRepository,
                 featureRepository = featureRepository,
                 voiceManager = voiceManager,
                 localTranscriber = localTranscriber,
@@ -196,6 +200,7 @@ class MainActivity : ComponentActivity() {
         authManager: GoogleAuthManager,
         julesClient: JulesClient,
         julesRepository: JulesRepository,
+        buildRepository: GitHubBuildRepository,
         featureRepository: fr.geoking.julius.repository.FeatureRepository,
         voiceManager: VoiceManager,
         localTranscriber: LocalTranscriber,
@@ -211,6 +216,7 @@ class MainActivity : ComponentActivity() {
                     authManager = authManager,
                     julesClient = julesClient,
                     julesRepository = julesRepository,
+                    buildRepository = buildRepository,
                     featureRepository = featureRepository,
                     voiceManager = voiceManager,
                     localTranscriber = localTranscriber,
@@ -245,6 +251,7 @@ private fun MainActivityComposeRoot(
     authManager: GoogleAuthManager,
     julesClient: JulesClient,
     julesRepository: JulesRepository,
+    buildRepository: GitHubBuildRepository,
     featureRepository: fr.geoking.julius.repository.FeatureRepository,
     voiceManager: VoiceManager,
     localTranscriber: LocalTranscriber,
@@ -280,6 +287,7 @@ private fun MainActivityComposeRoot(
         authManager = authManager,
         julesClient = julesClient,
         julesRepository = julesRepository,
+        buildRepository = buildRepository,
         featureRepository = featureRepository,
         voiceManager = voiceManager,
         localTranscriber = localTranscriber,
@@ -301,6 +309,7 @@ fun MainUI(
     authManager: GoogleAuthManager,
     julesClient: JulesClient,
     julesRepository: JulesRepository,
+    buildRepository: GitHubBuildRepository,
     featureRepository: fr.geoking.julius.repository.FeatureRepository,
     voiceManager: VoiceManager,
     localTranscriber: LocalTranscriber,
@@ -383,6 +392,7 @@ fun MainUI(
                         julesRepository = julesRepository,
                         settingsManager = settingsManager,
                         voiceManager = voiceManager,
+                        buildRepository = buildRepository,
                         initialSession = julesInitialSession
                     )
                 }
@@ -608,6 +618,12 @@ fun MainUIPreview() {
                     override suspend fun getRecentlyStartedFeaturesCount(since: Long): Int = 0
                 },
                 jRepo
+            )
+        },
+        buildRepository = remember {
+            GitHubBuildRepository(
+                GitHubClient(HttpClient(OkHttp) {}),
+                ProjectWorkflowPreferences(context)
             )
         },
         voiceManager = mockStore.voiceManager,
