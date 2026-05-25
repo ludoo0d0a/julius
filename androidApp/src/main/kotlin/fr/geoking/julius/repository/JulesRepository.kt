@@ -150,7 +150,8 @@ class JulesRepository(
                                 updateTime = session.updateTime,
                                 isArchived = existing?.isArchived ?: false,
                                 lastUpdated = newLastUpdated,
-                                apiKey = key
+                                apiKey = key,
+                                featureId = existing?.featureId
                             ))
                         }
 
@@ -291,7 +292,16 @@ class JulesRepository(
         }
     }
 
-    suspend fun createSession(apiKeys: List<String>, prompt: String, source: String, title: String): String {
+    suspend fun linkSessionToFeature(sessionId: String, featureId: String?) {
+        try {
+            julesDao.updateSessionFeature(sessionId, featureId)
+            julesDao.updateSessionLastUpdated(sessionId, System.currentTimeMillis())
+        } catch (e: Exception) {
+            android.util.Log.e("JulesRepository", "Failed to link session $sessionId to feature $featureId", e)
+        }
+    }
+
+    suspend fun createSession(apiKeys: List<String>, prompt: String, source: String, title: String, featureId: String? = null): String {
         val isOnline = networkService.status.value.isConnected
         if (isOnline) {
             val apiKey = apiKeys.firstOrNull() ?: throw Exception("No API key available")
@@ -317,7 +327,8 @@ class JulesRepository(
                 updateTime = session.updateTime,
                 isArchived = false,
                 lastUpdated = System.currentTimeMillis(),
-                apiKey = apiKey
+                apiKey = apiKey,
+                featureId = featureId
             )
             julesDao.insertSessions(listOf(entity))
             return session.id
@@ -336,7 +347,8 @@ class JulesRepository(
                 isArchived = false,
                 lastUpdated = System.currentTimeMillis(),
                 isPendingOffline = true,
-                queuedAt = System.currentTimeMillis()
+                queuedAt = System.currentTimeMillis(),
+                featureId = featureId
             )
             julesDao.insertSessions(listOf(entity))
             scheduleSync()
@@ -421,7 +433,8 @@ class JulesRepository(
                             lastUpdated = System.currentTimeMillis(),
                             isPendingOffline = false,
                             queuedAt = null,
-                            apiKey = apiKey
+                            apiKey = apiKey,
+                            featureId = session.featureId
                         )
                         julesDao.insertSessions(listOf(updatedEntity))
                         julesDao.updateActivitiesSessionId(session.id, newSession.id)

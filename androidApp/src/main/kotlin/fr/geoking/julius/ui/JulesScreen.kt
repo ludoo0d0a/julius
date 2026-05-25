@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -50,6 +52,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -61,6 +64,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -90,7 +94,9 @@ import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.api.github.GitHubClient
 import fr.geoking.julius.api.jules.JulesChatItem
 import fr.geoking.julius.api.jules.JulesClient
+import fr.geoking.julius.persistence.FeatureEntity
 import fr.geoking.julius.persistence.JulesSessionEntity
+import fr.geoking.julius.repository.FeatureRepository
 import fr.geoking.julius.repository.JulesQuota
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.network.NetworkException
@@ -104,6 +110,7 @@ import fr.geoking.julius.ui.components.DebugBar
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,6 +118,7 @@ fun JulesScreen(
     onBack: () -> Unit,
     julesClient: JulesClient,
     julesRepository: JulesRepository,
+    featureRepository: FeatureRepository,
     settingsManager: SettingsManager,
     voiceManager: VoiceManager,
     initialSession: JulesSessionEntity? = null
@@ -123,6 +131,7 @@ fun JulesScreen(
 
     var sources by remember { mutableStateOf<List<JulesClient.JulesSource>>(emptyList()) }
     var sessions by remember { mutableStateOf<List<JulesSessionEntity>>(emptyList()) }
+    val features by featureRepository.getAllFeatures().collectAsState(initial = emptyList())
     var currentSession by remember { mutableStateOf<JulesSessionEntity?>(initialSession) }
     var quota by remember { mutableStateOf<JulesQuota?>(null) }
     val chatItems = remember { mutableStateListOf<JulesChatItem>() }
@@ -687,6 +696,20 @@ fun JulesScreen(
                                     archivingSessionIds.remove(session.id)
                                 }
                             },
+                            onLinkToFeature = { session, featureId ->
+                                scope.launch {
+                                    julesRepository.linkSessionToFeature(session.id, featureId)
+                                    loadSessions()
+                                }
+                            },
+                            onCreateFeatureAndLink = { session, title ->
+                                scope.launch {
+                                    val newFeatureId = featureRepository.addFeature(title, "", 0, session.sourceName)
+                                    julesRepository.linkSessionToFeature(session.id, newFeatureId)
+                                    loadSessions()
+                                }
+                            },
+                            features = features,
                             onArchiveCompleted = {
                                 scope.launch {
                                     val sourceName = selectedSourceName ?: ""
@@ -1163,6 +1186,9 @@ private fun RepoAndSessionsContent(
     onClosePr: (JulesSessionEntity) -> Unit,
     onGetPrDetails: (JulesSessionEntity, (GitHubClient.GitHubPullRequestDetail?) -> Unit) -> Unit,
     onArchive: (JulesSessionEntity) -> Unit,
+    onLinkToFeature: (JulesSessionEntity, String?) -> Unit,
+    onCreateFeatureAndLink: (JulesSessionEntity, String) -> Unit,
+    features: List<FeatureEntity>,
     onArchiveCompleted: () -> Unit,
     archivingSessionIds: List<String> = emptyList(),
     isRefreshingSessions: Boolean,
@@ -1171,6 +1197,7 @@ private fun RepoAndSessionsContent(
     onHideCompletedChange: (Boolean) -> Unit
 ) {
     var showPrDetails by remember { mutableStateOf<GitHubClient.GitHubPullRequestDetail?>(null) }
+    var showLinkDialog by remember { mutableStateOf<JulesSessionEntity?>(null) }
     var searchQuery by remember { mutableStateOf("") }
 
     val displaySessions = sessions.filter {
@@ -1228,6 +1255,10 @@ private fun RepoAndSessionsContent(
             onRefresh = onRefreshSessions,
             modifier = Modifier.weight(1f)
         ) {
+            val sessionsByFeature = displaySessions.groupBy { it.featureId }
+            val repoFeatures = features.filter { it.sourceName == selectedSourceName }
+            val featuresMap = repoFeatures.associateBy { it.id }
+
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 item {
                     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -1252,44 +1283,45 @@ private fun RepoAndSessionsContent(
                         }
                     }
                 }
-                items(displaySessions, key = { it.id }) { session ->
-                    androidx.compose.material3.ListItem(
-                        headlineContent = { Text(session.title.ifBlank { session.prompt }, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        supportingContent = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                StatusBadge(session)
-                                Spacer(modifier = Modifier.size(8.dp))
-                                Text(session.sessionState ?: "In progress", fontSize = 12.sp)
-                            }
-                        },
-                        trailingContent = {
-                            if (archivingSessionIds.contains(session.id)) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = ColorHelper.JulesAccent,
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Row {
-                                    if (session.prUrl != null) {
-                                        IconButton(onClick = { onGetPrDetails(session) { showPrDetails = it } }) {
-                                            Icon(Icons.Default.Description, contentDescription = "Details")
-                                        }
-                                    }
-                                    IconButton(onClick = { onArchive(session) }) {
-                                        Icon(Icons.Default.Archive, contentDescription = "Archive")
-                                    }
-                                }
-                            }
-                        },
-                        modifier = Modifier.clickable { onOpenSession(session) },
-                        colors = androidx.compose.material3.ListItemDefaults.colors(
-                            containerColor = Color.Transparent,
-                            headlineColor = Color.White,
-                            supportingColor = Color.White.copy(alpha = 0.6f)
+
+                // Group by Features
+                repoFeatures.forEach { feature ->
+                    val featureSessions = sessionsByFeature[feature.id] ?: emptyList()
+                    if (featureSessions.isNotEmpty() || !hideCompleted) {
+                        item(key = "feature_${feature.id}") {
+                            FeatureHeader(feature)
+                        }
+                        items(featureSessions, key = { it.id }) { session ->
+                            SessionItem(
+                                session = session,
+                                archivingSessionIds = archivingSessionIds,
+                                onOpenSession = onOpenSession,
+                                onGetPrDetails = onGetPrDetails,
+                                onArchive = onArchive,
+                                onLinkToFeature = { showLinkDialog = session },
+                                onShowPrDetails = { showPrDetails = it }
+                            )
+                        }
+                    }
+                }
+
+                // Default group
+                val orphanSessions = sessionsByFeature[null] ?: emptyList()
+                if (orphanSessions.isNotEmpty()) {
+                    item(key = "feature_default") {
+                        DefaultFeatureHeader()
+                    }
+                    items(orphanSessions, key = { it.id }) { session ->
+                        SessionItem(
+                            session = session,
+                            archivingSessionIds = archivingSessionIds,
+                            onOpenSession = onOpenSession,
+                            onGetPrDetails = onGetPrDetails,
+                            onArchive = onArchive,
+                            onLinkToFeature = { showLinkDialog = session },
+                            onShowPrDetails = { showPrDetails = it }
                         )
-                    )
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+                    }
                 }
             }
         }
@@ -1299,6 +1331,191 @@ private fun RepoAndSessionsContent(
     if (pr != null) {
         PRDetailsDialog(pr = pr, onDismiss = { showPrDetails = null })
     }
+
+    val linkSess = showLinkDialog
+    if (linkSess != null) {
+        LinkToFeatureDialog(
+            session = linkSess,
+            features = features.filter { it.sourceName == linkSess.sourceName },
+            onDismiss = { showLinkDialog = null },
+            onLink = { featureId ->
+                onLinkToFeature(linkSess, featureId)
+                showLinkDialog = null
+            },
+            onCreateAndLink = { title ->
+                onCreateFeatureAndLink(linkSess, title)
+                showLinkDialog = null
+            }
+        )
+    }
+}
+
+@Composable
+private fun FeatureHeader(feature: FeatureEntity) {
+    Surface(
+        color = Color.White.copy(alpha = 0.05f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = feature.title,
+            color = ColorHelper.JulesAccent,
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+    }
+}
+
+@Composable
+private fun DefaultFeatureHeader() {
+    Surface(
+        color = Color.White.copy(alpha = 0.05f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = "Other conversations",
+            color = Color.White.copy(alpha = 0.5f),
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+    }
+}
+
+@Composable
+private fun SessionItem(
+    session: JulesSessionEntity,
+    archivingSessionIds: List<String>,
+    onOpenSession: (JulesSessionEntity) -> Unit,
+    onGetPrDetails: (JulesSessionEntity, (GitHubClient.GitHubPullRequestDetail?) -> Unit) -> Unit,
+    onArchive: (JulesSessionEntity) -> Unit,
+    onLinkToFeature: () -> Unit,
+    onShowPrDetails: (GitHubClient.GitHubPullRequestDetail) -> Unit
+) {
+    androidx.compose.material3.ListItem(
+        headlineContent = { Text(session.title.ifBlank { session.prompt }, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        supportingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                StatusBadge(session)
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(session.sessionState ?: "In progress", fontSize = 12.sp)
+            }
+        },
+        trailingContent = {
+            if (archivingSessionIds.contains(session.id)) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = ColorHelper.JulesAccent,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Row {
+                    IconButton(onClick = onLinkToFeature) {
+                        Icon(Icons.Default.Link, contentDescription = "Link to feature", tint = if (session.featureId != null) ColorHelper.JulesAccent else Color.White.copy(alpha = 0.5f))
+                    }
+                    if (session.prUrl != null) {
+                        IconButton(onClick = { onGetPrDetails(session) { it?.let(onShowPrDetails) } }) {
+                            Icon(Icons.Default.Description, contentDescription = "Details")
+                        }
+                    }
+                    IconButton(onClick = { onArchive(session) }) {
+                        Icon(Icons.Default.Archive, contentDescription = "Archive")
+                    }
+                }
+            }
+        },
+        modifier = Modifier.clickable { onOpenSession(session) },
+        colors = androidx.compose.material3.ListItemDefaults.colors(
+            containerColor = Color.Transparent,
+            headlineColor = Color.White,
+            supportingColor = Color.White.copy(alpha = 0.6f)
+        )
+    )
+    HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+}
+
+@Composable
+private fun LinkToFeatureDialog(
+    session: JulesSessionEntity,
+    features: List<FeatureEntity>,
+    onDismiss: () -> Unit,
+    onLink: (String?) -> Unit,
+    onCreateAndLink: (String) -> Unit
+) {
+    var newFeatureTitle by remember { mutableStateOf("") }
+    var showCreateNew by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Link to Feature") },
+        containerColor = ColorHelper.JulesListBg,
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                if (showCreateNew) {
+                    OutlinedTextField(
+                        value = newFeatureTitle,
+                        onValueChange = { newFeatureTitle = it },
+                        label = { Text("Feature Title") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    if (session.featureId != null) {
+                        TextButton(
+                            onClick = { onLink(null) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Unlink from feature", color = Color.Red)
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.1f))
+                    }
+
+                    LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                        items(features) { feature ->
+                            val isSelected = feature.id == session.featureId
+                            androidx.compose.material3.ListItem(
+                                headlineContent = { Text(feature.title) },
+                                modifier = Modifier.clickable { onLink(feature.id) },
+                                trailingContent = {
+                                    if (isSelected) Icon(Icons.Default.Check, contentDescription = null, tint = ColorHelper.JulesAccent)
+                                },
+                                colors = androidx.compose.material3.ListItemDefaults.colors(
+                                    containerColor = Color.Transparent,
+                                    headlineColor = if (isSelected) ColorHelper.JulesAccent else Color.White
+                                )
+                            )
+                        }
+                    }
+
+                    TextButton(
+                        onClick = { showCreateNew = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(modifier = Modifier.size(8.dp))
+                        Text("Create new feature")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (showCreateNew) {
+                Button(
+                    onClick = { onCreateAndLink(newFeatureTitle) },
+                    enabled = newFeatureTitle.isNotBlank()
+                ) {
+                    Text("Create & Link")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = {
+                if (showCreateNew) showCreateNew = false
+                else onDismiss()
+            }) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 

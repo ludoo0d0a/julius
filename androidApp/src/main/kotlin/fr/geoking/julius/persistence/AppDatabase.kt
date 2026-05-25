@@ -13,7 +13,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         JulesSourceEntity::class,
         FeatureEntity::class
     ],
-    version = 14,
+    version = 15,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -259,6 +259,12 @@ abstract class AppDatabase : RoomDatabase() {
                     )
                     """.trimIndent()
                 )
+            }
+        }
+
+        val MIGRATION_14_15: Migration = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `featureId` TEXT")
             }
         }
     }
