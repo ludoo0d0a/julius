@@ -437,7 +437,7 @@ fun MainUI(
                         },
                         onHistoryClick = { showHistory = true },
                         onJulesClick = { showJules = true },
-                        onJulesLongClick = { showDesignAssistant = true },
+                        onDesignPreviewV2Click = { showDesignAssistant = true },
                         onFeaturesClick = { showFeatures = true },
                         onVoskTestClick = { showVoskTest = true },
                         setupIssue = setupIssue,

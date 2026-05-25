@@ -45,7 +45,7 @@ fun VoiceMainContent(
     onSettingsClick: () -> Unit,
     onHistoryClick: () -> Unit = {},
     onJulesClick: () -> Unit = {},
-    onJulesLongClick: (() -> Unit)? = null,
+    onDesignPreviewV2Click: () -> Unit = {},
     onFeaturesClick: () -> Unit = {},
     onVoskTestClick: (() -> Unit)? = null,
     onAgentClick: (() -> Unit)? = null,
@@ -131,10 +131,9 @@ fun VoiceMainContent(
         ) {
             FeaturesButton(onClick = onFeaturesClick)
             Spacer(modifier = Modifier.width(8.dp))
-            JulesButton(
-                onClick = onJulesClick,
-                onLongClick = onJulesLongClick,
-            )
+            DesignPreviewV2Button(onClick = onDesignPreviewV2Click)
+            Spacer(modifier = Modifier.width(8.dp))
+            JulesButton(onClick = onJulesClick)
         }
 
         if (onVoskTestClick != null) {

@@ -367,17 +367,28 @@ fun WorkspaceTabRow(
     ) {
         fr.geoking.julius.designassistant.WorkspaceTab.entries.forEach { tab ->
             val active = tab == selected
-            Text(
-                tab.labelFr,
+            Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
                     .clickable { onSelect(tab) }
                     .background(if (active) DesignAssistantColors.Navy else Color.Transparent)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                color = if (active) Color.White else DesignAssistantColors.TextSecondary,
-                fontSize = 13.sp,
-                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
-            )
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    tab.icon,
+                    contentDescription = tab.labelFr,
+                    tint = if (active) Color.White else DesignAssistantColors.TextSecondary,
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(
+                    tab.labelFr,
+                    color = if (active) Color.White else DesignAssistantColors.TextSecondary,
+                    fontSize = 13.sp,
+                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+                )
+            }
         }
     }
 }

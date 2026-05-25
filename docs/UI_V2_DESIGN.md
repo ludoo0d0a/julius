@@ -32,11 +32,11 @@ Document de conception pour l'interface mobile **Jules Design Assistant** dans l
 flowchart TD
     subgraph Entree["Entrée app Julius"]
         Home[Écran vocal principal]
-        LongPress[Appui long sur bouton Jules]
+        V2Icon[Icône Aperçu V2 en bas à droite]
     end
 
     subgraph Preview["Design Assistant Host"]
-        Toggle{Bascule UI actuelle / Aperçu V2}
+        Toggle{Bascule V1 / V2 avec icônes}
     end
 
     subgraph V1["UI actuelle mockup"]
@@ -56,7 +56,7 @@ flowchart TD
         W --> T3[Fichiers modifiés]
     end
 
-    Home --> LongPress --> Preview
+    Home --> V2Icon --> Preview
     Toggle --> V1
     Toggle --> V2
     P --> F --> W
@@ -96,8 +96,8 @@ Définition : `DesignAssistantColors.kt`
 ## Ouvrir l'aperçu dans l'application
 
 1. Lancer l'app Julius sur un appareil ou émulateur.
-2. Sur l'écran principal vocal, **maintenir appuyé** le bouton **Jules** (coin bas droit).
-3. L'écran **Jules Design Assistant** s'ouvre avec les chips **UI actuelle** / **Aperçu V2**.
+2. Sur l'écran principal vocal, appuyer sur l'icône **Aperçu interface V2** (symbole preview, bleu clair, entre Features et Jules).
+3. L'écran **Jules Design Assistant** s'ouvre ; les chips **V1** / **V2** (avec icônes) permettent de comparer les maquettes.
 
 Les écrans production restent accessibles via :
 - **Features** → bouton liste (FeaturesScreen)

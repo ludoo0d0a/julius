@@ -1,5 +1,11 @@
 package fr.geoking.julius.designassistant
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.ui.graphics.vector.ImageVector
+
 enum class FeatureStatus(val labelFr: String) {
     IN_PROGRESS("En cours"),
     READY("Générée - Prête"),
@@ -47,8 +53,11 @@ data class DesignChatMessage(
     val prTitle: String? = null,
 )
 
-enum class WorkspaceTab(val labelFr: String) {
-    CHAT("Chat"),
-    GENERATED_CODE("Code généré"),
-    MODIFIED_FILES("Fichiers modifiés"),
+enum class WorkspaceTab(
+    val labelFr: String,
+    val icon: ImageVector,
+) {
+    CHAT("Chat", Icons.AutoMirrored.Filled.Chat),
+    GENERATED_CODE("Code", Icons.Default.Code),
+    MODIFIED_FILES("Fichiers", Icons.Default.Folder),
 }
