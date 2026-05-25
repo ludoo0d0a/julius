@@ -4,6 +4,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -19,9 +20,12 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -67,7 +71,10 @@ enum class V2Screen { PROJECTS, FEATURES, WORKSPACE }
 
 /** V2 — Projets → Features (dashboard) → Conception & Chat (onglets swipe). */
 @Composable
-fun DesignAssistantV2Host(onBack: () -> Unit) {
+fun DesignAssistantV2Host(
+    onBack: () -> Unit,
+    onSwitchToV1: () -> Unit,
+) {
     var screen by remember { mutableStateOf(V2Screen.PROJECTS) }
     var project by remember { mutableStateOf<DesignProject?>(null) }
     var feature by remember { mutableStateOf<DesignFeature?>(null) }
@@ -76,6 +83,7 @@ fun DesignAssistantV2Host(onBack: () -> Unit) {
         V2Screen.PROJECTS -> ProjectsHomeScreen(
             projects = DesignAssistantSampleData.projects,
             onBack = onBack,
+            onSwitchToV1 = onSwitchToV1,
             onProjectClick = { p ->
                 project = p
                 screen = V2Screen.FEATURES
@@ -120,10 +128,14 @@ fun DesignAssistantV2Host(onBack: () -> Unit) {
 fun ProjectsHomeScreen(
     projects: List<DesignProject>,
     onBack: () -> Unit,
+    onSwitchToV1: () -> Unit,
     onProjectClick: (DesignProject) -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Column(Modifier.fillMaxSize().background(DesignAssistantColors.Navy)) {
         DesignAssistantNavyHeader(
+            onBack = onBack,
             title = "Mes Projets",
             trailing = {
                 Row {
@@ -132,6 +144,23 @@ fun ProjectsHomeScreen(
                     }
                     IconButton(onClick = {}) {
                         Icon(Icons.Default.Add, contentDescription = "Nouveau projet", tint = Color.White)
+                    }
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = Color.White)
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Voir la version mockup (V1)") },
+                                onClick = {
+                                    menuExpanded = false
+                                    onSwitchToV1()
+                                },
+                            )
+                        }
                     }
                 }
             },
@@ -402,7 +431,12 @@ private fun WorkspaceFilesTab() {
 @Composable
 private fun ProjectsHomePreview() {
     DesignAssistantTheme {
-        ProjectsHomeScreen(DesignAssistantSampleData.projects, onBack = {}, onProjectClick = {})
+        ProjectsHomeScreen(
+            projects = DesignAssistantSampleData.projects,
+            onBack = {},
+            onSwitchToV1 = {},
+            onProjectClick = {},
+        )
     }
 }
 
