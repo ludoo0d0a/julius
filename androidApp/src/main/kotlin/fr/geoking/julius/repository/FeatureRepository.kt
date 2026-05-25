@@ -20,10 +20,11 @@ class FeatureRepository(
 
     suspend fun getFeature(id: String): FeatureEntity? = featureDao.getFeature(id)
 
-    suspend fun addFeature(title: String, description: String, priority: Int, sourceName: String) {
+    suspend fun addFeature(title: String, description: String, priority: Int, sourceName: String): String {
         val maxPos = featureDao.getMaxPosition() ?: -1
+        val id = UUID.randomUUID().toString()
         val feature = FeatureEntity(
-            id = UUID.randomUUID().toString(),
+            id = id,
             title = title,
             description = description,
             priority = priority,
@@ -33,6 +34,7 @@ class FeatureRepository(
             updatedAt = System.currentTimeMillis()
         )
         featureDao.insertFeature(feature)
+        return id
     }
 
     suspend fun updateFeature(feature: FeatureEntity) {
@@ -55,7 +57,8 @@ class FeatureRepository(
             apiKeys = apiKeys,
             prompt = feature.description,
             source = feature.sourceName,
-            title = feature.title
+            title = feature.title,
+            featureId = featureId
         )
         featureDao.updateFeature(feature.copy(
             sessionId = sessionId,

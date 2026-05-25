@@ -27,7 +27,8 @@ data class JulesSessionEntity(
     @ColumnInfo(defaultValue = "0")
     val isPendingOffline: Boolean = false,
     val queuedAt: Long? = null,
-    val apiKey: String? = null
+    val apiKey: String? = null,
+    val featureId: String? = null
 ) {
     val isFinished: Boolean
         get() = prState == "merged" || prState == "closed" ||
