@@ -33,8 +33,6 @@ Use these names in `local.properties` or set the same name as an env var (e.g. f
 | `JULES_KEY` | Jules (jules.google.com) API key for the Jules screen. |
 | `GITHUB_TOKEN` | Personal access token for GitHub (Jules screen). |
 | `GOOGLE_WEB_CLIENT_ID` | Google Web Client ID for Authentication. |
-| `TOMTOM_KEY` | TomTom Traffic API key. |
-| `GOOGLE_MAPS_KEY` | Google Maps API key. **Required for map screen** (tiles); without it the map stays grey. |
 
 Keys are read at **build time** in this order: `local.properties` then environment variables. In CI, set env vars on the step that runs Gradle (e.g. `env:` in the build job). Build-time values are baked into the app and, on first run, persisted into app settings so they appear in Settings and are reused.
 
@@ -44,12 +42,11 @@ Keys are read at **build time** in this order: `local.properties` then environme
 sdk.dir=/path/to/your/android/sdk
 OPENAI_KEY=sk-...
 GEMINI_KEY=...
-GOOGLE_MAPS_KEY=...
 ```
 
 ## GitHub Actions example
 
-Set **both** `JULES_KEY` and `GOOGLE_MAPS_KEY` in CI if you use the Jules screen and the map; otherwise the Jules key will appear empty in settings and the map will show no tiles (grey with Google logo).
+Set `JULES_KEY` in CI if you use the Jules screen; otherwise the Jules key will appear empty in settings.
 
 ```yaml
 - name: Set up local.properties for SDK
@@ -72,7 +69,6 @@ Set **both** `JULES_KEY` and `GOOGLE_MAPS_KEY` in CI if you use the Jules screen
     GROQ_KEY: ${{ secrets.GROQ_KEY }}
     OPENROUTER_KEY: ${{ secrets.OPENROUTER_KEY }}
     JULES_KEY: ${{ secrets.JULES_KEY }}
-    GOOGLE_MAPS_KEY: ${{ secrets.GOOGLE_MAPS_KEY }}
   run: ./gradlew :androidApp:assembleFullRelease
 ```
 

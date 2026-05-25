@@ -80,17 +80,8 @@
             android:value="7" />
 
         <meta-data
-            android:name="com.google.android.geo.API_KEY"
-            android:value="${googleMapsApiKey}" />
-
-        <meta-data
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/automotive_app_desc" />
-
-        <!-- Required for Google Play Services Maps (Dynamite); Apache HTTP was removed from Android 9+ -->
-        <uses-library
-            android:name="org.apache.http.legacy"
-            android:required="false" />
 
         <!-- LiteRT-LM GPU backend (OpenCL); optional — CPU/NPU paths still work if unavailable -->
         <uses-native-library

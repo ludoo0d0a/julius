@@ -24,7 +24,6 @@ Julius is a Kotlin Multiplatform (KMP) voice assistant for Android and Android A
 - **Multi-Agent Architecture**: Dynamic runtime switching between AI providers and decentralized model selection.
 - **Voice Interaction**: Supports hands-free wake-word detection ("Julius"), barge-in (interruptible speech), and Android Auto integration.
 - **Contextual Awareness**: Incorporates user identity and preferences into agent prompts for personalized experiences.
-- **Mapping & POIs**: Integrated location-based services with support for multiple swappable data providers.
 - **State Management**: Reactive UI driven by a central `ConversationStore` using Kotlin Flows.
 
 ## Extended Tool Actions (OpenAI/Gemini)
@@ -35,11 +34,6 @@ When **Extended actions** is enabled (`settings.extendedActionsEnabled`), Julius
 - `get_volume_levels` -> `GET_VOLUME_LEVEL`
 - `play_music` -> `PLAY_MUSIC`
 - `play_audiobook` -> `PLAY_AUDIOBOOK`
- 
-
-### New station-search actions
-
-Removed: charging-station search tool actions.
 
 **Core Services:**
 - `ConversationStore`: Manages conversation state, message history, and coordinates between voice manager and agents
@@ -484,14 +478,5 @@ Sideloaded/debug builds are hidden from the car launcher unless you allow non-Pl
 - **Voice not working**: Check `RECORD_AUDIO` permission is granted
 - **Offline STT (car)**: Enable **use car mic** in Android Auto settings. In **Settings > STT engine (car)** choose "Local only" or "Local first". Add a Vosk model under `androidApp/src/main/assets/models/vosk/<model-name>/` (e.g. [vosk-model-small-en-us-0.15](https://alphacephei.com/vosk/models)) so the app can transcribe car mic audio without cloud.
 - **Agent switching not working**: Verify `DynamicAgentWrapper` is being used and settings are saved
-- **"GoogleCertificatesRslt: not allowed" / "Unable to update local snapshot for consentverifier"**: Google Play Services (e.g. Maps) verifies your app's signing certificate. For **debug** builds, add your debug keystore SHA-1 and SHA-256 in [Google Cloud Console](https://console.cloud.google.com/) → your project → **APIs & Services** → **Credentials** → your Android API key → **Application restrictions** → add the fingerprint(s). Get them with `./gradlew signingReport` or from `~/.android/debug.keystore`. This warning is harmless for development; Maps still works. Release builds must use the keystore registered for your Play app.
-
-### Brand Icon Implementation
-To add a new brand icon (e.g., for an EV operator like Chargy):
-1. **Source SVG:** Prefer **[Wikimedia Commons](https://commons.wikimedia.org/)** or a **Wikipedia** file page (clear licensing, vector originals). **Prioritize a logo-only mark** (symbol, emblem, or icon); **avoid SVGs that include brand name text** or wide wordmarks—those read poorly at small sizes. Square marks are ideal; if the artwork is not square, **do not stretch it**—keep the **original aspect ratio** and **fit** the logo inside a **square transparent frame** (letterbox or pillarbox with empty space), so the drawable’s viewport stays square and the mark remains undistorted.
-2. **Standard Icon:** Convert the SVG to an Android Vector Drawable in `androidApp/src/main/res/drawable/ic_brand_<name>.xml`. Use the official brand color. Use a **square** `viewportWidth` / `viewportHeight` (e.g. 24×24); size the path/group so the logo is **uniformly** scaled to fit within that square—**never** apply different X and Y scale to the logo to fill the square (that would stretch it).
-3. **Rounded Icon:** Create a `layer-list` in `ic_brand_<name>_rounded.xml`. Use `ic_poi_background_circle` as the base. Center the logo and scale it so the **larger** of width/height is **85%** of the circle diameter (e.g. for a 24dp viewport, max **20.4dp** on that axis; the other axis stays **proportional**). Non-square logos therefore use **20.4dp × less on the short axis**, not 20.4dp × 20.4dp stretched.
-4. **BrandHelper:** Update `BrandHelper.kt` to include the brand in `brandNames`, `brandIcons`, `roundedBrandIcons`, and the appropriate energy set (`gasBrands` or `electricBrands`).
-
 - **Build System**: Standard Gradle-based KMP setup with build-time and runtime API key management.
 - **Testing**: Includes mock-based integration tests for agents and platform-specific UI testing.

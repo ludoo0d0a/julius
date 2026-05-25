@@ -44,7 +44,6 @@ fun VoiceMainContent(
     networkStatus: NetworkStatus,
     onSettingsClick: () -> Unit,
     onHistoryClick: () -> Unit = {},
-    onMapClick: (() -> Unit)?,
     onJulesClick: () -> Unit = {},
     onJulesLongClick: (() -> Unit)? = null,
     onFeaturesClick: () -> Unit = {},
@@ -130,21 +129,12 @@ fun VoiceMainContent(
                 .padding(end = 24.dp, bottom = 48.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (onMapClick != null) {
-                JulesButton(
-                    onClick = onJulesClick,
-                    onLongClick = onJulesLongClick,
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                MapButton(onClick = onMapClick)
-            } else {
-                FeaturesButton(onClick = onFeaturesClick)
-                Spacer(modifier = Modifier.width(8.dp))
-                JulesButton(
-                    onClick = onJulesClick,
-                    onLongClick = onJulesLongClick,
-                )
-            }
+            FeaturesButton(onClick = onFeaturesClick)
+            Spacer(modifier = Modifier.width(8.dp))
+            JulesButton(
+                onClick = onJulesClick,
+                onLongClick = onJulesLongClick,
+            )
         }
 
         if (onVoskTestClick != null) {

@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
@@ -260,6 +261,36 @@ fun MainSettingsPage(
                 title = "Agents",
                 subtitle = "Manage AI providers and on-device models",
                 onClick = { onNavigateToAgents() }
+            )
+        }
+        item {
+            SettingsHeader("GitHub")
+            Text(
+                "Personal access token for the GitHub API (pull requests, Actions workflows, and file content on the Jules screen).",
+                color = Color.Gray,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp)
+            )
+            OutlinedTextField(
+                value = settings.githubApiKey,
+                onValueChange = { token ->
+                    settingsManager.saveSettings(settings.copy(githubApiKey = token))
+                },
+                label = { Text("GitHub token") },
+                placeholder = { Text("ghp_… or github_pat_…") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                visualTransformation = PasswordVisualTransformation(),
+                singleLine = true,
+            )
+            val tokenConfigured = settings.githubApiKey.isNotBlank()
+            Text(
+                if (tokenConfigured) "Token set — GitHub API calls enabled on the Jules screen."
+                else "No token — add one or set GITHUB_TOKEN in local.properties and rebuild.",
+                color = if (tokenConfigured) Color(0xFF86EFAC) else MaterialTheme.colorScheme.tertiary,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
         }
         item {

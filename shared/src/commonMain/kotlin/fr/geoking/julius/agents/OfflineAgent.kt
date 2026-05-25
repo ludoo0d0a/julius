@@ -66,14 +66,14 @@ class OfflineAgent(
                 buildString {
                     append("Je suis un agent hors ligne. Je peux : calculer, compter, pendu, citation du jour.")
                     if (extendedActionsEnabled) {
-                        append(" Avec actions étendues : navigation, carte, météo, stations, etc. — utilise les mêmes formulations que pour l'assistant vocal.")
+                        append(" Avec actions étendues : navigation, météo, etc. — utilise les mêmes formulations que pour l'assistant vocal.")
                     }
                 }
             } else {
                 buildString {
                     append("I'm an offline agent. I can: math, counting, hangman, quote of the day.")
                     if (extendedActionsEnabled) {
-                        append(" With extended actions enabled, try navigate, weather, map, and other driving phrases like the cloud assistant.")
+                        append(" With extended actions enabled, try navigate, weather, and other driving phrases like the cloud assistant.")
                     }
                 }
             },

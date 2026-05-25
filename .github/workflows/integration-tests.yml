@@ -24,7 +24,6 @@ jobs:
       - name: Run Integration Tests
         env:
           RUN_REAL_API_TESTS: "true"
-          TOMTOM_KEY: ${{ secrets.TOMTOM_KEY }}
           JULES_KEY: ${{ secrets.JULES_KEY }}
           GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
           OPENAI_KEY: ${{ secrets.OPENAI_KEY }}

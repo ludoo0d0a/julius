@@ -38,7 +38,6 @@ fun DashboardVoiceScreen(
         networkStatus = networkStatus,
         onSettingsClick = onSettingsClick,
         onHistoryClick = onHistoryClick,
-        onMapClick = null,
         onJulesClick = onJulesClick,
         onJulesLongClick = onJulesLongClick,
         onFeaturesClick = onFeaturesClick,

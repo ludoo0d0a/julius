@@ -29,7 +29,7 @@ configure<ApplicationExtension> {
         val localProps = rootProject.file("local.properties").takeIf { it.exists() }?.let { file ->
             Properties().apply { file.inputStream().use { load(it) } }
         } ?: Properties()
-        // Keys: local.properties first, then env (CI must set env on the step that runs Gradle, e.g. JULES_KEY, GOOGLE_MAPS_KEY)
+        // Keys: local.properties first, then env (CI must set env on the step that runs Gradle, e.g. JULES_KEY)
         fun prop(key: String, default: String = "") =
             localProps.getProperty(key) ?: System.getenv(key) ?: default
         // Sanitize for Java string literal: trim, strip newlines, escape backslash and double-quote
@@ -69,9 +69,6 @@ configure<ApplicationExtension> {
         val julesKey = sanitizeBuildConfigString(prop("JULES_KEY"))
         val githubToken = sanitizeBuildConfigString(prop("GITHUB_TOKEN"))
         val googleWebClientId = sanitizeBuildConfigString(prop("GOOGLE_WEB_CLIENT_ID", "your_web_client_id_placeholder"))
-        val tomtomKey = sanitizeBuildConfigString(prop("TOMTOM_KEY"))
-        val mapsApiKey = prop("GOOGLE_MAPS_KEY")
-        manifestPlaceholders["googleMapsApiKey"] = mapsApiKey
 
         buildConfigField("String", "ELEVENLABS_KEY", "\"$elevenLabsKey\"")
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
@@ -89,10 +86,6 @@ configure<ApplicationExtension> {
         buildConfigField("String", "DEEPSEEK_KEY", "\"$deepseekKey\"")
         buildConfigField("String", "GROQ_KEY", "\"$groqKey\"")
         buildConfigField("String", "OPENROUTER_KEY", "\"$openrouterKey\"")
-        buildConfigField("String", "TOMTOM_KEY", "\"$tomtomKey\"")
-
-        // Required for Google Play Services Maps (references legacy Apache HTTP classes removed from Android 9+)
-        useLibrary("org.apache.http.legacy")
 
         buildConfigField("boolean", "IS_PLAYSTORE_DISTRIBUTION", "false")
     }
@@ -350,12 +343,6 @@ dependencies {
     // Location (replaces deprecated LocationManager.requestSingleUpdate)
     implementation(libs.play.services.location)
     implementation(libs.kotlinx.coroutines.play.services)
-
-    // Maps
-    implementation(libs.maps.compose)
-    implementation(libs.maplibre.android)
-    // Bundle Apache HTTP legacy classes for Play Services Maps Dynamite (removed from Android 9+ bootclasspath)
-    implementation(libs.httpclient.android)
 
     // Media3 for Dashboard Tile
     implementation(libs.media3.session)

@@ -16,9 +16,6 @@ llamatik-library = "0.18.0"
 junit-jupiter = "6.0.3"
 media3 = "1.10.0"
 guava = "33.5.0-android"
-maps-compose = "8.2.2"
-maplibre-android = "13.0.1"
-httpclient-android = "4.3.5.1"
 play-app-update = "2.1.0"
 play-services-location = "21.3.0"
 androidx-credentials = "1.5.0"
@@ -66,9 +63,6 @@ kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-cor
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 library = { module = "com.llamatik:library", version.ref = "llamatik-library" }
-maps-compose = { module = "com.google.maps.android:maps-compose", version.ref = "maps-compose" }
-maplibre-android = { module = "org.maplibre.gl:android-sdk", version.ref = "maplibre-android" }
-httpclient-android = { module = "org.apache.httpcomponents:httpclient-android", version.ref = "httpclient-android" }
 media3-session = { module = "androidx.media3:media3-session", version.ref = "media3" }
 media3-common = { module = "androidx.media3:media3-common", version.ref = "media3" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }

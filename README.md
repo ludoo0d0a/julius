@@ -25,11 +25,6 @@ When **Extended actions** is enabled (`settings.extendedActionsEnabled`), Julius
 - `get_volume_levels` -> `GET_VOLUME_LEVEL`
 - `play_music` -> `PLAY_MUSIC`
 - `play_audiobook` -> `PLAY_AUDIOBOOK`
- 
-
-### New station-search actions
-
-Removed: charging-station search tool actions.
 
 ## Getting Started
 

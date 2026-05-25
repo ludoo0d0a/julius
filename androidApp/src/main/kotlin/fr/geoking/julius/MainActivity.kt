@@ -327,9 +327,6 @@ fun MainUI(
     var settingsInitialStack by rememberSaveable { mutableStateOf<List<SettingsScreenPage>?>(null) }
     var showHistory by remember { mutableStateOf(false) }
     var showVoskTest by remember { mutableStateOf(false) }
-    /** Play Store flavor uses a dashboard home first; full flavor starts on the voice screen. */
-    var showMap by remember { mutableStateOf(false) }
-
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
@@ -351,7 +348,6 @@ fun MainUI(
         evaluateAgentSetup(settings, llamatikModelHelper, conversationalAgent)
     }
 
-    // Map dependency loader removed.
     val paletteIndex by AnimationPalettes.index.collectAsState()
     val palette = remember(paletteIndex) { AnimationPalettes.paletteFor(paletteIndex) }
     val fallbackUpdateFlow = remember { MutableStateFlow<AppUpdateInfo?>(null) }
@@ -427,7 +423,6 @@ fun MainUI(
                         onBack = { showVoskTest = false }
                     )
                 }
-                // Map UI entry removed (mobility feature removed).
                 else -> {
                     DashboardVoiceScreen(
                         state = state,
