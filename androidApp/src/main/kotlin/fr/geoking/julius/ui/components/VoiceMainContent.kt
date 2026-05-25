@@ -124,28 +124,26 @@ fun VoiceMainContent(
             Spacer(modifier = Modifier.width(8.dp))
             HistoryButton(onClick = onHistoryClick)
         }
-        JulesButton(
-            onClick = onJulesClick,
-            onLongClick = onJulesLongClick,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 72.dp, bottom = 48.dp)
-        )
-        FeaturesButton(
-            onClick = onFeaturesClick,
+        Row(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 24.dp, bottom = 48.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (onMapClick != null) {
-                JulesButton(onClick = onJulesClick)
+                JulesButton(
+                    onClick = onJulesClick,
+                    onLongClick = onJulesLongClick,
+                )
                 Spacer(modifier = Modifier.width(8.dp))
                 MapButton(onClick = onMapClick)
             } else {
                 FeaturesButton(onClick = onFeaturesClick)
                 Spacer(modifier = Modifier.width(8.dp))
-                JulesButton(onClick = onJulesClick)
+                JulesButton(
+                    onClick = onJulesClick,
+                    onLongClick = onJulesLongClick,
+                )
             }
         }
 
