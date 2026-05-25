@@ -51,7 +51,12 @@ import fr.geoking.julius.feature.voice.VoskModelHelper
 import fr.geoking.julius.feature.voice.VoskModelVariant
 import fr.geoking.julius.shared.voice.SttEnginePreference
 
-enum class SettingsScreenPage { Main, Agents, AgentDetails }
+enum class SettingsScreenPage { Main, ApiKeys, Agents, AgentDetails, GitHub, Jules }
+
+/** Tab index for [AgentsPage]: 0 = all, 1 = remote, 2 = local (on-device). */
+private const val AGENTS_FILTER_ALL = 0
+private const val AGENTS_FILTER_REMOTE = 1
+private const val AGENTS_FILTER_LOCAL = 2
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,6 +92,8 @@ fun SettingsScreen(
         )
     }
 
+    var agentsFilterMode by rememberSaveable { mutableIntStateOf(AGENTS_FILTER_ALL) }
+
     fun goBack() {
         if (navigationStack.size > 1) {
             navigationStack.removeAt(navigationStack.size - 1)
@@ -106,8 +113,15 @@ fun SettingsScreen(
                     Text(
                         when (currentPage) {
                             SettingsScreenPage.Main -> "Settings"
-                            SettingsScreenPage.Agents -> "Agents"
+                            SettingsScreenPage.ApiKeys -> "API keys"
+                            SettingsScreenPage.Agents -> when (agentsFilterMode) {
+                                AGENTS_FILTER_REMOTE -> "Remote agents"
+                                AGENTS_FILTER_LOCAL -> "Local agents"
+                                else -> "Agents"
+                            }
                             SettingsScreenPage.AgentDetails -> selectedAgentForDetails?.name ?: "Agent Settings"
+                            SettingsScreenPage.GitHub -> "GitHub"
+                            SettingsScreenPage.Jules -> "Jules"
                         }
                     )
                 },
@@ -128,13 +142,36 @@ fun SettingsScreen(
                     settings = settings,
                     settingsManager = settingsManager,
                     authManager = authManager,
-                    onNavigateToAgents = {
-                        navigationStack.add(SettingsScreenPage.Agents)
+                    onNavigateToApiKeys = {
+                        navigationStack.add(SettingsScreenPage.ApiKeys)
                         @Suppress("UNUSED_EXPRESSION") Unit
                     }
                 )
+                SettingsScreenPage.ApiKeys -> ApiKeysPage(
+                    settings = settings,
+                    onNavigateToLocalAgents = {
+                        agentsFilterMode = AGENTS_FILTER_LOCAL
+                        navigationStack.add(SettingsScreenPage.Agents)
+                        @Suppress("UNUSED_EXPRESSION") Unit
+                    },
+                    onNavigateToRemoteAgents = {
+                        agentsFilterMode = AGENTS_FILTER_REMOTE
+                        navigationStack.add(SettingsScreenPage.Agents)
+                        @Suppress("UNUSED_EXPRESSION") Unit
+                    },
+                    onNavigateToGitHub = {
+                        navigationStack.add(SettingsScreenPage.GitHub)
+                        @Suppress("UNUSED_EXPRESSION") Unit
+                    },
+                    onNavigateToJules = {
+                        navigationStack.add(SettingsScreenPage.Jules)
+                        @Suppress("UNUSED_EXPRESSION") Unit
+                    },
+                )
                 SettingsScreenPage.Agents -> AgentsPage(
                     settings = settings,
+                    filterMode = agentsFilterMode,
+                    onFilterModeChange = { agentsFilterMode = it },
                     onAgentSelected = { agent ->
                         settingsManager.saveSettings(settings.copy(selectedAgent = agent))
                     },
@@ -144,6 +181,26 @@ fun SettingsScreen(
                         @Suppress("UNUSED_EXPRESSION") Unit
                     }
                 )
+                SettingsScreenPage.GitHub -> {
+                    val context = LocalContext.current
+                    GitHubTokenPage(
+                        token = settings.githubApiKey,
+                        onTokenChange = { token ->
+                            settingsManager.saveSettings(settings.copy(githubApiKey = token))
+                        },
+                        onCreatePat = { context.openExternalUrl(GitHubPatUrls.CREATE_CLASSIC_PAT) },
+                    )
+                }
+                SettingsScreenPage.Jules -> {
+                    val context = LocalContext.current
+                    JulesApiKeysPage(
+                        keys = settings.julesKeys,
+                        onKeysChange = { updated ->
+                            settingsManager.saveSettings(settings.copy(julesKeys = updated))
+                        },
+                        onOpenJulesSettings = { context.openExternalUrl("https://jules.google.com") },
+                    )
+                }
                 SettingsScreenPage.AgentDetails -> {
                     selectedAgentForDetails?.let { agent ->
                         AgentDetailsPage(
@@ -164,7 +221,7 @@ fun MainSettingsPage(
     settings: AppSettings,
     settingsManager: SettingsManager,
     authManager: GoogleAuthManager,
-    onNavigateToAgents: () -> Unit,
+    onNavigateToApiKeys: () -> Unit,
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
@@ -261,29 +318,10 @@ fun MainSettingsPage(
             }
         }
         item {
-            SettingsHeader("API keys")
             SettingsListItem(
-                title = "Conversational agents",
-                subtitle = "OpenAI, Gemini, Groq, and other AI provider keys",
-                onClick = { onNavigateToAgents() }
-            )
-        }
-        item {
-            JulesApiKeysSection(
-                keys = settings.julesKeys,
-                onKeysChange = { updated ->
-                    settingsManager.saveSettings(settings.copy(julesKeys = updated))
-                },
-                onOpenJulesSettings = { context.openExternalUrl("https://jules.google.com") },
-            )
-        }
-        item {
-            GitHubTokenSection(
-                token = settings.githubApiKey,
-                onTokenChange = { token ->
-                    settingsManager.saveSettings(settings.copy(githubApiKey = token))
-                },
-                onCreatePat = { context.openExternalUrl(GitHubPatUrls.CREATE_CLASSIC_PAT) },
+                title = "API keys",
+                subtitle = "Agents (local & remote), GitHub, and Jules",
+                onClick = onNavigateToApiKeys,
             )
         }
         item {
@@ -352,39 +390,85 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
 }
 
 @Composable
+fun ApiKeysPage(
+    settings: AppSettings,
+    onNavigateToLocalAgents: () -> Unit,
+    onNavigateToRemoteAgents: () -> Unit,
+    onNavigateToGitHub: () -> Unit,
+    onNavigateToJules: () -> Unit,
+) {
+    val localCount = AgentType.entries.count { it.enabled && it.isEmbedded }
+    val remoteCount = AgentType.entries.count { it.enabled && !it.isEmbedded }
+    val githubSubtitle = if (settings.githubApiKey.isNotBlank()) "Token configured" else "Not set"
+    val julesSubtitle = when {
+        settings.julesKeys.isNotEmpty() -> "${settings.julesKeys.size} key(s) configured"
+        else -> "Not set"
+    }
+
+    LazyColumn {
+        item {
+            SettingsHeader("Agents")
+            SettingsListItem(
+                title = "Local",
+                subtitle = "$localCount on-device agents · ${settings.selectedAgent.takeIf { it.isEmbedded }?.name ?: "none selected"}",
+                onClick = onNavigateToLocalAgents,
+            )
+            SettingsListItem(
+                title = "Remote",
+                subtitle = "$remoteCount cloud agents · ${settings.selectedAgent.takeIf { !it.isEmbedded }?.name ?: "none selected"}",
+                onClick = onNavigateToRemoteAgents,
+            )
+        }
+        item {
+            SettingsHeader("Other")
+            SettingsListItem(
+                title = "GitHub",
+                subtitle = githubSubtitle,
+                onClick = onNavigateToGitHub,
+            )
+            SettingsListItem(
+                title = "Jules",
+                subtitle = julesSubtitle,
+                onClick = onNavigateToJules,
+            )
+        }
+    }
+}
+
+@Composable
 fun AgentsPage(
     settings: AppSettings,
+    filterMode: Int,
+    onFilterModeChange: (Int) -> Unit,
     onAgentSelected: (AgentType) -> Unit,
-    onNavigateToDetails: (AgentType) -> Unit
+    onNavigateToDetails: (AgentType) -> Unit,
 ) {
-    var filterMode by remember { mutableIntStateOf(0) } // 0: All, 1: Remote, 2: Embedded
-
     Column {
         PrimaryTabRow(selectedTabIndex = filterMode) {
-            Tab(selected = filterMode == 0, onClick = { filterMode = 0 }) {
+            Tab(selected = filterMode == AGENTS_FILTER_ALL, onClick = { onFilterModeChange(AGENTS_FILTER_ALL) }) {
                 Text("All", modifier = Modifier.padding(12.dp))
             }
-            Tab(selected = filterMode == 1, onClick = { filterMode = 1 }) {
+            Tab(selected = filterMode == AGENTS_FILTER_REMOTE, onClick = { onFilterModeChange(AGENTS_FILTER_REMOTE) }) {
                 Text("Remote", modifier = Modifier.padding(12.dp))
             }
-            Tab(selected = filterMode == 2, onClick = { filterMode = 2 }) {
-                Text("Embedded", modifier = Modifier.padding(12.dp))
+            Tab(selected = filterMode == AGENTS_FILTER_LOCAL, onClick = { onFilterModeChange(AGENTS_FILTER_LOCAL) }) {
+                Text("Local", modifier = Modifier.padding(12.dp))
             }
         }
 
         val allAgents = AgentType.entries.filter { it.enabled }
         val filteredAgents = when (filterMode) {
-            1 -> allAgents.filter { !it.isEmbedded }
-            2 -> allAgents.filter { it.isEmbedded }
+            AGENTS_FILTER_REMOTE -> allAgents.filter { !it.isEmbedded }
+            AGENTS_FILTER_LOCAL -> allAgents.filter { it.isEmbedded }
             else -> allAgents
         }
 
         LazyColumn {
             val remote = filteredAgents.filter { !it.isEmbedded }
-            val embedded = filteredAgents.filter { it.isEmbedded }
+            val local = filteredAgents.filter { it.isEmbedded }
 
             if (remote.isNotEmpty()) {
-                item { SettingsHeader("Remote Agents") }
+                item { SettingsHeader("Remote") }
                 items(remote) { agent ->
                     AgentListItem(
                         agent = agent,
@@ -395,9 +479,9 @@ fun AgentsPage(
                 }
             }
 
-            if (embedded.isNotEmpty()) {
-                item { SettingsHeader("Embedded Agents") }
-                items(embedded) { agent ->
+            if (local.isNotEmpty()) {
+                item { SettingsHeader("Local") }
+                items(local) { agent ->
                     AgentListItem(
                         agent = agent,
                         isSelected = settings.selectedAgent == agent,
@@ -846,7 +930,7 @@ fun AgentListItem(
             )
             Column(Modifier.weight(1f).padding(start = 8.dp)) {
                 Text(agent.name, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                Text(if (agent.isEmbedded) "Embedded" else "Remote", color = Color.Gray, fontSize = 12.sp)
+                Text(if (agent.isEmbedded) "Local" else "Remote", color = Color.Gray, fontSize = 12.sp)
             }
             Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.Gray)
         }
@@ -879,6 +963,28 @@ private fun ApiKeyTextField(
         visualTransformation = PasswordVisualTransformation(),
         singleLine = true,
     )
+}
+
+@Composable
+fun JulesApiKeysPage(
+    keys: List<String>,
+    onKeysChange: (List<String>) -> Unit,
+    onOpenJulesSettings: () -> Unit,
+) {
+    Column(Modifier.verticalScroll(rememberScrollState())) {
+        JulesApiKeysSection(keys, onKeysChange, onOpenJulesSettings)
+    }
+}
+
+@Composable
+fun GitHubTokenPage(
+    token: String,
+    onTokenChange: (String) -> Unit,
+    onCreatePat: () -> Unit,
+) {
+    Column(Modifier.verticalScroll(rememberScrollState())) {
+        GitHubTokenSection(token, onTokenChange, onCreatePat)
+    }
 }
 
 @Composable
