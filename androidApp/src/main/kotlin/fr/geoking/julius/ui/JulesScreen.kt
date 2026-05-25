@@ -1146,7 +1146,7 @@ private fun RepoAndSessionsContent(
         val matchesSearch = it.title.contains(searchQuery, ignoreCase = true) || it.prompt.contains(searchQuery, ignoreCase = true)
         val matchesHideCompleted = !hideCompleted || !it.isFinished
         matchesSearch && matchesHideCompleted
-    }
+    }.sortedByDescending { it.lastUpdated }
 
     Column(modifier = Modifier.fillMaxSize()) {
         if (selectedSourceName.isNotBlank()) {

@@ -14,12 +14,16 @@ import androidx.compose.material.icons.filled.Merge
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import android.widget.Toast
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import fr.geoking.julius.api.jules.JulesChatItem
 import fr.geoking.julius.ui.ColorHelper
 
@@ -159,6 +163,9 @@ fun JulesMessageContent(
     julesRepository: fr.geoking.julius.repository.JulesRepository? = null,
     githubToken: String? = null
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val clipboard = LocalClipboard.current
     val blocks = remember(item) {
         if (item is JulesChatItem.UserMessage) {
             parseJulesMessage(item.text)
@@ -178,7 +185,20 @@ fun JulesMessageContent(
     Column(
         modifier = Modifier
             .padding(12.dp)
-            .combinedClickable(onClick = {}, onLongClick = onSpeak)
+            .combinedClickable(
+                onClick = {
+                    val textToCopy = if (item is JulesChatItem.UserMessage) item.text else (item as JulesChatItem.AgentMessage).text
+                    scope.launch {
+                        clipboard.setClipEntry(
+                            androidx.compose.ui.platform.ClipEntry(
+                                android.content.ClipData.newPlainText("jules_message", textToCopy)
+                            )
+                        )
+                        Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onLongClick = onSpeak
+            )
     ) {
         blocks.forEach { block ->
             RenderBlock(

@@ -124,7 +124,15 @@ class JulesRepository(
                             val pr = session.outputs?.firstOrNull()?.pullRequest
                             val existing = try { julesDao.getSession(sessionId) } catch (e: Exception) { null }
 
-                            val newLastUpdated = existing?.lastUpdated ?: System.currentTimeMillis()
+                            val apiUpdateTime = try {
+                                if (!session.updateTime.isNullOrBlank()) {
+                                    OffsetDateTime.parse(session.updateTime).toInstant().toEpochMilli()
+                                } else 0L
+                            } catch (e: Exception) { 0L }
+
+                            val newLastUpdated = maxOf(existing?.lastUpdated ?: 0L, apiUpdateTime).let {
+                                if (it == 0L) System.currentTimeMillis() else it
+                            }
 
                             currentEntities.add(JulesSessionEntity(
                                 id = sessionId,
