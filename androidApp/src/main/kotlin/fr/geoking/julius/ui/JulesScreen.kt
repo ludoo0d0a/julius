@@ -124,7 +124,8 @@ fun JulesScreen(
     settingsManager: SettingsManager,
     voiceManager: VoiceManager,
     buildRepository: GitHubBuildRepository,
-    initialSession: JulesSessionEntity? = null
+    initialSession: JulesSessionEntity? = null,
+    isHomeDestination: Boolean = false,
 ) {
     val settings by settingsManager.settings.collectAsState()
     val networkStatus by julesRepository.getNetworkService().status.collectAsState()
@@ -163,10 +164,11 @@ fun JulesScreen(
     val handleBack = {
         if (currentSession != null) {
             currentSession = null
-        } else {
+        } else if (!isHomeDestination) {
             onBack()
         }
     }
+    val showScreenBack = !isHomeDestination || currentSession != null
 
     BackHandler(onBack = handleBack)
 
@@ -377,8 +379,12 @@ fun JulesScreen(
                     .padding(horizontal = 4.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = handleBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                if (showScreenBack) {
+                    IconButton(onClick = handleBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    }
+                } else {
+                    Spacer(modifier = Modifier.size(48.dp))
                 }
 
                 Column(modifier = Modifier.weight(1f)) {

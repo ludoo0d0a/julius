@@ -48,6 +48,9 @@ import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.ui.SettingsScreenPage
 import fr.geoking.julius.ui.DashboardVoiceScreen
 import fr.geoking.julius.ui.VoskTestScreen
+import fr.geoking.julius.ui.MainDestination
+import fr.geoking.julius.ui.DevNavMenu
+import fr.geoking.julius.ui.LogViewerScreen
 import fr.geoking.julius.agents.LlamatikModelHelper
 import fr.geoking.julius.ui.agentConfigSettingsPages
 import fr.geoking.julius.ui.evaluateAgentSetup
@@ -326,10 +329,7 @@ fun MainUI(
     val networkStatus by networkService.status.collectAsState()
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var settingsInitialStack by rememberSaveable { mutableStateOf<List<SettingsScreenPage>?>(null) }
-    var showHistory by remember { mutableStateOf(false) }
-    var showVoskTest by remember { mutableStateOf(false) }
-    /** Play Store flavor uses a dashboard home first; full flavor starts on the voice screen. */
-    var showMap by remember { mutableStateOf(false) }
+    var currentDestination by rememberSaveable { mutableStateOf(MainDestination.Jules) }
 
     val context = LocalContext.current
 
@@ -341,11 +341,7 @@ fun MainUI(
         }
     }
 
-    var showJules by remember { mutableStateOf(false) }
     var julesInitialSession by remember { mutableStateOf<JulesSessionEntity?>(null) }
-    var showFeatures by remember { mutableStateOf(false) }
-    var showDesignAssistant by remember { mutableStateOf(false) }
-    var showFavorites by remember { mutableStateOf(false) }
     val settings by settingsManager.settings.collectAsState()
     val llamatikModelHelper = remember(context) { LlamatikModelHelper(context.applicationContext) }
     val setupIssue = remember(settings, llamatikModelHelper, conversationalAgent) {
@@ -371,86 +367,113 @@ fun MainUI(
         )
     }
 
+    val openSettings: () -> Unit = {
+        settingsInitialStack = null
+        showSettings = true
+    }
+
     MaterialTheme(colorScheme = darkColorScheme(background = Color(0xFF0F172A))) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            when {
-                showSettings -> {
-                    SettingsScreen(
-                        settingsManager = settingsManager,
-                        authManager = authManager,
-                        errorLog = state.errorLog,
-                        onDismiss = { showSettings = false },
-                        initialScreenStack = settingsInitialStack,
-                        onInitialRouteConsumed = { settingsInitialStack = null }
-                    )
-                }
-                showDesignAssistant -> {
-                    DesignAssistantHost(onBack = { showDesignAssistant = false })
-                }
-                showJules -> {
-                    JulesScreen(
-                        onBack = {
-                            showJules = false
-                            julesInitialSession = null
-                        },
-                        julesClient = julesClient,
-                        julesRepository = julesRepository,
-                        featureRepository = featureRepository,
-                        settingsManager = settingsManager,
-                        voiceManager = voiceManager,
-                        buildRepository = buildRepository,
-                        initialSession = julesInitialSession
-                    )
-                }
-                showFeatures -> {
-                    fr.geoking.julius.ui.FeaturesScreen(
-                        onBack = { showFeatures = false },
-                        featureRepository = featureRepository,
-                        julesRepository = julesRepository,
-                        julesClient = julesClient,
-                        settingsManager = settingsManager,
-                        onOpenConversation = { session ->
-                            // Open Jules screen for this session
-                            julesInitialSession = session
-                            showFeatures = false
-                            showJules = true
+            if (showSettings) {
+                SettingsScreen(
+                    settingsManager = settingsManager,
+                    authManager = authManager,
+                    errorLog = state.errorLog,
+                    onDismiss = { showSettings = false },
+                    initialScreenStack = settingsInitialStack,
+                    onInitialRouteConsumed = { settingsInitialStack = null }
+                )
+            } else {
+                Box(Modifier.fillMaxSize()) {
+                    when (currentDestination) {
+                        MainDestination.Jules -> {
+                            JulesScreen(
+                                onBack = {
+                                    currentDestination = MainDestination.VoiceAssistant
+                                    julesInitialSession = null
+                                },
+                                julesClient = julesClient,
+                                julesRepository = julesRepository,
+                                featureRepository = featureRepository,
+                                settingsManager = settingsManager,
+                                voiceManager = voiceManager,
+                                buildRepository = buildRepository,
+                                initialSession = julesInitialSession,
+                                isHomeDestination = true,
+                            )
                         }
-                    )
-                }
-                showHistory -> {
-                    HistoryScreen(state = state, store = store, onBack = { showHistory = false })
-                }
-                showVoskTest -> {
-                    VoskTestScreen(
-                        voiceManager = voiceManager,
-                        settingsManager = settingsManager,
-                        localTranscriber = localTranscriber,
-                        onBack = { showVoskTest = false }
-                    )
-                }
-                // Map UI entry removed (mobility feature removed).
-                else -> {
-                    DashboardVoiceScreen(
-                        state = state,
-                        settings = settings,
-                        palette = palette,
-                        settingsManager = settingsManager,
-                        store = store,
-                        networkStatus = networkStatus,
-                        onSettingsClick = {
-                            settingsInitialStack = null
-                            showSettings = true
-                        },
-                        onHistoryClick = { showHistory = true },
-                        onJulesClick = { showJules = true },
-                        onJulesLongClick = { showDesignAssistant = true },
-                        onFeaturesClick = { showFeatures = true },
-                        onVoskTestClick = { showVoskTest = true },
-                        setupIssue = setupIssue,
-                        onOpenAgentSettings = {
-                            settingsInitialStack = agentConfigSettingsPages()
-                            showSettings = true
+                        MainDestination.VoiceAssistant -> {
+                            DashboardVoiceScreen(
+                                state = state,
+                                settings = settings,
+                                palette = palette,
+                                settingsManager = settingsManager,
+                                store = store,
+                                networkStatus = networkStatus,
+                                onSettingsClick = openSettings,
+                                onHistoryClick = { currentDestination = MainDestination.History },
+                                onJulesClick = {
+                                    julesInitialSession = null
+                                    currentDestination = MainDestination.Jules
+                                },
+                                onJulesLongClick = { currentDestination = MainDestination.DesignAssistant },
+                                onFeaturesClick = { currentDestination = MainDestination.Features },
+                                onVoskTestClick = { currentDestination = MainDestination.VoskTest },
+                                setupIssue = setupIssue,
+                                onOpenAgentSettings = {
+                                    settingsInitialStack = agentConfigSettingsPages()
+                                    showSettings = true
+                                }
+                            )
                         }
+                        MainDestination.DesignAssistant -> {
+                            DesignAssistantHost(
+                                onBack = { currentDestination = MainDestination.Jules },
+                            )
+                        }
+                        MainDestination.Features -> {
+                            fr.geoking.julius.ui.FeaturesScreen(
+                                onBack = { currentDestination = MainDestination.Jules },
+                                featureRepository = featureRepository,
+                                julesRepository = julesRepository,
+                                julesClient = julesClient,
+                                settingsManager = settingsManager,
+                                onOpenConversation = { session ->
+                                    julesInitialSession = session
+                                    currentDestination = MainDestination.Jules
+                                }
+                            )
+                        }
+                        MainDestination.History -> {
+                            HistoryScreen(
+                                state = state,
+                                store = store,
+                                onBack = { currentDestination = MainDestination.VoiceAssistant },
+                            )
+                        }
+                        MainDestination.VoskTest -> {
+                            VoskTestScreen(
+                                voiceManager = voiceManager,
+                                settingsManager = settingsManager,
+                                localTranscriber = localTranscriber,
+                                onBack = { currentDestination = MainDestination.VoiceAssistant },
+                            )
+                        }
+                        MainDestination.LogViewer -> {
+                            LogViewerScreen(
+                                onBack = { currentDestination = MainDestination.Jules },
+                            )
+                        }
+                    }
+                    DevNavMenu(
+                        current = currentDestination,
+                        onNavigate = { destination ->
+                            if (destination != MainDestination.Jules) {
+                                julesInitialSession = null
+                            }
+                            currentDestination = destination
+                        },
+                        onOpenSettings = openSettings,
                     )
                 }
             }
