@@ -46,6 +46,7 @@ fun VoiceMainContent(
     onHistoryClick: () -> Unit = {},
     onMapClick: (() -> Unit)?,
     onJulesClick: () -> Unit = {},
+    onJulesLongClick: (() -> Unit)? = null,
     onFeaturesClick: () -> Unit = {},
     onVoskTestClick: (() -> Unit)? = null,
     onAgentClick: (() -> Unit)? = null,
@@ -123,8 +124,15 @@ fun VoiceMainContent(
             Spacer(modifier = Modifier.width(8.dp))
             HistoryButton(onClick = onHistoryClick)
         }
-
-        Row(
+        JulesButton(
+            onClick = onJulesClick,
+            onLongClick = onJulesLongClick,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 72.dp, bottom = 48.dp)
+        )
+        FeaturesButton(
+            onClick = onFeaturesClick,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 24.dp, bottom = 48.dp),
