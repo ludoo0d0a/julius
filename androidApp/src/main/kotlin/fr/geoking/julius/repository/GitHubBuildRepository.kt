@@ -32,6 +32,15 @@ class GitHubBuildRepository(
     suspend fun listWorkflows(token: String, owner: String, repo: String): List<GitHubWorkflow> =
         githubClient.listWorkflows(token, owner, repo)
 
+    suspend fun getDefaultBranch(token: String, owner: String, repo: String): String {
+        if (token.isBlank()) return "unknown"
+        return try {
+            githubClient.getRepository(token, owner, repo).defaultBranch.ifBlank { "main" }
+        } catch (_: Exception) {
+            "main"
+        }
+    }
+
     fun getSavedWorkflowId(owner: String, repo: String): Long? =
         workflowPreferences.getWorkflowId(ProjectWorkflowPreferences.projectKey(owner, repo))
 

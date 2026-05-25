@@ -76,7 +76,6 @@ import fr.geoking.julius.designassistant.components.DesignAssistantTheme
 import fr.geoking.julius.designassistant.components.DesignBreadcrumb
 import fr.geoking.julius.designassistant.components.DesignChatInputBar
 import fr.geoking.julius.designassistant.components.JulesAvatar
-import fr.geoking.julius.designassistant.components.PromptShortcutsRow
 import fr.geoking.julius.designassistant.components.StatusDot
 import fr.geoking.julius.designassistant.components.TechnicalStatusBanner
 import fr.geoking.julius.designassistant.components.WhiteContentSheet
@@ -217,7 +216,6 @@ fun DesignAssistantV2Host(
                     messageDraft = controller.messageDraft,
                     onMessageDraftChange = { controller.messageDraft = it },
                     onSend = { controller.sendMessage(p, f) },
-                    onSendShortcut = { shortcut -> controller.sendMessage(p, f, shortcut) },
                     sendingEnabled = controller.apiKeys.isNotEmpty() && !controller.sendingMessage,
                     onSelectSession = { session ->
                         controller.selectWorkspaceSession(session, p, f)
@@ -497,7 +495,6 @@ fun ConceptionWorkspaceScreen(
     messageDraft: String = "",
     onMessageDraftChange: (String) -> Unit = {},
     onSend: () -> Unit = {},
-    onSendShortcut: (String) -> Unit = {},
     sendingEnabled: Boolean = false,
     onSelectSession: (JulesSessionEntity) -> Unit = {},
 ) {
@@ -579,12 +576,6 @@ fun ConceptionWorkspaceScreen(
                 WorkspaceTab.MODIFIED_FILES -> WorkspaceFilesTab(modifiedFiles)
             }
         }
-        PromptShortcutsRow(
-            shortcuts = DesignAssistantSampleData.promptShortcuts,
-            onShortcutClick = { shortcut ->
-                if (sendingEnabled) onSendShortcut(shortcut) else onMessageDraftChange(shortcut)
-            },
-        )
         if (sendingEnabled) {
             DesignChatInputBar(
                 value = messageDraft,

@@ -84,13 +84,6 @@ object DesignAssistantSampleData {
         ),
     )
 
-    val promptShortcuts = listOf(
-        "Générer les tests unitaires",
-        "Corriger les bugs",
-        "Créer la PR",
-        "Résumer les changements",
-    )
-
     val generatedCodeSample = """
         // OAuthProvider.kt
         class OAuthProvider(private val config: OAuthConfig) {

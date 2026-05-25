@@ -109,6 +109,29 @@ class GitHubClient(
     )
 
     @Serializable
+    data class GitHubRepositoryInfo(
+        @SerialName("default_branch") val defaultBranch: String = "main",
+    )
+
+    suspend fun getRepository(token: String, owner: String, repo: String): GitHubRepositoryInfo {
+        requireToken(token)
+        val url = "$baseUrl/repos/$owner/$repo"
+        val response = client.get(url) {
+            githubHeaders(token)
+        }
+        val body = response.bodyAsText()
+        if (response.status.value != 200) {
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "GitHub get repository: $body",
+                url = url,
+                provider = "GitHub"
+            )
+        }
+        return json.decodeFromString(GitHubRepositoryInfo.serializer(), body)
+    }
+
+    @Serializable
     data class GitHubRef(
         val ref: String = "",
         val sha: String = "",

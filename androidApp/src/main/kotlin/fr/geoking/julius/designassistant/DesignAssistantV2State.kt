@@ -14,6 +14,9 @@ import fr.geoking.julius.repository.GitHubBuildRepository
 import fr.geoking.julius.repository.JulesRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -70,6 +73,7 @@ class DesignAssistantV2State(
     private var featuresJob: Job? = null
     private var sessionsJob: Job? = null
     private var activitiesJob: Job? = null
+    private val defaultBranchBySource = mutableMapOf<String, String>()
 
     val apiKeys: List<String>
         get() = settingsManager.settings.value.julesKeys
@@ -98,6 +102,7 @@ class DesignAssistantV2State(
             try {
                 julesRepository.getSources(apiKeys).collectLatest { list ->
                     sources = list
+                    refreshDefaultBranches(list)
                     refreshProjectList(list, allFeatures, sessions)
                     projectsLoading = false
                 }
@@ -134,7 +139,12 @@ class DesignAssistantV2State(
             allOthersSessionCount = unlinked,
         )
         val filtered = filterFeatures(features, featureSearchQuery)
-        return DesignAssistantMapper.sourceToProject(source, allFeatures, repoSessions).copy(features = filtered)
+        return DesignAssistantMapper.sourceToProject(
+            source,
+            allFeatures,
+            repoSessions,
+            mainBranch = defaultBranchFor(source),
+        ).copy(features = filtered)
     }
 
     fun filterFeatures(features: List<DesignFeature>, query: String): List<DesignFeature> {
@@ -244,8 +254,8 @@ class DesignAssistantV2State(
         }
     }
 
-    fun sendMessage(project: DesignProject, feature: DesignFeature, promptOverride: String? = null) {
-        val text = (promptOverride ?: messageDraft).trim()
+    fun sendMessage(project: DesignProject, feature: DesignFeature) {
+        val text = messageDraft.trim()
         if (text.isBlank() || sendingMessage) return
         val sourceName = project.id
         scope.launch {
@@ -303,13 +313,39 @@ class DesignAssistantV2State(
         activitiesJob?.cancel()
     }
 
+    private suspend fun refreshDefaultBranches(sourceList: List<JulesClient.JulesSource>) {
+        if (githubToken.isBlank()) return
+        coroutineScope {
+            sourceList.mapNotNull { source ->
+                val gh = source.githubRepo ?: return@mapNotNull null
+                async {
+                    val branch = buildRepository.getDefaultBranch(githubToken, gh.owner, gh.repo)
+                    source.name to branch
+                }
+            }.awaitAll().forEach { (name, branch) ->
+                defaultBranchBySource[name] = branch
+            }
+        }
+    }
+
+    private fun defaultBranchFor(source: JulesClient.JulesSource): String {
+        if (githubToken.isBlank()) return "unknown"
+        defaultBranchBySource[source.name]?.let { return it }
+        return "main"
+    }
+
     private fun refreshProjectList(
         sourceList: List<JulesClient.JulesSource>,
         feats: List<FeatureEntity>,
         sess: List<JulesSessionEntity>,
     ) {
         projects = sourceList.map { source ->
-            DesignAssistantMapper.sourceToProject(source, feats, sess)
+            DesignAssistantMapper.sourceToProject(
+                source,
+                feats,
+                sess,
+                mainBranch = defaultBranchFor(source),
+            )
         }
     }
 

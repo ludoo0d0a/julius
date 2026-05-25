@@ -42,6 +42,7 @@ object DesignAssistantMapper {
         source: JulesClient.JulesSource,
         features: List<FeatureEntity>,
         sessions: List<JulesSessionEntity>,
+        mainBranch: String,
     ): DesignProject {
         val sourceName = source.name
         val repoFeatures = features.filter { it.sourceName == sourceName }
@@ -56,7 +57,7 @@ object DesignAssistantMapper {
             emoji = sourceEmoji(source),
             activeFeaturesCount = repoFeatures.count { it.status == "IN_PROGRESS" },
             promptCount = repoSessions.size,
-            mainBranch = "main",
+            mainBranch = mainBranch,
             lastModifiedLabel = formatRelativeTime(lastMs),
             description = "",
             features = emptyList(),
