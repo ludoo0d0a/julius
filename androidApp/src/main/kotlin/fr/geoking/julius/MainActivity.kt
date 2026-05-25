@@ -386,6 +386,7 @@ fun MainUI(
                         },
                         julesClient = julesClient,
                         julesRepository = julesRepository,
+                        featureRepository = featureRepository,
                         settingsManager = settingsManager,
                         voiceManager = voiceManager,
                         initialSession = julesInitialSession
@@ -545,6 +546,7 @@ fun MainUIPreview() {
                     override suspend fun updateSessionGitHubDetails(sessionId: String, branch: String?, repo: String?) {}
                     override suspend fun updateSessionState(sessionId: String, state: String?) {}
                     override suspend fun updateSessionLastUpdated(sessionId: String, lastUpdated: Long) {}
+                    override suspend fun updateSessionFeature(sessionId: String, featureId: String?) {}
                     override suspend fun getPendingOfflineSessions(): List<JulesSessionEntity> = emptyList()
                     override suspend fun getPendingOfflineActivities(): List<JulesActivityEntity> = emptyList()
                     override suspend fun deleteSession(sessionId: String) {}
@@ -582,6 +584,7 @@ fun MainUIPreview() {
                     override suspend fun updateSessionGitHubDetails(sessionId: String, branch: String?, repo: String?) {}
                     override suspend fun updateSessionState(sessionId: String, state: String?) {}
                     override suspend fun updateSessionLastUpdated(sessionId: String, lastUpdated: Long) {}
+                    override suspend fun updateSessionFeature(sessionId: String, featureId: String?) {}
                     override suspend fun getPendingOfflineSessions(): List<JulesSessionEntity> = emptyList()
                     override suspend fun getPendingOfflineActivities(): List<JulesActivityEntity> = emptyList()
                     override suspend fun deleteSession(sessionId: String) {}

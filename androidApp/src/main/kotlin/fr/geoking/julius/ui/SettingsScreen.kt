@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
@@ -41,6 +42,8 @@ import fr.geoking.julius.feature.auth.GoogleAuthManager
 import fr.geoking.julius.*
 import fr.geoking.julius.agents.LlamatikModelHelper
 import fr.geoking.julius.agents.LlamatikModelVariant
+import fr.geoking.julius.feature.voice.VoskModelHelper
+import fr.geoking.julius.feature.voice.VoskModelVariant
 import fr.geoking.julius.shared.voice.SttEnginePreference
 
 enum class SettingsScreenPage { Main, Agents, AgentDetails }
@@ -275,6 +278,8 @@ fun MainSettingsPage(
                 settingsManager.saveSettings(current.copy(sttEnginePreference = p))
             }
 
+            var voskModelReady by remember { mutableStateOf(VoskModelHelper(context).isModelDownloaded()) }
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -288,8 +293,13 @@ fun MainSettingsPage(
                 )
                 Column(Modifier.padding(start = 8.dp)) {
                     Text("Vosk", fontWeight = FontWeight.SemiBold)
-                    Text("Offline/local recognition (recommended)", color = Color.Gray, fontSize = 12.sp)
+                    val status = if (voskModelReady) "Model ready" else "Model missing"
+                    Text("Offline/local recognition ($status)", color = Color.Gray, fontSize = 12.sp)
                 }
+            }
+
+            if (selected == SttEnginePreference.LocalOnly || selected == SttEnginePreference.LocalFirst) {
+                VoskModelSettings(context, onModelReadyChanged = { voskModelReady = it })
             }
 
             Row(
@@ -373,6 +383,74 @@ fun AgentsPage(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun VoskModelSettings(context: android.content.Context, onModelReadyChanged: (Boolean) -> Unit) {
+    val helper = remember { VoskModelHelper(context) }
+    val scope = rememberCoroutineScope()
+    var isModelDownloaded by remember { mutableStateOf(helper.isModelDownloaded()) }
+    var downloadVariant by remember { mutableStateOf<VoskModelVariant?>(null) }
+    var downloadBytes by remember { mutableLongStateOf(0L) }
+    var downloadTotal by remember { mutableStateOf<Long?>(null) }
+    var downloadError by remember { mutableStateOf<String?>(null) }
+
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Text("Vosk Model", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+
+        if (downloadVariant != null) {
+            val progress = downloadTotal?.let { if (it > 0) downloadBytes.toFloat() / it else 0f } ?: 0f
+            Column(Modifier.padding(vertical = 8.dp)) {
+                Text("Downloading ${downloadVariant?.displayName}...", fontSize = 12.sp)
+                LinearProgressIndicator(
+                    progress = progress,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                )
+                Text("${downloadBytes / 1024} KB / ${downloadTotal?.let { it / 1024 } ?: "?"} KB", fontSize = 10.sp, color = Color.Gray)
+            }
+        } else {
+            VoskModelVariant.entries.forEach { variant ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(variant.displayName, fontSize = 13.sp)
+                        Text(variant.sizeDescription, fontSize = 11.sp, color = Color.Gray)
+                    }
+                    Button(
+                        onClick = {
+                            downloadVariant = variant
+                            downloadError = null
+                            scope.launch {
+                                helper.downloadAndExtract(variant) { bytes, total ->
+                                    downloadBytes = bytes
+                                    downloadTotal = total
+                                }
+                                .onSuccess {
+                                    isModelDownloaded = true
+                                    onModelReadyChanged(true)
+                                    downloadVariant = null
+                                }
+                                .onFailure {
+                                    downloadError = it.message
+                                    downloadVariant = null
+                                }
+                            }
+                        },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text("Download", fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+
+        downloadError?.let {
+            Text(it, color = Color.Red, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
         }
     }
 }

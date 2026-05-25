@@ -135,8 +135,20 @@ fun VoiceMainContent(
             onClick = onFeaturesClick,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 120.dp, bottom = 48.dp)
-        )
+                .padding(end = 24.dp, bottom = 48.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (onMapClick != null) {
+                JulesButton(onClick = onJulesClick)
+                Spacer(modifier = Modifier.width(8.dp))
+                MapButton(onClick = onMapClick)
+            } else {
+                FeaturesButton(onClick = onFeaturesClick)
+                Spacer(modifier = Modifier.width(8.dp))
+                JulesButton(onClick = onJulesClick)
+            }
+        }
+
         if (onVoskTestClick != null) {
             IconButton(
                 onClick = onVoskTestClick,
@@ -150,14 +162,6 @@ fun VoiceMainContent(
                     tint = Color.White.copy(alpha = 0.3f)
                 )
             }
-        }
-        if (onMapClick != null) {
-            MapButton(
-                onClick = onMapClick,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 24.dp, bottom = 48.dp)
-            )
         }
     }
 }

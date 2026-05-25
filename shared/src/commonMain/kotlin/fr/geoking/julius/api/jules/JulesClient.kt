@@ -335,12 +335,13 @@ class JulesClient(
         val planGenerated: PlanGenerated? = null,
         val planApproved: PlanApproved? = null,
         val progressUpdated: ProgressUpdated? = null,
-        val sessionCompleted: JsonObject? = null,
+        val sessionCompleted: SessionCompleted? = null,
         val sessionFailed: SessionFailed? = null,
         val messageSent: MessageSent? = null,
         val userMessaged: UserMessaged? = null,
         val agentMessaged: AgentMessaged? = null,
-        val artifacts: List<JulesArtifact>? = null
+        val artifacts: List<JulesArtifact>? = null,
+        val outputs: List<JulesOutput>? = null
     )
 
     @Serializable
@@ -404,6 +405,11 @@ class JulesClient(
     )
 
     @Serializable
+    data class SessionCompleted(
+        val outputs: List<JulesOutput>? = null
+    )
+
+    @Serializable
     data class SessionFailed(val reason: String? = null)
 
     @Serializable
@@ -440,7 +446,10 @@ class JulesClient(
      * Extract display text from an activity, including special handling for "Updated" actions.
      */
     fun extractText(a: JulesActivity): String {
-        return when {
+        val pr = a.outputs?.firstOrNull()?.pullRequest ?: a.sessionCompleted?.outputs?.firstOrNull()?.pullRequest
+        val prUrl = pr?.url
+
+        val baseText = when {
             a.userMessaged != null -> a.userMessaged.userMessage
             a.agentMessaged != null -> a.agentMessaged.agentMessage
             a.messageSent != null -> a.messageSent.prompt ?: ""
@@ -464,6 +473,12 @@ class JulesClient(
             a.sessionFailed != null -> "Session failed: ${a.sessionFailed.reason ?: "Unknown error"}"
             a.planApproved != null && a.originator == "user" -> "Plan approved. 🚀"
             else -> a.description ?: "Activity"
+        }
+
+        return if (!prUrl.isNullOrBlank() && !baseText.contains(prUrl)) {
+            "$baseText\n\n$prUrl"
+        } else {
+            baseText
         }
     }
 
