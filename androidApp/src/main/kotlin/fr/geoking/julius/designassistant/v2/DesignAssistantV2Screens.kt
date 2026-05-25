@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,9 +26,14 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -41,9 +47,11 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -56,6 +64,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -81,6 +90,8 @@ import fr.geoking.julius.designassistant.components.TechnicalStatusBanner
 import fr.geoking.julius.designassistant.components.WhiteContentSheet
 import fr.geoking.julius.designassistant.components.WorkspaceTabRow
 import fr.geoking.julius.persistence.JulesSessionEntity
+import fr.geoking.julius.ui.components.RenderMessageBlock
+import fr.geoking.julius.ui.components.parseJulesMessage
 import fr.geoking.julius.repository.FeatureRepository
 import fr.geoking.julius.repository.GitHubBuildRepository
 import fr.geoking.julius.repository.JulesRepository
@@ -125,33 +136,44 @@ fun DesignAssistantV2Host(
         controller?.loadProjects()
     }
 
-    var screen by remember { mutableStateOf(V2Screen.PROJECTS) }
+    val screenStack = remember { mutableStateListOf(V2Screen.PROJECTS) }
+    val currentScreen = screenStack.last()
     var project by remember { mutableStateOf<DesignProject?>(null) }
     var feature by remember { mutableStateOf<DesignFeature?>(null) }
 
-    when (screen) {
+    fun navigateBack() {
+        if (screenStack.size > 1) {
+            screenStack.removeAt(screenStack.size - 1)
+        } else {
+            onBack()
+        }
+    }
+
+    BackHandler(onBack = ::navigateBack)
+
+    when (currentScreen) {
         V2Screen.PROJECTS -> {
             if (controller != null) {
                 ProjectsHomeScreen(
                     projects = controller.projects,
                     loading = controller.projectsLoading,
                     error = controller.projectsError,
-                    onBack = onBack,
+                    onBack = ::navigateBack,
                     onSwitchToV1 = onSwitchToV1,
                     onProjectClick = { p ->
                         project = p
                         controller.loadFeaturesForProject(p.id)
-                        screen = V2Screen.FEATURES
+                        screenStack.add(V2Screen.FEATURES)
                     },
                 )
             } else {
                 ProjectsHomeScreen(
                     projects = DesignAssistantSampleData.projects,
-                    onBack = onBack,
+                    onBack = ::navigateBack,
                     onSwitchToV1 = onSwitchToV1,
                     onProjectClick = { p ->
                         project = p
-                        screen = V2Screen.FEATURES
+                        screenStack.add(V2Screen.FEATURES)
                     },
                 )
             }
@@ -162,15 +184,21 @@ fun DesignAssistantV2Host(
                 val liveProject = controller.projectWithFeatures(p.id) ?: p
                 ProjectFeaturesScreen(
                     project = liveProject,
+                    sessions = controller.sessionsForProject(p.id),
                     searchQuery = controller.featureSearchQuery,
                     onSearchChange = { controller.featureSearchQuery = it },
                     onAddClick = { controller.showAddFeatureDialog = true },
-                    onBack = { screen = V2Screen.PROJECTS },
+                    onBack = ::navigateBack,
                     onFeatureClick = { f ->
                         feature = f
                         controller.openWorkspace(liveProject, f)
-                        screen = V2Screen.WORKSPACE
+                        screenStack.add(V2Screen.WORKSPACE)
                     },
+                    onSessionClick = { s ->
+                        feature = DesignAssistantMapper.resolveFeatureForSession(s, liveProject)
+                        controller.openWorkspaceForSession(liveProject, s)
+                        screenStack.add(V2Screen.WORKSPACE)
+                    }
                 )
                 if (controller.showAddFeatureDialog) {
                     AddFeatureDialog(
@@ -185,10 +213,10 @@ fun DesignAssistantV2Host(
             } else {
                 ProjectFeaturesScreen(
                     project = p,
-                    onBack = { screen = V2Screen.PROJECTS },
+                    onBack = ::navigateBack,
                     onFeatureClick = { f ->
                         feature = f
-                        screen = V2Screen.WORKSPACE
+                        screenStack.add(V2Screen.WORKSPACE)
                     },
                 )
             }
@@ -220,11 +248,24 @@ fun DesignAssistantV2Host(
                     onSelectSession = { session ->
                         controller.selectWorkspaceSession(session, p, f)
                     },
-                    onBack = { screen = V2Screen.FEATURES },
+                    onPauseResume = {
+                        if (controller.activeSession?.sessionState == "PAUSED") {
+                            controller.resumeSession()
+                        } else {
+                            controller.pauseSession()
+                        }
+                    },
+                    onArchive = {
+                        controller.archiveSession()
+                        navigateBack()
+                    },
+                    onRefreshStatus = {
+                        controller.refreshSessionStatus()
+                    },
+                    onBack = ::navigateBack,
                     onBreadcrumbClick = { index ->
-                        when (index) {
-                            0 -> screen = V2Screen.PROJECTS
-                            1 -> screen = V2Screen.FEATURES
+                        while (screenStack.size > index + 1) {
+                            screenStack.removeAt(screenStack.size - 1)
                         }
                     },
                 )
@@ -237,11 +278,10 @@ fun DesignAssistantV2Host(
                     } else {
                         DesignAssistantSampleData.catalogChatMessages
                     },
-                    onBack = { screen = V2Screen.FEATURES },
+                    onBack = ::navigateBack,
                     onBreadcrumbClick = { index ->
-                        when (index) {
-                            0 -> screen = V2Screen.PROJECTS
-                            1 -> screen = V2Screen.FEATURES
+                        while (screenStack.size > index + 1) {
+                            screenStack.removeAt(screenStack.size - 1)
                         }
                     },
                 )
@@ -364,6 +404,8 @@ fun ProjectFeaturesScreen(
     project: DesignProject,
     onBack: () -> Unit,
     onFeatureClick: (DesignFeature) -> Unit,
+    sessions: List<JulesSessionEntity> = emptyList(),
+    onSessionClick: (JulesSessionEntity) -> Unit = {},
     searchQuery: String = "",
     onSearchChange: (String) -> Unit = {},
     onAddClick: (() -> Unit)? = null,
@@ -380,7 +422,7 @@ fun ProjectFeaturesScreen(
                 }
             },
             content = {
-                DesignBreadcrumb(listOf("Projets", project.name))
+                DesignBreadcrumb(listOf(project.name))
                 Spacer(Modifier.height(8.dp))
             },
         )
@@ -393,7 +435,7 @@ fun ProjectFeaturesScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
-                    placeholder = { Text("Rechercher une feature…") },
+                    placeholder = { Text("Rechercher…") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
@@ -410,17 +452,37 @@ fun ProjectFeaturesScreen(
                     ),
                 )
             }
-            Text(
-                "Features",
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                fontWeight = FontWeight.Bold,
-                color = DesignAssistantColors.Navy,
-                fontSize = 18.sp,
-            )
             LazyColumn(Modifier.padding(horizontal = 16.dp)) {
-                items(project.features, key = { it.id }) { f ->
-                    FeatureRowV2(feature = f, onClick = { onFeatureClick(f) })
-                    Spacer(Modifier.height(8.dp))
+                if (sessions.isNotEmpty()) {
+                    item {
+                        Text(
+                            "Conversations",
+                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
+                            fontWeight = FontWeight.Bold,
+                            color = DesignAssistantColors.Navy,
+                            fontSize = 18.sp,
+                        )
+                    }
+                    items(sessions, key = { it.id }) { session ->
+                        SessionRowV2(session = session, onClick = { onSessionClick(session) })
+                        Spacer(Modifier.height(8.dp))
+                    }
+                }
+
+                if (project.features.isNotEmpty()) {
+                    item {
+                        Text(
+                            "Features",
+                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
+                            fontWeight = FontWeight.Bold,
+                            color = DesignAssistantColors.Navy,
+                            fontSize = 18.sp,
+                        )
+                    }
+                    items(project.features, key = { it.id }) { f ->
+                        FeatureRowV2(feature = f, onClick = { onFeatureClick(f) })
+                        Spacer(Modifier.height(8.dp))
+                    }
                 }
             }
         }
@@ -439,16 +501,16 @@ private fun ProjectSummaryDashboard(project: DesignProject) {
             .padding(16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        SummaryChip("$inProgress En cours", DesignAssistantColors.StatusInProgress)
-        SummaryChip("$ready Prêtes", DesignAssistantColors.StatusReady)
-        SummaryChip("$waiting En attente", DesignAssistantColors.StatusTodo)
+        SummaryChip("$inProgress En cours", DesignAssistantColors.StatusInProgress, Modifier.weight(1f))
+        SummaryChip("$ready Prêtes", DesignAssistantColors.StatusReady, Modifier.weight(1f))
+        SummaryChip("$waiting En attente", DesignAssistantColors.StatusTodo, Modifier.weight(1f))
     }
 }
 
 @Composable
-private fun RowScope.SummaryChip(label: String, color: Color) {
+private fun SummaryChip(label: String, color: Color, modifier: Modifier = Modifier) {
     Surface(
-        modifier = Modifier.weight(1f),
+        modifier = modifier,
         color = color.copy(alpha = 0.15f),
         shape = RoundedCornerShape(8.dp),
     ) {
@@ -463,6 +525,7 @@ private fun FeatureRowV2(feature: DesignFeature, onClick: () -> Unit) {
             .fillMaxWidth()
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             StatusDot(feature.status)
@@ -470,6 +533,41 @@ private fun FeatureRowV2(feature: DesignFeature, onClick: () -> Unit) {
             Column(Modifier.weight(1f)) {
                 Text(feature.name, fontWeight = FontWeight.SemiBold, color = DesignAssistantColors.Navy)
                 Text(feature.status.labelFr, fontSize = 12.sp, color = DesignAssistantColors.TextSecondary)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SessionRowV2(session: JulesSessionEntity, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.AutoMirrored.Filled.Chat,
+                contentDescription = null,
+                tint = DesignAssistantColors.Accent,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.padding(horizontal = 10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    session.title.ifBlank { session.prompt.take(50) },
+                    fontWeight = FontWeight.SemiBold,
+                    color = DesignAssistantColors.Navy,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    "${session.sessionState ?: "IDLE"} • ${DesignAssistantMapper.formatRelativeTime(session.lastUpdated)}",
+                    fontSize = 12.sp,
+                    color = DesignAssistantColors.TextSecondary
+                )
             }
         }
     }
@@ -497,6 +595,9 @@ fun ConceptionWorkspaceScreen(
     onSend: () -> Unit = {},
     sendingEnabled: Boolean = false,
     onSelectSession: (JulesSessionEntity) -> Unit = {},
+    onPauseResume: (() -> Unit)? = null,
+    onArchive: (() -> Unit)? = null,
+    onRefreshStatus: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
@@ -516,14 +617,60 @@ fun ConceptionWorkspaceScreen(
         }
     }
 
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Column(Modifier.fillMaxSize().background(Color.White)) {
         DesignAssistantNavyHeader(
             onBack = onBack,
             title = "Mode Conception",
             subtitle = feature.name,
+            trailing = {
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Actions", tint = Color.White)
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                    ) {
+                        if (activeSession != null) {
+                            val isPaused = activeSession.sessionState == "PAUSED"
+                            DropdownMenuItem(
+                                text = { Text(if (isPaused) "Reprendre" else "Pause") },
+                                onClick = {
+                                    menuExpanded = false
+                                    onPauseResume?.invoke()
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                                        contentDescription = null
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Rafraîchir statut") },
+                                onClick = {
+                                    menuExpanded = false
+                                    onRefreshStatus?.invoke()
+                                },
+                                leadingIcon = { Icon(Icons.Default.Refresh, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Archiver") },
+                                onClick = {
+                                    menuExpanded = false
+                                    onArchive?.invoke()
+                                },
+                                leadingIcon = { Icon(Icons.Default.Archive, contentDescription = null) }
+                            )
+                        }
+                    }
+                }
+            }
         )
         DesignBreadcrumb(
-            path = listOf("Projets", project.name, "Feature: ${feature.name}"),
+            path = listOf(project.name, feature.name),
             onSegmentClick = onBreadcrumbClick,
         )
         if (branch != null || prNumber != null || buildDeployLine != null || buildLoading) {
@@ -690,13 +837,28 @@ private fun V2ChatBubble(message: DesignChatMessage) {
             }
         }
         else -> {
+            val blocks = remember(message.text) { parseJulesMessage(message.text) }
             Row {
                 JulesAvatar()
                 Spacer(Modifier.padding(4.dp))
-                Text(message.text, color = DesignAssistantColors.Navy, modifier = Modifier.weight(1f))
+                Column(Modifier.weight(1f)) {
+                    blocks.forEach { block ->
+                        RenderV2MessageBlock(block)
+                        Spacer(Modifier.height(4.dp))
+                    }
+                }
             }
         }
     }
+}
+
+@Composable
+private fun RenderV2MessageBlock(block: fr.geoking.julius.ui.components.MessageBlock) {
+    RenderMessageBlock(
+        block = block,
+        baseFontSize = 14,
+        textColor = DesignAssistantColors.Navy
+    )
 }
 
 @Composable

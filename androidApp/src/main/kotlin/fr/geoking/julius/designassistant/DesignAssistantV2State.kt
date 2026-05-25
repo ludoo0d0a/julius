@@ -184,9 +184,101 @@ class DesignAssistantV2State(
         loadBuildStatus(project)
     }
 
+    fun openWorkspaceForSession(
+        project: DesignProject,
+        session: JulesSessionEntity
+    ) {
+        workspaceError = null
+        val sourceName = project.id
+        val feature = DesignAssistantMapper.resolveFeatureForSession(session, project)
+        val matching = if (feature != null) {
+            val entity = allFeatures.find { it.id == feature.id }
+            DesignAssistantMapper.resolveSessionsForFeature(
+                feature = feature,
+                sourceName = sourceName,
+                sessions = sessions,
+                featureSessionId = entity?.sessionId,
+            )
+        } else {
+            listOf(session)
+        }
+
+        pickerSessions = matching
+        activeSession = session
+        if (feature != null) {
+            loadWorkspaceData(project, feature)
+        }
+        loadBuildStatus(project)
+    }
+
+    fun sessionsForProject(sourceName: String): List<JulesSessionEntity> {
+        return sessions.filter { it.sourceName == sourceName && !it.isArchived }
+            .sortedByDescending { it.lastUpdated }
+    }
+
     fun selectWorkspaceSession(session: JulesSessionEntity, project: DesignProject, feature: DesignFeature) {
         activeSession = session
         loadWorkspaceData(project, feature)
+    }
+
+    fun pauseSession() {
+        val session = activeSession ?: return
+        scope.launch {
+            try {
+                julesRepository.pauseSession(session.id)
+                refreshActiveSession()
+            } catch (e: Exception) {
+                workspaceError = e.message
+            }
+        }
+    }
+
+    fun resumeSession() {
+        val session = activeSession ?: return
+        scope.launch {
+            try {
+                julesRepository.resumeSession(session.id)
+                refreshActiveSession()
+            } catch (e: Exception) {
+                workspaceError = e.message
+            }
+        }
+    }
+
+    fun archiveSession() {
+        val session = activeSession ?: return
+        scope.launch {
+            try {
+                julesRepository.archiveSession(session.id)
+                activeSession = null
+                // We might need to refresh the sessions list too
+                sessions = sessions.filter { it.id != session.id }
+            } catch (e: Exception) {
+                workspaceError = e.message
+            }
+        }
+    }
+
+    fun refreshSessionStatus() {
+        val session = activeSession ?: return
+        scope.launch {
+            try {
+                julesRepository.pollSessionStatus(session.id, githubToken)
+                refreshActiveSession()
+            } catch (e: Exception) {
+                workspaceError = e.message
+            }
+        }
+    }
+
+    private suspend fun refreshActiveSession() {
+        val session = activeSession ?: return
+        val updated = julesRepository.getSession(session.id)
+        if (updated != null) {
+            activeSession = updated
+            // Update the sessions list too
+            sessions = sessions.map { if (it.id == updated.id) updated else it }
+        }
     }
 
     private fun loadWorkspaceData(project: DesignProject, feature: DesignFeature) {

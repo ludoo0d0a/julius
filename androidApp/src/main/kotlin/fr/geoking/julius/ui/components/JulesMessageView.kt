@@ -57,7 +57,7 @@ fun parseJulesMessage(text: String): List<MessageBlock> {
     var i = 0
 
     val keywords = listOf("updated", "verified", "defined", "created", "refactored", "integrated")
-    val sections = listOf("code reviewed", "completed pre-commit steps", "all plan steps completed")
+    val sections = listOf("code reviewed", "completed pre-commit steps", "all plan steps completed", "plan approved")
 
     while (i < lines.size) {
         val line = lines[i].trim()
@@ -242,7 +242,7 @@ fun JulesMessageContent(
             )
     ) {
         blocks.forEach { block ->
-            RenderBlock(
+            RenderMessageBlock(
                 block = block,
                 baseFontSize = baseFontSize,
                 onMergePr = onMergePr,
@@ -266,9 +266,10 @@ fun JulesMessageContent(
 }
 
 @Composable
-private fun RenderBlock(
+fun RenderMessageBlock(
     block: MessageBlock,
     baseFontSize: Int,
+    textColor: Color = Color.White,
     onMergePr: ((String) -> Unit)? = null,
     onSolveConflicts: ((String) -> Unit)? = null,
     onAutoSolveConflicts: ((String) -> Unit)? = null,
@@ -279,10 +280,10 @@ private fun RenderBlock(
 ) {
     when (block) {
         is MessageBlock.Text -> {
-            Text(block.content, color = Color.White, fontSize = baseFontSize.sp)
+            Text(block.content, color = textColor, fontSize = baseFontSize.sp)
         }
         is MessageBlock.Header -> {
-            CollapsibleBlock(title = block.title, content = block.content, baseFontSize = baseFontSize, isAccent = true)
+            CollapsibleBlock(title = block.title, content = block.content, baseFontSize = baseFontSize, isAccent = true, textColor = textColor)
         }
         is MessageBlock.Plan -> {
             CollapsibleBlock(
@@ -290,23 +291,24 @@ private fun RenderBlock(
                 content = if (block.content.isNotBlank()) "🚀 ${block.content}" else "",
                 baseFontSize = baseFontSize,
                 isAccent = false,
-                initialExpanded = false
+                initialExpanded = false,
+                textColor = textColor
             )
         }
         is MessageBlock.Instruction -> {
-            InstructionItem(block.text, block.keyword, baseFontSize)
+            InstructionItem(block.text, block.keyword, baseFontSize, textColor = textColor)
         }
         is MessageBlock.SectionHeader -> {
-            SectionHeaderItem(block.title, baseFontSize)
+            SectionHeaderItem(block.title, baseFontSize, textColor = textColor)
         }
         is MessageBlock.BulletTitle -> {
-            Text(block.title, color = Color.White, fontSize = baseFontSize.sp, fontWeight = FontWeight.Bold)
+            Text(block.title, color = textColor, fontSize = baseFontSize.sp, fontWeight = FontWeight.Bold)
         }
         is MessageBlock.ActionList -> {
             block.actions.forEachIndexed { index, action ->
                 Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
                     Text("${index + 1}. ", color = ColorHelper.JulesAccent, fontSize = baseFontSize.sp, fontWeight = FontWeight.Bold)
-                    Text(action, color = Color.White, fontSize = baseFontSize.sp)
+                    Text(action, color = textColor, fontSize = baseFontSize.sp)
                 }
             }
         }
@@ -341,7 +343,7 @@ private fun RenderBlock(
 }
 
 @Composable
-private fun InstructionItem(text: String, keyword: String, baseFontSize: Int) {
+private fun InstructionItem(text: String, keyword: String, baseFontSize: Int, textColor: Color = Color.White) {
     val icon = when (keyword) {
         "updated" -> Icons.Default.Refresh
         "verified" -> Icons.Default.AssignmentTurnedIn
@@ -365,17 +367,18 @@ private fun InstructionItem(text: String, keyword: String, baseFontSize: Int) {
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = text,
-            color = Color.White,
+            color = textColor,
             fontSize = baseFontSize.sp
         )
     }
 }
 
 @Composable
-private fun SectionHeaderItem(title: String, baseFontSize: Int) {
+private fun SectionHeaderItem(title: String, baseFontSize: Int, textColor: Color = Color.White) {
     val icon = when {
         title.lowercase().contains("pre-commit") -> Icons.AutoMirrored.Filled.Rule
         title.lowercase().contains("plan steps completed") -> Icons.Default.DoneAll
+        title.lowercase().contains("plan approved") -> Icons.Default.DoneAll
         title.lowercase().contains("reviewed") -> Icons.AutoMirrored.Filled.Rule
         else -> Icons.Default.Check
     }
@@ -393,7 +396,7 @@ private fun SectionHeaderItem(title: String, baseFontSize: Int) {
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = title,
-            color = Color.White,
+            color = textColor,
             fontSize = (baseFontSize + 1).sp,
             fontWeight = FontWeight.Bold
         )
@@ -618,7 +621,8 @@ private fun CollapsibleBlock(
     content: String,
     baseFontSize: Int,
     isAccent: Boolean,
-    initialExpanded: Boolean = false
+    initialExpanded: Boolean = false,
+    textColor: Color = Color.White
 ) {
     var expanded by remember { mutableStateOf(initialExpanded) }
 
@@ -639,7 +643,7 @@ private fun CollapsibleBlock(
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 title,
-                color = if (isAccent) ColorHelper.JulesAccent else Color.White,
+                color = if (isAccent) ColorHelper.JulesAccent else textColor,
                 fontSize = baseFontSize.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -648,7 +652,7 @@ private fun CollapsibleBlock(
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 content,
-                color = Color.White.copy(alpha = 0.9f),
+                color = textColor.copy(alpha = 0.9f),
                 fontSize = (baseFontSize - 1).sp,
                 modifier = Modifier.padding(start = 24.dp)
             )
