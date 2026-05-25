@@ -91,6 +91,8 @@ import fr.geoking.julius.api.github.GitHubClient
 import fr.geoking.julius.api.jules.JulesChatItem
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.persistence.JulesSessionEntity
+import fr.geoking.julius.repository.BuildStatusSummary
+import fr.geoking.julius.repository.GitHubBuildRepository
 import fr.geoking.julius.repository.JulesQuota
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.network.NetworkException
@@ -112,6 +114,7 @@ fun JulesScreen(
     julesRepository: JulesRepository,
     settingsManager: SettingsManager,
     voiceManager: VoiceManager,
+    buildRepository: GitHubBuildRepository,
     initialSession: JulesSessionEntity? = null
 ) {
     val settings by settingsManager.settings.collectAsState()
@@ -556,11 +559,18 @@ fun JulesScreen(
                             onRefresh = { refreshActivities(isRefresh = true) }
                         )
                     } else if (selectedSourceName != null) {
+                        val selectedSource = sources.find { it.name == selectedSourceName }
+                        val ghOwner = selectedSource?.githubRepo?.owner?.takeIf { it.isNotBlank() }
+                        val ghRepo = selectedSource?.githubRepo?.repo?.takeIf { it.isNotBlank() }
                         RepoAndSessionsContent(
                             apiKeys = apiKeys,
                             isOnline = isOnline,
                             sessions = sessions,
                             selectedSourceName = selectedSourceName ?: "",
+                            githubToken = githubToken,
+                            githubOwner = ghOwner,
+                            githubRepo = ghRepo,
+                            buildRepository = buildRepository,
                             loading = loading,
                             loadingSessions = loadingSessions,
                             newSessionPrompt = newSessionPrompt,
@@ -1084,6 +1094,10 @@ private fun RepoAndSessionsContent(
     isOnline: Boolean,
     sessions: List<JulesSessionEntity>,
     selectedSourceName: String,
+    githubToken: String,
+    githubOwner: String?,
+    githubRepo: String?,
+    buildRepository: GitHubBuildRepository,
     loading: Boolean,
     loadingSessions: Boolean,
     newSessionPrompt: String,
@@ -1104,6 +1118,49 @@ private fun RepoAndSessionsContent(
 ) {
     var showPrDetails by remember { mutableStateOf<GitHubClient.GitHubPullRequestDetail?>(null) }
     var searchQuery by remember { mutableStateOf("") }
+    var buildSummary by remember { mutableStateOf<BuildStatusSummary?>(null) }
+    var buildLoading by remember { mutableStateOf(false) }
+    var buildError by remember { mutableStateOf<String?>(null) }
+    var showBuildDetail by remember { mutableStateOf(false) }
+    val hasGitHubRepo = !githubOwner.isNullOrBlank() && !githubRepo.isNullOrBlank()
+
+    LaunchedEffect(githubOwner, githubRepo, githubToken) {
+        buildSummary = null
+        buildError = null
+        if (!hasGitHubRepo || githubToken.isBlank()) {
+            buildLoading = false
+            return@LaunchedEffect
+        }
+        buildLoading = true
+        try {
+            val resolved = buildRepository.resolveWorkflowId(githubToken, githubOwner!!, githubRepo!!)
+            if (resolved != null) {
+                buildSummary = buildRepository.loadSummary(
+                    githubToken,
+                    githubOwner,
+                    githubRepo,
+                    resolved.first,
+                    resolved.second
+                )
+            }
+        } catch (e: Exception) {
+            buildError = e.message ?: "Build status unavailable"
+        } finally {
+            buildLoading = false
+        }
+    }
+
+    if (showBuildDetail && hasGitHubRepo) {
+        BackHandler { showBuildDetail = false }
+        BuildRunsDetailScreen(
+            owner = githubOwner!!,
+            repo = githubRepo!!,
+            githubToken = githubToken,
+            buildRepository = buildRepository,
+            onBack = { showBuildDetail = false }
+        )
+        return
+    }
 
     val displaySessions = sessions.filter {
         val matchesSearch = it.title.contains(searchQuery, ignoreCase = true) || it.prompt.contains(searchQuery, ignoreCase = true)
@@ -1114,6 +1171,15 @@ private fun RepoAndSessionsContent(
     Column(modifier = Modifier.fillMaxSize()) {
         if (selectedSourceName.isNotBlank()) {
             Column(modifier = Modifier.padding(16.dp)) {
+                BuildStatusSummaryCard(
+                    summary = buildSummary,
+                    loading = buildLoading,
+                    error = buildError,
+                    hasGitHubRepo = hasGitHubRepo,
+                    hasToken = githubToken.isNotBlank(),
+                    onClick = { if (hasGitHubRepo && githubToken.isNotBlank()) showBuildDetail = true },
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
                 OutlinedTextField(
                     value = newSessionPrompt,
                     onValueChange = onNewSessionPromptChange,
