@@ -100,6 +100,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import fr.geoking.julius.ui.components.JulesMessageContent
+import fr.geoking.julius.ui.components.DebugBar
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -141,6 +142,7 @@ fun JulesScreen(
     var showConflictSheet by remember { mutableStateOf(false) }
     var conflictingFiles by remember { mutableStateOf<List<String>>(emptyList()) }
     var rawActivities by remember { mutableStateOf<List<JulesClient.JulesActivity>>(emptyList()) }
+    var activitiesJson by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val sessionsListState = rememberLazyListState()
@@ -221,6 +223,29 @@ fun JulesScreen(
         clearError()
         try {
             julesRepository.getActivities(session.id).collectLatest { list ->
+                // Also get raw JSON for debug bar
+                try {
+                    val cached = julesRepository.getActivitiesBySession(session.id)
+                    val json = Json {
+                        prettyPrint = true
+                        ignoreUnknownKeys = true
+                    }
+                    activitiesJson = json.encodeToString(
+                        kotlinx.serialization.builtins.ListSerializer(JulesClient.JulesActivity.serializer()),
+                        cached.mapNotNull {
+                            it.activityJson?.let { aj ->
+                                try {
+                                    json.decodeFromString(JulesClient.JulesActivity.serializer(), aj)
+                                } catch (e: Exception) {
+                                    null
+                                }
+                            }
+                        }
+                    )
+                } catch (e: Exception) {
+                    activitiesJson = "Error loading raw activities: ${e.message}"
+                }
+
                 if (chatItems.isEmpty() || isRefresh) {
                     chatItems.clear()
                     chatItems.addAll(list)
@@ -582,7 +607,8 @@ fun JulesScreen(
                             julesRepository = julesRepository,
                             githubToken = githubToken,
                             isRefreshing = refreshing,
-                            onRefresh = { refreshActivities(isRefresh = true) }
+                            onRefresh = { refreshActivities(isRefresh = true) },
+                            activitiesJson = activitiesJson
                         )
                     } else if (selectedSourceName != null) {
                         RepoAndSessionsContent(
@@ -1001,7 +1027,8 @@ private fun InConversationContent(
     julesRepository: fr.geoking.julius.repository.JulesRepository,
     githubToken: String,
     isRefreshing: Boolean,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    activitiesJson: String = ""
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         val progressStep = remember(currentSession, chatItems.size) {
@@ -1082,6 +1109,10 @@ private fun InConversationContent(
             IconButton(onClick = onSend, enabled = inputText.isNotBlank() && !loading) {
                 Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = ColorHelper.JulesAccent)
             }
+        }
+
+        if (activitiesJson.isNotBlank()) {
+            DebugBar(jsonString = activitiesJson)
         }
     }
 }

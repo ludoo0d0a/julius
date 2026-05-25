@@ -7,10 +7,20 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Rule
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Merge
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.AssignmentTurnedIn
+import androidx.compose.material.icons.filled.Rule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -36,6 +46,8 @@ sealed class MessageBlock {
     data class GitHubPR(val url: String) : MessageBlock()
     data class GitHubBranch(val url: String) : MessageBlock()
     data class GitHubLog(val text: String) : MessageBlock()
+    data class Instruction(val text: String, val keyword: String) : MessageBlock()
+    data class SectionHeader(val title: String) : MessageBlock()
 }
 
 fun parseJulesMessage(text: String): List<MessageBlock> {
@@ -44,8 +56,12 @@ fun parseJulesMessage(text: String): List<MessageBlock> {
     var currentText = StringBuilder()
     var i = 0
 
+    val keywords = listOf("updated", "verified", "defined", "created", "refactored", "integrated")
+    val sections = listOf("code reviewed", "completed pre-commit steps", "all plan steps completed")
+
     while (i < lines.size) {
         val line = lines[i].trim()
+        val lowerLine = line.lowercase()
 
         when {
             line.startsWith("##") -> {
@@ -63,20 +79,46 @@ fun parseJulesMessage(text: String): List<MessageBlock> {
                 blocks.add(MessageBlock.Header(title, content.joinToString("\n").trim()))
                 continue
             }
-            line.startsWith("<plan>") -> {
+            line.startsWith("<plan>") || line.startsWith("Plan:") || line.startsWith("**Plan:**") -> {
                 if (currentText.isNotEmpty()) {
                     blocks.add(MessageBlock.Text(currentText.toString().trim()))
                     currentText = StringBuilder()
                 }
                 val content = mutableListOf<String>()
-                i++
-                while (i < lines.size && !lines[i].trim().startsWith("</plan>") && !lines[i].trim().startsWith("##")) {
-                    content.add(lines[i])
+
+                if (line.startsWith("<plan>")) {
                     i++
+                    while (i < lines.size && !lines[i].trim().startsWith("</plan>") && !lines[i].trim().startsWith("##")) {
+                        content.add(lines[i])
+                        i++
+                    }
+                    if (i < lines.size && lines[i].trim().startsWith("</plan>")) i++
+                } else {
+                    val firstLineContent = line.substringAfter(":").trim()
+                    if (firstLineContent.isNotEmpty()) content.add(firstLineContent)
+                    i++
+                    while (i < lines.size && lines[i].trim().isNotEmpty() && !lines[i].trim().startsWith("##") && !lines[i].trim().startsWith("<plan>")) {
+                        content.add(lines[i])
+                        i++
+                    }
                 }
-                if (i < lines.size && lines[i].trim().startsWith("</plan>")) i++
                 blocks.add(MessageBlock.Plan(content.joinToString("\n").trim()))
                 continue
+            }
+            sections.any { lowerLine.startsWith(it) } -> {
+                if (currentText.isNotEmpty()) {
+                    blocks.add(MessageBlock.Text(currentText.toString().trim()))
+                    currentText = StringBuilder()
+                }
+                blocks.add(MessageBlock.SectionHeader(line))
+            }
+            keywords.any { lowerLine.startsWith(it) } -> {
+                if (currentText.isNotEmpty()) {
+                    blocks.add(MessageBlock.Text(currentText.toString().trim()))
+                    currentText = StringBuilder()
+                }
+                val keyword = keywords.first { lowerLine.startsWith(it) }
+                blocks.add(MessageBlock.Instruction(line, keyword))
             }
             line.startsWith("**") && line.endsWith("**") -> {
                 if (currentText.isNotEmpty()) {
@@ -90,7 +132,6 @@ fun parseJulesMessage(text: String): List<MessageBlock> {
                     blocks.add(MessageBlock.Text(currentText.toString().trim()))
                     currentText = StringBuilder()
                 }
-                // Try to extract the full URL from the line
                 val regex = Regex("https?://github\\.com/[^\\s/]+/[^\\s/]+/pull/\\d+")
                 val match = regex.find(line)
                 if (match != null) {
@@ -244,7 +285,19 @@ private fun RenderBlock(
             CollapsibleBlock(title = block.title, content = block.content, baseFontSize = baseFontSize, isAccent = true)
         }
         is MessageBlock.Plan -> {
-            CollapsibleBlock(title = "Plan", content = block.content, baseFontSize = baseFontSize, isAccent = false)
+            CollapsibleBlock(
+                title = "Plan 🚀",
+                content = if (block.content.isNotBlank()) "🚀 ${block.content}" else "",
+                baseFontSize = baseFontSize,
+                isAccent = false,
+                initialExpanded = false
+            )
+        }
+        is MessageBlock.Instruction -> {
+            InstructionItem(block.text, block.keyword, baseFontSize)
+        }
+        is MessageBlock.SectionHeader -> {
+            SectionHeaderItem(block.title, baseFontSize)
         }
         is MessageBlock.BulletTitle -> {
             Text(block.title, color = Color.White, fontSize = baseFontSize.sp, fontWeight = FontWeight.Bold)
@@ -284,6 +337,66 @@ private fun RenderBlock(
         is MessageBlock.GitHubLog -> {
             GitHubLogBlock(block.text)
         }
+    }
+}
+
+@Composable
+private fun InstructionItem(text: String, keyword: String, baseFontSize: Int) {
+    val icon = when (keyword) {
+        "updated" -> Icons.Default.Refresh
+        "verified" -> Icons.Default.AssignmentTurnedIn
+        "defined" -> Icons.Default.List
+        "created" -> Icons.Default.Add
+        "refactored" -> Icons.Default.Build
+        "integrated" -> Icons.Default.Link
+        else -> Icons.Default.Check
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = ColorHelper.JulesAccent.copy(alpha = 0.8f),
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = text,
+            color = Color.White,
+            fontSize = baseFontSize.sp
+        )
+    }
+}
+
+@Composable
+private fun SectionHeaderItem(title: String, baseFontSize: Int) {
+    val icon = when {
+        title.lowercase().contains("pre-commit") -> Icons.AutoMirrored.Filled.Rule
+        title.lowercase().contains("plan steps completed") -> Icons.Default.DoneAll
+        title.lowercase().contains("reviewed") -> Icons.AutoMirrored.Filled.Rule
+        else -> Icons.Default.Check
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Color.Green.copy(alpha = 0.7f),
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = title,
+            color = Color.White,
+            fontSize = (baseFontSize + 1).sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
@@ -500,8 +613,14 @@ private fun GitHubResourceCard(
 }
 
 @Composable
-private fun CollapsibleBlock(title: String, content: String, baseFontSize: Int, isAccent: Boolean) {
-    var expanded by remember { mutableStateOf(false) }
+private fun CollapsibleBlock(
+    title: String,
+    content: String,
+    baseFontSize: Int,
+    isAccent: Boolean,
+    initialExpanded: Boolean = false
+) {
+    var expanded by remember { mutableStateOf(initialExpanded) }
 
     Column(
         modifier = Modifier
