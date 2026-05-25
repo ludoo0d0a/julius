@@ -32,7 +32,7 @@ class GitHubClient(
         if (token.isBlank()) {
             throw NetworkException(
                 httpCode = null,
-                message = "GitHub token is required. Add one in Settings → Jules & GitHub.",
+                message = "GitHub token is required. Add one in Settings → API keys → GitHub.",
                 provider = "GitHub"
             )
         }

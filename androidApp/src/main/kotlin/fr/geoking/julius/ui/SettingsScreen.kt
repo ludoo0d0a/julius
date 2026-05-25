@@ -3,6 +3,8 @@ package fr.geoking.julius.ui
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Column
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -25,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.listSaver
@@ -257,40 +261,29 @@ fun MainSettingsPage(
             }
         }
         item {
+            SettingsHeader("API keys")
             SettingsListItem(
-                title = "Agents",
-                subtitle = "Manage AI providers and on-device models",
+                title = "Conversational agents",
+                subtitle = "OpenAI, Gemini, Groq, and other AI provider keys",
                 onClick = { onNavigateToAgents() }
             )
         }
         item {
-            SettingsHeader("GitHub")
-            Text(
-                "Personal access token for the GitHub API (pull requests, Actions workflows, and file content on the Jules screen).",
-                color = Color.Gray,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp)
+            JulesApiKeysSection(
+                keys = settings.julesKeys,
+                onKeysChange = { updated ->
+                    settingsManager.saveSettings(settings.copy(julesKeys = updated))
+                },
+                onOpenJulesSettings = { context.openExternalUrl("https://jules.google.com") },
             )
-            OutlinedTextField(
-                value = settings.githubApiKey,
-                onValueChange = { token ->
+        }
+        item {
+            GitHubTokenSection(
+                token = settings.githubApiKey,
+                onTokenChange = { token ->
                     settingsManager.saveSettings(settings.copy(githubApiKey = token))
                 },
-                label = { Text("GitHub token") },
-                placeholder = { Text("ghp_… or github_pat_…") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                visualTransformation = PasswordVisualTransformation(),
-                singleLine = true,
-            )
-            val tokenConfigured = settings.githubApiKey.isNotBlank()
-            Text(
-                if (tokenConfigured) "Token set — GitHub API calls enabled on the Jules screen."
-                else "No token — add one or set GITHUB_TOKEN in local.properties and rebuild.",
-                color = if (tokenConfigured) Color(0xFF86EFAC) else MaterialTheme.colorScheme.tertiary,
-                fontSize = 13.sp,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                onCreatePat = { context.openExternalUrl(GitHubPatUrls.CREATE_CLASSIC_PAT) },
             )
         }
         item {
@@ -509,11 +502,10 @@ fun AgentDetailsPage(
     Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
         when (agent) {
             AgentType.OpenAI -> {
-                OutlinedTextField(
+                ApiKeyTextField(
                     value = settings.openAiKey,
                     onValueChange = { onSettingsChange(settings.copy(openAiKey = it)) },
-                    label = { Text("OpenAI API Key") },
-                    modifier = Modifier.fillMaxWidth()
+                    label = "OpenAI API Key",
                 )
                 Spacer(Modifier.height(16.dp))
                 Text("Model Selection", fontWeight = FontWeight.SemiBold)
@@ -533,11 +525,10 @@ fun AgentDetailsPage(
                 }
             }
             AgentType.Gemini -> {
-                OutlinedTextField(
+                ApiKeyTextField(
                     value = settings.geminiKey,
                     onValueChange = { onSettingsChange(settings.copy(geminiKey = it)) },
-                    label = { Text("Gemini API Key") },
-                    modifier = Modifier.fillMaxWidth()
+                    label = "Gemini API Key",
                 )
                 Spacer(Modifier.height(16.dp))
                 Text("Model Selection", fontWeight = FontWeight.SemiBold)
@@ -557,26 +548,23 @@ fun AgentDetailsPage(
                 }
             }
             AgentType.ElevenLabs -> {
-                OutlinedTextField(
+                ApiKeyTextField(
                     value = settings.perplexityKey,
                     onValueChange = { onSettingsChange(settings.copy(perplexityKey = it)) },
-                    label = { Text("Perplexity API Key") },
-                    modifier = Modifier.fillMaxWidth()
+                    label = "Perplexity API Key",
                 )
                 Spacer(Modifier.height(16.dp))
-                OutlinedTextField(
+                ApiKeyTextField(
                     value = settings.elevenLabsKey,
                     onValueChange = { onSettingsChange(settings.copy(elevenLabsKey = it)) },
-                    label = { Text("ElevenLabs API Key") },
-                    modifier = Modifier.fillMaxWidth()
+                    label = "ElevenLabs API Key",
                 )
             }
             AgentType.DeepSeek -> {
-                OutlinedTextField(
+                ApiKeyTextField(
                     value = settings.deepSeekKey,
                     onValueChange = { onSettingsChange(settings.copy(deepSeekKey = it)) },
-                    label = { Text("DeepSeek API Key") },
-                    modifier = Modifier.fillMaxWidth()
+                    label = "DeepSeek API Key",
                 )
                 Spacer(Modifier.height(16.dp))
                 OutlinedTextField(
@@ -587,11 +575,10 @@ fun AgentDetailsPage(
                 )
             }
             AgentType.Groq -> {
-                OutlinedTextField(
+                ApiKeyTextField(
                     value = settings.groqKey,
                     onValueChange = { onSettingsChange(settings.copy(groqKey = it)) },
-                    label = { Text("Groq API Key") },
-                    modifier = Modifier.fillMaxWidth()
+                    label = "Groq API Key",
                 )
                 Spacer(Modifier.height(16.dp))
                 OutlinedTextField(
@@ -602,11 +589,10 @@ fun AgentDetailsPage(
                 )
             }
             AgentType.OpenRouter -> {
-                OutlinedTextField(
+                ApiKeyTextField(
                     value = settings.openRouterKey,
                     onValueChange = { onSettingsChange(settings.copy(openRouterKey = it)) },
-                    label = { Text("OpenRouter API Key") },
-                    modifier = Modifier.fillMaxWidth()
+                    label = "OpenRouter API Key",
                 )
                 Spacer(Modifier.height(16.dp))
                 OutlinedTextField(
@@ -614,6 +600,65 @@ fun AgentDetailsPage(
                     onValueChange = { onSettingsChange(settings.copy(openRouterModel = it)) },
                     label = { Text("OpenRouter Model") },
                     modifier = Modifier.fillMaxWidth()
+                )
+            }
+            AgentType.Deepgram -> {
+                ApiKeyTextField(
+                    value = settings.deepgramKey,
+                    onValueChange = { onSettingsChange(settings.copy(deepgramKey = it)) },
+                    label = "Deepgram API Key",
+                )
+            }
+            AgentType.FirebaseAI -> {
+                ApiKeyTextField(
+                    value = settings.firebaseAiKey,
+                    onValueChange = { onSettingsChange(settings.copy(firebaseAiKey = it)) },
+                    label = "Firebase AI API Key",
+                )
+                Spacer(Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = settings.firebaseAiModel,
+                    onValueChange = { onSettingsChange(settings.copy(firebaseAiModel = it)) },
+                    label = { Text("Firebase AI Model") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+            }
+            AgentType.OpenCodeZen -> {
+                ApiKeyTextField(
+                    value = settings.opencodeZenKey,
+                    onValueChange = { onSettingsChange(settings.copy(opencodeZenKey = it)) },
+                    label = "OpenCode Zen API Key",
+                )
+                Spacer(Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = settings.opencodeZenModel,
+                    onValueChange = { onSettingsChange(settings.copy(opencodeZenModel = it)) },
+                    label = { Text("OpenCode Zen Model") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+            }
+            AgentType.CompletionsMe -> {
+                ApiKeyTextField(
+                    value = settings.completionsMeKey,
+                    onValueChange = { onSettingsChange(settings.copy(completionsMeKey = it)) },
+                    label = "Completions.me API Key",
+                )
+                Spacer(Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = settings.completionsMeModel,
+                    onValueChange = { onSettingsChange(settings.copy(completionsMeModel = it)) },
+                    label = { Text("Completions.me Model") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+            }
+            AgentType.ApiFreeLLM -> {
+                ApiKeyTextField(
+                    value = settings.apifreellmKey,
+                    onValueChange = { onSettingsChange(settings.copy(apifreellmKey = it)) },
+                    label = "ApiFreeLLM API Key",
                 )
             }
             AgentType.Llamatik -> {
@@ -818,4 +863,162 @@ fun SettingsHeader(title: String) {
         fontSize = 12.sp,
         letterSpacing = 1.sp
     )
+}
+
+@Composable
+private fun ApiKeyTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        modifier = Modifier.fillMaxWidth(),
+        visualTransformation = PasswordVisualTransformation(),
+        singleLine = true,
+    )
+}
+
+@Composable
+fun JulesApiKeysSection(
+    keys: List<String>,
+    onKeysChange: (List<String>) -> Unit,
+    onOpenJulesSettings: () -> Unit,
+) {
+    SettingsHeader("Jules")
+    Text(
+        "API keys from jules.google.com (Settings in the Jules web app). Used on the Jules screen and Android Auto.",
+        color = Color.Gray,
+        fontSize = 14.sp,
+        modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp),
+    )
+    TextButton(
+        onClick = onOpenJulesSettings,
+        modifier = Modifier.padding(horizontal = 8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Open jules.google.com")
+        }
+    }
+    keys.forEachIndexed { index, key ->
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                maskApiKey(key),
+                modifier = Modifier.weight(1f),
+                fontSize = 14.sp,
+            )
+            IconButton(
+                onClick = {
+                    onKeysChange(keys.filterIndexed { i, _ -> i != index })
+                },
+            ) {
+                Icon(Icons.Default.Delete, contentDescription = "Remove key", tint = Color.Gray)
+            }
+        }
+    }
+    var newKey by remember { mutableStateOf("") }
+    OutlinedTextField(
+        value = newKey,
+        onValueChange = { newKey = it },
+        label = { Text("Jules API key") },
+        placeholder = { Text("Paste key from Jules Settings") },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        visualTransformation = PasswordVisualTransformation(),
+        singleLine = true,
+    )
+    Button(
+        onClick = {
+            val trimmed = newKey.trim()
+            if (trimmed.isNotEmpty() && !keys.contains(trimmed)) {
+                onKeysChange(keys + trimmed)
+                newKey = ""
+            }
+        },
+        enabled = newKey.trim().isNotEmpty(),
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .fillMaxWidth(),
+    ) {
+        Text("Add Jules API key")
+    }
+    val julesConfigured = keys.isNotEmpty()
+    Text(
+        if (julesConfigured) "${keys.size} key(s) configured."
+        else "No Jules API key — add one above or set JULES_KEY in local.properties and rebuild.",
+        color = if (julesConfigured) Color(0xFF86EFAC) else MaterialTheme.colorScheme.tertiary,
+        fontSize = 13.sp,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+    )
+}
+
+@Composable
+fun GitHubTokenSection(
+    token: String,
+    onTokenChange: (String) -> Unit,
+    onCreatePat: () -> Unit,
+) {
+    SettingsHeader("GitHub")
+    Text(
+        "Personal access token for pull requests, Actions workflows, and file content on the Jules screen.",
+        color = Color.Gray,
+        fontSize = 14.sp,
+        modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp),
+    )
+    TextButton(
+        onClick = onCreatePat,
+        modifier = Modifier.padding(horizontal = 8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Create token on GitHub (scopes pre-selected)")
+        }
+    }
+    GitHubPatUrls.CLASSIC_SCOPES.forEach { (scope, detail) ->
+        Text(
+            "• $scope — $detail",
+            color = Color.Gray,
+            fontSize = 12.sp,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+        )
+    }
+    OutlinedTextField(
+        value = token,
+        onValueChange = onTokenChange,
+        label = { Text("GitHub token") },
+        placeholder = { Text("ghp_… or github_pat_…") },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        visualTransformation = PasswordVisualTransformation(),
+        singleLine = true,
+    )
+    val tokenConfigured = token.isNotBlank()
+    Text(
+        if (tokenConfigured) "Token set — GitHub API calls enabled on the Jules screen."
+        else "No token — create one above or set GITHUB_TOKEN in local.properties and rebuild.",
+        color = if (tokenConfigured) Color(0xFF86EFAC) else MaterialTheme.colorScheme.tertiary,
+        fontSize = 13.sp,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+    )
+}
+
+private fun maskApiKey(key: String): String {
+    if (key.length <= 8) return "••••••••"
+    return "${key.take(4)}…${key.takeLast(4)}"
+}
+
+private fun Context.openExternalUrl(url: String) {
+    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
 }

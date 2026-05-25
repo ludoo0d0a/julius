@@ -511,7 +511,7 @@ fun JulesScreen(
                 apiKeys.isEmpty() -> {
                     ErrorCard(
                         title = "Jules API key not set",
-                        message = "Go to Settings → Jules API Key and add your key from jules.google.com Settings."
+                        message = "Go to Settings → API keys → Jules and add your key from jules.google.com Settings."
                     )
                 }
                 else -> {
