@@ -115,8 +115,23 @@ Les écrans production restent accessibles via :
 
 Si les previews ne se rafraîchissent pas : **Build > Make Project**, puis **Build > Refresh Linked Gradle Project**.
 
+## Données réelles (V2 branché)
+
+L’aperçu V2 consomme les mêmes services que les écrans production :
+
+| Écran V2 | Source de données |
+|----------|-------------------|
+| **Mes Projets** | `JulesRepository.getSources()` (cache Room, TTL 30 j) |
+| **Features** | `FeatureRepository` par `sourceName` + ligne synthétique **All others** (sessions sans `featureId`) |
+| **Workspace — Chat** | `JulesRepository.getActivities()` → `JulesClient.activitiesToChatItems` via `DesignAssistantMapper` |
+| **Workspace — Code / Fichiers** | Artefacts Jules (`gitPatch`, `changeSet`, `bashOutput`) depuis le cache d’activités |
+| **Bannière technique** | `JulesSessionEntity` (branche, PR) + `GitHubBuildRepository` (workflow **Deploy to Google Play Store** par défaut) |
+
+Fichiers : `DesignAssistantMapper.kt`, `DesignAssistantV2State.kt`, injection depuis `MainActivity` → `DesignAssistantHost`.
+
+Les `@Preview` Compose continuent d’utiliser `DesignAssistantSampleData`.
+
 ## Prochaines étapes (hors scope actuel)
 
-- Brancher les écrans V2 sur `FeatureRepository` / `JulesRepository` (données réelles).
-- Remplacer les données `DesignAssistantSampleData` par des ViewModels.
-- Feature flag distant ou réglage Settings pour afficher V2 par défaut.
+- Feature flag distant ou réglage Settings pour afficher V2 par défaut à la place de `FeaturesScreen`.
+- Actions PR complètes (merge / close) dans la bannière V2.

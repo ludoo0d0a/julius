@@ -379,12 +379,19 @@ fun StatusBadge(status: String) {
 fun AddFeatureDialog(
     sources: List<JulesClient.JulesSource>,
     onDismiss: () -> Unit,
-    onConfirm: (String, String, Int, String) -> Unit
+    onConfirm: (String, String, Int, String) -> Unit,
+    initialSourceName: String? = null,
 ) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var priority by remember { mutableStateOf(0) }
-    var selectedSource by remember { mutableStateOf(sources.firstOrNull()?.name ?: "") }
+    var selectedSource by remember {
+        mutableStateOf(
+            initialSourceName?.takeIf { name -> sources.any { it.name == name } }
+                ?: sources.firstOrNull()?.name
+                ?: ""
+        )
+    }
     var expanded by remember { mutableStateOf(false) }
 
     AlertDialog(

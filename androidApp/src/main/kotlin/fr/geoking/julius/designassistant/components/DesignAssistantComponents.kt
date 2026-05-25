@@ -33,6 +33,8 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -196,11 +198,15 @@ fun WhiteContentSheet(
 
 @Composable
 fun TechnicalStatusBanner(
-    branch: String,
+    branch: String?,
     prNumber: Int?,
     prTitle: String?,
+    prStateEmoji: String = "🟢",
+    deployStatusLine: String? = null,
+    deployLoading: Boolean = false,
     onCopyBranch: () -> Unit = {},
     onOpenPr: () -> Unit = {},
+    onDeployClick: (() -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier
@@ -208,13 +214,15 @@ fun TechnicalStatusBanner(
             .background(DesignAssistantColors.Surface)
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("🟢", fontSize = 14.sp)
-            Spacer(Modifier.width(6.dp))
-            Text("Branch: ", color = DesignAssistantColors.TextSecondary, fontSize = 13.sp)
-            Text(branch, color = DesignAssistantColors.Navy, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-            IconButton(onClick = onCopyBranch, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.ContentCopy, contentDescription = "Copier", tint = DesignAssistantColors.Accent)
+        if (!branch.isNullOrBlank()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(prStateEmoji, fontSize = 14.sp)
+                Spacer(Modifier.width(6.dp))
+                Text("Branch: ", color = DesignAssistantColors.TextSecondary, fontSize = 13.sp)
+                Text(branch, color = DesignAssistantColors.Navy, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                IconButton(onClick = onCopyBranch, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = "Copier", tint = DesignAssistantColors.Accent)
+                }
             }
         }
         if (prNumber != null) {
@@ -233,6 +241,36 @@ fun TechnicalStatusBanner(
                     fontWeight = FontWeight.Medium,
                     fontSize = 13.sp,
                 )
+            }
+        }
+        when {
+            deployLoading -> {
+                Text(
+                    "Deploy: chargement…",
+                    color = DesignAssistantColors.TextSecondary,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+            !deployStatusLine.isNullOrBlank() -> {
+                val deployModifier = if (onDeployClick != null) {
+                    Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onDeployClick)
+                        .padding(top = 4.dp)
+                } else {
+                    Modifier.padding(top = 4.dp)
+                }
+                Row(modifier = deployModifier, verticalAlignment = Alignment.CenterVertically) {
+                    Text("⚙️", fontSize = 14.sp)
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        deployStatusLine,
+                        color = DesignAssistantColors.Accent,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
             }
         }
     }
@@ -272,6 +310,25 @@ fun DesignChatInputBar(
     onSend: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    DesignChatInputBar(
+        value = "",
+        onValueChange = {},
+        placeholder = placeholder,
+        onSend = onSend,
+        enabled = false,
+        modifier = modifier,
+    )
+}
+
+@Composable
+fun DesignChatInputBar(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    onSend: () -> Unit,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
+) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -279,30 +336,35 @@ fun DesignChatInputBar(
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = {}) {
-            Icon(Icons.Default.Add, contentDescription = "Pièces jointes", tint = DesignAssistantColors.Navy)
+        IconButton(onClick = {}, enabled = false) {
+            Icon(Icons.Default.Add, contentDescription = "Pièces jointes", tint = DesignAssistantColors.Navy.copy(alpha = 0.4f))
         }
-        Surface(
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
             modifier = Modifier.weight(1f),
+            placeholder = { Text(placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            enabled = enabled,
+            singleLine = true,
             shape = RoundedCornerShape(24.dp),
-            color = DesignAssistantColors.Surface,
-        ) {
-            Text(
-                placeholder,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                color = DesignAssistantColors.TextSecondary,
-                fontSize = 14.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = DesignAssistantColors.Surface,
+                unfocusedContainerColor = DesignAssistantColors.Surface,
+                focusedBorderColor = DesignAssistantColors.Accent.copy(alpha = 0.5f),
+                unfocusedBorderColor = Color.Transparent,
+            ),
+        )
         Spacer(Modifier.width(8.dp))
         IconButton(
             onClick = onSend,
+            enabled = enabled && value.isNotBlank(),
             modifier = Modifier
                 .size(44.dp)
                 .clip(CircleShape)
-                .background(DesignAssistantColors.Navy),
+                .background(
+                    if (enabled && value.isNotBlank()) DesignAssistantColors.Navy
+                    else DesignAssistantColors.Navy.copy(alpha = 0.35f)
+                ),
         ) {
             Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Envoyer", tint = Color.White)
         }

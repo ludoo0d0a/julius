@@ -380,7 +380,13 @@ fun MainUI(
                     )
                 }
                 showDesignAssistant -> {
-                    DesignAssistantHost(onBack = { showDesignAssistant = false })
+                    DesignAssistantHost(
+                        onBack = { showDesignAssistant = false },
+                        julesRepository = julesRepository,
+                        featureRepository = featureRepository,
+                        settingsManager = settingsManager,
+                        buildRepository = buildRepository,
+                    )
                 }
                 showJules -> {
                     JulesScreen(
