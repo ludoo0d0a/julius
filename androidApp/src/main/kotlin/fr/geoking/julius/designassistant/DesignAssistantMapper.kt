@@ -149,6 +149,13 @@ object DesignAssistantMapper {
         return resolveSessionsForFeature(feature, sourceName, sessions, featureSessionId).firstOrNull()
     }
 
+    fun resolveFeatureForSession(session: JulesSessionEntity, project: DesignProject): DesignFeature? {
+        if (session.featureId == null) {
+            return project.features.find { isAllOthers(it) }
+        }
+        return project.features.find { it.id == session.featureId }
+    }
+
     fun prNumberFromSession(session: JulesSessionEntity?): Int? {
         if (session == null) return null
         session.prUrl?.let { parseGitHubPullRequestUrl(it)?.number }?.let { return it }
