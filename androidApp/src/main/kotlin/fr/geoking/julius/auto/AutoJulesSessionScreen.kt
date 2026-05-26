@@ -23,7 +23,9 @@ class AutoJulesSessionScreen(
     private val julesClient: JulesClient,
     private val julesRepository: JulesRepository,
     private val sourceId: String,
-    private val sourceDisplayName: String
+    private val sourceDisplayName: String,
+    private val featureId: String? = null,
+    private val featureTitle: String? = null
 ) : Screen(carContext) {
 
     private var sessions: List<JulesSessionEntity> = emptyList()
@@ -42,7 +44,11 @@ class AutoJulesSessionScreen(
         lifecycleScope.launch {
             try {
                 julesRepository.getSessions(apiKeys, sourceId, githubToken).collectLatest { list ->
-                    sessions = list
+                    sessions = list.filter {
+                        if (featureId != null) it.featureId == featureId
+                        else if (featureTitle == "Hors feature") it.featureId == null
+                        else true
+                    }
                     loading = false
                     invalidate()
                 }
@@ -56,24 +62,37 @@ class AutoJulesSessionScreen(
     }
 
     override fun onGetTemplate(): Template {
+        val headerTitle = featureTitle ?: sourceDisplayName
+
         if (loading && sessions.isEmpty()) {
-            return MessageTemplate.Builder("Loading conversations…")
+            return MessageTemplate.Builder("Chargement des conversations…")
                 .setLoading(true)
-                .setHeader(Header.Builder().setTitle("Jules - $sourceDisplayName").setStartHeaderAction(Action.BACK).build())
+                .setHeader(Header.Builder().setTitle("Jules - $headerTitle").setStartHeaderAction(Action.BACK).build())
                 .build()
         }
 
         val listBuilder = ItemList.Builder()
-            .setNoItemsMessage("No conversations yet. Tap 'New conversation' to start.")
+            .setNoItemsMessage("Aucune conversation ici.")
 
         // "New conversation" row
         listBuilder.addItem(
             Row.Builder()
-                .setTitle("New conversation")
-                .addText("Start a new Jules coding session")
+                .setTitle("Nouvelle conversation")
+                .addText("Démarrer une nouvelle session Jules")
                 .setImage(CarIcon.Builder(androidx.core.graphics.drawable.IconCompat.createWithResource(carContext, fr.geoking.julius.R.drawable.ic_home)).build())
                 .setOnClickListener {
-                    screenManager.push(AutoJulesNewSessionScreen(carContext, store, settingsManager, julesClient, julesRepository, sourceId, sourceDisplayName))
+                    screenManager.push(
+                        AutoJulesNewSessionScreen(
+                            carContext,
+                            store,
+                            settingsManager,
+                            julesClient,
+                            julesRepository,
+                            sourceId,
+                            sourceDisplayName,
+                            featureId
+                        )
+                    )
                 }
                 .build()
         )
@@ -98,7 +117,16 @@ class AutoJulesSessionScreen(
                     .setTitle(session.title.ifBlank { session.prompt.take(60) }.ifBlank { "Conversation" })
                     .addText(status)
                     .setOnClickListener {
-                        screenManager.push(AutoJulesConversationScreen(carContext, store, settingsManager, julesClient, julesRepository, session))
+                        screenManager.push(
+                            AutoJulesConversationScreen(
+                                carContext,
+                                store,
+                                settingsManager,
+                                julesClient,
+                                julesRepository,
+                                session
+                            )
+                        )
                     }
                     .build()
             )
@@ -106,7 +134,7 @@ class AutoJulesSessionScreen(
 
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
-            .setHeader(Header.Builder().setTitle("Jules - $sourceDisplayName").setStartHeaderAction(Action.BACK).build())
+            .setHeader(Header.Builder().setTitle("Jules - $headerTitle").setStartHeaderAction(Action.BACK).build())
             .build()
     }
 

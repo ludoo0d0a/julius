@@ -10,12 +10,15 @@ import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.api.jules.JulesChatItem
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.persistence.JulesSessionEntity
+import fr.geoking.julius.repository.GitHubBuildRepository
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.conversation.ConversationStore
 import fr.geoking.julius.shared.voice.VoiceEvent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 /**
  * Android Auto screen to view a Jules conversation and send messages.
@@ -28,7 +31,9 @@ class AutoJulesConversationScreen(
     private val julesClient: JulesClient,
     private val julesRepository: JulesRepository,
     private val session: JulesSessionEntity
-) : Screen(carContext) {
+) : Screen(carContext), KoinComponent {
+
+    private val githubBuildRepository: GitHubBuildRepository by inject()
 
     private var chatItems: List<JulesChatItem> = emptyList()
     private var loading: Boolean = true
@@ -37,6 +42,7 @@ class AutoJulesConversationScreen(
     private var lastSentFromStt: String? = null
 
     private var currentSessionState: JulesSessionEntity? = session
+    private var buildSummary: fr.geoking.julius.repository.BuildStatusSummary? = null
 
     init {
         // This screen uses STT as an input method, but messages should go to Jules (not the main conversational agent).
@@ -83,20 +89,53 @@ class AutoJulesConversationScreen(
         }
     }
 
-    private fun startSessionPolling() {
+    private suspend fun pollStatus() {
         val githubToken = settingsManager.settings.value.githubApiKey
-        lifecycleScope.launch {
-            while (true) {
-                try {
-                    julesRepository.pollSessionStatus(session.id, githubToken)
-                    val updated = julesRepository.getSession(session.id)
-                    if (updated != null && updated.sessionState != currentSessionState?.sessionState) {
-                        currentSessionState = updated
+        try {
+            julesRepository.pollSessionStatus(session.id, githubToken)
+            val updated = julesRepository.getSession(session.id)
+            if (updated != null && (updated.sessionState != currentSessionState?.sessionState || updated.prState != currentSessionState?.prState)) {
+                currentSessionState = updated
+                invalidate()
+            }
+            updateBuildStatus()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to poll session status", e)
+        }
+    }
+
+    private suspend fun updateBuildStatus() {
+        val sess = currentSessionState ?: session
+        val src = julesRepository.getSourcesCached().find { it.name == sess.sourceName }
+        val gh = src?.githubRepo
+        val githubToken = settingsManager.settings.value.githubApiKey
+
+        if (gh != null && githubToken.isNotBlank()) {
+            try {
+                val resolved = githubBuildRepository.resolveWorkflowId(githubToken, gh.owner, gh.repo)
+                if (resolved != null) {
+                    val summary = githubBuildRepository.loadSummary(
+                        githubToken,
+                        gh.owner,
+                        gh.repo,
+                        resolved.first,
+                        resolved.second,
+                    )
+                    if (summary != buildSummary) {
+                        buildSummary = summary
                         invalidate()
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to poll session status", e)
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load build status", e)
+            }
+        }
+    }
+
+    private fun startSessionPolling() {
+        lifecycleScope.launch {
+            while (true) {
+                pollStatus()
                 delay(30000) // Poll session status every 30 seconds
             }
         }
@@ -130,6 +169,28 @@ class AutoJulesConversationScreen(
         }
 
         val sess = currentSessionState ?: session
+
+        if (sess.prBranch != null || sess.prId != null || buildSummary != null) {
+            val prInfo = buildString {
+                if (sess.prState != null) append("${sess.prState!!.uppercase()} ")
+                if (sess.prId != null) append("#${sess.prId} ")
+                if (sess.prBranch != null) append("(${sess.prBranch})")
+                buildSummary?.let { summary ->
+                    if (isNotEmpty()) append(" • ")
+                    append(summary.workflowName)
+                    append(": ")
+                    append(summary.latestConclusion)
+                }
+            }
+            listBuilder.addItem(
+                Row.Builder()
+                    .setTitle("GitHub")
+                    .addText(prInfo.trim())
+                    .setImage(CarIcon.Builder(androidx.core.graphics.drawable.IconCompat.createWithResource(carContext, fr.geoking.julius.R.drawable.ic_home)).build())
+                    .build()
+            )
+        }
+
         if (!sess.isFinished) {
             val isPaused = sess.sessionState == "PAUSED"
             listBuilder.addItem(
@@ -215,6 +276,13 @@ class AutoJulesConversationScreen(
                 .build()
         }
 
+        val refreshAction = Action.Builder()
+            .setTitle("Rafraîchir")
+            .setOnClickListener {
+                lifecycleScope.launch { pollStatus() }
+            }
+            .build()
+
         val sessTitle = (currentSessionState ?: session).title.ifBlank { "Jules" }
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
@@ -222,6 +290,7 @@ class AutoJulesConversationScreen(
                 Header.Builder()
                     .setTitle(sessTitle.take(60))
                     .setStartHeaderAction(Action.BACK)
+                    .addEndHeaderAction(refreshAction)
                     .addEndHeaderAction(micAction)
                     .build()
             )

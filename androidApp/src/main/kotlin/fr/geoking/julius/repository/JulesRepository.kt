@@ -37,23 +37,27 @@ class JulesRepository(
 ) {
     private val syncSemaphore = kotlinx.coroutines.sync.Semaphore(3)
 
+    suspend fun getSourcesCached(): List<JulesClient.JulesSource> {
+        return julesDao.getSources().map {
+            JulesClient.JulesSource(
+                name = it.name,
+                id = it.id,
+                githubRepo = if (it.owner != null && it.repo != null) {
+                    JulesClient.JulesGitHubRepo(it.owner, it.repo)
+                } else null
+            )
+        }
+    }
+
     fun getSources(apiKeys: List<String>): Flow<List<JulesClient.JulesSource>> = flow {
         // 1. Emit from cache
-        val cached = julesDao.getSources()
+        val cached = getSourcesCached()
         if (cached.isNotEmpty()) {
-            emit(cached.map {
-                JulesClient.JulesSource(
-                    name = it.name,
-                    id = it.id,
-                    githubRepo = if (it.owner != null && it.repo != null) {
-                        JulesClient.JulesGitHubRepo(it.owner, it.repo)
-                    } else null
-                )
-            })
+            emit(cached)
         }
 
         // 2. Refresh if needed (e.g. once a month = 30 days)
-        val lastUpdated = cached.firstOrNull()?.lastUpdated ?: 0L
+        val lastUpdated = julesDao.getSources().firstOrNull()?.lastUpdated ?: 0L
         val ttlMs = 30L * 24 * 60 * 60 * 1000L
         if (System.currentTimeMillis() - lastUpdated > ttlMs || cached.isEmpty()) {
             try {
