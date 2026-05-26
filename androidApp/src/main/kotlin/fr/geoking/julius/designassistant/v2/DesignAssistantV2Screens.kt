@@ -3,6 +3,7 @@ package fr.geoking.julius.designassistant.v2
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,15 +26,16 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -98,7 +100,7 @@ import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.ui.AddFeatureDialog
 import kotlinx.coroutines.launch
 
-enum class V2Screen { PROJECTS, FEATURES, WORKSPACE }
+enum class V2Screen { PROJECTS, FEATURES, SESSIONS, WORKSPACE }
 
 /** V2 — Projets → Features (dashboard) → Conception & Chat (onglets swipe). */
 @Composable
@@ -184,20 +186,13 @@ fun DesignAssistantV2Host(
                 val liveProject = controller.projectWithFeatures(p.id) ?: p
                 ProjectFeaturesScreen(
                     project = liveProject,
-                    sessions = controller.sessionsForProject(p.id),
                     searchQuery = controller.featureSearchQuery,
                     onSearchChange = { controller.featureSearchQuery = it },
                     onAddClick = { controller.showAddFeatureDialog = true },
                     onBack = ::navigateBack,
                     onFeatureClick = { f ->
                         feature = f
-                        controller.openWorkspace(liveProject, f)
-                        screenStack.add(V2Screen.WORKSPACE)
-                    },
-                    onSessionClick = { s ->
-                        feature = DesignAssistantMapper.resolveFeatureForSession(s, liveProject)
-                        controller.openWorkspaceForSession(liveProject, s)
-                        screenStack.add(V2Screen.WORKSPACE)
+                        screenStack.add(V2Screen.SESSIONS)
                     }
                 )
                 if (controller.showAddFeatureDialog) {
@@ -216,8 +211,51 @@ fun DesignAssistantV2Host(
                     onBack = ::navigateBack,
                     onFeatureClick = { f ->
                         feature = f
-                        screenStack.add(V2Screen.WORKSPACE)
+                        screenStack.add(V2Screen.SESSIONS)
                     },
+                )
+            }
+        }
+        V2Screen.SESSIONS -> {
+            val p = project ?: return
+            val f = feature ?: return
+            if (controller != null) {
+                val entity = controller.allFeatures.find { it.id == f.id }
+                val sessions = DesignAssistantMapper.resolveSessionsForFeature(
+                    feature = f,
+                    sourceName = p.id,
+                    sessions = controller.sessions,
+                    featureSessionId = entity?.sessionId
+                )
+                FeatureSessionsScreen(
+                    project = p,
+                    feature = f,
+                    sessions = sessions,
+                    onBack = ::navigateBack,
+                    onSessionOpen = { s ->
+                        controller.openWorkspaceForSession(p, s)
+                        screenStack.add(V2Screen.WORKSPACE)
+                    }
+                )
+            } else {
+                val sessions = if (f.id == "oauth") {
+                    DesignAssistantSampleData.oauthChatMessages.map {
+                        JulesSessionEntity(it.id, it.text, it.text, p.id, null, null, lastUpdated = 0, prState = null, prMergeable = null, sessionState = null)
+                    }
+                } else if (f.id == "catalog") {
+                    DesignAssistantSampleData.catalogChatMessages.map {
+                        JulesSessionEntity(it.id, it.text, it.text, p.id, null, null, lastUpdated = 0, prState = null, prMergeable = null, sessionState = null)
+                    }
+                } else emptyList()
+
+                FeatureSessionsScreen(
+                    project = p,
+                    feature = f,
+                    sessions = sessions,
+                    onBack = ::navigateBack,
+                    onSessionOpen = { _ ->
+                        screenStack.add(V2Screen.WORKSPACE)
+                    }
                 )
             }
         }
@@ -404,8 +442,6 @@ fun ProjectFeaturesScreen(
     project: DesignProject,
     onBack: () -> Unit,
     onFeatureClick: (DesignFeature) -> Unit,
-    sessions: List<JulesSessionEntity> = emptyList(),
-    onSessionClick: (JulesSessionEntity) -> Unit = {},
     searchQuery: String = "",
     onSearchChange: (String) -> Unit = {},
     onAddClick: (() -> Unit)? = null,
@@ -453,22 +489,6 @@ fun ProjectFeaturesScreen(
                 )
             }
             LazyColumn(Modifier.padding(horizontal = 16.dp)) {
-                if (sessions.isNotEmpty()) {
-                    item {
-                        Text(
-                            "Conversations",
-                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
-                            fontWeight = FontWeight.Bold,
-                            color = DesignAssistantColors.Navy,
-                            fontSize = 18.sp,
-                        )
-                    }
-                    items(sessions, key = { it.id }) { session ->
-                        SessionRowV2(session = session, onClick = { onSessionClick(session) })
-                        Spacer(Modifier.height(8.dp))
-                    }
-                }
-
                 if (project.features.isNotEmpty()) {
                     item {
                         Text(
@@ -538,8 +558,63 @@ private fun FeatureRowV2(feature: DesignFeature, onClick: () -> Unit) {
     }
 }
 
+/** Écran 2.5 — Liste des conversations pour une feature. */
 @Composable
-private fun SessionRowV2(session: JulesSessionEntity, onClick: () -> Unit) {
+fun FeatureSessionsScreen(
+    project: DesignProject,
+    feature: DesignFeature,
+    sessions: List<JulesSessionEntity>,
+    onBack: () -> Unit,
+    onSessionOpen: (JulesSessionEntity) -> Unit,
+) {
+    val context = LocalContext.current
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+
+    Column(Modifier.fillMaxSize().background(DesignAssistantColors.Navy)) {
+        DesignAssistantNavyHeader(
+            onBack = onBack,
+            title = feature.name,
+            content = {
+                DesignBreadcrumb(listOf(project.name, feature.name))
+                Spacer(Modifier.height(8.dp))
+            },
+        )
+        WhiteContentSheet(Modifier.weight(1f)) {
+            LazyColumn(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (sessions.isEmpty()) {
+                    item {
+                        Text(
+                            "Aucune conversation pour cette feature.",
+                            modifier = Modifier.padding(16.dp),
+                            color = DesignAssistantColors.TextSecondary
+                        )
+                    }
+                } else {
+                    items(sessions, key = { it.id }) { session ->
+                        SessionRowV2(
+                            session = session,
+                            onClick = {
+                                clipboard.setPrimaryClip(ClipData.newPlainText("prompt", session.prompt))
+                                Toast.makeText(context, "Prompt copié", Toast.LENGTH_SHORT).show()
+                            },
+                            onOpenClick = { onSessionOpen(session) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SessionRowV2(
+    session: JulesSessionEntity,
+    onClick: () -> Unit,
+    onOpenClick: (() -> Unit)? = null
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -568,6 +643,15 @@ private fun SessionRowV2(session: JulesSessionEntity, onClick: () -> Unit) {
                     fontSize = 12.sp,
                     color = DesignAssistantColors.TextSecondary
                 )
+            }
+            if (onOpenClick != null) {
+                IconButton(onClick = onOpenClick) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Ouvrir",
+                        tint = DesignAssistantColors.Navy
+                    )
+                }
             }
         }
     }
@@ -913,6 +997,20 @@ private fun ProjectsHomePreview() {
 private fun ProjectFeaturesPreview() {
     DesignAssistantTheme {
         ProjectFeaturesScreen(DesignAssistantSampleData.eCommerce, onBack = {}, onFeatureClick = {})
+    }
+}
+
+@Preview(showBackground = true, heightDp = 800, name = "V2 Sessions")
+@Composable
+private fun FeatureSessionsPreview() {
+    DesignAssistantTheme {
+        FeatureSessionsScreen(
+            project = DesignAssistantSampleData.eCommerce,
+            feature = DesignAssistantSampleData.eCommerce.features.first(),
+            sessions = emptyList(),
+            onBack = {},
+            onSessionOpen = {},
+        )
     }
 }
 
