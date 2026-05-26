@@ -49,33 +49,15 @@ class AutoHomeScreen(
                     ).build()
                 )
                 .setOnClickListener {
-                    val settings = settingsManager.settings.value
-                    val lastRepoId = settings.lastJulesRepoId.trim()
-                    val lastRepoName = settings.lastJulesRepoName.trim()
-
-                    if (lastRepoId.isNotBlank()) {
-                        screenManager.push(
-                            AutoJulesSessionScreen(
-                                carContext,
-                                store,
-                                settingsManager,
-                                julesClient,
-                                julesRepository,
-                                sourceId = lastRepoId,
-                                sourceDisplayName = lastRepoName.ifBlank { lastRepoId }
-                            )
+                    screenManager.push(
+                        AutoJulesProjectScreen(
+                            carContext,
+                            store,
+                            settingsManager,
+                            julesClient,
+                            julesRepository
                         )
-                    } else {
-                        screenManager.push(
-                            AutoJulesSourceScreen(
-                                carContext,
-                                store,
-                                settingsManager,
-                                julesClient,
-                                julesRepository
-                            )
-                        )
-                    }
+                    )
                 }
                 .build()
         )

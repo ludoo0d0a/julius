@@ -14,9 +14,9 @@ import fr.geoking.julius.shared.conversation.ConversationStore
 import kotlinx.coroutines.launch
 
 /**
- * Android Auto screen to list available Jules repositories (sources).
+ * Android Auto screen to list available Jules projects (sources).
  */
-class AutoJulesSourceScreen(
+class AutoJulesProjectScreen(
     carContext: CarContext,
     private val store: ConversationStore,
     private val settingsManager: SettingsManager,
@@ -73,16 +73,16 @@ class AutoJulesSourceScreen(
 
     override fun onGetTemplate(): Template {
         if (loading) {
-            return MessageTemplate.Builder("Loading repositories…")
+            return MessageTemplate.Builder("Chargement des projets…")
                 .setLoading(true)
-                .setHeader(Header.Builder().setTitle("Jules - Repositories").setStartHeaderAction(Action.BACK).build())
+                .setHeader(Header.Builder().setTitle("Jules - Projets").setStartHeaderAction(Action.BACK).build())
                 .build()
         }
 
         val error = error
         if (error != null) {
             return MessageTemplate.Builder(error.take(250))
-                .setHeader(Header.Builder().setTitle("Jules - Error").setStartHeaderAction(Action.BACK).build())
+                .setHeader(Header.Builder().setTitle("Jules - Erreur").setStartHeaderAction(Action.BACK).build())
                 .addAction(Action.Builder().setTitle("Retry").setOnClickListener {
                     this.loading = true
                     this.error = null
@@ -93,7 +93,7 @@ class AutoJulesSourceScreen(
         }
 
         val listBuilder = ItemList.Builder()
-            .setNoItemsMessage("No repositories found. Connect one at jules.google.com.")
+            .setNoItemsMessage("Aucun projet trouvé.")
 
         sources.forEach { src ->
             val displayName = src.githubRepo?.let { "${it.owner}/${it.repo}" } ?: src.name
@@ -106,7 +106,17 @@ class AutoJulesSourceScreen(
                             lastJulesRepoId = src.name,
                             lastJulesRepoName = displayName
                         ))
-                        screenManager.push(AutoJulesSessionScreen(carContext, store, settingsManager, julesClient, julesRepository, src.name, displayName))
+                        screenManager.push(
+                            AutoJulesFeatureScreen(
+                                carContext,
+                                store,
+                                settingsManager,
+                                julesClient,
+                                julesRepository,
+                                src.name,
+                                displayName
+                            )
+                        )
                     }
                     .build()
             )
@@ -114,11 +124,11 @@ class AutoJulesSourceScreen(
 
         return ListTemplate.Builder()
             .setSingleList(listBuilder.build())
-            .setHeader(Header.Builder().setTitle("Jules - Repositories").setStartHeaderAction(Action.BACK).build())
+            .setHeader(Header.Builder().setTitle("Jules - Projets").setStartHeaderAction(Action.BACK).build())
             .build()
     }
 
     companion object {
-        private const val TAG = "AutoJulesSourceScreen"
+        private const val TAG = "AutoJulesProjectScreen"
     }
 }

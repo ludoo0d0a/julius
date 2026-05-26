@@ -24,7 +24,8 @@ class AutoJulesNewSessionScreen(
     private val julesClient: JulesClient,
     private val julesRepository: JulesRepository,
     private val sourceId: String,
-    private val sourceDisplayName: String
+    private val sourceDisplayName: String,
+    private val featureId: String? = null
 ) : Screen(carContext) {
 
     private var loading: Boolean = false
@@ -50,21 +51,21 @@ class AutoJulesNewSessionScreen(
 
     override fun onGetTemplate(): Template {
         if (loading) {
-            return MessageTemplate.Builder("Creating conversation…")
+            return MessageTemplate.Builder("Création de la conversation…")
                 .setLoading(true)
-                .setHeader(Header.Builder().setTitle("New Conversation").setStartHeaderAction(Action.BACK).build())
+                .setHeader(Header.Builder().setTitle("Nouvelle conversation").setStartHeaderAction(Action.BACK).build())
                 .build()
         }
 
         val list = ItemList.Builder()
         error?.let {
-            list.addItem(Row.Builder().setTitle("Error").addText(it.take(200)).build())
+            list.addItem(Row.Builder().setTitle("Erreur").addText(it.take(200)).build())
         }
-        list.addItem(Row.Builder().setTitle("Repository").addText(sourceDisplayName).build())
+        list.addItem(Row.Builder().setTitle("Projet").addText(sourceDisplayName).build())
         list.addItem(
             Row.Builder()
-                .setTitle("Describe the task")
-                .addText("Tap “Start listening” and speak your request.")
+                .setTitle("Décrivez la tâche")
+                .addText("Appuyez sur \"Démarrer l'écoute\" et énoncez votre demande.")
                 .build()
         )
 
@@ -82,7 +83,7 @@ class AutoJulesNewSessionScreen(
             .setSingleList(list.build())
             .setHeader(
                 Header.Builder()
-                    .setTitle("New Conversation")
+                    .setTitle("Nouvelle conversation")
                     .setStartHeaderAction(Action.BACK)
                     .addEndHeaderAction(listeningAction)
                     .build()
@@ -101,12 +102,22 @@ class AutoJulesNewSessionScreen(
                     apiKeys = apiKeys,
                     prompt = prompt,
                     source = sourceId,
-                    title = prompt.take(80)
+                    title = prompt.take(80),
+                    featureId = featureId
                 )
                 val entity = julesRepository.getSession(sessionId) ?: throw Exception("Failed to load created session")
                 // Navigate to conversation view
                 screenManager.pop() // Remove "New Session" screen
-                screenManager.push(AutoJulesConversationScreen(carContext, store, settingsManager, julesClient, julesRepository, entity))
+                screenManager.push(
+                    AutoJulesConversationScreen(
+                        carContext,
+                        store,
+                        settingsManager,
+                        julesClient,
+                        julesRepository,
+                        entity
+                    )
+                )
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to create session", e)
                 error = e.message ?: "Failed to create conversation"
