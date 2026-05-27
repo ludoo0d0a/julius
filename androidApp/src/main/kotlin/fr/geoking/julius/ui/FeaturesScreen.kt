@@ -1,6 +1,7 @@
 package fr.geoking.julius.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -8,10 +9,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -250,6 +255,17 @@ fun FeatureDetailContent(
     var editedTitle by remember { mutableStateOf(feature.title) }
     var editedDescription by remember { mutableStateOf(feature.description) }
     var sessions by remember { mutableStateOf<List<JulesSessionEntity>>(emptyList()) }
+    var messageDraft by remember { mutableStateOf("") }
+    var showInProgressOnly by remember { mutableStateOf(false) }
+    var showUnmergedOnly by remember { mutableStateOf(false) }
+
+    val filteredSessions = remember(sessions, showInProgressOnly, showUnmergedOnly) {
+        sessions.filter { session ->
+            val matchesInProgress = !showInProgressOnly || !session.isFinished
+            val matchesUnmerged = !showUnmergedOnly || (session.prUrl != null && session.prState == "open")
+            matchesInProgress && matchesUnmerged
+        }
+    }
 
     LaunchedEffect(feature.id) {
         julesRepository.getSessions(apiKeys, feature.sourceName, "").collect { list ->
@@ -299,7 +315,7 @@ fun FeatureDetailContent(
             Text("Conversations", color = Color.White, fontWeight = FontWeight.Bold)
 
             LazyColumn(modifier = Modifier.weight(1f)) {
-                items(sessions) { session ->
+                items(filteredSessions) { session ->
                     androidx.compose.material3.ListItem(
                         headlineContent = { Text(session.title.ifBlank { session.prompt }, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         supportingContent = {
@@ -323,29 +339,163 @@ fun FeatureDetailContent(
                 }
             }
 
-            Button(
-                onClick = {
+            FeatureActionBar(
+                onArchiveCompleted = {
+                    val completed = sessions.filter { it.isFinished }
                     scope.launch {
-                        val sessionId = if (sessions.isEmpty()) {
-                            featureRepository.startFeature(feature.id, apiKeys)
-                        } else {
-                            julesRepository.createSession(
-                                apiKeys = apiKeys,
-                                prompt = feature.description,
-                                source = feature.sourceName,
-                                title = feature.title,
-                                featureId = feature.id
-                            )
-                        }
+                        completed.forEach { julesRepository.archiveSession(it.id) }
+                        // Refresh will happen via the LaunchedEffect if getSessions is observing
+                    }
+                },
+                showInProgressOnly = showInProgressOnly,
+                onShowInProgressOnlyChange = { showInProgressOnly = it },
+                showUnmergedOnly = showUnmergedOnly,
+                onShowUnmergedOnlyChange = { showUnmergedOnly = it }
+            )
+
+            FeatureChatInput(
+                value = messageDraft,
+                onValueChange = { messageDraft = it },
+                placeholder = androidx.compose.ui.res.stringResource(fr.geoking.julius.R.string.message_jules_on, feature.title),
+                onSend = {
+                    val prompt = messageDraft.trim()
+                    if (prompt.isEmpty()) return@FeatureChatInput
+                    scope.launch {
+                        val sessionId = julesRepository.createSession(
+                            apiKeys = apiKeys,
+                            prompt = prompt,
+                            source = feature.sourceName,
+                            title = prompt.take(80),
+                            featureId = feature.id
+                        )
+                        messageDraft = ""
                         val session = julesRepository.getSession(sessionId)
                         if (session != null) onOpenConversation(session)
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
                 enabled = apiKeys.isNotEmpty()
+            )
+        }
+    }
+}
+
+@Composable
+fun FeatureActionBar(
+    onArchiveCompleted: () -> Unit,
+    showInProgressOnly: Boolean,
+    onShowInProgressOnlyChange: (Boolean) -> Unit,
+    showUnmergedOnly: Boolean,
+    onShowUnmergedOnlyChange: (Boolean) -> Unit
+) {
+    val scrollState = rememberScrollState()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(scrollState)
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Archive Button
+        Surface(
+            modifier = Modifier.clickable(onClick = onArchiveCompleted),
+            color = Color.White.copy(alpha = 0.05f),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(if (sessions.isEmpty()) "Start Conversation" else "New Conversation")
+                Icon(Icons.Default.Archive, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                Text(
+                    androidx.compose.ui.res.stringResource(fr.geoking.julius.R.string.archive_completed),
+                    color = Color.White,
+                    fontSize = 12.sp
+                )
             }
+        }
+
+        // In Progress Filter
+        FilterChip(
+            selected = showInProgressOnly,
+            onClick = { onShowInProgressOnlyChange(!showInProgressOnly) },
+            label = { Text(androidx.compose.ui.res.stringResource(fr.geoking.julius.R.string.in_progress)) },
+            colors = FilterChipDefaults.filterChipColors(
+                labelColor = Color.White.copy(alpha = 0.6f),
+                selectedLabelColor = Color.White,
+                selectedContainerColor = ColorHelper.JulesAccent.copy(alpha = 0.2f)
+            ),
+            border = FilterChipDefaults.filterChipBorder(
+                enabled = true,
+                selected = showInProgressOnly,
+                borderColor = Color.White.copy(alpha = 0.1f),
+                selectedBorderColor = ColorHelper.JulesAccent.copy(alpha = 0.5f)
+            )
+        )
+
+        // Unmerged Filter
+        FilterChip(
+            selected = showUnmergedOnly,
+            onClick = { onShowUnmergedOnlyChange(!showUnmergedOnly) },
+            label = { Text(androidx.compose.ui.res.stringResource(fr.geoking.julius.R.string.unmerged_code)) },
+            colors = FilterChipDefaults.filterChipColors(
+                labelColor = Color.White.copy(alpha = 0.6f),
+                selectedLabelColor = Color.White,
+                selectedContainerColor = ColorHelper.JulesAccent.copy(alpha = 0.2f)
+            ),
+            border = FilterChipDefaults.filterChipBorder(
+                enabled = true,
+                selected = showUnmergedOnly,
+                borderColor = Color.White.copy(alpha = 0.1f),
+                selectedBorderColor = ColorHelper.JulesAccent.copy(alpha = 0.5f)
+            )
+        )
+    }
+}
+
+@Composable
+fun FeatureChatInput(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    onSend: () -> Unit,
+    enabled: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.weight(1f),
+            placeholder = { Text(placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            enabled = enabled,
+            shape = RoundedCornerShape(24.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                focusedBorderColor = ColorHelper.JulesAccent,
+                unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                cursorColor = ColorHelper.JulesAccent
+            )
+        )
+        IconButton(
+            onClick = onSend,
+            enabled = enabled && value.isNotBlank(),
+            modifier = Modifier
+                .size(48.dp)
+                .background(
+                    if (enabled && value.isNotBlank()) ColorHelper.JulesAccent else Color.Gray.copy(alpha = 0.2f),
+                    CircleShape
+                )
+        ) {
+            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = Color.White)
         }
     }
 }

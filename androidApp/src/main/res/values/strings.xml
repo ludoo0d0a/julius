@@ -12,4 +12,8 @@
     <string name="conversation">Conversation</string>
     <string name="you">You</string>
     <string name="julius">Julius</string>
+    <string name="archive_completed">Archive all completed</string>
+    <string name="in_progress">In progress</string>
+    <string name="unmerged_code">Unmerged code</string>
+    <string name="message_jules_on">Message Jules on %s…</string>
 </resources>
