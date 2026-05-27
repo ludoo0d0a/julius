@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -47,6 +48,7 @@ fun FeaturesScreen(
     val apiKeys = settings.julesKeys
 
     var searchQuery by remember { mutableStateOf("") }
+    var isSearching by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
     var selectedFeature by remember { mutableStateOf<FeatureEntity?>(null) }
     var sources by remember { mutableStateOf<List<JulesClient.JulesSource>>(emptyList()) }
@@ -70,8 +72,14 @@ fun FeaturesScreen(
     }
 
     BackHandler {
-        if (selectedFeature != null) selectedFeature = null
-        else onBack()
+        if (isSearching) {
+            isSearching = false
+            searchQuery = ""
+        } else if (selectedFeature != null) {
+            selectedFeature = null
+        } else {
+            onBack()
+        }
     }
 
     Surface(
@@ -86,62 +94,80 @@ fun FeaturesScreen(
                     .padding(horizontal = 4.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = {
-                    if (selectedFeature != null) selectedFeature = null
-                    else onBack()
-                }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                }
-                Text(
-                    text = if (selectedFeature != null) "Feature Detail" else "Features",
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-                if (selectedFeature == null) {
-                    IconButton(onClick = { showAddDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add Feature", tint = Color.White)
+                if (isSearching && selectedFeature == null) {
+                    IconButton(onClick = {
+                        isSearching = false
+                        searchQuery = ""
+                    }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    }
+                    TextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text("Search features...", color = Color.White.copy(alpha = 0.5f)) },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            cursorColor = ColorHelper.JulesAccent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        ),
+                        singleLine = true
+                    )
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.White)
+                        }
                     }
                 } else {
                     IconButton(onClick = {
-                        scope.launch {
-                            featureRepository.deleteFeature(selectedFeature!!.id)
-                            selectedFeature = null
-                        }
+                        if (selectedFeature != null) selectedFeature = null
+                        else onBack()
                     }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    }
+                    Text(
+                        text = if (selectedFeature != null) "Feature Detail" else "Features",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (selectedFeature == null) {
+                        IconButton(onClick = { isSearching = true }) {
+                            Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.White)
+                        }
+                        IconButton(onClick = { showAddDialog = true }) {
+                            Icon(Icons.Default.Add, contentDescription = "Add Feature", tint = Color.White)
+                        }
+                    } else {
+                        isSearching = false
+                        IconButton(onClick = {
+                            scope.launch {
+                                featureRepository.deleteFeature(selectedFeature!!.id)
+                                selectedFeature = null
+                            }
+                        }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.White)
+                        }
                     }
                 }
             }
 
             if (selectedFeature == null) {
                 // List View
-                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Search features…") },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            cursorColor = ColorHelper.JulesAccent,
-                            focusedBorderColor = ColorHelper.JulesAccent,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.1f)
-                        )
-                    )
-                }
-
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(filteredFeatures, key = { it.id }) { feature ->
-                        FeatureItem(
+                var newFeatureTitle by remember { mutableStateOf("") }
+                Column(modifier = Modifier.weight(1f)) {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(filteredFeatures, key = { it.id }) { feature ->
+                            FeatureItem(
                             feature = feature,
                             onClick = { selectedFeature = feature },
                             onMoveUp = {
@@ -167,6 +193,54 @@ fun FeaturesScreen(
                             isFirst = localFeatures.firstOrNull()?.id == feature.id,
                             isLast = localFeatures.lastOrNull()?.id == feature.id
                         )
+                    }
+                }
+
+                    // Quick Add Bar (WhatsApp style)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = newFeatureTitle,
+                            onValueChange = { newFeatureTitle = it },
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text("Add a new feature...", color = Color.White.copy(alpha = 0.5f)) },
+                            shape = RoundedCornerShape(24.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                cursorColor = ColorHelper.JulesAccent,
+                                focusedBorderColor = ColorHelper.JulesAccent,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.1f)
+                            ),
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(
+                            onClick = {
+                                if (newFeatureTitle.isNotBlank()) {
+                                    scope.launch {
+                                        featureRepository.addFeature(
+                                            title = newFeatureTitle,
+                                            description = "",
+                                            priority = 0,
+                                            sourceName = sources.firstOrNull()?.name ?: ""
+                                        )
+                                        newFeatureTitle = ""
+                                    }
+                                }
+                            },
+                            enabled = newFeatureTitle.isNotBlank()
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "Add",
+                                tint = if (newFeatureTitle.isNotBlank()) ColorHelper.JulesAccent else Color.Gray
+                            )
+                        }
                     }
                 }
             } else {
