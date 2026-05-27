@@ -131,12 +131,10 @@ class DesignAssistantV2State(
     fun projectWithFeatures(sourceName: String): DesignProject? {
         val source = sources.find { it.name == sourceName } ?: return null
         val repoSessions = sessions.filter { it.sourceName == sourceName && !it.isArchived }
-        val unlinked = repoSessions.count { it.featureId == null }
         val features = DesignAssistantMapper.buildProjectFeatures(
             sourceName = sourceName,
             entities = allFeatures,
             sessions = repoSessions,
-            allOthersSessionCount = unlinked,
         )
         val filtered = filterFeatures(features, featureSearchQuery)
         return DesignAssistantMapper.sourceToProject(
@@ -149,14 +147,11 @@ class DesignAssistantV2State(
 
     fun filterFeatures(features: List<DesignFeature>, query: String): List<DesignFeature> {
         val trimmed = query.trim()
-        val allOthers = features.find { DesignAssistantMapper.isAllOthers(it) }
-        val real = features.filter { !DesignAssistantMapper.isAllOthers(it) }
-        val filteredReal = if (trimmed.isEmpty()) {
-            real
+        return if (trimmed.isEmpty()) {
+            features
         } else {
-            real.filter { it.name.contains(trimmed, ignoreCase = true) }
+            features.filter { it.name.contains(trimmed, ignoreCase = true) }
         }
-        return filteredReal + listOfNotNull(allOthers)
     }
 
     fun openWorkspace(
@@ -356,7 +351,8 @@ class DesignAssistantV2State(
                 var session = activeSession
                 if (session == null) {
                     val entity = allFeatures.find { it.id == feature.id }
-                    val sessionId = if (DesignAssistantMapper.isAllOthers(feature)) {
+                    val isVirtual = DesignAssistantMapper.isVirtualId(feature.id)
+                    val sessionId = if (isVirtual) {
                         julesRepository.createSession(
                             apiKeys = apiKeys,
                             prompt = text,
@@ -395,6 +391,37 @@ class DesignAssistantV2State(
         scope.launch {
             featureRepository.addFeature(title, description, 0, sourceName)
             showAddFeatureDialog = false
+        }
+    }
+
+    fun promoteSessionToFeature(sourceName: String, session: JulesSessionEntity, title: String) {
+        scope.launch {
+            try {
+                val featureId = featureRepository.addFeature(
+                    title = title,
+                    description = session.prompt,
+                    priority = 0,
+                    sourceName = sourceName
+                )
+                julesRepository.linkSessionToFeature(session.id, featureId)
+                refreshActiveSession()
+                loadFeaturesForProject(sourceName)
+            } catch (e: Exception) {
+                workspaceError = e.message
+            }
+        }
+    }
+
+    fun renameFeature(featureId: String, newTitle: String) {
+        scope.launch {
+            try {
+                val entity = allFeatures.find { it.id == featureId }
+                if (entity != null) {
+                    featureRepository.updateFeature(entity.copy(title = newTitle))
+                }
+            } catch (e: Exception) {
+                workspaceError = e.message
+            }
         }
     }
 
