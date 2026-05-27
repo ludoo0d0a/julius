@@ -31,12 +31,16 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -48,6 +52,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.DisposableEffect
@@ -300,6 +305,23 @@ fun DesignAssistantV2Host(
                     onRefreshStatus = {
                         controller.refreshSessionStatus()
                     },
+                    onRenameFeature = { newTitle ->
+                        val fId = feature?.id
+                        if (fId != null) {
+                            controller.renameFeature(fId, newTitle)
+                            feature = feature?.copy(name = newTitle)
+                        }
+                    },
+                    onPromoteSession = { newTitle ->
+                        val session = controller.activeSession
+                        if (session != null) {
+                            controller.promoteSessionToFeature(p.id, session, newTitle)
+                            // We need to update the local feature state to point to the new feature
+                            // This is a bit tricky as the new ID is only known after DB insert
+                            // But the UI will refresh from state.allFeatures eventually
+                            navigateBack()
+                        }
+                    },
                     onBack = ::navigateBack,
                     onBreadcrumbClick = { index ->
                         while (screenStack.size > index + 1) {
@@ -511,10 +533,9 @@ fun ProjectFeaturesScreen(
 
 @Composable
 private fun ProjectSummaryDashboard(project: DesignProject) {
-    val realFeatures = project.features.filter { !DesignAssistantMapper.isAllOthers(it) }
-    val inProgress = realFeatures.count { it.status == FeatureStatus.IN_PROGRESS }
-    val ready = realFeatures.count { it.status == FeatureStatus.READY || it.status == FeatureStatus.DONE }
-    val waiting = realFeatures.count { it.status == FeatureStatus.IDEA || it.status == FeatureStatus.TODO }
+    val inProgress = project.features.count { it.status == FeatureStatus.IN_PROGRESS }
+    val ready = project.features.count { it.status == FeatureStatus.READY || it.status == FeatureStatus.DONE }
+    val waiting = project.features.count { it.status == FeatureStatus.IDEA || it.status == FeatureStatus.TODO }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -682,6 +703,8 @@ fun ConceptionWorkspaceScreen(
     onPauseResume: (() -> Unit)? = null,
     onArchive: (() -> Unit)? = null,
     onRefreshStatus: (() -> Unit)? = null,
+    onRenameFeature: ((String) -> Unit)? = null,
+    onPromoteSession: ((String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
@@ -702,6 +725,9 @@ fun ConceptionWorkspaceScreen(
     }
 
     var menuExpanded by remember { mutableStateOf(false) }
+    var showRenameDialog by remember { mutableStateOf(false) }
+
+    val isVirtual = DesignAssistantMapper.isVirtualId(feature.id)
 
     Column(Modifier.fillMaxSize().background(Color.White)) {
         DesignAssistantNavyHeader(
@@ -749,10 +775,34 @@ fun ConceptionWorkspaceScreen(
                                 leadingIcon = { Icon(Icons.Default.Archive, contentDescription = null) }
                             )
                         }
+                        DropdownMenuItem(
+                            text = { Text(if (isVirtual) "Associer à une feature" else "Renommer la feature") },
+                            onClick = {
+                                menuExpanded = false
+                                showRenameDialog = true
+                            },
+                            leadingIcon = { Icon(if (isVirtual) Icons.Default.Add else Icons.Default.Edit, contentDescription = null) }
+                        )
                     }
                 }
             }
         )
+
+        if (showRenameDialog) {
+            RenameFeatureDialog(
+                initialTitle = feature.name,
+                isPromotion = isVirtual,
+                onDismiss = { showRenameDialog = false },
+                onConfirm = { newTitle ->
+                    if (isVirtual) {
+                        onPromoteSession?.invoke(newTitle)
+                    } else {
+                        onRenameFeature?.invoke(newTitle)
+                    }
+                    showRenameDialog = false
+                }
+            )
+        }
         DesignBreadcrumb(
             path = listOf(project.name, feature.name),
             onSegmentClick = onBreadcrumbClick,
@@ -934,6 +984,58 @@ private fun V2ChatBubble(message: DesignChatMessage) {
             }
         }
     }
+}
+
+@Composable
+fun RenameFeatureDialog(
+    initialTitle: String,
+    isPromotion: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var title by remember { mutableStateOf(initialTitle) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (isPromotion) "Associer à une feature" else "Renommer la feature") },
+        text = {
+            Column {
+                if (isPromotion) {
+                    Text(
+                        "Cette conversation va être associée à une nouvelle feature. Donnez-lui un titre.",
+                        fontSize = 14.sp,
+                        color = DesignAssistantColors.TextSecondary,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                }
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Titre de la feature") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = DesignAssistantColors.Accent,
+                        unfocusedBorderColor = DesignAssistantColors.TextSecondary.copy(alpha = 0.3f),
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(title) },
+                enabled = title.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = DesignAssistantColors.Navy)
+            ) {
+                Text(if (isPromotion) "Créer & Associer" else "Renommer")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Annuler", color = DesignAssistantColors.Navy)
+            }
+        }
+    )
 }
 
 @Composable

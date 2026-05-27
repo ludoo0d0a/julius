@@ -12,8 +12,7 @@ import kotlin.math.abs
 
 object DesignAssistantMapper {
 
-    const val ALL_OTHERS_FEATURE_ID = "__all_others__"
-    const val ALL_OTHERS_TITLE = "All others"
+    const val VIRTUAL_SESSION_PREFIX = "session_"
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -68,7 +67,6 @@ object DesignAssistantMapper {
         sourceName: String,
         entities: List<FeatureEntity>,
         sessions: List<JulesSessionEntity>,
-        allOthersSessionCount: Int,
     ): List<DesignFeature> {
         val repoSessions = sessions.filter { it.sourceName == sourceName && !it.isArchived }
         val latestByFeature = repoSessions
@@ -83,24 +81,18 @@ object DesignAssistantMapper {
                 featureEntityToDesign(entity, latestByFeature[entity.id])
             }
 
-        val allOthers = allOthersFeature(allOthersSessionCount, repoSessions)
-        return real + allOthers
-    }
-
-    fun allOthersFeature(
-        sessionCount: Int,
-        unlinkedSessions: List<JulesSessionEntity>,
-    ): DesignFeature {
-        val latest = unlinkedSessions.filter { it.featureId == null }.maxByOrNull { it.lastUpdated }
-        val name = if (sessionCount > 0) "$ALL_OTHERS_TITLE ($sessionCount)" else ALL_OTHERS_TITLE
-        return DesignFeature(
-            id = ALL_OTHERS_FEATURE_ID,
-            name = name,
-            status = if (sessionCount > 0) FeatureStatus.IDEA else FeatureStatus.TODO,
-            branch = latest?.prBranch,
-            prNumber = prNumberFromSession(latest),
-            prTitle = latest?.prTitle,
-        )
+        val orphanSessions = repoSessions.filter { it.featureId.isNullOrBlank() }
+        val virtuals = orphanSessions.map { session ->
+            DesignFeature(
+                id = VIRTUAL_SESSION_PREFIX + session.id,
+                name = session.title.ifBlank { session.prompt.take(50) },
+                status = if (session.isFinished) FeatureStatus.DONE else FeatureStatus.IDEA,
+                branch = session.prBranch,
+                prNumber = prNumberFromSession(session),
+                prTitle = session.prTitle,
+            )
+        }.sortedByDescending { it.id } // Stable-ish sort
+        return real + virtuals
     }
 
     fun featureEntityToDesign(
@@ -115,7 +107,9 @@ object DesignAssistantMapper {
         prTitle = latestSession?.prTitle ?: entity.description.takeIf { it.isNotBlank() },
     )
 
-    fun isAllOthers(feature: DesignFeature): Boolean = feature.id == ALL_OTHERS_FEATURE_ID
+    fun isVirtualId(id: String): Boolean = id.startsWith(VIRTUAL_SESSION_PREFIX)
+
+    fun sessionIdFromVirtualId(id: String): String = id.removePrefix(VIRTUAL_SESSION_PREFIX)
 
     fun resolveSessionsForFeature(
         feature: DesignFeature,
@@ -126,8 +120,9 @@ object DesignAssistantMapper {
         val repoSessions = sessions
             .filter { it.sourceName == sourceName && !it.isArchived }
             .sortedByDescending { it.lastUpdated }
-        return if (isAllOthers(feature)) {
-            repoSessions.filter { it.featureId == null }
+        return if (isVirtualId(feature.id)) {
+            val sessionId = sessionIdFromVirtualId(feature.id)
+            repoSessions.filter { it.id == sessionId }
         } else {
             repoSessions.filter { it.featureId == feature.id }
         }
@@ -143,7 +138,7 @@ object DesignAssistantMapper {
         if (selectedSessionId != null) {
             return sessions.find { it.id == selectedSessionId }
         }
-        if (!isAllOthers(feature) && !featureSessionId.isNullOrBlank()) {
+        if (!isVirtualId(feature.id) && !featureSessionId.isNullOrBlank()) {
             sessions.find { it.id == featureSessionId }?.let { return it }
         }
         return resolveSessionsForFeature(feature, sourceName, sessions, featureSessionId).firstOrNull()
@@ -151,7 +146,8 @@ object DesignAssistantMapper {
 
     fun resolveFeatureForSession(session: JulesSessionEntity, project: DesignProject): DesignFeature? {
         if (session.featureId == null) {
-            return project.features.find { isAllOthers(it) }
+            val virtualId = VIRTUAL_SESSION_PREFIX + session.id
+            return project.features.find { it.id == virtualId }
         }
         return project.features.find { it.id == session.featureId }
     }
