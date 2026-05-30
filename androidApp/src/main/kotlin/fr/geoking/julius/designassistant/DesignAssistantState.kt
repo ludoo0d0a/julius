@@ -20,7 +20,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-class DesignAssistantV2State(
+class DesignAssistantState(
     private val scope: CoroutineScope,
     private val julesRepository: JulesRepository,
     private val featureRepository: FeatureRepository,
