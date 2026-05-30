@@ -1,8 +1,14 @@
 package fr.geoking.julius.designassistant.v1
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,38 +16,54 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Flight
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.designassistant.ChatMessageKind
 import fr.geoking.julius.designassistant.DesignAssistantColors
+import fr.geoking.julius.designassistant.DesignAssistantMapper
 import fr.geoking.julius.designassistant.DesignAssistantSampleData
+import fr.geoking.julius.designassistant.DesignAssistantState
 import fr.geoking.julius.designassistant.DesignChatMessage
 import fr.geoking.julius.designassistant.DesignFeature
 import fr.geoking.julius.designassistant.DesignProject
-import fr.geoking.julius.designassistant.ChatMessageKind
 import fr.geoking.julius.designassistant.FeatureStatus
 import fr.geoking.julius.designassistant.components.CollapsibleCodeBlock
 import fr.geoking.julius.designassistant.components.DesignAssistantBottomNav
@@ -53,99 +75,233 @@ import fr.geoking.julius.designassistant.components.DesignChatInputBar
 import fr.geoking.julius.designassistant.components.JulesAvatar
 import fr.geoking.julius.designassistant.components.StatusDot
 import fr.geoking.julius.designassistant.components.WhiteContentSheet
+import fr.geoking.julius.persistence.JulesSessionEntity
+import fr.geoking.julius.repository.FeatureRepository
+import fr.geoking.julius.repository.GitHubBuildRepository
+import fr.geoking.julius.repository.JulesRepository
+import fr.geoking.julius.ui.components.RenderMessageBlock
+import fr.geoking.julius.ui.components.parseJulesMessage
 
-/** V1 — UI actuelle reproduite depuis le mockup (Features + Chat Jules). */
+enum class V1Screen { PROJECTS, FEATURES, SESSIONS, CHAT }
+
+/** V1 — Réimplémenté avec la structure logique (Projets -> Features -> Sessions -> Chat). */
 @Composable
 fun DesignAssistantV1Host(
     onBack: () -> Unit,
-    project: DesignProject = DesignAssistantSampleData.aeroFlow,
+    julesRepository: JulesRepository? = null,
+    featureRepository: FeatureRepository? = null,
+    settingsManager: SettingsManager? = null,
+    buildRepository: GitHubBuildRepository? = null,
 ) {
-    var bottomTab by remember { mutableStateOf(DesignBottomTab.FEATURES) }
-    var selectedFeature by remember { mutableStateOf<DesignFeature?>(project.features.find { it.id == "catalog" }) }
+    val scope = rememberCoroutineScope()
+    val hasRepos = julesRepository != null && featureRepository != null &&
+        settingsManager != null && buildRepository != null
+
+    val controller = if (hasRepos) {
+        remember(julesRepository, featureRepository, settingsManager, buildRepository) {
+            DesignAssistantState(
+                scope = scope,
+                julesRepository = julesRepository!!,
+                featureRepository = featureRepository!!,
+                settingsManager = settingsManager!!,
+                buildRepository = buildRepository!!,
+            )
+        }
+    } else {
+        null
+    }
+
+    DisposableEffect(controller) {
+        onDispose { controller?.dispose() }
+    }
+
+    LaunchedEffect(controller) {
+        controller?.loadProjects()
+    }
+
+    val screenStack = remember { mutableStateListOf(V1Screen.PROJECTS) }
+    val currentScreen = screenStack.last()
+    var project by remember { mutableStateOf<DesignProject?>(null) }
+    var feature by remember { mutableStateOf<DesignFeature?>(null) }
+
+    var bottomTab by remember { mutableStateOf(DesignBottomTab.PROJECTS) }
+
+    fun navigateBack() {
+        if (screenStack.size > 1) {
+            screenStack.removeAt(screenStack.size - 1)
+        } else {
+            onBack()
+        }
+    }
+
+    BackHandler(onBack = ::navigateBack)
 
     Column(Modifier.fillMaxSize().background(DesignAssistantColors.Navy)) {
-        when (bottomTab) {
-            DesignBottomTab.CHAT -> {
-                if (selectedFeature != null) {
-                    V1ChatScreen(
-                        projectName = project.name,
-                        feature = selectedFeature!!,
-                        messages = DesignAssistantSampleData.catalogChatMessages,
-                        onBack = { bottomTab = DesignBottomTab.FEATURES },
-                    )
-                } else {
+        Box(Modifier.weight(1f)) {
+            when (currentScreen) {
+                V1Screen.PROJECTS -> V1ProjectsScreen(
+                    projects = controller?.projects ?: DesignAssistantSampleData.projects,
+                    loading = controller?.projectsLoading ?: false,
+                    error = controller?.projectsError,
+                    onProjectClick = { p ->
+                        project = p
+                        controller?.loadFeaturesForProject(p.id)
+                        screenStack.add(V1Screen.FEATURES)
+                        bottomTab = DesignBottomTab.FEATURES
+                    },
+                    onBack = ::navigateBack,
+                )
+                V1Screen.FEATURES -> {
+                    val p = project ?: return@Box
+                    val liveProject = controller?.projectWithFeatures(p.id) ?: p
                     V1FeaturesScreen(
-                        project = project,
-                        selectedFeatureId = null,
-                        onSelectFeature = { f ->
-                            selectedFeature = f
+                        project = liveProject,
+                        onFeatureClick = { f ->
+                            feature = f
+                            screenStack.add(V1Screen.SESSIONS)
+                        },
+                        onBack = ::navigateBack,
+                    )
+                }
+                V1Screen.SESSIONS -> {
+                    val p = project ?: return@Box
+                    val f = feature ?: return@Box
+                    val sessions = if (controller != null) {
+                        val entity = controller.allFeatures.find { it.id == f.id }
+                        DesignAssistantMapper.resolveSessionsForFeature(
+                            feature = f,
+                            sourceName = p.id,
+                            sessions = controller.sessions,
+                            featureSessionId = entity?.sessionId
+                        )
+                    } else emptyList()
+
+                    V1SessionsScreen(
+                        project = p,
+                        feature = f,
+                        sessions = sessions,
+                        onSessionClick = { s ->
+                            controller?.openWorkspaceForSession(p, s)
+                            screenStack.add(V1Screen.CHAT)
                             bottomTab = DesignBottomTab.CHAT
                         },
-                        onBack = onBack,
+                        onBack = ::navigateBack,
+                    )
+                }
+                V1Screen.CHAT -> {
+                    val p = project ?: return@Box
+                    val f = feature ?: return@Box
+                    V1ChatScreen(
+                        projectName = p.name,
+                        feature = f,
+                        messages = controller?.chatMessages?.toList() ?: emptyList(),
+                        onBack = ::navigateBack,
                     )
                 }
             }
-            else -> {
-                V1FeaturesScreen(
-                    project = project,
-                    selectedFeatureId = selectedFeature?.id,
-                    onSelectFeature = { f ->
-                        selectedFeature = f
-                        bottomTab = DesignBottomTab.CHAT
-                    },
-                    onBack = onBack,
-                )
+        }
+        DesignAssistantBottomNav(
+            selected = bottomTab,
+            onSelect = { tab ->
+                bottomTab = tab
+                when (tab) {
+                    DesignBottomTab.PROJECTS -> {
+                        screenStack.clear()
+                        screenStack.add(V1Screen.PROJECTS)
+                    }
+                    DesignBottomTab.FEATURES -> {
+                        if (project != null) {
+                            while (screenStack.last() != V1Screen.FEATURES && screenStack.contains(V1Screen.FEATURES)) {
+                                screenStack.removeAt(screenStack.size - 1)
+                            }
+                            if (!screenStack.contains(V1Screen.FEATURES)) screenStack.add(V1Screen.FEATURES)
+                        }
+                    }
+                    else -> {}
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun V1ProjectsScreen(
+    projects: List<DesignProject>,
+    loading: Boolean,
+    error: String?,
+    onProjectClick: (DesignProject) -> Unit,
+    onBack: () -> Unit,
+) {
+    Column(Modifier.fillMaxSize()) {
+        DesignAssistantNavyHeader(
+            onBack = onBack,
+            title = "Mes Projets",
+            trailing = {
+                Row {
+                    IconButton(onClick = {}) {
+                        Icon(Icons.Default.Person, contentDescription = "Profil", tint = Color.White)
+                    }
+                    IconButton(onClick = {}) {
+                        Icon(Icons.Default.Add, contentDescription = "Nouveau", tint = Color.White)
+                    }
+                }
+            }
+        )
+        WhiteContentSheet(Modifier.weight(1f)) {
+            if (loading && projects.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = DesignAssistantColors.Navy)
+                }
+            } else {
+                LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(projects) { project ->
+                        ProjectCardV1(project, onClick = { onProjectClick(project) })
+                    }
+                }
             }
         }
-        DesignAssistantBottomNav(selected = bottomTab, onSelect = { bottomTab = it })
+    }
+}
+
+@Composable
+private fun ProjectCardV1(project: DesignProject, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp),
+        shape = RoundedCornerShape(12.dp),
+    ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(project.emoji, fontSize = 24.sp)
+            Spacer(Modifier.padding(horizontal = 8.dp))
+            Column {
+                Text(project.name, fontWeight = FontWeight.Bold, color = DesignAssistantColors.Navy)
+                Text("${project.activeFeaturesCount} features actives", fontSize = 12.sp, color = DesignAssistantColors.TextSecondary)
+            }
+        }
     }
 }
 
 @Composable
 fun V1FeaturesScreen(
     project: DesignProject,
-    selectedFeatureId: String?,
-    onSelectFeature: (DesignFeature) -> Unit,
+    onFeatureClick: (DesignFeature) -> Unit,
     onBack: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
         DesignAssistantNavyHeader(
             onBack = onBack,
             title = project.name,
-            subtitle = "Projet actif",
-            trailing = {
-                IconButton(onClick = {}) {
-                    Icon(Icons.Default.Settings, contentDescription = "Réglages", tint = Color.White)
-                }
-            },
+            subtitle = "Features du projet",
             content = {
-                Row(
-                    Modifier.padding(start = 16.dp, bottom = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Default.Flight, contentDescription = null, tint = Color.White, modifier = Modifier.padding(end = 8.dp))
-                    Text(project.description, color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                }
                 DesignBreadcrumb(listOf("Projets", project.name))
                 Spacer(Modifier.height(8.dp))
-            },
+            }
         )
         WhiteContentSheet(Modifier.weight(1f)) {
-            Text(
-                "Features",
-                modifier = Modifier.padding(20.dp),
-                color = DesignAssistantColors.Navy,
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
-            )
-            LazyColumn(Modifier.padding(horizontal = 16.dp)) {
+            LazyColumn(Modifier.padding(16.dp)) {
                 items(project.features) { feature ->
-                    val selected = feature.id == selectedFeatureId
-                    FeatureCardV1(
-                        feature = feature,
-                        selected = selected,
-                        onClick = { onSelectFeature(feature) },
-                    )
+                    FeatureCardV1(feature = feature, onClick = { onFeatureClick(feature) })
                     Spacer(Modifier.height(10.dp))
                 }
             }
@@ -156,28 +312,78 @@ fun V1FeaturesScreen(
 @Composable
 private fun FeatureCardV1(
     feature: DesignFeature,
-    selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val bg = if (selected) DesignAssistantColors.Navy else DesignAssistantColors.SurfaceCard
-    val textColor = if (selected) Color.White else DesignAssistantColors.Navy
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = bg),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(12.dp),
     ) {
-        Row(
-            Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             StatusDot(feature.status)
             Spacer(Modifier.padding(horizontal = 8.dp))
             Column(Modifier.weight(1f)) {
-                Text(feature.name, color = textColor, fontWeight = FontWeight.SemiBold)
-                Text(feature.status.labelFr, color = textColor.copy(alpha = 0.7f), fontSize = 12.sp)
+                Text(feature.name, color = DesignAssistantColors.Navy, fontWeight = FontWeight.SemiBold)
+                Text(feature.status.labelFr, color = DesignAssistantColors.TextSecondary, fontSize = 12.sp)
+            }
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = DesignAssistantColors.TextSecondary)
+        }
+    }
+}
+
+@Composable
+fun V1SessionsScreen(
+    project: DesignProject,
+    feature: DesignFeature,
+    sessions: List<JulesSessionEntity>,
+    onSessionClick: (JulesSessionEntity) -> Unit,
+    onBack: () -> Unit,
+) {
+    val context = LocalContext.current
+    Column(Modifier.fillMaxSize()) {
+        DesignAssistantNavyHeader(
+            onBack = onBack,
+            title = feature.name,
+            subtitle = "Conversations",
+            content = {
+                DesignBreadcrumb(listOf(project.name, feature.name))
+                Spacer(Modifier.height(8.dp))
+            }
+        )
+        WhiteContentSheet(Modifier.weight(1f)) {
+            LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (sessions.isEmpty()) {
+                    item {
+                        Text("Aucune conversation trouvée.", modifier = Modifier.padding(16.dp), color = DesignAssistantColors.TextSecondary)
+                    }
+                }
+                items(sessions) { session ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth().clickable { onSessionClick(session) },
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(1.dp)
+                    ) {
+                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, tint = DesignAssistantColors.Accent, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.padding(horizontal = 10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    session.title.ifBlank { session.prompt.take(50) },
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = DesignAssistantColors.Navy,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    DesignAssistantMapper.formatRelativeTime(session.lastUpdated),
+                                    fontSize = 12.sp,
+                                    color = DesignAssistantColors.TextSecondary
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -192,9 +398,7 @@ fun V1ChatScreen(
 ) {
     Column(Modifier.fillMaxSize().background(Color.White)) {
         Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
+            Modifier.fillMaxWidth().padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
@@ -204,20 +408,18 @@ fun V1ChatScreen(
             Spacer(Modifier.padding(horizontal = 8.dp))
             Column {
                 Text("Jules | AI Assistant", fontWeight = FontWeight.Bold, color = DesignAssistantColors.Navy)
-                Text("Jules Design Assistant · $projectName › ${feature.name}", fontSize = 11.sp, color = DesignAssistantColors.TextSecondary)
+                Text("$projectName › ${feature.name}", fontSize = 11.sp, color = DesignAssistantColors.TextSecondary)
             }
         }
         LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 12.dp),
+            modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             items(messages) { msg ->
                 V1ChatBubble(msg)
             }
         }
-        DesignChatInputBar(placeholder = "Demander à Jules à propos de ${feature.name}…")
+        DesignChatInputBar(placeholder = "Demander à Jules…")
     }
 }
 
@@ -232,88 +434,38 @@ private fun V1ChatBubble(message: DesignChatMessage) {
             }
         }
         ChatMessageKind.CODE -> {
-            var expanded by remember { mutableStateOf(true) }
+            var expanded by remember { mutableStateOf(false) }
             Row {
                 JulesAvatar()
                 Spacer(Modifier.padding(4.dp))
                 CollapsibleCodeBlock(message.codeSnippet.orEmpty(), expanded) { expanded = !expanded }
             }
         }
-        ChatMessageKind.PR_ACTION, ChatMessageKind.AGENT -> {
-            Row(Modifier.fillMaxWidth()) {
+        ChatMessageKind.CI -> {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = DesignAssistantColors.CiSuccess.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(8.dp),
+            ) {
+                Text(message.text, Modifier.padding(10.dp), color = DesignAssistantColors.CiSuccess, fontSize = 12.sp)
+            }
+        }
+        else -> {
+            val blocks = remember(message.text) { parseJulesMessage(message.text) }
+            Row {
                 JulesAvatar()
                 Spacer(Modifier.padding(4.dp))
                 Column(Modifier.weight(1f)) {
-                    Surface(shape = RoundedCornerShape(12.dp), color = DesignAssistantColors.Surface) {
-                        Text(message.text, Modifier.padding(12.dp), color = DesignAssistantColors.Navy)
-                    }
-                    if (message.prNumber != null) {
-                        Spacer(Modifier.height(8.dp))
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            color = DesignAssistantColors.Navy,
-                            shape = RoundedCornerShape(8.dp),
-                        ) {
-                            Text(
-                                "Voir PR #${message.prNumber} (${message.prTitle}) sur GitHub",
-                                Modifier.padding(12.dp),
-                                color = Color.White,
-                                fontWeight = FontWeight.Medium,
-                            )
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-                            PrActionChip("Voir branche")
-                            PrActionChip("Pull code")
-                        }
+                    blocks.forEach { block ->
+                        RenderMessageBlock(
+                            block = block,
+                            baseFontSize = 14,
+                            textColor = DesignAssistantColors.Navy
+                        )
+                        Spacer(Modifier.height(4.dp))
                     }
                 }
             }
         }
-        ChatMessageKind.CI -> {
-            Text(
-                message.text,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                color = DesignAssistantColors.CiSuccess,
-                fontSize = 12.sp,
-            )
-        }
-    }
-}
-
-@Composable
-private fun PrActionChip(label: String) {
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = DesignAssistantColors.UserBubble,
-    ) {
-        Text(label, Modifier.padding(horizontal = 12.dp, vertical = 8.dp), color = DesignAssistantColors.Navy, fontSize = 12.sp)
-    }
-}
-
-@Preview(showBackground = true, heightDp = 800, name = "V1 Features")
-@Composable
-private fun V1FeaturesPreview() {
-    DesignAssistantTheme {
-        V1FeaturesScreen(
-            project = DesignAssistantSampleData.aeroFlow,
-            selectedFeatureId = "catalog",
-            onSelectFeature = {},
-            onBack = {},
-        )
-    }
-}
-
-@Preview(showBackground = true, heightDp = 800, name = "V1 Chat")
-@Composable
-private fun V1ChatPreview() {
-    DesignAssistantTheme {
-        V1ChatScreen(
-            projectName = "AeroFlow Website",
-            feature = DesignAssistantSampleData.aeroFlow.features[1],
-            messages = DesignAssistantSampleData.catalogChatMessages,
-            onBack = {},
-        )
     }
 }

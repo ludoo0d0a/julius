@@ -82,16 +82,16 @@ object DesignAssistantMapper {
             }
 
         val orphanSessions = repoSessions.filter { it.featureId.isNullOrBlank() }
-        val virtuals = orphanSessions.map { session ->
-            DesignFeature(
-                id = VIRTUAL_SESSION_PREFIX + session.id,
-                name = session.title.ifBlank { session.prompt.take(50) },
-                status = if (session.isFinished) FeatureStatus.DONE else FeatureStatus.IDEA,
-                branch = session.prBranch,
-                prNumber = prNumberFromSession(session),
-                prTitle = session.prTitle,
+        val virtuals = if (orphanSessions.isNotEmpty()) {
+            listOf(
+                DesignFeature(
+                    id = "synthetic_orphan_sessions",
+                    name = "Conversations libres",
+                    status = FeatureStatus.IDEA,
+                )
             )
-        }.sortedByDescending { it.id } // Stable-ish sort
+        } else emptyList()
+
         return real + virtuals
     }
 
@@ -120,11 +120,17 @@ object DesignAssistantMapper {
         val repoSessions = sessions
             .filter { it.sourceName == sourceName && !it.isArchived }
             .sortedByDescending { it.lastUpdated }
-        return if (isVirtualId(feature.id)) {
-            val sessionId = sessionIdFromVirtualId(feature.id)
-            repoSessions.filter { it.id == sessionId }
-        } else {
-            repoSessions.filter { it.featureId == feature.id }
+        return when {
+            feature.id == "synthetic_orphan_sessions" -> {
+                repoSessions.filter { it.featureId.isNullOrBlank() }
+            }
+            isVirtualId(feature.id) -> {
+                val sessionId = sessionIdFromVirtualId(feature.id)
+                repoSessions.filter { it.id == sessionId }
+            }
+            else -> {
+                repoSessions.filter { it.featureId == feature.id }
+            }
         }
     }
 
