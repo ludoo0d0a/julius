@@ -287,6 +287,12 @@ class AndroidVoiceManager(
         }
     }
 
+    override fun clearTranscriptionText() {
+        dictateSessionText.setLength(0)
+        _transcribedText.value = ""
+        _partialText.value = ""
+    }
+
     @Deprecated("Implements deprecated TextToSpeech.OnInitListener", ReplaceWith("use TextToSpeech constructor callback"))
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
@@ -377,6 +383,11 @@ class AndroidVoiceManager(
             _transcribedText.value = dictateSessionText.toString().trim()
             _partialText.value = ""
             localTranscriber?.reset()
+
+            // If not in manual stop mode, stop listening automatically after first final phrase
+            if (!isManualStopMode) {
+                stopListening()
+            }
         } else {
             val prefix = dictateSessionText.toString().trim()
             _partialText.value = if (prefix.isEmpty()) text else "$prefix $text"

@@ -668,6 +668,7 @@ private fun rememberMockStore(): ConversationStore = remember {
             override val partialText = _partialText
             override fun startListening() {}
             override fun stopListening() {}
+            override fun clearTranscriptionText() {}
             override fun speak(text: String, languageTag: String?, isInterruptible: Boolean) {}
             override fun playAudio(bytes: ByteArray) {}
             override fun stopSpeaking() {}
