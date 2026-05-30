@@ -40,7 +40,6 @@ import fr.geoking.julius.shared.network.NetworkStatus
 import fr.geoking.julius.shared.voice.LocalTranscriber
 import fr.geoking.julius.shared.voice.NoLocalTranscriber
 import fr.geoking.julius.shared.voice.VoiceManager
-import fr.geoking.julius.designassistant.DesignAssistantHost
 import fr.geoking.julius.ui.JulesScreen
 import fr.geoking.julius.ui.HistoryScreen
 import fr.geoking.julius.ui.SettingsScreen
@@ -340,7 +339,6 @@ fun MainUI(
     var showJules by remember { mutableStateOf(false) }
     var julesInitialSession by remember { mutableStateOf<JulesSessionEntity?>(null) }
     var showFeatures by remember { mutableStateOf(false) }
-    var showDesignAssistant by remember { mutableStateOf(false) }
     var showFavorites by remember { mutableStateOf(false) }
     val settings by settingsManager.settings.collectAsState()
     val llamatikModelHelper = remember(context) { LlamatikModelHelper(context.applicationContext) }
@@ -377,15 +375,6 @@ fun MainUI(
                         onDismiss = { showSettings = false },
                         initialScreenStack = settingsInitialStack,
                         onInitialRouteConsumed = { settingsInitialStack = null }
-                    )
-                }
-                showDesignAssistant -> {
-                    DesignAssistantHost(
-                        onBack = { showDesignAssistant = false },
-                        julesRepository = julesRepository,
-                        featureRepository = featureRepository,
-                        settingsManager = settingsManager,
-                        buildRepository = buildRepository,
                     )
                 }
                 showJules -> {
@@ -443,7 +432,6 @@ fun MainUI(
                         },
                         onHistoryClick = { showHistory = true },
                         onJulesClick = { showJules = true },
-                        onDesignPreviewV2Click = { showDesignAssistant = true },
                         onFeaturesClick = { showFeatures = true },
                         onVoskTestClick = { showVoskTest = true },
                         setupIssue = setupIssue,
