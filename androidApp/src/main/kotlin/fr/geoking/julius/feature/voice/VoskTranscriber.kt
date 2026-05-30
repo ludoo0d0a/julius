@@ -35,32 +35,27 @@ class VoskTranscriber(
             val rec = getOrCreateRecognizer() ?: return@withContext null
             val chunkSize = 4096
             var offset = 0
-            val sb = java.lang.StringBuilder()
-            var anyAccepted = false
+            var finalResult: String? = null
+            var partialResult: String? = null
+
             synchronized(lock) {
                 while (offset < audioData.size) {
                     val len = (audioData.size - offset).coerceAtMost(chunkSize)
                     val chunk = audioData.copyOfRange(offset, offset + len)
                     val accepted = rec.acceptWaveForm(chunk, len)
                     if (accepted) {
-                        anyAccepted = true
-                        val text = parseTextFromResult(rec.result)
-                        if (!text.isNullOrBlank()) {
-                            if (sb.isNotEmpty()) sb.append(" ")
-                            sb.append(text)
-                        }
+                        finalResult = parseTextFromResult(rec.result)
+                    } else {
+                        partialResult = parseTextFromResult(rec.partialResult)
                     }
                     offset += len
                 }
-                val finalResultText = parseTextFromResult(rec.finalResult)
-                if (!finalResultText.isNullOrBlank()) {
-                    if (sb.isNotEmpty()) sb.append(" ")
-                    sb.append(finalResultText)
-                }
             }
-            val compiledText = sb.toString().trim()
-            if (compiledText.isNotEmpty()) {
-                TranscriptionResult(compiledText, isFinal = true)
+
+            if (!finalResult.isNullOrBlank()) {
+                TranscriptionResult(finalResult!!, isFinal = true)
+            } else if (!partialResult.isNullOrBlank()) {
+                TranscriptionResult(partialResult!!, isFinal = false)
             } else null
         } catch (e: Exception) {
             Log.e(TAG, "Vosk recognition failed", e)
