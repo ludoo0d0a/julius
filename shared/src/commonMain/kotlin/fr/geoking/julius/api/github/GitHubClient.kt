@@ -3,6 +3,7 @@ package fr.geoking.julius.api.github
 import fr.geoking.julius.shared.network.NetworkException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
@@ -237,6 +238,24 @@ class GitHubClient(
             throw NetworkException(
                 httpCode = response.status.value,
                 message = "GitHub update file: ${response.bodyAsText()}",
+                url = url,
+                provider = "GitHub"
+            )
+        }
+    }
+
+    suspend fun deleteBranch(token: String, owner: String, repo: String, branch: String) {
+        requireToken(token)
+        // Ensure the ref starts with heads/ if not provided
+        val ref = if (branch.startsWith("refs/")) branch else "heads/$branch"
+        val url = "$baseUrl/repos/$owner/$repo/git/refs/$ref"
+        val response = client.delete(url) {
+            githubHeaders(token)
+        }
+        if (response.status.value !in 200..299 && response.status.value != 404) {
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "GitHub delete branch: ${response.bodyAsText()}",
                 url = url,
                 provider = "GitHub"
             )
