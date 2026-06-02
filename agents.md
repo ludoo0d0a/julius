@@ -480,3 +480,7 @@ Sideloaded/debug builds are hidden from the car launcher unless you allow non-Pl
 - **Agent switching not working**: Verify `DynamicAgentWrapper` is being used and settings are saved
 - **Build System**: Standard Gradle-based KMP setup with build-time and runtime API key management.
 - **Testing**: Includes mock-based integration tests for agents and platform-specific UI testing.
+
+## AI Agent Instructions
+
+- **Build Verification**: You MUST ensure the project build (e.g., `./gradlew :androidApp:compileFullDebugKotlin`) completes successfully before finishing any task. If the build fails, you must analyze the error, apply a fix, and iterate until the build passes.
