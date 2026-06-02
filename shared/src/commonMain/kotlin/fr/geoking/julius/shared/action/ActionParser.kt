@@ -106,6 +106,35 @@ object ActionParser {
             lowerText.contains("audiobook") || lowerText.contains("livre audio") -> {
                 return DeviceAction(type = ActionType.PLAY_AUDIOBOOK)
             }
+
+            // Create feature - English: create feature, start feature | French: créer fonctionnalité, démarrer fonctionnalité
+            lowerText.contains("create feature") || lowerText.contains("start feature") ||
+            lowerText.contains("créer fonctionnalité") || lowerText.contains("creer fonction") ||
+            lowerText.contains("démarrer fonctionnalité") || lowerText.contains("demarrer fonction") -> {
+                val title = extractFeatureTitle(text)
+                return DeviceAction(
+                    type = ActionType.CREATE_FEATURE,
+                    target = title,
+                    data = emptyMap()
+                )
+            }
+
+            // Merge PR - English: merge pr, merge pull request | French: fusionner pr, merger pr
+            lowerText.contains("merge pr") || lowerText.contains("merge pull request") ||
+            lowerText.contains("fusionner pr") || lowerText.contains("merger pr") -> {
+                return DeviceAction(type = ActionType.MERGE_PR)
+            }
+
+            // Replay feature - English: replay feature, replay prompts | French: rejouer fonctionnalité, rejouer prompts
+            lowerText.contains("replay feature") || lowerText.contains("replay prompts") ||
+            lowerText.contains("rejouer fonctionnalité") || lowerText.contains("rejouer les prompts") -> {
+                val title = extractFeatureTitle(text)
+                return DeviceAction(
+                    type = ActionType.REPLAY_FEATURE,
+                    target = title,
+                    data = emptyMap()
+                )
+            }
         }
         
         return null
@@ -306,6 +335,20 @@ object ActionParser {
         } else {
             "Alarm"
         }
+    }
+
+    private fun extractFeatureTitle(text: String): String? {
+        val patterns = listOf(
+            Regex("""(?:feature|fonctionnalité|fonction)\s+(?:called|nommée|nommée)\s+(.+)""", RegexOption.IGNORE_CASE),
+            Regex("""(?:feature|fonctionnalité|fonction)\s+(.+)""", RegexOption.IGNORE_CASE)
+        )
+        for (pattern in patterns) {
+            val match = pattern.find(text)
+            if (match != null) {
+                return match.groupValues[1].trim().removeSuffix(".")
+            }
+        }
+        return null
     }
 
     private fun resolveAppPackage(appName: String): String? {

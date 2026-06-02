@@ -666,14 +666,34 @@ class JulesRepository(
         }
     }
 
-    suspend fun mergePr(githubToken: String, sessionId: String, prUrl: String): Result<Unit> {
+    suspend fun mergePr(githubToken: String, sessionId: String, prUrl: String, deleteBranch: Boolean = false): Result<Unit> {
         val prRef = parseGitHubPullRequestUrl(prUrl) ?: return Result.failure(Exception("Invalid PR URL"))
         return try {
+            val prDetail = if (deleteBranch) githubClient.getPullRequest(githubToken, prRef.owner, prRef.repo, prRef.number) else null
             githubClient.mergePullRequest(githubToken, prRef.owner, prRef.repo, prRef.number)
+
+            val headRef = prDetail?.head?.ref
+            if (deleteBranch && headRef != null) {
+                try {
+                    githubClient.deleteBranch(githubToken, prRef.owner, prRef.repo, headRef)
+                } catch (e: Exception) {
+                    android.util.Log.e("JulesRepository", "Failed to delete branch after merge", e)
+                }
+            }
+
             val session = julesDao.getSession(sessionId)
             if (session != null) {
                 updatePrStatus(githubToken, session)
             }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteBranch(githubToken: String, owner: String, repo: String, branch: String): Result<Unit> {
+        return try {
+            githubClient.deleteBranch(githubToken, owner, repo, branch)
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -837,6 +857,10 @@ class JulesRepository(
 
     suspend fun getSession(sessionId: String): JulesSessionEntity? {
         return julesDao.getSession(sessionId)
+    }
+
+    suspend fun getSessionsByFeature(featureId: String): List<JulesSessionEntity> {
+        return julesDao.getSessionsByFeature(featureId)
     }
 
     suspend fun getActivitiesBySession(sessionId: String): List<JulesActivityEntity> {

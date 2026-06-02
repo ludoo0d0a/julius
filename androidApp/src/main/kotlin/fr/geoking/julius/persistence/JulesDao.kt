@@ -31,6 +31,9 @@ interface JulesDao {
     @Query("SELECT * FROM jules_sessions WHERE id = :sessionId")
     suspend fun getSession(sessionId: String): JulesSessionEntity?
 
+    @Query("SELECT * FROM jules_sessions WHERE featureId = :featureId")
+    suspend fun getSessionsByFeature(featureId: String): List<JulesSessionEntity>
+
     @Query("UPDATE jules_sessions SET prState = :state, prMergeable = :mergeable WHERE id = :sessionId")
     suspend fun updateSessionPrStatus(sessionId: String, state: String, mergeable: Boolean?)
 

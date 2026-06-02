@@ -253,6 +253,7 @@ fun FeaturesScreen(
                     feature = selectedFeature!!,
                     julesRepository = julesRepository,
                     featureRepository = featureRepository,
+                    settingsManager = settingsManager,
                     apiKeys = apiKeys,
                     onOpenConversation = onOpenConversation,
                     onUpdateFeature = { selectedFeature = it }
@@ -319,6 +320,7 @@ fun FeatureDetailContent(
     feature: FeatureEntity,
     julesRepository: JulesRepository,
     featureRepository: FeatureRepository,
+    settingsManager: SettingsManager,
     apiKeys: List<String>,
     onOpenConversation: (JulesSessionEntity) -> Unit,
     onUpdateFeature: (FeatureEntity) -> Unit
@@ -331,6 +333,7 @@ fun FeatureDetailContent(
     var messageDraft by remember { mutableStateOf("") }
     var showInProgressOnly by remember { mutableStateOf(false) }
     var showUnmergedOnly by remember { mutableStateOf(false) }
+    val settings by settingsManager.settings.collectAsState()
 
     val filteredSessions = remember(sessions, showInProgressOnly, showUnmergedOnly) {
         sessions.filter { session ->
@@ -420,6 +423,30 @@ fun FeatureDetailContent(
                         // Refresh will happen via the LaunchedEffect if getSessions is observing
                     }
                 },
+                onReplayPrompts = {
+                    scope.launch {
+                        try {
+                            featureRepository.replayFeature(feature.id, apiKeys)
+                        } catch (e: Exception) {
+                            // Show error
+                        }
+                    }
+                },
+                onFinishFeature = {
+                    // Find session with open PR
+                    val sessionWithPr = sessions.find { it.prUrl != null && it.prState == "open" }
+                    if (sessionWithPr != null) {
+                        scope.launch {
+                            julesRepository.mergePr(
+                                settings.githubApiKey,
+                                sessionWithPr.id,
+                                sessionWithPr.prUrl!!,
+                                deleteBranch = true
+                            )
+                        }
+                    }
+                },
+                hasOpenPr = sessions.any { it.prUrl != null && it.prState == "open" },
                 showInProgressOnly = showInProgressOnly,
                 onShowInProgressOnlyChange = { showInProgressOnly = it },
                 showUnmergedOnly = showUnmergedOnly,
@@ -455,6 +482,9 @@ fun FeatureDetailContent(
 @Composable
 fun FeatureActionBar(
     onArchiveCompleted: () -> Unit,
+    onReplayPrompts: () -> Unit = {},
+    onFinishFeature: () -> Unit = {},
+    hasOpenPr: Boolean = false,
     showInProgressOnly: Boolean,
     onShowInProgressOnlyChange: (Boolean) -> Unit,
     showUnmergedOnly: Boolean,
@@ -507,6 +537,50 @@ fun FeatureActionBar(
                 selectedBorderColor = ColorHelper.JulesAccent.copy(alpha = 0.5f)
             )
         )
+
+        // Replay Button
+        Surface(
+            modifier = Modifier.clickable(onClick = onReplayPrompts),
+            color = Color.White.copy(alpha = 0.05f),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                Text(
+                    "Replay Prompts",
+                    color = Color.White,
+                    fontSize = 12.sp
+                )
+            }
+        }
+
+        // Finish/Merge Button
+        if (hasOpenPr) {
+            Surface(
+                modifier = Modifier.clickable(onClick = onFinishFeature),
+                color = Color.Green.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, Color.Green.copy(alpha = 0.3f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(Icons.Default.Merge, contentDescription = null, tint = Color.Green, modifier = Modifier.size(16.dp))
+                    Text(
+                        "Finish & Merge",
+                        color = Color.Green,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
 
         // Unmerged Filter
         FilterChip(

@@ -389,7 +389,7 @@ val appModule = module {
     }
 
     single<ActionExecutor> {
-        AndroidActionExecutor(androidContext(), get(), get())
+        AndroidActionExecutor(androidContext(), get(), get(), get(), get(), get())
     }
 
     single { VoskTranscriber(androidContext(), modelDirPath = null) }

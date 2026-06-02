@@ -15,11 +15,15 @@ import fr.geoking.julius.shared.action.DeviceAction
 import fr.geoking.julius.shared.network.NetworkService
 import fr.geoking.julius.shared.network.NetworkType
 import fr.geoking.julius.shared.platform.PermissionManager
+import kotlinx.coroutines.flow.first
 
 class AndroidActionExecutor(
     private val context: Context,
     private val permissionManager: PermissionManager,
-    private val networkService: NetworkService
+    private val networkService: NetworkService,
+    private val julesRepository: fr.geoking.julius.repository.JulesRepository,
+    private val featureRepository: fr.geoking.julius.repository.FeatureRepository,
+    private val settingsManager: SettingsManager
 ) : ActionExecutor {
 
     override suspend fun executeAction(action: DeviceAction): ActionResult {
@@ -37,6 +41,9 @@ class AndroidActionExecutor(
                 ActionType.REQUEST_PERMISSION -> requestPermission(action.target)
                 ActionType.PLAY_AUDIOBOOK -> playAudiobook()
                 ActionType.GET_NETWORK_STATUS -> getNetworkStatus()
+                ActionType.CREATE_FEATURE -> createFeature(action.target)
+                ActionType.MERGE_PR -> mergePr()
+                ActionType.REPLAY_FEATURE -> replayFeature(action.target)
                 ActionType.OTHER -> executeOtherAction(action)
             }
         } catch (e: Exception) {
@@ -260,6 +267,46 @@ class AndroidActionExecutor(
         } else {
             ActionResult(false, "Permission $permission denied by user")
         }
+    }
+
+    private suspend fun createFeature(title: String?): ActionResult {
+        if (title == null) return ActionResult(false, "No title for the feature")
+        val sources = julesRepository.getSourcesCached()
+        val source = sources.firstOrNull()?.name ?: ""
+        val id = featureRepository.addFeature(title, "", 0, source)
+        return ActionResult(true, "Feature created: $title (ID: $id)")
+    }
+
+    private suspend fun mergePr(): ActionResult {
+        val githubToken = settingsManager.settings.value.githubApiKey
+        if (githubToken.isBlank()) return ActionResult(false, "GitHub API key not set")
+
+        val sources = julesRepository.getSourcesCached()
+        for (source in sources) {
+            val sessions = julesRepository.getSessions(emptyList(), source.name, githubToken).first()
+            val sessionWithPr = sessions.find { it.prUrl != null && it.prState == "open" }
+            if (sessionWithPr != null) {
+                val res = julesRepository.mergePr(githubToken, sessionWithPr.id, sessionWithPr.prUrl!!, deleteBranch = true)
+                return if (res.isSuccess) {
+                    ActionResult(true, "Successfully merged PR for ${source.name}")
+                } else {
+                    ActionResult(false, "Failed to merge PR: ${res.exceptionOrNull()?.message}")
+                }
+            }
+        }
+
+        return ActionResult(false, "No open Pull Request found to merge.")
+    }
+
+    private suspend fun replayFeature(title: String?): ActionResult {
+        if (title == null) return ActionResult(false, "No feature name specified")
+        val features = featureRepository.getAllFeatures().first()
+        val feature = features.find { it.title.contains(title, ignoreCase = true) }
+            ?: return ActionResult(false, "Feature not found: $title")
+
+        val apiKeys = settingsManager.settings.value.julesKeys
+        featureRepository.replayFeature(feature.id, apiKeys)
+        return ActionResult(true, "Replaying prompts for feature: ${feature.title}")
     }
 
     private fun executeOtherAction(action: DeviceAction): ActionResult {

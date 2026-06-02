@@ -69,6 +69,47 @@ class FeatureRepository(
         return sessionId
     }
 
+    suspend fun replayFeature(featureId: String, apiKeys: List<String>): String {
+        val feature = featureDao.getFeature(featureId) ?: throw Exception("Feature not found")
+
+        // Collect all user prompts from all sessions linked to this feature
+        val sessions = julesRepository.getSessionsByFeature(featureId)
+        val allUserPrompts = mutableListOf<String>()
+
+        // Add initial feature description if present
+        if (feature.description.isNotBlank()) {
+            allUserPrompts.add(feature.description)
+        }
+
+        for (session in sessions) {
+            val activities = julesRepository.getActivitiesBySession(session.id)
+            allUserPrompts.addAll(activities.filter { it.originator == "user" }.map { it.text })
+        }
+
+        if (allUserPrompts.isEmpty()) {
+            throw Exception("No prompts found to replay for this feature.")
+        }
+
+        val combinedPrompt = "Please replay the following developer intent on a fresh branch:\n\n" +
+            allUserPrompts.joinToString("\n---\n")
+
+        val sessionId = julesRepository.createSession(
+            apiKeys = apiKeys,
+            prompt = combinedPrompt,
+            source = feature.sourceName,
+            title = "Replay: ${feature.title}",
+            featureId = featureId
+        )
+
+        featureDao.updateFeature(feature.copy(
+            sessionId = sessionId,
+            status = "QUEUED",
+            updatedAt = System.currentTimeMillis()
+        ))
+        scheduleWorker()
+        return sessionId
+    }
+
     fun scheduleWorker() {
         try {
             val constraints = Constraints.Builder()

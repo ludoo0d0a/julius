@@ -14,6 +14,9 @@ enum class ActionType {
     REQUEST_PERMISSION,
     PLAY_AUDIOBOOK,
     GET_NETWORK_STATUS,
+    CREATE_FEATURE,
+    MERGE_PR,
+    REPLAY_FEATURE,
     OTHER
 }
 
