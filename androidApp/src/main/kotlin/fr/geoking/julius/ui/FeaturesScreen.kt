@@ -55,6 +55,7 @@ fun FeaturesScreen(
     var isSearching by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
     var selectedFeature by remember { mutableStateOf<FeatureEntity?>(null) }
+    var isEditingFeature by remember { mutableStateOf(false) }
     var sources by remember { mutableStateOf<List<JulesClient.JulesSource>>(emptyList()) }
 
     val scope = rememberCoroutineScope()
@@ -81,6 +82,7 @@ fun FeaturesScreen(
             searchQuery = ""
         } else if (selectedFeature != null) {
             selectedFeature = null
+            isEditingFeature = false
         } else {
             onBack()
         }
@@ -128,17 +130,21 @@ fun FeaturesScreen(
                     }
                 } else {
                     IconButton(onClick = {
-                        if (selectedFeature != null) selectedFeature = null
-                        else onBack()
+                        if (selectedFeature != null) {
+                            selectedFeature = null
+                            isEditingFeature = false
+                        } else onBack()
                     }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
                     Text(
-                        text = if (selectedFeature != null) "Feature Detail" else "Features",
+                        text = if (selectedFeature != null) selectedFeature!!.title else "Features",
                         color = Color.White,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     if (selectedFeature == null) {
                         IconButton(onClick = { isSearching = true }) {
@@ -149,6 +155,9 @@ fun FeaturesScreen(
                         }
                     } else {
                         isSearching = false
+                        IconButton(onClick = { isEditingFeature = true }) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.White)
+                        }
                         IconButton(onClick = {
                             scope.launch {
                                 featureRepository.deleteFeature(selectedFeature!!.id)
@@ -256,7 +265,9 @@ fun FeaturesScreen(
                     settingsManager = settingsManager,
                     apiKeys = apiKeys,
                     onOpenConversation = onOpenConversation,
-                    onUpdateFeature = { selectedFeature = it }
+                    onUpdateFeature = { selectedFeature = it },
+                    isEditing = isEditingFeature,
+                    onEditChange = { isEditingFeature = it }
                 )
             }
         }
@@ -323,12 +334,13 @@ fun FeatureDetailContent(
     settingsManager: SettingsManager,
     apiKeys: List<String>,
     onOpenConversation: (JulesSessionEntity) -> Unit,
-    onUpdateFeature: (FeatureEntity) -> Unit
+    onUpdateFeature: (FeatureEntity) -> Unit,
+    isEditing: Boolean,
+    onEditChange: (Boolean) -> Unit
 ) {
     val scope = rememberCoroutineScope()
-    var isEditing by remember { mutableStateOf(false) }
-    var editedTitle by remember { mutableStateOf(feature.title) }
-    var editedDescription by remember { mutableStateOf(feature.description) }
+    var editedTitle by remember(feature) { mutableStateOf(feature.title) }
+    var editedDescription by remember(feature) { mutableStateOf(feature.description) }
     var sessions by remember { mutableStateOf<List<JulesSessionEntity>>(emptyList()) }
     var messageDraft by remember { mutableStateOf("") }
     var showInProgressOnly by remember { mutableStateOf(false) }
@@ -363,32 +375,39 @@ fun FeatureDetailContent(
                 onValueChange = { editedDescription = it },
                 label = { Text("Description") },
                 modifier = Modifier.fillMaxWidth(),
-                minLines = 3
+                minLines = 3,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedLabelColor = ColorHelper.JulesAccent,
+                    unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
+                    focusedBorderColor = ColorHelper.JulesAccent,
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.2f)
+                )
             )
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = { isEditing = false }) { Text("Cancel") }
+                TextButton(onClick = {
+                    editedTitle = feature.title
+                    editedDescription = feature.description
+                    onEditChange(false)
+                }) { Text("Cancel") }
                 Button(onClick = {
                     val updated = feature.copy(title = editedTitle, description = editedDescription)
                     scope.launch {
                         featureRepository.updateFeature(updated)
                         onUpdateFeature(updated)
-                        isEditing = false
+                        onEditChange(false)
                     }
-                }) { Text("Save") }
+                }, colors = ButtonDefaults.buttonColors(containerColor = ColorHelper.JulesAccent)) { Text("Save") }
             }
         } else {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(feature.title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                IconButton(onClick = { isEditing = true }) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.White)
-                }
-            }
             StatusBadge(feature.status)
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(feature.description, color = Color.White.copy(alpha = 0.8f))
+            if (feature.description.isNotBlank()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(feature.description, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
+            }
 
-            Spacer(modifier = Modifier.height(24.dp))
-            Text("Conversations", color = Color.White, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(16.dp))
 
             LazyColumn(modifier = Modifier.weight(1f)) {
                 items(filteredSessions) { session ->
