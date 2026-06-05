@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -353,6 +354,21 @@ fun V1SessionsScreen(
         )
         WhiteContentSheet(Modifier.weight(1f)) {
             LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        StatusDot(feature.status)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = feature.status.labelFr,
+                            color = DesignAssistantColors.TextSecondary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
                 if (sessions.isEmpty()) {
                     item {
                         Text("Aucune conversation trouvée.", modifier = Modifier.padding(16.dp), color = DesignAssistantColors.TextSecondary)
