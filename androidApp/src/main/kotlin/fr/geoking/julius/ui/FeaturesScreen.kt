@@ -37,6 +37,12 @@ import fr.geoking.julius.repository.JulesRepository
 import kotlinx.coroutines.launch
 import java.util.*
 
+private fun List<JulesClient.JulesSource>.resolveProjectName(sourceName: String): String {
+    return this.find { it.name == sourceName }?.let {
+        it.githubRepo?.let { gr -> "${gr.owner}/${gr.repo}" } ?: it.name
+    } ?: sourceName
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun FeaturesScreen(
@@ -182,6 +188,7 @@ fun FeaturesScreen(
                         items(filteredFeatures, key = { it.id }) { feature ->
                             FeatureItem(
                             feature = feature,
+                            sources = sources,
                             onClick = { selectedFeature = feature },
                             onMoveUp = {
                                 val idx = localFeatures.indexOf(feature)
@@ -216,11 +223,27 @@ fun FeaturesScreen(
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        val currentProjectName = remember(settings.lastJulesRepoId, sources) {
+                            val resolved = sources.resolveProjectName(settings.lastJulesRepoId)
+                            if (resolved == settings.lastJulesRepoId) {
+                                settings.lastJulesRepoName.takeIf { it.isNotBlank() } ?: resolved
+                            } else {
+                                resolved
+                            }
+                        }
+
                         OutlinedTextField(
                             value = newFeatureTitle,
                             onValueChange = { newFeatureTitle = it },
                             modifier = Modifier.weight(1f),
-                            placeholder = { Text("Add a new feature...", color = Color.White.copy(alpha = 0.5f)) },
+                            placeholder = {
+                                Text(
+                                    if (currentProjectName != null) "Add to $currentProjectName..." else "Add a new feature...",
+                                    color = Color.White.copy(alpha = 0.5f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            },
                             shape = RoundedCornerShape(24.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = Color.White,
@@ -236,11 +259,14 @@ fun FeaturesScreen(
                             onClick = {
                                 if (newFeatureTitle.isNotBlank()) {
                                     scope.launch {
+                                        val sourceName = settings.lastJulesRepoId.takeIf { id ->
+                                            id.isNotBlank() && sources.any { it.name == id }
+                                        } ?: sources.firstOrNull()?.name ?: ""
                                         featureRepository.addFeature(
                                             title = newFeatureTitle,
                                             description = "",
                                             priority = 0,
-                                            sourceName = sources.firstOrNull()?.name ?: ""
+                                            sourceName = sourceName
                                         )
                                         newFeatureTitle = ""
                                     }
@@ -260,6 +286,7 @@ fun FeaturesScreen(
                 // Detail View
                 FeatureDetailContent(
                     feature = selectedFeature!!,
+                    sources = sources,
                     julesRepository = julesRepository,
                     featureRepository = featureRepository,
                     settingsManager = settingsManager,
@@ -276,6 +303,7 @@ fun FeaturesScreen(
     if (showAddDialog) {
         AddFeatureDialog(
             sources = sources,
+            initialSourceName = settings.lastJulesRepoId,
             onDismiss = { showAddDialog = false },
             onConfirm = { title, desc, priority, source ->
                 scope.launch {
@@ -290,12 +318,17 @@ fun FeaturesScreen(
 @Composable
 fun FeatureItem(
     feature: FeatureEntity,
+    sources: List<JulesClient.JulesSource>,
     onClick: () -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     isFirst: Boolean,
     isLast: Boolean
 ) {
+    val projectName = remember(feature.sourceName, sources) {
+        sources.resolveProjectName(feature.sourceName)
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -307,6 +340,16 @@ fun FeatureItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
+                if (projectName.isNotBlank()) {
+                    Text(
+                        text = projectName,
+                        color = ColorHelper.JulesAccent,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Text(feature.title, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(feature.description, color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
@@ -329,6 +372,7 @@ fun FeatureItem(
 @Composable
 fun FeatureDetailContent(
     feature: FeatureEntity,
+    sources: List<JulesClient.JulesSource>,
     julesRepository: JulesRepository,
     featureRepository: FeatureRepository,
     settingsManager: SettingsManager,
@@ -401,6 +445,24 @@ fun FeatureDetailContent(
                 }, colors = ButtonDefaults.buttonColors(containerColor = ColorHelper.JulesAccent)) { Text("Save") }
             }
         } else {
+            val projectName = remember(feature.sourceName, sources) {
+                sources.resolveProjectName(feature.sourceName)
+            }
+            if (projectName.isNotBlank()) {
+                Text(
+                    text = projectName,
+                    color = ColorHelper.JulesAccent,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(feature.title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                IconButton(onClick = { isEditing = true }) {
+                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.White)
+                }
+            }
             StatusBadge(feature.status)
             if (feature.description.isNotBlank()) {
                 Spacer(modifier = Modifier.height(12.dp))
