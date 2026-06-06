@@ -949,6 +949,11 @@ class AndroidVoiceManager(
         isRecognizerActive = false
         val finalResult = text.trim()
         if (finalResult.isBlank()) {
+            if (_events.value == VoiceEvent.Listening) {
+                Log.d(TAG, "finalizeListening: empty result, auto-restarting native recognizer")
+                startListeningInternal(stopOutputs = false)
+                return
+            }
             _events.value = VoiceEvent.Silence
             player.notifyStateChanged()
             abandonAudioFocus()
@@ -1012,8 +1017,11 @@ class AndroidVoiceManager(
         when (error) {
             android.speech.SpeechRecognizer.ERROR_NO_MATCH,
             android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> {
-                // Stay in listening state when the session is active; ConversationStore may restart the mic.
-                if (_events.value == VoiceEvent.Listening || _events.value == VoiceEvent.Processing) {
+                // Stay in listening state when the session is active
+                if (_events.value == VoiceEvent.Listening) {
+                    Log.d(TAG, "onError: $errorStr, auto-restarting native recognizer to keep listening")
+                    startListeningInternal(stopOutputs = false)
+                } else if (_events.value == VoiceEvent.Processing) {
                     _events.value = VoiceEvent.Silence
                     player.notifyStateChanged()
                     abandonAudioFocus()
