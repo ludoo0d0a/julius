@@ -33,10 +33,13 @@ fun MicroMicButton(
     status: VoiceEvent,
     accentColor: Color,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    sessionActive: Boolean = false,
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "micro_mic_glow")
-    val isActive = status == VoiceEvent.Listening || status == VoiceEvent.Speaking
+    val isActive = sessionActive ||
+        status == VoiceEvent.Listening ||
+        status == VoiceEvent.Speaking
     val isProcessing = status == VoiceEvent.Processing
 
     // Continuous glow pulse for background rings
@@ -165,12 +168,17 @@ fun MicroMicButton(
                 } else {
                     Icon(
                         painter = painterResource(
-                            id = when (status) {
-                                VoiceEvent.Speaking -> R.drawable.ic_stop
+                            id = when {
+                                sessionActive && status == VoiceEvent.Speaking -> R.drawable.ic_stop
+                                sessionActive -> R.drawable.ic_stop
                                 else -> R.drawable.ic_speaker
                             }
                         ),
-                        contentDescription = if (status == VoiceEvent.Speaking) "Stop" else "Speak",
+                        contentDescription = when {
+                            sessionActive -> "Stop voice session"
+                            status == VoiceEvent.Speaking -> "Stop"
+                            else -> "Speak"
+                        },
                         tint = Color.White,
                         modifier = Modifier.size(48.dp)
                     )

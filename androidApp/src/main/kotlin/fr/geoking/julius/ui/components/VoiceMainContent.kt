@@ -81,7 +81,7 @@ fun VoiceMainContent(
             modifier = Modifier.align(Alignment.Center)
         )
         TrayLightEffectCanvas(
-            isActive = state.status == VoiceEvent.Listening,
+            isActive = state.status == VoiceEvent.Listening || state.voiceSessionActive,
             palette = palette,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
@@ -103,11 +103,12 @@ fun VoiceMainContent(
             MicroMicButton(
                 status = state.status,
                 accentColor = Color(palette.primary),
+                sessionActive = state.voiceSessionActive,
                 onClick = {
-                    when (state.status) {
-                        VoiceEvent.Speaking -> store.stopSpeaking()
-                        VoiceEvent.Listening -> store.stopListening()
-                        else -> store.startListening(isManualStop = true)
+                    when {
+                        state.status == VoiceEvent.Speaking && state.voiceSessionActive -> store.stopSpeaking()
+                        state.voiceSessionActive -> store.stopVoiceSession()
+                        else -> store.startVoiceSession()
                     }
                 }
             )

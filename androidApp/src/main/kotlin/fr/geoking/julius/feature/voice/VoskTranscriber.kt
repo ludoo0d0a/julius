@@ -35,31 +35,62 @@ class VoskTranscriber(
             val rec = getOrCreateRecognizer() ?: return@withContext null
             val chunkSize = 4096
             var offset = 0
-            var finalResult: String? = null
+            val sb = java.lang.StringBuilder()
             var partialResult: String? = null
-
             synchronized(lock) {
                 while (offset < audioData.size) {
                     val len = (audioData.size - offset).coerceAtMost(chunkSize)
                     val chunk = audioData.copyOfRange(offset, offset + len)
-                    val accepted = rec.acceptWaveForm(chunk, len)
-                    if (accepted) {
-                        finalResult = parseTextFromResult(rec.result)
-                    } else {
-                        partialResult = parseTextFromResult(rec.partialResult)
+                    val result = processChunk(rec, chunk, len)
+                    if (result?.isFinal == true && result.text.isNotBlank()) {
+                        if (sb.isNotEmpty()) sb.append(' ')
+                        sb.append(result.text.trim())
+                    } else if (result != null && !result.isFinal) {
+                        partialResult = result.text
                     }
                     offset += len
                 }
+                val finalResultText = parseTextFromResult(rec.finalResult)?.trim()
+                if (!finalResultText.isNullOrBlank()) {
+                    if (sb.isNotEmpty()) sb.append(' ')
+                    sb.append(finalResultText)
+                }
             }
 
-            if (!finalResult.isNullOrBlank()) {
-                TranscriptionResult(finalResult!!, isFinal = true)
-            } else if (!partialResult.isNullOrBlank()) {
-                TranscriptionResult(partialResult!!, isFinal = false)
-            } else null
+            val compiledText = sb.toString().trim()
+            when {
+                compiledText.isNotEmpty() -> TranscriptionResult(compiledText, isFinal = true)
+                !partialResult.isNullOrBlank() -> TranscriptionResult(partialResult!!, isFinal = false)
+                else -> null
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Vosk recognition failed", e)
             null
+        }
+    }
+
+    override suspend fun transcribeStreamingChunk(audioData: ByteArray): TranscriptionResult? =
+        withContext(Dispatchers.IO) {
+            if (audioData.isEmpty()) return@withContext null
+            try {
+                val rec = getOrCreateRecognizer() ?: return@withContext null
+                synchronized(lock) {
+                    processChunk(rec, audioData, audioData.size)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Vosk streaming chunk failed", e)
+                null
+            }
+        }
+
+    private fun processChunk(rec: Recognizer, chunk: ByteArray, len: Int): TranscriptionResult? {
+        val accepted = rec.acceptWaveForm(chunk, len)
+        return if (accepted) {
+            parseTextFromResult(rec.result)?.trim()?.takeIf { it.isNotEmpty() }
+                ?.let { TranscriptionResult(it, isFinal = true) }
+        } else {
+            parseTextFromResult(rec.partialResult)?.trim()?.takeIf { it.isNotEmpty() }
+                ?.let { TranscriptionResult(it, isFinal = false) }
         }
     }
 

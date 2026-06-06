@@ -80,6 +80,10 @@ class AndroidVoiceManager(
         private const val MAX_CAR_RECORDING_MS = 30_000L
         private const val RMS_LOG_INTERVAL = 20
         private const val BUFFER_LOG_INTERVAL = 50
+        /** Pause after speech ends before sending utterance (Perplexity-style turn detection). */
+        private const val UTTERANCE_SILENCE_MS = 1_200L
+        /** Poll interval while waiting for end-of-utterance silence. */
+        private const val UTTERANCE_POLL_MS = 100L
     }
 
     private val _events = MutableStateFlow(VoiceEvent.Silence)
@@ -107,6 +111,11 @@ class AndroidVoiceManager(
     private val dictateSessionText = StringBuilder()
     /** True when the current session streams partials via [localTranscriber] (no auto-stop on Vosk finals). */
     private var streamingLocalStt: Boolean = false
+    /** Accumulated text for the current utterance in continuous (non manual-stop) mode. */
+    private val utteranceText = StringBuilder()
+    private var lastSpeechActivityMs: Long = 0L
+    /** Prevents duplicate utterance sends while the agent is responding. */
+    private var utteranceDispatchPending: Boolean = false
 
     private val player = object : SimpleBasePlayer(context.mainLooper) {
         fun notifyStateChanged() {
@@ -307,7 +316,7 @@ class AndroidVoiceManager(
     }
 
     override fun startListening(isManualStop: Boolean) {
-        if (_events.value == VoiceEvent.Listening) {
+        if (_events.value == VoiceEvent.Listening && isRecording) {
             Log.d(TAG, "startListening() called but already listening, ignoring")
             return
         }
@@ -315,6 +324,7 @@ class AndroidVoiceManager(
         DebugLogStore.addActionLog("Voice", "startListening(isManualStop=$isManualStop)")
 
         this.isManualStopMode = isManualStop
+        utteranceDispatchPending = false
 
         // Signal Listening immediately so the UI responds without waiting for async permission check.
         _events.value = VoiceEvent.Listening
@@ -366,22 +376,46 @@ class AndroidVoiceManager(
 
     private fun beginDictationSession() {
         dictateSessionText.clear()
+        utteranceText.clear()
+        lastSpeechActivityMs = 0L
+        utteranceDispatchPending = false
         streamingLocalStt = true
         _partialText.value = ""
         _transcribedText.value = ""
     }
 
     /**
-     * Handles streaming Vosk results: finals are appended to the session; listening continues until [stopListening].
+     * Handles streaming Vosk results.
+     * Manual-stop mode: finals accumulate until [stopListening].
+     * Continuous mode: partials update UI; finals append to the current utterance until silence VAD fires.
      */
     private fun handleVoskStreamingResult(result: TranscriptionResult) {
         val text = result.text.trim()
         if (text.isBlank()) return
+        if (utteranceDispatchPending) return
+
+        if (isManualStopMode) {
+            if (result.isFinal) {
+                if (dictateSessionText.isNotEmpty()) dictateSessionText.append(' ')
+                dictateSessionText.append(text)
+                _partialText.value = ""
+                val session = dictateSessionText.toString().trim()
+                if (session.isNotEmpty()) {
+                    _partialText.value = session
+                }
+                localTranscriber?.reset()
+            } else {
+                val prefix = dictateSessionText.toString().trim()
+                _partialText.value = if (prefix.isEmpty()) text else "$prefix $text"
+            }
+            return
+        }
+
+        lastSpeechActivityMs = System.currentTimeMillis()
         if (result.isFinal) {
-            if (dictateSessionText.isNotEmpty()) dictateSessionText.append(' ')
-            dictateSessionText.append(text)
-            _transcribedText.value = dictateSessionText.toString().trim()
-            _partialText.value = ""
+            if (utteranceText.isNotEmpty()) utteranceText.append(' ')
+            utteranceText.append(text)
+            _partialText.value = utteranceText.toString().trim()
             localTranscriber?.reset()
 
             // If not in manual stop mode, stop listening automatically after first final phrase
@@ -389,25 +423,71 @@ class AndroidVoiceManager(
                 stopListening()
             }
         } else {
-            val prefix = dictateSessionText.toString().trim()
+            val prefix = utteranceText.toString().trim()
             _partialText.value = if (prefix.isEmpty()) text else "$prefix $text"
         }
     }
 
-    private fun finalizeDictationSession(fallbackAudio: ByteArray? = null, source: String = "Phone") {
-        val flushed = localTranscriber?.flushPendingFinal()?.trim().orEmpty()
-        if (flushed.isNotEmpty()) {
-            if (dictateSessionText.isNotEmpty()) dictateSessionText.append(' ')
-            dictateSessionText.append(flushed)
+    private fun dispatchUtteranceIfReady(force: Boolean = false) {
+        if (utteranceDispatchPending) return
+        val text = when {
+            isManualStopMode -> dictateSessionText.toString().trim()
+            else -> utteranceText.toString().trim().ifBlank { _partialText.value.trim() }
         }
+        if (text.isBlank()) return
+        if (!force && !isManualStopMode) {
+            val silentFor = System.currentTimeMillis() - lastSpeechActivityMs
+            if (lastSpeechActivityMs <= 0L || silentFor < UTTERANCE_SILENCE_MS) return
+        }
+
+        utteranceDispatchPending = true
+        isRecording = false
         streamingLocalStt = false
-        val sessionText = dictateSessionText.toString().trim()
+        Log.d(TAG, "Utterance complete: \"$text\"")
+        DebugLogStore.addActionLog("Voice", "Utterance complete: \"$text\"")
+
         mainHandler.post {
             _partialText.value = ""
-            if (sessionText.isNotBlank()) {
-                _transcribedText.value = sessionText
+            _transcribedText.value = text
+            if (_events.value != VoiceEvent.Speaking) {
+                _events.value = VoiceEvent.Processing
+                player.notifyStateChanged()
             }
-            if (_events.value != VoiceEvent.Speaking && _events.value != VoiceEvent.Processing) {
+        }
+    }
+
+    private fun finalizeDictationSession(fallbackAudio: ByteArray? = null, source: String = "Phone") {
+        if (!isManualStopMode && !utteranceDispatchPending) {
+            dispatchUtteranceIfReady(force = true)
+        }
+        val flushed = localTranscriber?.flushPendingFinal()?.trim().orEmpty()
+        if (flushed.isNotEmpty()) {
+            if (isManualStopMode) {
+                if (dictateSessionText.isNotEmpty()) dictateSessionText.append(' ')
+                dictateSessionText.append(flushed)
+            } else if (utteranceText.isNotEmpty()) {
+                utteranceText.append(' ')
+                utteranceText.append(flushed)
+            } else {
+                utteranceText.append(flushed)
+            }
+        }
+        streamingLocalStt = false
+        val sessionText = if (isManualStopMode) {
+            dictateSessionText.toString().trim()
+        } else {
+            utteranceText.toString().trim().ifBlank { _partialText.value.trim() }
+        }
+        mainHandler.post {
+            _partialText.value = ""
+            if (sessionText.isNotBlank() && !utteranceDispatchPending) {
+                utteranceDispatchPending = true
+                _transcribedText.value = sessionText
+                if (_events.value != VoiceEvent.Speaking && _events.value != VoiceEvent.Processing) {
+                    _events.value = VoiceEvent.Processing
+                    player.notifyStateChanged()
+                }
+            } else if (_events.value != VoiceEvent.Speaking && _events.value != VoiceEvent.Processing) {
                 _events.value = VoiceEvent.Silence
                 player.notifyStateChanged()
             }
@@ -473,13 +553,24 @@ class AndroidVoiceManager(
                 localTranscriber?.reset()
                 val baos = ByteArrayOutputStream()
                 val buffer = ByteArray(1024 * 2)
+                val utteranceWatcher = if (!isManualStopMode) {
+                    scope.launch(Dispatchers.Default) {
+                        while (isRecording && isActive) {
+                            delay(UTTERANCE_POLL_MS)
+                            if (!isRecording || !isActive || utteranceDispatchPending) continue
+                            dispatchUtteranceIfReady(force = false)
+                        }
+                    }
+                } else {
+                    null
+                }
 
                 while (isRecording && isActive) {
                     val read = recorder.read(buffer, 0, buffer.size)
                     if (read > 0) {
                         val chunk = buffer.copyOf(read)
                         baos.write(chunk)
-                        val result = localTranscriber?.transcribe(chunk)
+                        val result = localTranscriber?.transcribeStreamingChunk(chunk)
                         if (result != null) {
                             handleVoskStreamingResult(result)
                         }
@@ -487,6 +578,8 @@ class AndroidVoiceManager(
                         break
                     }
                 }
+
+                utteranceWatcher?.cancel()
 
                 recorder.stop()
                 recorder.release()
@@ -500,6 +593,8 @@ class AndroidVoiceManager(
                         fallbackAudio = audioData.takeIf { it.isNotEmpty() },
                         source = "Phone"
                     )
+                } else if (utteranceDispatchPending) {
+                    mainHandler.post { abandonAudioFocus() }
                 } else if (audioData.isNotEmpty()) {
                     processAudioData(audioData, "Phone")
                 } else {
@@ -561,6 +656,17 @@ class AndroidVoiceManager(
                 localTranscriber?.reset()
                 val baos = ByteArrayOutputStream()
                 val buffer = ByteArray(CarAudioRecord.AUDIO_CONTENT_BUFFER_SIZE)
+                val utteranceWatcher = if (!isManualStopMode) {
+                    scope.launch(Dispatchers.Default) {
+                        while (isRecording && isActive) {
+                            delay(UTTERANCE_POLL_MS)
+                            if (!isRecording || !isActive || utteranceDispatchPending) continue
+                            dispatchUtteranceIfReady(force = false)
+                        }
+                    }
+                } else {
+                    null
+                }
 
                 Log.d(TAG, "Car recording started")
 
@@ -569,7 +675,7 @@ class AndroidVoiceManager(
                     if (read > 0) {
                         val chunk = buffer.copyOf(read)
                         baos.write(chunk)
-                        val result = localTranscriber?.transcribe(chunk)
+                        val result = localTranscriber?.transcribeStreamingChunk(chunk)
                         if (result != null) {
                             handleVoskStreamingResult(result)
                         }
@@ -577,6 +683,8 @@ class AndroidVoiceManager(
                         break
                     }
                 }
+
+                utteranceWatcher?.cancel()
 
                 carAudioRecord.stopRecording()
                 val audioData = baos.toByteArray()
@@ -588,6 +696,8 @@ class AndroidVoiceManager(
                         fallbackAudio = audioData.takeIf { it.isNotEmpty() },
                         source = "Car"
                     )
+                } else if (utteranceDispatchPending) {
+                    mainHandler.post { abandonAudioFocus() }
                 } else if (audioData.isNotEmpty()) {
                     processAudioData(audioData, "Car")
                 } else {
@@ -849,9 +959,8 @@ class AndroidVoiceManager(
 
         _partialText.value = ""
         _transcribedText.value = finalResult
-        _events.value = VoiceEvent.Silence
+        _events.value = VoiceEvent.Processing
         player.notifyStateChanged()
-        abandonAudioFocus()
     }
 
     // RecognitionListener
@@ -899,7 +1008,20 @@ class AndroidVoiceManager(
         android.util.Log.w(TAG, "onError: code=$error $errorStr")
         isRecognizerActive = false
 
-        finalizeListening()
+        when (error) {
+            android.speech.SpeechRecognizer.ERROR_NO_MATCH,
+            android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> {
+                // Stay in listening state when the session is active; ConversationStore may restart the mic.
+                if (_events.value == VoiceEvent.Listening || _events.value == VoiceEvent.Processing) {
+                    _events.value = VoiceEvent.Silence
+                    player.notifyStateChanged()
+                    abandonAudioFocus()
+                } else {
+                    finalizeListening()
+                }
+            }
+            else -> finalizeListening()
+        }
     }
     override fun onResults(results: android.os.Bundle?) {
         isRecognizerActive = false

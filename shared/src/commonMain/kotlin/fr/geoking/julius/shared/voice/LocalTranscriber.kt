@@ -33,6 +33,13 @@ interface LocalTranscriber {
      * Whether the local transcriber is available (e.g. model loaded).
      */
     fun isAvailable(): Boolean = false
+
+    /**
+     * Incremental streaming transcription for live partial/final results.
+     * Default falls back to [transcribe] (batch mode).
+     */
+    suspend fun transcribeStreamingChunk(audioData: ByteArray): TranscriptionResult? =
+        transcribe(audioData)
 }
 
 /**

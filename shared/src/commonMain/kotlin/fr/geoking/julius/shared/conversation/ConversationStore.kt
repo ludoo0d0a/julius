@@ -48,7 +48,8 @@ data class ConversationState(
     val status: VoiceEvent = VoiceEvent.Silence,
     val currentTranscript: String = "",
     val lastError: DetailedError? = null,
-    val errorLog: List<DetailedError> = emptyList()
+    val errorLog: List<DetailedError> = emptyList(),
+    val voiceSessionActive: Boolean = false,
 )
 
 data class ChatMessage(
@@ -126,6 +127,26 @@ open class ConversationStore(
      */
     var autoSendFinalTranscripts: Boolean = true
 
+    /** True while a Perplexity-style continuous voice session is active (listen → answer → listen). */
+    val voiceSessionActive: Boolean
+        get() = _state.value.voiceSessionActive
+
+    private var resumeListeningAfterSpeech = false
+
+    private fun setVoiceSessionActive(active: Boolean) {
+        _state.value = _state.value.copy(voiceSessionActive = active)
+    }
+
+    private fun scheduleResumeListening() {
+        if (!_state.value.voiceSessionActive) return
+        scope.launch {
+            delay(RESUME_LISTEN_DELAY_MS)
+            if (_state.value.voiceSessionActive && _state.value.status == VoiceEvent.Silence) {
+                startListening(isManualStop = false)
+            }
+        }
+    }
+
     init {
         scope.launch {
             val p = persistence ?: return@launch
@@ -160,8 +181,32 @@ open class ConversationStore(
         voiceManager.events.onEach { event ->
             // Clear transcript only when status actually changes to Listening from a different state.
             // This prevents wiping early partial results when onBeginningOfSpeech is triggered.
-            val nextTranscript = if (event == VoiceEvent.Listening && _state.value.status != VoiceEvent.Listening) "" else _state.value.currentTranscript
-            _state.value = _state.value.copy(status = event, currentTranscript = nextTranscript)
+            val currentStatus = _state.value.status
+            val nextStatus = when {
+                // Agent turn in progress: ignore stale Listening events from a winding-down mic session.
+                currentStatus == VoiceEvent.Processing && event == VoiceEvent.Listening -> VoiceEvent.Processing
+                currentStatus == VoiceEvent.Speaking && event == VoiceEvent.Listening -> VoiceEvent.Speaking
+                else -> event
+            }
+            val nextTranscript = if (nextStatus == VoiceEvent.Listening && currentStatus != VoiceEvent.Listening) {
+                ""
+            } else {
+                _state.value.currentTranscript
+            }
+            _state.value = _state.value.copy(status = nextStatus, currentTranscript = nextTranscript)
+
+            if (event == VoiceEvent.Silence && resumeListeningAfterSpeech && _state.value.voiceSessionActive) {
+                resumeListeningAfterSpeech = false
+                scheduleResumeListening()
+            } else if (
+                event == VoiceEvent.Silence &&
+                _state.value.voiceSessionActive &&
+                currentStatus == VoiceEvent.Listening &&
+                !resumeListeningAfterSpeech
+            ) {
+                // Recognition ended without a result (e.g. no match) — keep the session alive.
+                scheduleResumeListening()
+            }
         }.launchIn(scope)
 
         voiceManager.partialText.onEach { text ->
@@ -195,6 +240,7 @@ open class ConversationStore(
         private const val ECHO_FILTER_WINDOW_MS = 2500L
         private const val ECHO_JACCARD_THRESHOLD = 0.55
         private const val LISTEN_SILENCE_TIMEOUT_MS = 5_000L
+        private const val RESUME_LISTEN_DELAY_MS = 350L
     }
 
     private fun normalizeForEchoCompare(s: String): String =
@@ -240,6 +286,8 @@ open class ConversationStore(
     }
 
     fun stopAllActions() {
+        setVoiceSessionActive(false)
+        resumeListeningAfterSpeech = false
         silenceTimeoutJob?.cancel()
         silenceTimeoutJob = null
         activeProcessingJob?.cancel()
@@ -248,13 +296,35 @@ open class ConversationStore(
         voiceManager.stopListening()
         _state.value = _state.value.copy(
             status = VoiceEvent.Silence,
-            currentTranscript = ""
+            currentTranscript = "",
+            voiceSessionActive = false,
         )
+    }
+
+    /** Starts a continuous voice session: listen, transcribe, respond, then listen again. */
+    fun startVoiceSession() {
+        setVoiceSessionActive(true)
+        resumeListeningAfterSpeech = false
+        startListening(isManualStop = false)
+    }
+
+    /** Ends the continuous voice session and stops all voice activity. */
+    fun stopVoiceSession() {
+        stopAllActions()
+    }
+
+    fun toggleVoiceSession() {
+        if (_state.value.voiceSessionActive) stopVoiceSession() else startVoiceSession()
     }
 
     // Made public to be called manually or from VoiceManager logic
     fun onUserFinishedSpeaking(text: String) {
         if (text.isBlank()) return
+
+        silenceTimeoutJob?.cancel()
+        silenceTimeoutJob = null
+        _state.value = _state.value.copy(status = VoiceEvent.Processing, currentTranscript = text)
+        voiceManager.stopListening()
 
         // 1. Explicit language switch (e.g. "speak in French")
         SpeechLanguageResolver.extractPreferredLanguageTag(text)?.let { preferredTag ->
@@ -274,7 +344,7 @@ open class ConversationStore(
                 updateMessages(userMsg)
                 
                 // 2. Call AI (offload to Default dispatcher to avoid blocking main thread)
-                _state.value = _state.value.copy(status = VoiceEvent.Processing, lastError = null)
+                _state.value = _state.value.copy(lastError = null)
 
                 val response = withContext(Dispatchers.Default) {
                     var contextPrompt = buildContextPrompt(_state.value.messages)
@@ -331,8 +401,12 @@ open class ConversationStore(
                         ?: SpeechLanguageResolver.detectLanguageTag(response.text)
                     voiceManager.speak(response.text, speechLanguageTag)
                 }
+                if (_state.value.voiceSessionActive) {
+                    resumeListeningAfterSpeech = true
+                }
             } catch (e: CancellationException) {
                 _state.value = _state.value.copy(status = VoiceEvent.Silence)
+                scheduleResumeListening()
             } catch (e: NetworkException) {
                 val msg = e.message ?: "Unknown network error"
                 log.e(e) { "Network error: $msg (httpCode=${e.httpCode})" }
@@ -343,6 +417,7 @@ open class ConversationStore(
                     errorLog = newErrorLog,
                     status = VoiceEvent.Silence
                 )
+                scheduleResumeListening()
             } catch (e: Exception) {
                 val msg = buildDetailedErrorMessage(e)
                 log.e(e) { "Agent/voice error: $msg" }
@@ -353,6 +428,7 @@ open class ConversationStore(
                     errorLog = newErrorLog,
                     status = VoiceEvent.Silence
                 )
+                scheduleResumeListening()
             }
         }
     }
@@ -419,7 +495,8 @@ open class ConversationStore(
     fun startListening(isManualStop: Boolean = false) {
         voiceManager.startListening(isManualStop)
         silenceTimeoutJob?.cancel()
-        if (!isManualStop) {
+        // In a voice session the mic stays open until the user stops; no idle silence timeout.
+        if (!isManualStop && !_state.value.voiceSessionActive) {
             silenceTimeoutJob = scope.launch {
                 delay(LISTEN_SILENCE_TIMEOUT_MS)
                 val s = _state.value
