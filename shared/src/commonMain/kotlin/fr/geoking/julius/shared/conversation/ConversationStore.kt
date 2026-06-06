@@ -186,6 +186,8 @@ open class ConversationStore(
                 // Agent turn in progress: ignore stale Listening events from a winding-down mic session.
                 currentStatus == VoiceEvent.Processing && event == VoiceEvent.Listening -> VoiceEvent.Processing
                 currentStatus == VoiceEvent.Speaking && event == VoiceEvent.Listening -> VoiceEvent.Speaking
+                // Keep UI in Listening state during active sessions if we expect to resume soon (hides flickering Silence).
+                event == VoiceEvent.Silence && _state.value.voiceSessionActive && currentStatus == VoiceEvent.Listening -> VoiceEvent.Listening
                 else -> event
             }
             val nextTranscript = if (nextStatus == VoiceEvent.Listening && currentStatus != VoiceEvent.Listening) {
