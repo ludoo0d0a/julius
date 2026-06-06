@@ -497,6 +497,7 @@ class AndroidVoiceManager(
             } else {
                 abandonAudioFocus()
             }
+            isManualStopMode = false
         }
     }
 
@@ -755,7 +756,6 @@ class AndroidVoiceManager(
 
     override fun stopListening() {
         Log.d(TAG, "mic off: stopListening()")
-        isManualStopMode = false
         if (isRecording) {
             // Let the recording coroutine finish (release mic, flush Vosk); do not cancel abruptly.
             isRecording = false
@@ -946,13 +946,13 @@ class AndroidVoiceManager(
     }
 
     private fun finalizeListening(text: String = "") {
-        isManualStopMode = false
         isRecognizerActive = false
         val finalResult = text.trim()
         if (finalResult.isBlank()) {
             _events.value = VoiceEvent.Silence
             player.notifyStateChanged()
             abandonAudioFocus()
+            isManualStopMode = false
             return
         }
         android.util.Log.d(TAG, "finalizeListening: finalResult=\"$finalResult\"")
@@ -961,6 +961,7 @@ class AndroidVoiceManager(
         _transcribedText.value = finalResult
         _events.value = VoiceEvent.Processing
         player.notifyStateChanged()
+        isManualStopMode = false
     }
 
     // RecognitionListener

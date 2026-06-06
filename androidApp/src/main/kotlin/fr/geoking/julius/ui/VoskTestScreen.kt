@@ -42,7 +42,7 @@ fun VoskTestScreen(
     var isPending by remember { mutableStateOf(false) }
     var isManualStop by remember { mutableStateOf(false) }
 
-    val isListening = events == VoiceEvent.Listening
+    val isListening = events == VoiceEvent.Listening || events == VoiceEvent.Processing
     val isMicSessionActive = events == VoiceEvent.Listening || events == VoiceEvent.Processing
 
     LaunchedEffect(events) {
@@ -123,9 +123,10 @@ fun VoskTestScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Vosk Engine", color = Color.White)
+                        Text("Vosk Engine", color = if (isMicSessionActive) Color.Gray else Color.White)
                         Switch(
                             checked = useVosk,
+                            enabled = !isMicSessionActive,
                             onCheckedChange = { isVosk ->
                                 val newPref = if (isVosk) SttEnginePreference.LocalOnly else SttEnginePreference.NativeOnly
                                 settingsManager.setSttEnginePreference(newPref)
@@ -138,9 +139,10 @@ fun VoskTestScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Manual Stop (Dictation)", color = Color.White)
+                        Text("Manual Stop (Dictation)", color = if (isMicSessionActive) Color.Gray else Color.White)
                         Switch(
                             checked = isManualStop,
+                            enabled = !isMicSessionActive,
                             onCheckedChange = { isManualStop = it }
                         )
                     }
@@ -215,7 +217,13 @@ fun VoskTestScreen(
                     }
 
                     Text(
-                        text = liveText.ifBlank { if (isListening) "(listening…)" else "Speech text will appear here" },
+                        text = liveText.ifBlank {
+                            when (events) {
+                                VoiceEvent.Listening -> "(listening…)"
+                                VoiceEvent.Processing -> "(processing…)"
+                                else -> "Speech text will appear here"
+                            }
+                        },
                         color = Color.White,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Medium,
