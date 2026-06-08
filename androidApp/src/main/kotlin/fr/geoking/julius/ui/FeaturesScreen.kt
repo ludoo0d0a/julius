@@ -63,12 +63,21 @@ fun FeaturesScreen(
     var selectedFeature by remember { mutableStateOf<FeatureEntity?>(null) }
     var isEditingFeature by remember { mutableStateOf(false) }
     var sources by remember { mutableStateOf<List<JulesClient.JulesSource>>(emptyList()) }
+    var refreshingList by remember { mutableStateOf(false) }
+    var refreshSourcesTrigger by remember { mutableIntStateOf(0) }
 
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
-        if (apiKeys.isNotEmpty()) {
-            julesRepository.getSources(apiKeys).collect { sources = it }
+    LaunchedEffect(apiKeys, refreshSourcesTrigger) {
+        if (apiKeys.isEmpty()) return@LaunchedEffect
+        if (refreshSourcesTrigger > 0) refreshingList = true
+        try {
+            julesRepository.getSources(apiKeys).collect { list ->
+                sources = list
+                refreshingList = false
+            }
+        } catch (_: Exception) {
+            refreshingList = false
         }
     }
 
@@ -179,45 +188,50 @@ fun FeaturesScreen(
             if (selectedFeature == null) {
                 // List View
                 var newFeatureTitle by remember { mutableStateOf("") }
-                Column(modifier = Modifier.weight(1f)) {
-                    LazyColumn(
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(filteredFeatures, key = { it.id }) { feature ->
-                            FeatureItem(
-                            feature = feature,
-                            sources = sources,
-                            onClick = { selectedFeature = feature },
-                            onMoveUp = {
-                                val idx = localFeatures.indexOf(feature)
-                                if (idx > 0) {
-                                    val newList = localFeatures.toMutableList()
-                                    newList.removeAt(idx)
-                                    newList.add(idx - 1, feature)
-                                    localFeatures = newList
-                                    scope.launch { featureRepository.updatePositions(newList) }
-                                }
-                            },
-                            onMoveDown = {
-                                val idx = localFeatures.indexOf(feature)
-                                if (idx < localFeatures.size - 1) {
-                                    val newList = localFeatures.toMutableList()
-                                    newList.removeAt(idx)
-                                    newList.add(idx + 1, feature)
-                                    localFeatures = newList
-                                    scope.launch { featureRepository.updatePositions(newList) }
-                                }
-                            },
-                            isFirst = localFeatures.firstOrNull()?.id == feature.id,
-                            isLast = localFeatures.lastOrNull()?.id == feature.id
-                        )
-                    }
-                }
+                PullToRefreshBox(
+                    isRefreshing = refreshingList,
+                    onRefresh = { refreshSourcesTrigger++ },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            items(filteredFeatures, key = { it.id }) { feature ->
+                                FeatureItem(
+                                    feature = feature,
+                                    sources = sources,
+                                    onClick = { selectedFeature = feature },
+                                    onMoveUp = {
+                                        val idx = localFeatures.indexOf(feature)
+                                        if (idx > 0) {
+                                            val newList = localFeatures.toMutableList()
+                                            newList.removeAt(idx)
+                                            newList.add(idx - 1, feature)
+                                            localFeatures = newList
+                                            scope.launch { featureRepository.updatePositions(newList) }
+                                        }
+                                    },
+                                    onMoveDown = {
+                                        val idx = localFeatures.indexOf(feature)
+                                        if (idx < localFeatures.size - 1) {
+                                            val newList = localFeatures.toMutableList()
+                                            newList.removeAt(idx)
+                                            newList.add(idx + 1, feature)
+                                            localFeatures = newList
+                                            scope.launch { featureRepository.updatePositions(newList) }
+                                        }
+                                    },
+                                    isFirst = localFeatures.firstOrNull()?.id == feature.id,
+                                    isLast = localFeatures.lastOrNull()?.id == feature.id,
+                                )
+                            }
+                        }
 
-                    // Quick Add Bar (WhatsApp style)
-                    Row(
+                        // Quick Add Bar (WhatsApp style)
+                        Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp),
@@ -280,6 +294,7 @@ fun FeaturesScreen(
                                 tint = if (newFeatureTitle.isNotBlank()) ColorHelper.JulesAccent else Color.Gray
                             )
                         }
+                    }
                     }
                 }
             } else {
@@ -389,6 +404,8 @@ fun FeatureDetailContent(
     var messageDraft by remember { mutableStateOf("") }
     var showInProgressOnly by remember { mutableStateOf(false) }
     var showUnmergedOnly by remember { mutableStateOf(false) }
+    var refreshingSessions by remember { mutableStateOf(false) }
+    var refreshSessionsTrigger by remember { mutableIntStateOf(0) }
     val settings by settingsManager.settings.collectAsState()
 
     val filteredSessions = remember(sessions, showInProgressOnly, showUnmergedOnly) {
@@ -399,9 +416,11 @@ fun FeatureDetailContent(
         }
     }
 
-    LaunchedEffect(feature.id) {
-        julesRepository.getSessions(apiKeys, feature.sourceName, "").collect { list ->
+    LaunchedEffect(feature.id, settings.githubApiKey, refreshSessionsTrigger) {
+        if (refreshSessionsTrigger > 0) refreshingSessions = true
+        julesRepository.getSessions(apiKeys, feature.sourceName, settings.githubApiKey).collect { list ->
             sessions = list.filter { it.featureId == feature.id }
+            refreshingSessions = false
         }
     }
 
@@ -471,8 +490,13 @@ fun FeatureDetailContent(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            LazyColumn(modifier = Modifier.weight(1f)) {
-                items(filteredSessions) { session ->
+            PullToRefreshBox(
+                isRefreshing = refreshingSessions,
+                onRefresh = { refreshSessionsTrigger++ },
+                modifier = Modifier.weight(1f),
+            ) {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(filteredSessions, key = { it.id }) { session ->
                     androidx.compose.material3.ListItem(
                         headlineContent = { Text(session.title.ifBlank { session.prompt }, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         supportingContent = {
@@ -494,6 +518,7 @@ fun FeatureDetailContent(
                     )
                     HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
                 }
+            }
             }
 
             FeatureActionBar(

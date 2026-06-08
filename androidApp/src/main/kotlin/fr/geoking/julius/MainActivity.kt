@@ -40,7 +40,7 @@ import fr.geoking.julius.shared.network.NetworkStatus
 import fr.geoking.julius.shared.voice.LocalTranscriber
 import fr.geoking.julius.shared.voice.NoLocalTranscriber
 import fr.geoking.julius.shared.voice.VoiceManager
-import fr.geoking.julius.ui.JulesScreen
+import fr.geoking.julius.ui.jules.JulesScreen
 import fr.geoking.julius.ui.HistoryScreen
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.ui.SettingsScreenPage
