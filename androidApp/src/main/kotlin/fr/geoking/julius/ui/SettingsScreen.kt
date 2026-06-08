@@ -49,6 +49,7 @@ import fr.geoking.julius.agents.LlamatikModelHelper
 import fr.geoking.julius.agents.LlamatikModelVariant
 import fr.geoking.julius.feature.voice.VoskModelHelper
 import fr.geoking.julius.feature.voice.VoskModelVariant
+import fr.geoking.julius.api.codingagent.CodingAgentBackend
 import fr.geoking.julius.shared.voice.SttEnginePreference
 
 enum class SettingsScreenPage { Main, ApiKeys, Agents, AgentDetails, GitHub, Jules }
@@ -121,7 +122,7 @@ fun SettingsScreen(
                             }
                             SettingsScreenPage.AgentDetails -> selectedAgentForDetails?.name ?: "Agent Settings"
                             SettingsScreenPage.GitHub -> "GitHub"
-                            SettingsScreenPage.Jules -> "Jules"
+                            SettingsScreenPage.Jules -> "Coding agent"
                         }
                     )
                 },
@@ -189,16 +190,27 @@ fun SettingsScreen(
                             settingsManager.saveSettings(settings.copy(githubApiKey = token))
                         },
                         onCreatePat = { context.openExternalUrl(GitHubPatUrls.CREATE_CLASSIC_PAT) },
+                        onManagePats = { context.openExternalUrl(CredentialUrls.GITHUB_MANAGE_TOKENS) },
                     )
                 }
                 SettingsScreenPage.Jules -> {
                     val context = LocalContext.current
-                    JulesApiKeysPage(
-                        keys = settings.julesKeys,
-                        onKeysChange = { updated ->
+                    CodingAgentSettingsPage(
+                        backend = settings.codingAgentBackend,
+                        onBackendChange = { backend ->
+                            settingsManager.saveSettings(settings.copy(codingAgentBackend = backend))
+                        },
+                        julesKeys = settings.julesKeys,
+                        onJulesKeysChange = { updated ->
                             settingsManager.saveSettings(settings.copy(julesKeys = updated))
                         },
-                        onOpenJulesSettings = { context.openExternalUrl("https://jules.google.com") },
+                        anthropicApiKey = settings.anthropicApiKey,
+                        onAnthropicApiKeyChange = { key ->
+                            settingsManager.saveSettings(settings.copy(anthropicApiKey = key))
+                        },
+                        onGetJulesApiKey = { context.openExternalUrl(CredentialUrls.JULES_API_KEYS) },
+                        onGetAnthropicApiKey = { context.openExternalUrl(CredentialUrls.ANTHROPIC_API_KEYS) },
+                        onCreateGitHubPat = { context.openExternalUrl(GitHubPatUrls.CREATE_CLASSIC_PAT) },
                     )
                 }
                 SettingsScreenPage.AgentDetails -> {
@@ -320,7 +332,7 @@ fun MainSettingsPage(
         item {
             SettingsListItem(
                 title = "API keys",
-                subtitle = "Agents (local & remote), GitHub, and Jules",
+                subtitle = "Agents (local & remote), GitHub, and coding agent",
                 onClick = onNavigateToApiKeys,
             )
         }
@@ -400,9 +412,16 @@ fun ApiKeysPage(
     val localCount = AgentType.entries.count { it.enabled && it.isEmbedded }
     val remoteCount = AgentType.entries.count { it.enabled && !it.isEmbedded }
     val githubSubtitle = if (settings.githubApiKey.isNotBlank()) "Token configured" else "Not set"
-    val julesSubtitle = when {
-        settings.julesKeys.isNotEmpty() -> "${settings.julesKeys.size} key(s) configured"
-        else -> "Not set"
+    val julesSubtitle = when (settings.codingAgentBackend) {
+        CodingAgentBackend.CLAUDE_CODE -> when {
+            settings.anthropicApiKey.isNotBlank() && settings.githubApiKey.isNotBlank() -> "Claude Code configured"
+            settings.anthropicApiKey.isNotBlank() -> "Claude Code — add GitHub token"
+            else -> "Claude Code — not set"
+        }
+        CodingAgentBackend.JULES -> when {
+            settings.julesKeys.isNotEmpty() -> "Jules — ${settings.julesKeys.size} key(s)"
+            else -> "Jules — not set"
+        }
     }
 
     LazyColumn {
@@ -427,7 +446,7 @@ fun ApiKeysPage(
                 onClick = onNavigateToGitHub,
             )
             SettingsListItem(
-                title = "Jules",
+                title = "Coding agent",
                 subtitle = julesSubtitle,
                 onClick = onNavigateToJules,
             )
@@ -899,13 +918,66 @@ private fun ApiKeyTextField(
 }
 
 @Composable
+fun CodingAgentSettingsPage(
+    backend: CodingAgentBackend,
+    onBackendChange: (CodingAgentBackend) -> Unit,
+    julesKeys: List<String>,
+    onJulesKeysChange: (List<String>) -> Unit,
+    anthropicApiKey: String,
+    onAnthropicApiKeyChange: (String) -> Unit,
+    onGetJulesApiKey: () -> Unit,
+    onGetAnthropicApiKey: () -> Unit,
+    onCreateGitHubPat: () -> Unit,
+) {
+    Column(Modifier.verticalScroll(rememberScrollState())) {
+        SettingsHeader("Backend")
+        Text(
+            "Choose the remote coding agent for the Jules screen. Both use GitHub remotely — no local git required.",
+            color = Color.Gray,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp),
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FilterChip(
+                selected = backend == CodingAgentBackend.JULES,
+                onClick = { onBackendChange(CodingAgentBackend.JULES) },
+                label = { Text("Jules") },
+            )
+            FilterChip(
+                selected = backend == CodingAgentBackend.CLAUDE_CODE,
+                onClick = { onBackendChange(CodingAgentBackend.CLAUDE_CODE) },
+                label = { Text("Claude Code") },
+            )
+        }
+        when (backend) {
+            CodingAgentBackend.JULES -> JulesApiKeysSection(
+                keys = julesKeys,
+                onKeysChange = onJulesKeysChange,
+                onGetApiKey = onGetJulesApiKey,
+            )
+            CodingAgentBackend.CLAUDE_CODE -> ClaudeCodeApiKeySection(
+                apiKey = anthropicApiKey,
+                onApiKeyChange = onAnthropicApiKeyChange,
+                onGetApiKey = onGetAnthropicApiKey,
+                onCreateGitHubPat = onCreateGitHubPat,
+            )
+        }
+    }
+}
+
+@Composable
 fun JulesApiKeysPage(
     keys: List<String>,
     onKeysChange: (List<String>) -> Unit,
-    onOpenJulesSettings: () -> Unit,
+    onGetApiKey: () -> Unit,
 ) {
     Column(Modifier.verticalScroll(rememberScrollState())) {
-        JulesApiKeysSection(keys, onKeysChange, onOpenJulesSettings)
+        JulesApiKeysSection(keys, onKeysChange, onGetApiKey)
     }
 }
 
@@ -914,35 +986,89 @@ fun GitHubTokenPage(
     token: String,
     onTokenChange: (String) -> Unit,
     onCreatePat: () -> Unit,
+    onManagePats: () -> Unit,
 ) {
     Column(Modifier.verticalScroll(rememberScrollState())) {
-        GitHubTokenSection(token, onTokenChange, onCreatePat)
+        GitHubTokenSection(token, onTokenChange, onCreatePat, onManagePats)
     }
+}
+
+@Composable
+private fun SettingsExternalLink(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    TextButton(
+        onClick = onClick,
+        modifier = modifier.padding(horizontal = 8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(label)
+        }
+    }
+}
+
+@Composable
+fun ClaudeCodeApiKeySection(
+    apiKey: String,
+    onApiKeyChange: (String) -> Unit,
+    onGetApiKey: () -> Unit,
+    onCreateGitHubPat: () -> Unit,
+) {
+    SettingsHeader("Claude Code (Managed Agents)")
+    Text(
+        "Anthropic API key plus a GitHub personal access token. The agent runs in Anthropic's cloud, clones your repo remotely, and pushes branches/PRs.",
+        color = Color.Gray,
+        fontSize = 14.sp,
+        modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp),
+    )
+    SettingsExternalLink(label = "Get Anthropic API key", onClick = onGetApiKey)
+    SettingsExternalLink(label = "Create GitHub token (scopes pre-selected)", onClick = onCreateGitHubPat)
+    GitHubPatUrls.CLASSIC_SCOPES.forEach { (scope, detail) ->
+        Text(
+            "• $scope — $detail",
+            color = Color.Gray,
+            fontSize = 12.sp,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+        )
+    }
+    OutlinedTextField(
+        value = apiKey,
+        onValueChange = onApiKeyChange,
+        label = { Text("Anthropic API key") },
+        placeholder = { Text("sk-ant-...") },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        singleLine = true,
+    )
+    val configured = apiKey.isNotBlank()
+    Text(
+        if (configured) "Anthropic API key set."
+        else "No key — add one above or set ANTHROPIC_API_KEY in local.properties and rebuild.",
+        color = if (configured) Color(0xFF86EFAC) else MaterialTheme.colorScheme.tertiary,
+        fontSize = 13.sp,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+    )
 }
 
 @Composable
 fun JulesApiKeysSection(
     keys: List<String>,
     onKeysChange: (List<String>) -> Unit,
-    onOpenJulesSettings: () -> Unit,
+    onGetApiKey: () -> Unit,
 ) {
     SettingsHeader("Jules")
     Text(
-        "API keys from jules.google.com (Settings in the Jules web app). Used on the Jules screen and Android Auto.",
+        "API keys from Jules Settings. Used on the Jules screen and Android Auto. You can have up to 3 active keys.",
         color = Color.Gray,
         fontSize = 14.sp,
         modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp),
     )
-    TextButton(
-        onClick = onOpenJulesSettings,
-        modifier = Modifier.padding(horizontal = 8.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text("Open jules.google.com")
-        }
-    }
+    SettingsExternalLink(label = "Get Jules API key", onClick = onGetApiKey)
     keys.forEachIndexed { index, key ->
         Row(
             modifier = Modifier
@@ -1006,24 +1132,17 @@ fun GitHubTokenSection(
     token: String,
     onTokenChange: (String) -> Unit,
     onCreatePat: () -> Unit,
+    onManagePats: () -> Unit,
 ) {
     SettingsHeader("GitHub")
     Text(
-        "Personal access token for pull requests, Actions workflows, and file content on the Jules screen.",
+        "Personal access token for pull requests, Actions workflows, and file content on the coding agent screen.",
         color = Color.Gray,
         fontSize = 14.sp,
         modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp),
     )
-    TextButton(
-        onClick = onCreatePat,
-        modifier = Modifier.padding(horizontal = 8.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text("Create token on GitHub (scopes pre-selected)")
-        }
-    }
+    SettingsExternalLink(label = "Create GitHub token (scopes pre-selected)", onClick = onCreatePat)
+    SettingsExternalLink(label = "Manage existing tokens on GitHub", onClick = onManagePats)
     GitHubPatUrls.CLASSIC_SCOPES.forEach { (scope, detail) ->
         Text(
             "• $scope — $detail",

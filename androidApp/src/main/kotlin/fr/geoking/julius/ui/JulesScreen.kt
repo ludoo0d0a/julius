@@ -91,6 +91,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.api.codingagent.CodingAgentBackend
 import fr.geoking.julius.api.github.GitHubClient
 import fr.geoking.julius.api.jules.JulesChatItem
 import fr.geoking.julius.api.jules.JulesClient
@@ -131,6 +132,8 @@ fun JulesScreen(
     val isOnline = networkStatus.isConnected
     val apiKeys = settings.julesKeys
     val githubToken = settings.githubApiKey
+    val codingBackend = settings.codingAgentBackend
+    val isAgentConfigured = julesRepository.isCodingAgentConfigured(apiKeys)
 
     var sources by remember { mutableStateOf<List<JulesClient.JulesSource>>(emptyList()) }
     var sessions by remember { mutableStateOf<List<JulesSessionEntity>>(emptyList()) }
@@ -173,7 +176,7 @@ fun JulesScreen(
     fun clearError() { error = null }
 
     fun loadSources(isRefresh: Boolean = false) {
-        if (apiKeys.isEmpty()) {
+        if (!isAgentConfigured) {
             sourcesLoaded = true
             return
         }
@@ -204,7 +207,7 @@ fun JulesScreen(
 
     fun loadSessions(isRefresh: Boolean = false) {
         val sourceName = selectedSourceName ?: return
-        if (apiKeys.isEmpty()) return
+        if (!isAgentConfigured) return
         scope.launch {
             if (isRefresh) refreshingSessions = true else loadingSessions = true
             clearError()
@@ -230,7 +233,7 @@ fun JulesScreen(
 
     suspend fun refreshActivitiesInternal(isRefresh: Boolean = false) {
         val session = currentSession ?: return
-        if (apiKeys.isEmpty()) return
+        if (!isAgentConfigured) return
         if (isRefresh) refreshing = true else loading = true
         clearError()
         try {
@@ -336,7 +339,7 @@ fun JulesScreen(
         }
     }
     LaunchedEffect(apiKeys, githubToken, selectedSourceName, currentSession?.id) {
-        if (apiKeys.isEmpty() || selectedSourceName == null) return@LaunchedEffect
+        if (!isAgentConfigured || selectedSourceName == null) return@LaunchedEffect
         while (true) {
             delay(30_000)
             val sessionToPoll = currentSession
@@ -508,11 +511,14 @@ fun JulesScreen(
             }
 
             when {
-                apiKeys.isEmpty() -> {
-                    ErrorCard(
-                        title = "Jules API key not set",
-                        message = "Go to Settings → API keys → Jules and add your key from jules.google.com Settings."
-                    )
+                !isAgentConfigured -> {
+                    val (title, message) = when (codingBackend) {
+                        CodingAgentBackend.CLAUDE_CODE -> "Claude Code not configured" to
+                            "Go to Settings → API keys → Coding agent. Set backend to Claude Code, add your Anthropic API key (platform.claude.com), and a GitHub token with repo access."
+                        CodingAgentBackend.JULES -> "Jules API key not set" to
+                            "Go to Settings → API keys → Coding agent and add your key from jules.google.com Settings."
+                    }
+                    ErrorCard(title = title, message = message)
                 }
                 else -> {
                     if (error != null) {

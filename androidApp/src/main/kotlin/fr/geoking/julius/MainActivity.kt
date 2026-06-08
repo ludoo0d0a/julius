@@ -49,6 +49,7 @@ import fr.geoking.julius.ui.VoskTestScreen
 import fr.geoking.julius.agents.LlamatikModelHelper
 import fr.geoking.julius.ui.agentConfigSettingsPages
 import fr.geoking.julius.ui.evaluateAgentSetup
+import fr.geoking.julius.api.claude.ClaudeCodeClient
 import fr.geoking.julius.api.github.GitHubClient
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.persistence.JulesActivityEntity
@@ -530,6 +531,7 @@ fun MainUIPreview() {
             JulesRepository(
                 context,
                 jClient,
+                ClaudeCodeClient(HttpClient(OkHttp) {}),
                 GitHubClient(HttpClient(OkHttp) {}),
                 object : JulesDao {
                     override suspend fun insertSessions(sessions: List<JulesSessionEntity>) {}
@@ -569,6 +571,7 @@ fun MainUIPreview() {
             val jRepo = JulesRepository(
                 context,
                 jClient,
+                ClaudeCodeClient(HttpClient(OkHttp) {}),
                 GitHubClient(HttpClient(OkHttp) {}),
                 object : JulesDao {
                     override suspend fun insertSessions(sessions: List<JulesSessionEntity>) {}

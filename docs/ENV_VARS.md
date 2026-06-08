@@ -30,8 +30,9 @@ Use these names in `local.properties` or set the same name as an env var (e.g. f
 | `DEEPSEEK_KEY` | DeepSeek API key. |
 | `GROQ_KEY` | Groq API key. |
 | `OPENROUTER_KEY` | OpenRouter API key. |
-| `JULES_KEY` | Jules (jules.google.com) API key for the Jules screen. |
-| `GITHUB_TOKEN` | Personal access token for GitHub (Jules screen). |
+| `JULES_KEY` | Jules (jules.google.com) API key for the Jules screen (Jules backend). |
+| `ANTHROPIC_API_KEY` | Anthropic API key for Claude Code (Managed Agents) backend on the Jules screen. |
+| `GITHUB_TOKEN` | Personal access token for GitHub (Jules / coding agent screen). |
 | `GOOGLE_WEB_CLIENT_ID` | Google Web Client ID for Authentication. |
 
 Keys are read at **build time** in this order: `local.properties` then environment variables. In CI, set env vars on the step that runs Gradle (e.g. `env:` in the build job). Build-time values are baked into the app and, on first run, persisted into app settings so they appear in Settings and are reused.

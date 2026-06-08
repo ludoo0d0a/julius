@@ -434,6 +434,48 @@ class GitHubClient(
         }
         return json.decodeFromString(GitHubPullRequestDetail.serializer(), responseBody)
     }
+
+    @Serializable
+    data class GitHubRepository(
+        val id: Long = 0,
+        val name: String = "",
+        @SerialName("full_name") val fullName: String = "",
+        @SerialName("html_url") val htmlUrl: String = "",
+        val owner: GitHubOwner = GitHubOwner(),
+        @SerialName("default_branch") val defaultBranch: String = "main",
+        val private: Boolean = false
+    )
+
+    @Serializable
+    data class GitHubOwner(
+        val login: String = ""
+    )
+
+    suspend fun listUserRepositories(
+        token: String,
+        perPage: Int = 100,
+        page: Int = 1
+    ): List<GitHubRepository> {
+        requireToken(token)
+        val url = "$baseUrl/user/repos"
+        val response = client.get(url) {
+            githubHeaders(token)
+            parameter("per_page", perPage.toString())
+            parameter("page", page.toString())
+            parameter("sort", "updated")
+            parameter("direction", "desc")
+        }
+        val body = response.bodyAsText()
+        if (response.status.value != 200) {
+            throw NetworkException(
+                httpCode = response.status.value,
+                message = "GitHub list repos: $body",
+                url = url,
+                provider = "GitHub"
+            )
+        }
+        return json.decodeFromString(ListSerializer(GitHubRepository.serializer()), body)
+    }
 }
 
 data class GitHubPrRef(val owner: String, val repo: String, val number: Int)

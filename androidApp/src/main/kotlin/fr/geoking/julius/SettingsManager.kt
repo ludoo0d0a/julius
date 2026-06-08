@@ -2,6 +2,7 @@ package fr.geoking.julius
 
 import android.content.Context
 import android.content.SharedPreferences
+import fr.geoking.julius.api.codingagent.CodingAgentBackend
 import fr.geoking.julius.shared.voice.SttEnginePreference
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -141,6 +142,15 @@ data class AppSettings(
     val openRouterKey: String = "",
     val openRouterModel: String = "openrouter/auto",
     val julesKeys: List<String> = emptyList(),
+    /** Remote coding agent for the Jules screen: Google Jules or Claude Managed Agents. */
+    val codingAgentBackend: CodingAgentBackend = CodingAgentBackend.JULES,
+    /** Anthropic API key for Claude Code (Managed Agents) backend. */
+    val anthropicApiKey: String = "",
+    /** Persisted Managed Agents agent id (auto-created on first Claude session). */
+    val claudeAgentId: String = "",
+    val claudeAgentVersion: Int? = null,
+    /** Persisted Managed Agents environment id (auto-created on first Claude session). */
+    val claudeEnvironmentId: String = "",
     /** Personal access token for GitHub (merge/close PRs, comments from the Jules screen). */
     val githubApiKey: String = "",
     val selectedAgent: AgentType = DEFAULT_AGENT,
@@ -214,6 +224,12 @@ open class SettingsManager(
             else -> emptyList()
         }
         val githubApiKey = prefs.getString("github_api_key", "")?.takeIf { it.isNotEmpty() } ?: fr.geoking.julius.BuildConfig.GITHUB_TOKEN
+        val codingAgentBackend = CodingAgentBackend.fromName(prefs.getString("coding_agent_backend", null))
+        val anthropicApiKey = prefs.getString("anthropic_api_key", "")?.takeIf { it.isNotEmpty() }
+            ?: fr.geoking.julius.BuildConfig.ANTHROPIC_API_KEY
+        val claudeAgentId = prefs.getString("claude_agent_id", "") ?: ""
+        val claudeAgentVersion = prefs.getString("claude_agent_version", null)?.toIntOrNull()
+        val claudeEnvironmentId = prefs.getString("claude_environment_id", "") ?: ""
         val lastJulesRepoId = prefs.getString("last_jules_repo_id", "") ?: ""
         val lastJulesRepoName = prefs.getString("last_jules_repo_name", "") ?: ""
         val googleUserName = prefs.getString("google_user_name", null)
@@ -227,7 +243,7 @@ open class SettingsManager(
             completionsMeKey, completionsMeModel, apifreellmKey,
             deepSeekKey, deepSeekModel, groqKey, groqModel,
             openRouterKey, openRouterModel,
-            julesKeys, githubApiKey
+            julesKeys, githubApiKey, anthropicApiKey
         )
 
         val speakingInterruptMode = loadSpeakingInterruptMode()
@@ -263,6 +279,11 @@ open class SettingsManager(
             openRouterKey = openRouterKey,
             openRouterModel = openRouterModel,
             julesKeys = julesKeys,
+            codingAgentBackend = codingAgentBackend,
+            anthropicApiKey = anthropicApiKey,
+            claudeAgentId = claudeAgentId,
+            claudeAgentVersion = claudeAgentVersion,
+            claudeEnvironmentId = claudeEnvironmentId,
             githubApiKey = githubApiKey,
             selectedAgent = run {
                 val rawAgent = prefs.getString("agent", null)
@@ -370,7 +391,8 @@ open class SettingsManager(
         openRouterKey: String,
         openRouterModel: String,
         julesKeys: List<String>,
-        githubApiKey: String
+        githubApiKey: String,
+        anthropicApiKey: String
     ) {
         val edit = prefs.edit()
         if (prefs.getString("openai_key", "")?.isEmpty() != false && openAiKey.isNotEmpty()) edit.putString("openai_key", openAiKey)
@@ -393,6 +415,7 @@ open class SettingsManager(
         if (prefs.getString("openrouter_model", "")?.isEmpty() != false && openRouterModel.isNotEmpty()) edit.putString("openrouter_model", openRouterModel)
         if (prefs.getString("jules_keys", "")?.isEmpty() != false && julesKeys.isNotEmpty()) edit.putString("jules_keys", Json.encodeToString(julesKeys))
         if (prefs.getString("github_api_key", "")?.isEmpty() != false && githubApiKey.isNotEmpty()) edit.putString("github_api_key", githubApiKey)
+        if (prefs.getString("anthropic_api_key", "")?.isEmpty() != false && anthropicApiKey.isNotEmpty()) edit.putString("anthropic_api_key", anthropicApiKey)
         edit.apply()
     }
 
@@ -446,6 +469,7 @@ open class SettingsManager(
             groqKey = resolveBuildDefault(settings.groqKey, fr.geoking.julius.BuildConfig.GROQ_KEY),
             openRouterKey = resolveBuildDefault(settings.openRouterKey, fr.geoking.julius.BuildConfig.OPENROUTER_KEY),
             githubApiKey = resolveBuildDefault(settings.githubApiKey, fr.geoking.julius.BuildConfig.GITHUB_TOKEN),
+            anthropicApiKey = resolveBuildDefault(settings.anthropicApiKey, fr.geoking.julius.BuildConfig.ANTHROPIC_API_KEY),
         )
 
         val settings = if (!resolved.selectedAgent.enabled) {
@@ -482,6 +506,11 @@ open class SettingsManager(
             .putString("openrouter_model", settings.openRouterModel)
             .putString("jules_keys", Json.encodeToString(settings.julesKeys))
             .remove("jules_key")
+            .putString("coding_agent_backend", settings.codingAgentBackend.name)
+            .putString("anthropic_api_key", settings.anthropicApiKey)
+            .putString("claude_agent_id", settings.claudeAgentId)
+            .putString("claude_agent_version", settings.claudeAgentVersion?.toString() ?: "")
+            .putString("claude_environment_id", settings.claudeEnvironmentId)
             .putString("github_api_key", settings.githubApiKey)
             .putString("agent", settings.selectedAgent.name)
             .putString("theme", settings.selectedTheme.name)
