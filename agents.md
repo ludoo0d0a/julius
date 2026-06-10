@@ -1,6 +1,21 @@
-# Julius - Voice AI Assistant
+# Julius - Voice AI Assistant & Coding Harness
 
-Julius is a Kotlin Multiplatform (KMP) voice assistant for Android and Android Auto, providing hands-free interaction through various AI services.
+Julius is a Kotlin Multiplatform (KMP) voice assistant for Android and Android Auto. It also acts as a **mobile harness** for remote coding agents (Jules, Claude Code), orchestrating a feature-building workflow: backlog → queued sessions → branch/PR → CI → merge/conflict resolution — controllable by voice and UI.
+
+See [docs/HARNESS.md](docs/HARNESS.md) for queue engine, navigation, and harness settings.
+
+```mermaid
+flowchart LR
+    Voice[Voice ConversationStore]
+    Harness[Harness UI + QueueDashboard]
+    Engine[CodingAgentQueueEngine]
+    Agents[Jules / Claude Code]
+    GitHub[GitHub PR and CI]
+    Voice -->|CREATE_FEATURE MERGE_PR| Harness
+    Harness --> Engine
+    Engine --> Agents
+    Engine --> GitHub
+```
 
 ## Architecture
 

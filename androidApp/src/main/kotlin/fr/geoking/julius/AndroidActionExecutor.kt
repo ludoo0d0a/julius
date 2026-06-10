@@ -14,6 +14,11 @@ import fr.geoking.julius.shared.action.ActionType
 import fr.geoking.julius.shared.action.DeviceAction
 import fr.geoking.julius.shared.network.NetworkService
 import fr.geoking.julius.shared.network.NetworkType
+import fr.geoking.julius.queue.AccountAllocator
+import fr.geoking.julius.queue.CodingAgentQueueEngine
+import fr.geoking.julius.queue.currentDayEpochUtc
+import fr.geoking.julius.queue.enabledAccountsFor
+import fr.geoking.julius.queue.queuePolicyFor
 import fr.geoking.julius.shared.platform.PermissionManager
 import kotlinx.coroutines.flow.first
 
@@ -23,7 +28,10 @@ class AndroidActionExecutor(
     private val networkService: NetworkService,
     private val julesRepository: fr.geoking.julius.repository.JulesRepository,
     private val featureRepository: fr.geoking.julius.repository.FeatureRepository,
-    private val settingsManager: SettingsManager
+    private val settingsManager: SettingsManager,
+    private val queueEngine: CodingAgentQueueEngine,
+    private val accountAllocator: AccountAllocator,
+    private val accountDailyUsageDao: fr.geoking.julius.persistence.AccountDailyUsageDao,
 ) : ActionExecutor {
 
     override suspend fun executeAction(action: DeviceAction): ActionResult {
@@ -274,7 +282,8 @@ class AndroidActionExecutor(
         val sources = julesRepository.getSourcesCached()
         val source = sources.firstOrNull()?.name ?: ""
         val id = featureRepository.addFeature(title, "", 0, source)
-        return ActionResult(true, "Feature created: $title (ID: $id)")
+        queueEngine.tick()
+        return ActionResult(true, "Feature queued: $title (ID: $id)")
     }
 
     private suspend fun mergePr(): ActionResult {
@@ -304,8 +313,18 @@ class AndroidActionExecutor(
         val feature = features.find { it.title.contains(title, ignoreCase = true) }
             ?: return ActionResult(false, "Feature not found: $title")
 
-        val apiKeys = settingsManager.settings.value.julesKeys
-        featureRepository.replayFeature(feature.id, apiKeys)
+        val settings = settingsManager.settings.value
+        val backend = settings.codingAgentBackend
+        val account = accountAllocator.selectAccount(
+            backend = backend,
+            accounts = settings.agentAccounts,
+            policy = settings.queuePolicyFor(backend),
+            activeSessions = julesRepository.getAllActiveSessions(),
+            dailyUsage = accountDailyUsageDao.getAllForDay(currentDayEpochUtc()),
+            dayEpoch = currentDayEpochUtc(),
+        ) ?: return ActionResult(false, "No agent account available (daily limit or not configured)")
+        featureRepository.replayFeature(feature.id, account)
+        queueEngine.tick()
         return ActionResult(true, "Replaying prompts for feature: ${feature.title}")
     }
 

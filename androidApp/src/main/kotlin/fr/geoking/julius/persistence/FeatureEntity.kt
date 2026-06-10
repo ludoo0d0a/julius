@@ -12,6 +12,8 @@ data class FeatureEntity(
     val position: Int = 0,
     val sourceName: String,
     val sessionId: String? = null,
+    val assignedAccountId: String? = null,
+    val startedAt: Long? = null,
     val status: String = "PENDING", // PENDING, QUEUED, IN_PROGRESS, COMPLETED, FAILED
     val errorMessage: String? = null,
     val createdAt: Long = System.currentTimeMillis(),

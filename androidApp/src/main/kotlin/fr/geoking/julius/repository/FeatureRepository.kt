@@ -7,6 +7,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import fr.geoking.julius.persistence.FeatureDao
 import fr.geoking.julius.persistence.FeatureEntity
+import fr.geoking.julius.queue.AgentAccount
 import fr.geoking.julius.worker.FeatureSchedulerWorker
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
@@ -34,6 +35,7 @@ class FeatureRepository(
             updatedAt = System.currentTimeMillis()
         )
         featureDao.insertFeature(feature)
+        scheduleWorker()
         return id
     }
 
@@ -51,25 +53,30 @@ class FeatureRepository(
         }
     }
 
-    suspend fun startFeature(featureId: String, apiKeys: List<String>): String {
+    suspend fun startFeature(featureId: String, account: AgentAccount): String {
         val feature = featureDao.getFeature(featureId) ?: throw Exception("Feature not found")
+        val now = System.currentTimeMillis()
         val sessionId = julesRepository.createSession(
-            apiKeys = apiKeys,
+            account = account,
             prompt = feature.description,
             source = feature.sourceName,
             title = feature.title,
-            featureId = featureId
+            featureId = featureId,
         )
-        featureDao.updateFeature(feature.copy(
-            sessionId = sessionId,
-            status = "QUEUED",
-            updatedAt = System.currentTimeMillis()
-        ))
+        featureDao.updateFeature(
+            feature.copy(
+                sessionId = sessionId,
+                assignedAccountId = account.id,
+                startedAt = now,
+                status = "QUEUED",
+                updatedAt = now,
+            ),
+        )
         scheduleWorker()
         return sessionId
     }
 
-    suspend fun replayFeature(featureId: String, apiKeys: List<String>): String {
+    suspend fun replayFeature(featureId: String, account: AgentAccount): String {
         val feature = featureDao.getFeature(featureId) ?: throw Exception("Feature not found")
 
         // Collect all user prompts from all sessions linked to this feature
@@ -93,19 +100,24 @@ class FeatureRepository(
         val combinedPrompt = "Please replay the following developer intent on a fresh branch:\n\n" +
             allUserPrompts.joinToString("\n---\n")
 
+        val now = System.currentTimeMillis()
         val sessionId = julesRepository.createSession(
-            apiKeys = apiKeys,
+            account = account,
             prompt = combinedPrompt,
             source = feature.sourceName,
             title = "Replay: ${feature.title}",
-            featureId = featureId
+            featureId = featureId,
         )
 
-        featureDao.updateFeature(feature.copy(
-            sessionId = sessionId,
-            status = "QUEUED",
-            updatedAt = System.currentTimeMillis()
-        ))
+        featureDao.updateFeature(
+            feature.copy(
+                sessionId = sessionId,
+                assignedAccountId = account.id,
+                startedAt = now,
+                status = "QUEUED",
+                updatedAt = now,
+            ),
+        )
         scheduleWorker()
         return sessionId
     }

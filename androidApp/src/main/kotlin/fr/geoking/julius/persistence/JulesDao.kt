@@ -49,6 +49,16 @@ interface JulesDao {
     @Query("UPDATE jules_sessions SET featureId = :featureId WHERE id = :sessionId")
     suspend fun updateSessionFeature(sessionId: String, featureId: String?)
 
+    @Query(
+        """
+        SELECT * FROM jules_sessions
+        WHERE isArchived = 0
+        AND (sessionState IS NULL OR sessionState NOT IN ('COMPLETED', 'FAILED', 'QUEUED_OFFLINE'))
+        AND (prState IS NULL OR prState = 'open')
+        """
+    )
+    suspend fun getActiveSessions(): List<JulesSessionEntity>
+
     @Query("SELECT * FROM jules_sessions WHERE isPendingOffline = 1 ORDER BY queuedAt ASC")
     suspend fun getPendingOfflineSessions(): List<JulesSessionEntity>
 

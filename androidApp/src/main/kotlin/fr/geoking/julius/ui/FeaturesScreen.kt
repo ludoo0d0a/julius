@@ -29,6 +29,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.queue.AgentAccount
+import fr.geoking.julius.queue.enabledAccountsFor
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.persistence.FeatureEntity
 import fr.geoking.julius.persistence.JulesSessionEntity
@@ -532,7 +534,9 @@ fun FeatureDetailContent(
                 onReplayPrompts = {
                     scope.launch {
                         try {
-                            featureRepository.replayFeature(feature.id, apiKeys)
+                            val account = settings.enabledAccountsFor(settings.codingAgentBackend).firstOrNull()
+                                ?: return@launch
+                            featureRepository.replayFeature(feature.id, account)
                         } catch (e: Exception) {
                             // Show error
                         }

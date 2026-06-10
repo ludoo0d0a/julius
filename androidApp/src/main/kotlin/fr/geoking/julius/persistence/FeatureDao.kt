@@ -38,4 +38,10 @@ interface FeatureDao {
 
     @Query("SELECT COUNT(*) FROM features WHERE status IN ('QUEUED', 'IN_PROGRESS', 'COMPLETED') AND updatedAt >= :since")
     suspend fun getRecentlyStartedFeaturesCount(since: Long): Int
+
+    @Query("SELECT COUNT(*) FROM features WHERE status = 'PENDING'")
+    suspend fun getPendingFeaturesCount(): Int
+
+    @Query("SELECT COUNT(*) FROM features WHERE status IN ('QUEUED', 'IN_PROGRESS')")
+    suspend fun getQueuedOrInProgressCount(): Int
 }

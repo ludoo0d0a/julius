@@ -50,6 +50,10 @@ import fr.geoking.julius.agents.LlamatikModelVariant
 import fr.geoking.julius.feature.voice.VoskModelHelper
 import fr.geoking.julius.feature.voice.VoskModelVariant
 import fr.geoking.julius.api.codingagent.CodingAgentBackend
+import fr.geoking.julius.queue.AgentAccount
+import fr.geoking.julius.queue.QueuePolicy
+import fr.geoking.julius.queue.QueueStatus
+import java.util.UUID
 import fr.geoking.julius.shared.voice.SttEnginePreference
 
 enum class SettingsScreenPage { Main, ApiKeys, Agents, AgentDetails, GitHub, Jules }
@@ -200,13 +204,27 @@ fun SettingsScreen(
                         onBackendChange = { backend ->
                             settingsManager.saveSettings(settings.copy(codingAgentBackend = backend))
                         },
-                        julesKeys = settings.julesKeys,
-                        onJulesKeysChange = { updated ->
-                            settingsManager.saveSettings(settings.copy(julesKeys = updated))
+                        agentAccounts = settings.agentAccounts,
+                        onAgentAccountsChange = { accounts ->
+                            val julesKeys = accounts.filter { it.backend == CodingAgentBackend.JULES && it.enabled }
+                                .map { it.apiKey }
+                            val anthropic = accounts.firstOrNull { it.backend == CodingAgentBackend.CLAUDE_CODE && it.enabled }
+                                ?.apiKey ?: settings.anthropicApiKey
+                            settingsManager.saveSettings(
+                                settings.copy(
+                                    agentAccounts = accounts,
+                                    julesKeys = julesKeys,
+                                    anthropicApiKey = anthropic,
+                                ),
+                            )
                         },
-                        anthropicApiKey = settings.anthropicApiKey,
-                        onAnthropicApiKeyChange = { key ->
-                            settingsManager.saveSettings(settings.copy(anthropicApiKey = key))
+                        queuePolicy = settings.queuePolicies[settings.codingAgentBackend] ?: QueuePolicy(),
+                        onQueuePolicyChange = { policy ->
+                            settingsManager.saveSettings(
+                                settings.copy(
+                                    queuePolicies = settings.queuePolicies + (settings.codingAgentBackend to policy),
+                                ),
+                            )
                         },
                         onGetJulesApiKey = { context.openExternalUrl(CredentialUrls.JULES_API_KEYS) },
                         onGetAnthropicApiKey = { context.openExternalUrl(CredentialUrls.ANTHROPIC_API_KEYS) },
@@ -921,10 +939,10 @@ private fun ApiKeyTextField(
 fun CodingAgentSettingsPage(
     backend: CodingAgentBackend,
     onBackendChange: (CodingAgentBackend) -> Unit,
-    julesKeys: List<String>,
-    onJulesKeysChange: (List<String>) -> Unit,
-    anthropicApiKey: String,
-    onAnthropicApiKeyChange: (String) -> Unit,
+    agentAccounts: List<AgentAccount>,
+    onAgentAccountsChange: (List<AgentAccount>) -> Unit,
+    queuePolicy: QueuePolicy,
+    onQueuePolicyChange: (QueuePolicy) -> Unit,
     onGetJulesApiKey: () -> Unit,
     onGetAnthropicApiKey: () -> Unit,
     onCreateGitHubPat: () -> Unit,
@@ -954,19 +972,153 @@ fun CodingAgentSettingsPage(
                 label = { Text("Claude Code") },
             )
         }
-        when (backend) {
-            CodingAgentBackend.JULES -> JulesApiKeysSection(
-                keys = julesKeys,
-                onKeysChange = onJulesKeysChange,
-                onGetApiKey = onGetJulesApiKey,
+        AgentAccountsSection(
+            backend = backend,
+            accounts = agentAccounts,
+            onAccountsChange = onAgentAccountsChange,
+            onGetJulesApiKey = onGetJulesApiKey,
+            onGetAnthropicApiKey = onGetAnthropicApiKey,
+            onCreateGitHubPat = onCreateGitHubPat,
+        )
+        QueuePolicySection(
+            policy = queuePolicy,
+            onPolicyChange = onQueuePolicyChange,
+        )
+    }
+}
+
+@Composable
+private fun AgentAccountsSection(
+    backend: CodingAgentBackend,
+    accounts: List<AgentAccount>,
+    onAccountsChange: (List<AgentAccount>) -> Unit,
+    onGetJulesApiKey: () -> Unit,
+    onGetAnthropicApiKey: () -> Unit,
+    onCreateGitHubPat: () -> Unit,
+) {
+    val filtered = accounts.filter { it.backend == backend }
+    SettingsHeader("Agent accounts")
+    Text(
+        "Multiple accounts per agent. Queue uses 3 parallel tasks and 15 daily tasks per account (configurable below).",
+        color = Color.Gray,
+        fontSize = 14.sp,
+        modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp),
+    )
+    if (backend == CodingAgentBackend.JULES) {
+        SettingsExternalLink(label = "Get Jules API key", onClick = onGetJulesApiKey)
+    } else {
+        SettingsExternalLink(label = "Get Anthropic API key", onClick = onGetAnthropicApiKey)
+        SettingsExternalLink(label = "Create GitHub token", onClick = onCreateGitHubPat)
+    }
+    filtered.forEach { account ->
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(account.label, fontSize = 14.sp)
+                Text(maskApiKey(account.apiKey), fontSize = 12.sp, color = Color.Gray)
+            }
+            Switch(
+                checked = account.enabled,
+                onCheckedChange = { enabled ->
+                    onAccountsChange(
+                        accounts.map { if (it.id == account.id) it.copy(enabled = enabled) else it },
+                    )
+                },
             )
-            CodingAgentBackend.CLAUDE_CODE -> ClaudeCodeApiKeySection(
-                apiKey = anthropicApiKey,
-                onApiKeyChange = onAnthropicApiKeyChange,
-                onGetApiKey = onGetAnthropicApiKey,
-                onCreateGitHubPat = onCreateGitHubPat,
-            )
+            IconButton(onClick = { onAccountsChange(accounts.filter { it.id != account.id }) }) {
+                Icon(Icons.Default.Delete, contentDescription = "Remove", tint = Color.Gray)
+            }
         }
+    }
+    var newLabel by remember { mutableStateOf("") }
+    var newKey by remember { mutableStateOf("") }
+    OutlinedTextField(
+        value = newLabel,
+        onValueChange = { newLabel = it },
+        label = { Text("Account label") },
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        singleLine = true,
+    )
+    OutlinedTextField(
+        value = newKey,
+        onValueChange = { newKey = it },
+        label = { Text("API key") },
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        singleLine = true,
+    )
+    TextButton(
+        onClick = {
+            if (newKey.isNotBlank() && filtered.size < 10) {
+                onAccountsChange(
+                    accounts + AgentAccount(
+                        id = UUID.randomUUID().toString(),
+                        label = newLabel.ifBlank { "${backend.name} ${filtered.size + 1}" },
+                        backend = backend,
+                        apiKey = newKey.trim(),
+                    ),
+                )
+                newKey = ""
+                newLabel = ""
+            }
+        },
+        enabled = newKey.isNotBlank() && filtered.size < 10,
+        modifier = Modifier.padding(horizontal = 8.dp),
+    ) {
+        Text("Add account")
+    }
+}
+
+@Composable
+private fun QueuePolicySection(
+    policy: QueuePolicy,
+    onPolicyChange: (QueuePolicy) -> Unit,
+) {
+    SettingsHeader("Queue policy")
+    var parallel by remember(policy) { mutableStateOf(policy.parallelLimit.toString()) }
+    var daily by remember(policy) { mutableStateOf(policy.dailyLimitPerAccount.toString()) }
+    OutlinedTextField(
+        value = parallel,
+        onValueChange = {
+            parallel = it.filter { c -> c.isDigit() }.take(2)
+            parallel.toIntOrNull()?.let { n -> onPolicyChange(policy.copy(parallelLimit = n.coerceIn(1, 20))) }
+        },
+        label = { Text("Parallel tasks") },
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        singleLine = true,
+    )
+    OutlinedTextField(
+        value = daily,
+        onValueChange = {
+            daily = it.filter { c -> c.isDigit() }.take(3)
+            daily.toIntOrNull()?.let { n -> onPolicyChange(policy.copy(dailyLimitPerAccount = n.coerceIn(1, 100))) }
+        },
+        label = { Text("Daily tasks per account") },
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        singleLine = true,
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("Pause queue", modifier = Modifier.weight(1f))
+        Switch(
+            checked = policy.queuePaused,
+            onCheckedChange = { onPolicyChange(policy.copy(queuePaused = it)) },
+        )
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("Auto-merge when CI passes", modifier = Modifier.weight(1f))
+        Switch(
+            checked = policy.autoMergeOnCiSuccess,
+            onCheckedChange = { onPolicyChange(policy.copy(autoMergeOnCiSuccess = it)) },
+        )
     }
 }
 

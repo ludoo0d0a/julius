@@ -3,6 +3,10 @@ package fr.geoking.julius
 import android.content.Context
 import android.content.SharedPreferences
 import fr.geoking.julius.api.codingagent.CodingAgentBackend
+import fr.geoking.julius.queue.AgentAccount
+import fr.geoking.julius.queue.QueuePolicy
+import fr.geoking.julius.queue.defaultQueuePolicies
+import fr.geoking.julius.queue.migrateJulesKeysToAccounts
 import fr.geoking.julius.shared.voice.SttEnginePreference
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -142,6 +146,8 @@ data class AppSettings(
     val openRouterKey: String = "",
     val openRouterModel: String = "openrouter/auto",
     val julesKeys: List<String> = emptyList(),
+    val agentAccounts: List<AgentAccount> = emptyList(),
+    val queuePolicies: Map<CodingAgentBackend, QueuePolicy> = defaultQueuePolicies(),
     /** Remote coding agent for the Jules screen: Google Jules or Claude Managed Agents. */
     val codingAgentBackend: CodingAgentBackend = CodingAgentBackend.JULES,
     /** Anthropic API key for Claude Code (Managed Agents) backend. */
@@ -236,6 +242,29 @@ open class SettingsManager(
         val isLoggedIn = prefs.getBoolean("is_logged_in", false)
         val lastCountryCode = prefs.getString("last_country_code", null)
 
+        val agentAccountsJson = prefs.getString("agent_accounts", null)
+        val agentAccounts = when {
+            !agentAccountsJson.isNullOrBlank() -> try {
+                Json.decodeFromString<List<AgentAccount>>(agentAccountsJson)
+            } catch (_: Exception) {
+                migrateJulesKeysToAccounts(julesKeys, anthropicApiKey)
+            }
+            else -> migrateJulesKeysToAccounts(julesKeys, anthropicApiKey)
+        }
+        val queuePoliciesJson = prefs.getString("queue_policies", null)
+        val queuePolicies = if (!queuePoliciesJson.isNullOrBlank()) {
+            try {
+                val raw = Json.decodeFromString<Map<String, QueuePolicy>>(queuePoliciesJson)
+                CodingAgentBackend.entries.associate { backend ->
+                    backend to (raw[backend.name] ?: QueuePolicy())
+                }
+            } catch (_: Exception) {
+                defaultQueuePolicies()
+            }
+        } else {
+            defaultQueuePolicies()
+        }
+
         // Persist build-time keys (from env/local.properties) when prefs were empty so they show in settings and are reused
         persistBuildTimeKeysIfUsed(
             openAiKey, elevenLabsKey, perplexityKey, geminiKey, deepgramKey,
@@ -279,6 +308,8 @@ open class SettingsManager(
             openRouterKey = openRouterKey,
             openRouterModel = openRouterModel,
             julesKeys = julesKeys,
+            agentAccounts = agentAccounts,
+            queuePolicies = queuePolicies,
             codingAgentBackend = codingAgentBackend,
             anthropicApiKey = anthropicApiKey,
             claudeAgentId = claudeAgentId,
@@ -505,6 +536,11 @@ open class SettingsManager(
             .putString("openrouter_key", settings.openRouterKey)
             .putString("openrouter_model", settings.openRouterModel)
             .putString("jules_keys", Json.encodeToString(settings.julesKeys))
+            .putString("agent_accounts", Json.encodeToString(settings.agentAccounts))
+            .putString(
+                "queue_policies",
+                Json.encodeToString(settings.queuePolicies.mapKeys { it.key.name }),
+            )
             .remove("jules_key")
             .putString("coding_agent_backend", settings.codingAgentBackend.name)
             .putString("anthropic_api_key", settings.anthropicApiKey)

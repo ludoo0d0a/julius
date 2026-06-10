@@ -1,0 +1,8 @@
+---
+description: Julius dual role — voice agent vs coding harness
+globs:
+  - androidApp/**/*
+  - shared/**/*
+---
+
+Julius has two subsystems: (1) voice `ConversationStore` + `AgentType` for hands-free chat; (2) coding harness with `CodingAgentBackend`, `CodingAgentQueueEngine`, and `HarnessRoute` navigation for feature → PR workflows. Do not conflate voice agents with Jules/Claude coding backends.

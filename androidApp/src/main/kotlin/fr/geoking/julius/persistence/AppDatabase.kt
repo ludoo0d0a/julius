@@ -11,15 +11,17 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         JulesSessionEntity::class,
         JulesActivityEntity::class,
         JulesSourceEntity::class,
-        FeatureEntity::class
+        FeatureEntity::class,
+        AccountDailyUsageEntity::class,
     ],
-    version = 15,
+    version = 16,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun julesDao(): JulesDao
     abstract fun featureDao(): FeatureDao
+    abstract fun accountDailyUsageDao(): AccountDailyUsageDao
 
     companion object {
         // v1 -> v2: no schema change; we keep data across upgrades.
@@ -265,6 +267,23 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_14_15: Migration = object : Migration(14, 15) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `featureId` TEXT")
+            }
+        }
+
+        val MIGRATION_15_16: Migration = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `features` ADD COLUMN `assignedAccountId` TEXT")
+                db.execSQL("ALTER TABLE `features` ADD COLUMN `startedAt` INTEGER")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `account_daily_usage` (
+                        `accountId` TEXT NOT NULL,
+                        `dayEpoch` INTEGER NOT NULL,
+                        `startedCount` INTEGER NOT NULL,
+                        PRIMARY KEY(`accountId`, `dayEpoch`)
+                    )
+                    """.trimIndent()
+                )
             }
         }
     }

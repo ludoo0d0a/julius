@@ -6,12 +6,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -30,9 +30,20 @@ import fr.geoking.julius.api.codingagent.CodingAgentBackend
 import fr.geoking.julius.api.jules.JulesChatItem
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.persistence.JulesSessionEntity
+import fr.geoking.julius.navigation.HarnessNavController
+import fr.geoking.julius.navigation.HarnessRoute
+import fr.geoking.julius.queue.CodingAgentQueueEngine
+import fr.geoking.julius.queue.QueuePolicy
+import fr.geoking.julius.queue.julesApiKeys
+import fr.geoking.julius.queue.queuePolicyFor
 import fr.geoking.julius.repository.FeatureRepository
 import fr.geoking.julius.repository.GitHubBuildRepository
 import fr.geoking.julius.repository.JulesRepository
+import fr.geoking.julius.ui.harness.ActivitiesDebugScreen
+import fr.geoking.julius.ui.harness.AddFeatureScreen
+import fr.geoking.julius.ui.harness.PrConflictResolutionScreen
+import fr.geoking.julius.ui.harness.QueueDashboardScreen
+import fr.geoking.julius.ui.harness.QueueStatusBanner
 import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.ui.ColorHelper
 import kotlinx.coroutines.delay
@@ -51,11 +62,14 @@ fun JulesScreen(
     settingsManager: SettingsManager,
     voiceManager: VoiceManager,
     buildRepository: GitHubBuildRepository,
+    queueEngine: CodingAgentQueueEngine,
     initialSession: JulesSessionEntity? = null,
+    startAtQueueDashboard: Boolean = true,
 ) {
     val settings by settingsManager.settings.collectAsState()
     val networkStatus by julesRepository.getNetworkService().status.collectAsState()
-    val apiKeys = settings.julesKeys
+    val apiKeys = settings.julesApiKeys()
+    val queueStatus by queueEngine.status.collectAsState()
     val githubToken = settings.githubApiKey
     val codingBackend = settings.codingAgentBackend
     val isAgentConfigured = julesRepository.isCodingAgentConfigured(apiKeys)
@@ -76,14 +90,18 @@ fun JulesScreen(
     var newSessionPrompt by remember { mutableStateOf("") }
     var selectedSourceName by remember { mutableStateOf<String?>(null) }
     var selectedSourceDisplayName by remember { mutableStateOf("Select project") }
-    var screenLevel by remember { mutableStateOf(JulesScreenLevel.Projects) }
+    val nav = remember(initialSession, startAtQueueDashboard) {
+        HarnessNavController(
+            when {
+                initialSession != null -> HarnessRoute.Chat(initialSession.id)
+                startAtQueueDashboard -> HarnessRoute.QueueDashboard
+                else -> HarnessRoute.Projects
+            },
+        )
+    }
     var selectedFeatureId by remember { mutableStateOf<String?>(null) }
     var selectedFeatureTitle by remember { mutableStateOf("") }
     var sourcesLoaded by remember { mutableStateOf(false) }
-    var showActivitiesSheet by remember { mutableStateOf(false) }
-    var showConflictSheet by remember { mutableStateOf(false) }
-    var conflictingFiles by remember { mutableStateOf<List<String>>(emptyList()) }
-    var rawActivities by remember { mutableStateOf<List<JulesClient.JulesActivity>>(emptyList()) }
     var activitiesJson by remember { mutableStateOf("") }
 
     val scope = rememberCoroutineScope()
@@ -206,20 +224,28 @@ fun JulesScreen(
         selectedFeatureId = null
         selectedFeatureTitle = ""
         selectedSourceName = null
-        screenLevel = JulesScreenLevel.Projects
+        nav.resetTo(HarnessRoute.Projects)
     }
 
-    val handleBack = {
-        when {
-            currentSession != null -> currentSession = null
-            screenLevel == JulesScreenLevel.GitDetails -> screenLevel = JulesScreenLevel.Features
-            screenLevel == JulesScreenLevel.Conversations -> {
-                screenLevel = JulesScreenLevel.Features
+    val handleBack: () -> Unit = {
+        when (nav.current) {
+            is HarnessRoute.Chat -> {
+                currentSession = null
+                nav.pop()
+            }
+            is HarnessRoute.PrConflict, is HarnessRoute.ActivitiesDebug -> { nav.pop() }
+            is HarnessRoute.AddFeature, is HarnessRoute.EditFeature -> { nav.pop() }
+            is HarnessRoute.GitCi -> { nav.pop() }
+            is HarnessRoute.Conversations -> {
                 selectedFeatureId = null
                 selectedFeatureTitle = ""
+                nav.pop()
             }
-            screenLevel == JulesScreenLevel.Features -> resetToProjects()
-            else -> onBack()
+            is HarnessRoute.Features -> resetToProjects()
+            is HarnessRoute.Projects -> {
+                if (startAtQueueDashboard) nav.resetTo(HarnessRoute.QueueDashboard) else onBack()
+            }
+            is HarnessRoute.QueueDashboard -> onBack()
         }
     }
 
@@ -235,9 +261,13 @@ fun JulesScreen(
             val featureId = initialSession.featureId ?: JulesNavigation.ORPHAN_FEATURE_ID
             selectedFeatureId = featureId
             selectedFeatureTitle = JulesNavigation.featureTitle(featureId, features)
-            screenLevel = JulesScreenLevel.Conversations
             currentSession = initialSession
         }
+    }
+
+    LaunchedEffect(Unit) {
+        queueEngine.refreshStatusOnly()
+        featureRepository.scheduleWorker()
     }
 
     LaunchedEffect(sourcesLoaded, sources, settings.lastJulesRepoId) {
@@ -245,7 +275,16 @@ fun JulesScreen(
         val lastId = settings.lastJulesRepoId.trim()
         if (lastId.isNotEmpty() && sources.any { it.name == lastId }) {
             selectedSourceName = lastId
-            screenLevel = JulesScreenLevel.Features
+            val display = sources.find { it.name == lastId }?.let { sourceDisplayName(it) } ?: lastId
+            nav.push(HarnessRoute.Features(lastId, display))
+        }
+    }
+
+    LaunchedEffect(nav.current) {
+        val route = nav.current
+        if (route is HarnessRoute.Chat) {
+            currentSession = sessions.find { it.id == route.sessionId }
+                ?: julesRepository.getSession(route.sessionId)
         }
     }
 
@@ -284,18 +323,22 @@ fun JulesScreen(
         if (currentSession != null) refreshActivitiesInternal() else chatItems.clear()
     }
 
-    val headerTitle = when {
-        currentSession != null -> currentSession?.title ?: ""
-        screenLevel == JulesScreenLevel.GitDetails -> "Git & CI"
-        screenLevel == JulesScreenLevel.Conversations -> selectedFeatureTitle
-        screenLevel == JulesScreenLevel.Features -> selectedSourceDisplayName
+    val headerTitle = when (val route = nav.current) {
+        is HarnessRoute.Chat -> currentSession?.title ?: ""
+        is HarnessRoute.GitCi -> "Git & CI"
+        is HarnessRoute.Conversations -> selectedFeatureTitle
+        is HarnessRoute.Features -> selectedSourceDisplayName
+        is HarnessRoute.QueueDashboard -> "Harness Queue"
+        is HarnessRoute.PrConflict -> "Resolve conflicts"
+        is HarnessRoute.ActivitiesDebug -> "Activities"
+        is HarnessRoute.AddFeature -> "New feature"
         else -> "Projects"
     }
-    val headerSubtitle = when {
-        currentSession != null -> null
-        screenLevel == JulesScreenLevel.Conversations -> selectedSourceDisplayName
-        screenLevel == JulesScreenLevel.Features -> "Features"
-        screenLevel == JulesScreenLevel.GitDetails -> selectedSourceDisplayName
+    val headerSubtitle = when (val route = nav.current) {
+        is HarnessRoute.Chat -> null
+        is HarnessRoute.Conversations -> selectedSourceDisplayName
+        is HarnessRoute.Features -> "Features"
+        is HarnessRoute.GitCi -> selectedSourceDisplayName
         else -> null
     }
     val selectedSource = sources.find { it.name == selectedSourceName }
@@ -340,16 +383,25 @@ fun JulesScreen(
                                     json.decodeFromString(JulesClient.JulesActivity.serializer(), aj)
                                 }
                             }
-                            if (activities.isNotEmpty()) {
-                                rawActivities = activities
-                                showActivitiesSheet = true
+                            val jsonOut = Json { prettyPrint = true; ignoreUnknownKeys = true }
+                            activitiesJson = if (activities.isNotEmpty()) {
+                                jsonOut.encodeToString(
+                                    ListSerializer(JulesClient.JulesActivity.serializer()),
+                                    activities,
+                                )
                             } else {
                                 val key = session.apiKey ?: apiKeys.firstOrNull()
                                 if (key != null) {
-                                    rawActivities = julesClient.listActivities(key, session.id).activities
-                                    showActivitiesSheet = true
+                                    val listed = julesClient.listActivities(key, session.id).activities
+                                    jsonOut.encodeToString(
+                                        ListSerializer(JulesClient.JulesActivity.serializer()),
+                                        listed,
+                                    )
+                                } else {
+                                    "[]"
                                 }
                             }
+                            nav.push(HarnessRoute.ActivitiesDebug(session.id, activitiesJson))
                         } catch (e: Exception) {
                             error = "Could not load activities: ${e.message ?: "Unknown error"}"
                         } finally {
@@ -384,9 +436,66 @@ fun JulesScreen(
                         JulesErrorCard(title = "Error", message = message, onDismiss = { clearError() })
                     }
 
-                    val activeSession = currentSession
-                    when {
-                        activeSession != null -> JulesConversationContent(
+                    when (val route = nav.current) {
+                        is HarnessRoute.QueueDashboard -> QueueDashboardScreen(
+                            status = queueStatus,
+                            features = features,
+                            onTogglePause = { paused ->
+                                val backend = settings.codingAgentBackend
+                                val policy = settings.queuePolicyFor(backend)
+                                settingsManager.saveSettings(
+                                    settings.copy(
+                                        queuePolicies = settings.queuePolicies + (backend to policy.copy(queuePaused = paused)),
+                                    ),
+                                )
+                                scope.launch { queueEngine.tick() }
+                            },
+                            onOpenProjects = { nav.push(HarnessRoute.Projects) },
+                            onAddFeature = { nav.push(HarnessRoute.AddFeature(selectedSourceName)) },
+                            onOpenFeature = { feature ->
+                                selectedSourceName = feature.sourceName
+                                selectedFeatureId = feature.id
+                                selectedFeatureTitle = feature.title
+                                val display = sources.find { it.name == feature.sourceName }
+                                    ?.let { sourceDisplayName(it) } ?: feature.sourceName
+                                nav.push(HarnessRoute.Features(feature.sourceName, display))
+                                nav.push(HarnessRoute.Conversations(feature.sourceName, feature.id, feature.title))
+                                feature.sessionId?.let { sid ->
+                                    scope.launch {
+                                        currentSession = julesRepository.getSession(sid)
+                                        nav.push(HarnessRoute.Chat(sid))
+                                    }
+                                }
+                            },
+                        )
+                        is HarnessRoute.AddFeature -> AddFeatureScreen(
+                            defaultSourceName = route.sourceName ?: selectedSourceName ?: "",
+                            onBack = { nav.pop() },
+                            onSave = { title, description, source ->
+                                scope.launch {
+                                    featureRepository.addFeature(title, description, 0, source)
+                                    nav.pop()
+                                }
+                            },
+                        )
+                        is HarnessRoute.PrConflict -> {
+                            val session = sessions.find { it.id == route.sessionId } ?: currentSession
+                            if (session != null) {
+                                PrConflictResolutionScreen(
+                                    session = session,
+                                    githubToken = githubToken,
+                                    julesRepository = julesRepository,
+                                    onBack = { nav.pop() },
+                                )
+                            }
+                        }
+                        is HarnessRoute.ActivitiesDebug -> ActivitiesDebugScreen(
+                            activitiesJson = route.activitiesJson,
+                            onBack = { nav.pop() },
+                        )
+                        is HarnessRoute.Chat -> {
+                            val activeSession = currentSession
+                            if (activeSession != null) JulesConversationContent(
                             currentSession = activeSession,
                             chatItems = chatItems,
                             listState = listState,
@@ -424,19 +533,8 @@ fun JulesScreen(
                                     loading = false
                                 }
                             },
-                            onSolveConflicts = { prUrlOverride ->
-                                val prUrl = prUrlOverride ?: activeSession.prUrl ?: return@JulesConversationContent
-                                scope.launch {
-                                    loading = true
-                                    val res = julesRepository.getConflictingFiles(githubToken, prUrl)
-                                    if (res.isSuccess) {
-                                        conflictingFiles = res.getOrDefault(emptyList())
-                                        showConflictSheet = true
-                                    } else {
-                                        error = "Could not find conflicting files: ${res.exceptionOrNull()?.message}"
-                                    }
-                                    loading = false
-                                }
+                            onSolveConflicts = { _ ->
+                                nav.push(HarnessRoute.PrConflict(activeSession.id))
                             },
                             onAutoSolveConflicts = {
                                 scope.launch {
@@ -480,11 +578,14 @@ fun JulesScreen(
                             isRefreshing = refreshing,
                             onRefresh = { refreshActivities(isRefresh = true) },
                             activitiesJson = activitiesJson,
-                        )
-                        selectedSourceName != null &&
-                            screenLevel == JulesScreenLevel.Conversations &&
-                            selectedFeatureId != null -> {
-                            val featureId = selectedFeatureId!!
+                            )
+                        }
+                        is HarnessRoute.Conversations -> {
+                            val featureId = route.featureId
+                            selectedSourceName = route.sourceName
+                            selectedFeatureId = featureId
+                            selectedFeatureTitle = route.featureTitle
+                            QueueStatusBanner(queueStatus)
                             JulesConversationsContent(
                                 selectedSourceName = selectedSourceName ?: "",
                                 selectedFeatureId = featureId,
@@ -508,16 +609,21 @@ fun JulesScreen(
                                                 title = newSessionPrompt.take(80),
                                                 featureId = linkedFeatureId,
                                             )
-                                            currentSession = julesRepository.getSession(sessionId)
+                                            val session = julesRepository.getSession(sessionId)
+                                            currentSession = session
                                             newSessionPrompt = ""
                                             loadSessions()
+                                            nav.push(HarnessRoute.Chat(sessionId))
                                         } catch (e: Exception) {
                                             error = "Failed: ${e.message}"
                                         }
                                         loading = false
                                     }
                                 },
-                                onOpenSession = { currentSession = it },
+                                onOpenSession = {
+                                    currentSession = it
+                                    nav.push(HarnessRoute.Chat(it.id))
+                                },
                                 onGetPrDetails = { session, onResult ->
                                     scope.launch {
                                         val res = julesRepository.getPrDetails(githubToken, session.prUrl!!)
@@ -566,7 +672,8 @@ fun JulesScreen(
                                 onHideCompletedChange = { hideCompleted = it },
                             )
                         }
-                        selectedSourceName != null && screenLevel == JulesScreenLevel.GitDetails -> {
+                        is HarnessRoute.GitCi -> {
+                            selectedSourceName = route.sourceName
                             JulesGitDetailsContent(
                                 githubToken = githubToken,
                                 githubOwner = githubOwner,
@@ -576,27 +683,35 @@ fun JulesScreen(
                                 onRefresh = { loadSessions(isRefresh = true) },
                             )
                         }
-                        selectedSourceName != null && screenLevel == JulesScreenLevel.Features -> {
+                        is HarnessRoute.Features -> {
+                            selectedSourceName = route.sourceName
+                            selectedSourceDisplayName = route.displayName
+                            QueueStatusBanner(queueStatus)
                             JulesFeaturesContent(
-                                selectedSourceName = selectedSourceName ?: "",
+                                selectedSourceName = route.sourceName,
                                 features = features,
                                 sessions = sessions,
                                 isRefreshing = refreshingSessions,
                                 onRefresh = { loadSessions(isRefresh = true) },
-                                onOpenGitDetails = { screenLevel = JulesScreenLevel.GitDetails },
+                                onOpenGitDetails = {
+                                    val owner = githubOwner ?: return@JulesFeaturesContent
+                                    val repo = githubRepo ?: return@JulesFeaturesContent
+                                    nav.push(HarnessRoute.GitCi(route.sourceName, owner, repo))
+                                },
                                 onSelectFeature = { featureId, title ->
                                     selectedFeatureId = featureId
                                     selectedFeatureTitle = title
-                                    screenLevel = JulesScreenLevel.Conversations
+                                    nav.push(HarnessRoute.Conversations(route.sourceName, featureId, title))
                                 },
                             )
                         }
-                        else -> JulesRepositoriesList(
+                        is HarnessRoute.EditFeature -> Text("Edit feature", color = Color.White, modifier = Modifier.padding(16.dp))
+                        is HarnessRoute.Projects -> JulesRepositoriesList(
                             sources = sources,
                             onSelect = { src ->
                                 selectedSourceName = src.name
                                 selectedSourceDisplayName = sourceDisplayName(src)
-                                screenLevel = JulesScreenLevel.Features
+                                nav.push(HarnessRoute.Features(src.name, sourceDisplayName(src)))
                             },
                             loading = loading && sources.isEmpty(),
                             refreshing = refreshing,
@@ -607,31 +722,5 @@ fun JulesScreen(
             }
         }
 
-        if (showActivitiesSheet) {
-            ModalBottomSheet(
-                onDismissRequest = { showActivitiesSheet = false },
-                sheetState = rememberModalBottomSheetState(),
-                containerColor = ColorHelper.JulesListBg,
-            ) {
-                JulesActivitiesSheet(rawActivities)
-            }
-        }
-
-        val conflictSession = currentSession
-        if (showConflictSheet && conflictSession != null) {
-            ModalBottomSheet(
-                onDismissRequest = { showConflictSheet = false },
-                containerColor = ColorHelper.JulesListBg,
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                JulesConflictResolutionSheet(
-                    session = conflictSession,
-                    files = conflictingFiles,
-                    githubToken = githubToken,
-                    julesRepository = julesRepository,
-                    onDismiss = { showConflictSheet = false },
-                )
-            }
-        }
     }
 }

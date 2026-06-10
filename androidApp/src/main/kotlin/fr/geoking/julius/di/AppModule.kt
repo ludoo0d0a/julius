@@ -25,6 +25,9 @@ import fr.geoking.julius.api.claude.ClaudeCodeClient
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.api.github.GitHubClient
  
+import fr.geoking.julius.queue.AccountAllocator
+import fr.geoking.julius.queue.CodingAgentQueueEngine
+import fr.geoking.julius.queue.FeatureGitHubLifecycle
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.repository.FeatureRepository
 import fr.geoking.julius.repository.GitHubBuildRepository
@@ -391,7 +394,7 @@ val appModule = module {
     }
 
     single<ActionExecutor> {
-        AndroidActionExecutor(androidContext(), get(), get(), get(), get(), get())
+        AndroidActionExecutor(androidContext(), get(), get(), get(), get(), get(), get(), get(), get())
     }
 
     single { VoskTranscriber(androidContext(), modelDirPath = null) }
@@ -423,7 +426,8 @@ val appModule = module {
                         AppDatabase.MIGRATION_11_12,
                         AppDatabase.MIGRATION_12_13,
                         AppDatabase.MIGRATION_13_14,
-                        AppDatabase.MIGRATION_14_15
+                        AppDatabase.MIGRATION_14_15,
+                        AppDatabase.MIGRATION_15_16,
                     )
             )
         } catch (e: Throwable) {
@@ -442,9 +446,23 @@ val appModule = module {
 
     single<JulesDao> { get<AppDatabase>().julesDao() }
     single { get<AppDatabase>().featureDao() }
+    single { get<AppDatabase>().accountDailyUsageDao() }
 
     single { JulesRepository(androidContext(), get(), get(), get(), get(), get(), get()) }
     single { FeatureRepository(androidContext(), get(), get()) }
+    single { AccountAllocator() }
+    single { FeatureGitHubLifecycle(get(), get(), get()) }
+    single {
+        CodingAgentQueueEngine(
+            get(),
+            get(),
+            get(),
+            get(),
+            get(),
+            get(),
+            get(),
+        )
+    }
     single { ProjectWorkflowPreferences(androidContext()) }
     single { GitHubBuildRepository(get(), get()) }
 

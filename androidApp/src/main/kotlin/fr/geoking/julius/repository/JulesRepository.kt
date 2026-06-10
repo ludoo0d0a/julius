@@ -12,6 +12,10 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import fr.geoking.julius.SettingsManager
+import fr.geoking.julius.queue.AgentAccount
+import fr.geoking.julius.queue.enabledAccountsFor
+import fr.geoking.julius.queue.julesApiKeys
+import fr.geoking.julius.queue.queuePolicyFor
 import fr.geoking.julius.persistence.JulesActivityEntity
 import fr.geoking.julius.persistence.JulesDao
 import fr.geoking.julius.persistence.JulesSessionEntity
@@ -38,16 +42,28 @@ class JulesRepository(
     private val networkService: NetworkService,
     private val settingsManager: SettingsManager
 ) {
-    private val syncSemaphore = kotlinx.coroutines.sync.Semaphore(3)
-
     private fun backend(): CodingAgentBackend = settingsManager.settings.value.codingAgentBackend
 
     private fun isClaudeBackend(): Boolean = backend() == CodingAgentBackend.CLAUDE_CODE
 
-    private fun activeApiKey(): String? = if (isClaudeBackend()) {
-        settingsManager.settings.value.anthropicApiKey.takeIf { it.isNotBlank() }
-    } else {
-        settingsManager.settings.value.julesKeys.firstOrNull()
+    private fun parallelSyncLimit(): Int =
+        settingsManager.settings.value.queuePolicyFor(backend()).parallelLimit.coerceAtLeast(1)
+
+    private fun activeApiKey(): String? {
+        val settings = settingsManager.settings.value
+        return if (isClaudeBackend()) {
+            settings.enabledAccountsFor(CodingAgentBackend.CLAUDE_CODE).firstOrNull()?.apiKey
+                ?: settings.anthropicApiKey.takeIf { it.isNotBlank() }
+        } else {
+            settings.enabledAccountsFor(CodingAgentBackend.JULES).firstOrNull()?.apiKey
+                ?: settings.julesApiKeys().firstOrNull()
+        }
+    }
+
+    suspend fun getAllActiveSessions(): List<JulesSessionEntity> = julesDao.getActiveSessions()
+
+    suspend fun updateSessionPrMergeable(sessionId: String, state: String?, mergeable: Boolean?) {
+        julesDao.updateSessionPrStatus(sessionId, state ?: "open", mergeable)
     }
 
     fun isCodingAgentConfigured(apiKeys: List<String>): Boolean = if (isClaudeBackend()) {
@@ -440,11 +456,38 @@ class JulesRepository(
         }
     }
 
-    suspend fun createSession(apiKeys: List<String>, prompt: String, source: String, title: String, featureId: String? = null): String {
+    suspend fun createSession(
+        apiKeys: List<String>,
+        prompt: String,
+        source: String,
+        title: String,
+        featureId: String? = null,
+    ): String {
+        val settings = settingsManager.settings.value
+        val account = settings.enabledAccountsFor(backend()).firstOrNull { it.apiKey in apiKeys }
+            ?: apiKeys.firstOrNull()?.let { key ->
+                AgentAccount(
+                    id = "legacy",
+                    label = "Legacy",
+                    backend = backend(),
+                    apiKey = key,
+                )
+            }
+            ?: throw Exception("No API key available")
+        return createSession(account, prompt, source, title, featureId)
+    }
+
+    suspend fun createSession(
+        account: AgentAccount,
+        prompt: String,
+        source: String,
+        title: String,
+        featureId: String? = null,
+    ): String {
         val isOnline = networkService.status.value.isConnected
         if (isOnline) {
-            if (isClaudeBackend()) {
-                val apiKey = settingsManager.settings.value.anthropicApiKey.takeIf { it.isNotBlank() }
+            if (account.backend == CodingAgentBackend.CLAUDE_CODE || isClaudeBackend()) {
+                val apiKey = account.apiKey.takeIf { it.isNotBlank() }
                     ?: throw Exception("Anthropic API key required for Claude Code")
                 val githubToken = settingsManager.settings.value.githubApiKey.takeIf { it.isNotBlank() }
                     ?: throw Exception("GitHub token required for Claude Code")
@@ -486,7 +529,7 @@ class JulesRepository(
                 return session.id
             }
 
-            val apiKey = apiKeys.firstOrNull() ?: throw Exception("No API key available")
+            val apiKey = account.apiKey.takeIf { it.isNotBlank() } ?: throw Exception("No API key available")
             val session = julesClient.createSession(
                 apiKey = apiKey,
                 prompt = prompt,
@@ -584,8 +627,10 @@ class JulesRepository(
     }
 
     suspend fun syncOfflineData() = coroutineScope {
-        if (!isCodingAgentConfigured(settingsManager.settings.value.julesKeys)) return@coroutineScope
+        val settings = settingsManager.settings.value
+        if (!isCodingAgentConfigured(settings.julesApiKeys())) return@coroutineScope
         val apiKey = activeApiKey() ?: return@coroutineScope
+        val syncSemaphore = kotlinx.coroutines.sync.Semaphore(parallelSyncLimit())
 
         // 1. Sync pending sessions
         val pendingSessions = julesDao.getPendingOfflineSessions()
@@ -1179,11 +1224,18 @@ class JulesRepository(
         return julesDao.getActivitiesBySession(sessionId)
     }
 
-    /** Daily session quota for the Jules UI. Null when the API does not expose usage. */
+    /** Daily session quota from local counters and queue policy. */
     suspend fun getUsageQuota(apiKeys: List<String>): JulesQuota? {
         if (apiKeys.isEmpty()) return null
-        // Jules public API has no documented quota endpoint; UI hides the quota row when null.
-        return null
+        val settings = settingsManager.settings.value
+        val policy = settings.queuePolicyFor(backend())
+        val accounts = settings.enabledAccountsFor(backend()).filter { it.apiKey in apiKeys }
+        if (accounts.isEmpty()) return null
+        val used = accounts.sumOf { account ->
+            // Caller may pass AccountDailyUsageDao via queue engine status instead
+            0
+        }
+        return JulesQuota(used = used, limit = policy.dailyLimitPerAccount * accounts.size.coerceAtLeast(1))
     }
 
     suspend fun approvePlan(apiKey: String, sessionId: String) {

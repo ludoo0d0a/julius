@@ -40,6 +40,7 @@ import fr.geoking.julius.shared.network.NetworkStatus
 import fr.geoking.julius.shared.voice.LocalTranscriber
 import fr.geoking.julius.shared.voice.NoLocalTranscriber
 import fr.geoking.julius.shared.voice.VoiceManager
+import fr.geoking.julius.queue.CodingAgentQueueEngine
 import fr.geoking.julius.ui.jules.JulesScreen
 import fr.geoking.julius.ui.HistoryScreen
 import fr.geoking.julius.ui.SettingsScreen
@@ -153,6 +154,7 @@ class MainActivity : ComponentActivity() {
             val julesRepository: JulesRepository = get()
             val buildRepository: GitHubBuildRepository = get()
             val featureRepository: fr.geoking.julius.repository.FeatureRepository = get()
+            val queueEngine: CodingAgentQueueEngine = get()
             val voiceManager: VoiceManager = get()
             val localTranscriber: LocalTranscriber = get()
             val conversationalAgent: ConversationalAgent = get()
@@ -177,6 +179,7 @@ class MainActivity : ComponentActivity() {
                 julesRepository = julesRepository,
                 buildRepository = buildRepository,
                 featureRepository = featureRepository,
+                queueEngine = queueEngine,
                 voiceManager = voiceManager,
                 localTranscriber = localTranscriber,
                 conversationalAgent = conversationalAgent,
@@ -202,6 +205,7 @@ class MainActivity : ComponentActivity() {
         julesRepository: JulesRepository,
         buildRepository: GitHubBuildRepository,
         featureRepository: fr.geoking.julius.repository.FeatureRepository,
+        queueEngine: CodingAgentQueueEngine,
         voiceManager: VoiceManager,
         localTranscriber: LocalTranscriber,
         conversationalAgent: ConversationalAgent,
@@ -218,6 +222,7 @@ class MainActivity : ComponentActivity() {
                     julesRepository = julesRepository,
                     buildRepository = buildRepository,
                     featureRepository = featureRepository,
+                    queueEngine = queueEngine,
                     voiceManager = voiceManager,
                     localTranscriber = localTranscriber,
                     conversationalAgent = conversationalAgent,
@@ -253,6 +258,7 @@ private fun MainActivityComposeRoot(
     julesRepository: JulesRepository,
     buildRepository: GitHubBuildRepository,
     featureRepository: fr.geoking.julius.repository.FeatureRepository,
+    queueEngine: CodingAgentQueueEngine,
     voiceManager: VoiceManager,
     localTranscriber: LocalTranscriber,
     conversationalAgent: ConversationalAgent,
@@ -289,6 +295,7 @@ private fun MainActivityComposeRoot(
         julesRepository = julesRepository,
         buildRepository = buildRepository,
         featureRepository = featureRepository,
+        queueEngine = queueEngine,
         voiceManager = voiceManager,
         localTranscriber = localTranscriber,
         conversationalAgent = conversationalAgent,
@@ -311,6 +318,7 @@ fun MainUI(
     julesRepository: JulesRepository,
     buildRepository: GitHubBuildRepository,
     featureRepository: fr.geoking.julius.repository.FeatureRepository,
+    queueEngine: CodingAgentQueueEngine,
     voiceManager: VoiceManager,
     localTranscriber: LocalTranscriber,
     conversationalAgent: ConversationalAgent,
@@ -337,9 +345,8 @@ fun MainUI(
         }
     }
 
-    var showJules by remember { mutableStateOf(false) }
-    var julesInitialSession by remember { mutableStateOf<JulesSessionEntity?>(null) }
-    var showFeatures by remember { mutableStateOf(false) }
+    var showHarness by remember { mutableStateOf(false) }
+    var harnessInitialSession by remember { mutableStateOf<JulesSessionEntity?>(null) }
     var showFavorites by remember { mutableStateOf(false) }
     val settings by settingsManager.settings.collectAsState()
     val llamatikModelHelper = remember(context) { LlamatikModelHelper(context.applicationContext) }
@@ -378,11 +385,11 @@ fun MainUI(
                         onInitialRouteConsumed = { settingsInitialStack = null }
                     )
                 }
-                showJules -> {
+                showHarness -> {
                     JulesScreen(
                         onBack = {
-                            showJules = false
-                            julesInitialSession = null
+                            showHarness = false
+                            harnessInitialSession = null
                         },
                         julesClient = julesClient,
                         julesRepository = julesRepository,
@@ -390,22 +397,9 @@ fun MainUI(
                         settingsManager = settingsManager,
                         voiceManager = voiceManager,
                         buildRepository = buildRepository,
-                        initialSession = julesInitialSession
-                    )
-                }
-                showFeatures -> {
-                    fr.geoking.julius.ui.FeaturesScreen(
-                        onBack = { showFeatures = false },
-                        featureRepository = featureRepository,
-                        julesRepository = julesRepository,
-                        julesClient = julesClient,
-                        settingsManager = settingsManager,
-                        onOpenConversation = { session ->
-                            // Open Jules screen for this session
-                            julesInitialSession = session
-                            showFeatures = false
-                            showJules = true
-                        }
+                        queueEngine = queueEngine,
+                        initialSession = harnessInitialSession,
+                        startAtQueueDashboard = harnessInitialSession == null,
                     )
                 }
                 showHistory -> {
@@ -432,8 +426,8 @@ fun MainUI(
                             showSettings = true
                         },
                         onHistoryClick = { showHistory = true },
-                        onJulesClick = { showJules = true },
-                        onFeaturesClick = { showFeatures = true },
+                        onJulesClick = { showHarness = true },
+                        onFeaturesClick = { showHarness = true },
                         onVoskTestClick = { showVoskTest = true },
                         setupIssue = setupIssue,
                         onOpenAgentSettings = {
@@ -518,15 +512,8 @@ fun MainUIPreview() {
         lastError = null
     )
     val mockStore = rememberMockStore()
-        val mockAuthManager = GoogleAuthManager(context, mockSettingsManager, { mockStore }, FirebaseAuth.getInstance())
-
-    MainUI(
-        state = mockState,
-        store = mockStore,
-        settingsManager = mockSettingsManager,
-        authManager = mockAuthManager,
-        julesClient = remember { JulesClient(HttpClient(OkHttp) {}) },
-        julesRepository = remember {
+    val mockAuthManager = GoogleAuthManager(context, mockSettingsManager, { mockStore }, FirebaseAuth.getInstance())
+    val previewJulesRepository = remember {
             val jClient = JulesClient(HttpClient(OkHttp) {})
             JulesRepository(
                 context,
@@ -548,6 +535,7 @@ fun MainUIPreview() {
                     override suspend fun updateSessionLastUpdated(sessionId: String, lastUpdated: Long) {}
                     override suspend fun updateSessionFeature(sessionId: String, featureId: String?) {}
                     override suspend fun getSessionsByFeature(featureId: String): List<JulesSessionEntity> = emptyList()
+                    override suspend fun getActiveSessions(): List<JulesSessionEntity> = emptyList()
                     override suspend fun getPendingOfflineSessions(): List<JulesSessionEntity> = emptyList()
                     override suspend fun getPendingOfflineActivities(): List<JulesActivityEntity> = emptyList()
                     override suspend fun deleteSession(sessionId: String) {}
@@ -565,69 +553,48 @@ fun MainUIPreview() {
                 },
                 mockSettingsManager
             )
-        },
-        featureRepository = remember {
-            val jClient = JulesClient(HttpClient(OkHttp) {})
-            val jRepo = JulesRepository(
-                context,
-                jClient,
-                ClaudeCodeClient(HttpClient(OkHttp) {}),
-                GitHubClient(HttpClient(OkHttp) {}),
-                object : JulesDao {
-                    override suspend fun insertSessions(sessions: List<JulesSessionEntity>) {}
-                    override suspend fun getSessionsBySource(sourceName: String): List<JulesSessionEntity> = emptyList()
-                    override suspend fun getCompletedSessions(sourceName: String): List<JulesSessionEntity> = emptyList()
-                    override suspend fun getAllCompletedSessions(): List<JulesSessionEntity> = emptyList()
-                    override suspend fun getSessionsBySourceAndKey(sourceName: String, apiKey: String): List<JulesSessionEntity> = emptyList()
-                    override suspend fun getSession(sessionId: String): JulesSessionEntity? = null
-                    override suspend fun archiveSession(sessionId: String) {}
-                    override suspend fun archiveSessions(sessionIds: List<String>) {}
-                    override suspend fun updateSessionPrStatus(sessionId: String, state: String, mergeable: Boolean?) {}
-                    override suspend fun updateSessionGitHubDetails(sessionId: String, branch: String?, repo: String?) {}
-                    override suspend fun updateSessionState(sessionId: String, state: String?) {}
-                    override suspend fun updateSessionLastUpdated(sessionId: String, lastUpdated: Long) {}
-                    override suspend fun updateSessionFeature(sessionId: String, featureId: String?) {}
-                    override suspend fun getSessionsByFeature(featureId: String): List<JulesSessionEntity> = emptyList()
-                    override suspend fun getPendingOfflineSessions(): List<JulesSessionEntity> = emptyList()
-                    override suspend fun getPendingOfflineActivities(): List<JulesActivityEntity> = emptyList()
-                    override suspend fun deleteSession(sessionId: String) {}
-                    override suspend fun updateActivitiesSessionId(oldSessionId: String, newSessionId: String) {}
-                    override suspend fun insertActivities(activities: List<JulesActivityEntity>) {}
-                    override suspend fun getActivitiesBySession(sessionId: String): List<JulesActivityEntity> = emptyList()
-                    override suspend fun clearActivitiesBySession(sessionId: String) {}
-                    override suspend fun insertSources(sources: List<JulesSourceEntity>) {}
-                    override suspend fun getSources(): List<JulesSourceEntity> = emptyList()
-                    override suspend fun clearSources() {}
-                },
-                object : NetworkService {
-                    override val status = MutableStateFlow(NetworkStatus())
-                    override suspend fun getCurrentStatus() = status.value
-                },
-                mockSettingsManager
-            )
-            fr.geoking.julius.repository.FeatureRepository(
-                context,
-                object : fr.geoking.julius.persistence.FeatureDao {
-                    override fun getAllFeaturesFlow(): kotlinx.coroutines.flow.Flow<List<fr.geoking.julius.persistence.FeatureEntity>> = kotlinx.coroutines.flow.flowOf(emptyList())
-                    override suspend fun getFeature(id: String): fr.geoking.julius.persistence.FeatureEntity? = null
-                    override suspend fun insertFeature(feature: fr.geoking.julius.persistence.FeatureEntity) {}
-                    override suspend fun updateFeature(feature: fr.geoking.julius.persistence.FeatureEntity) {}
-                    override suspend fun deleteFeature(id: String) {}
-                    override suspend fun getMaxPosition(): Int? = null
-                    override suspend fun getNextPendingFeature(): fr.geoking.julius.persistence.FeatureEntity? = null
-                    override suspend fun getActiveFeaturesCount(): Int = 0
-                    override suspend fun getActiveFeatures(): List<fr.geoking.julius.persistence.FeatureEntity> = emptyList()
-                    override suspend fun getRecentlyStartedFeaturesCount(since: Long): Int = 0
-                },
-                jRepo
-            )
-        },
-        buildRepository = remember {
-            GitHubBuildRepository(
-                GitHubClient(HttpClient(OkHttp) {}),
-                ProjectWorkflowPreferences(context)
-            )
-        },
+    }
+    val previewFeatureDao = remember {
+        object : fr.geoking.julius.persistence.FeatureDao {
+            override fun getAllFeaturesFlow(): kotlinx.coroutines.flow.Flow<List<fr.geoking.julius.persistence.FeatureEntity>> =
+                kotlinx.coroutines.flow.flowOf(emptyList())
+            override suspend fun getFeature(id: String): fr.geoking.julius.persistence.FeatureEntity? = null
+            override suspend fun insertFeature(feature: fr.geoking.julius.persistence.FeatureEntity) {}
+            override suspend fun updateFeature(feature: fr.geoking.julius.persistence.FeatureEntity) {}
+            override suspend fun deleteFeature(id: String) {}
+            override suspend fun getMaxPosition(): Int? = null
+            override suspend fun getNextPendingFeature(): fr.geoking.julius.persistence.FeatureEntity? = null
+            override suspend fun getActiveFeaturesCount(): Int = 0
+            override suspend fun getActiveFeatures(): List<fr.geoking.julius.persistence.FeatureEntity> = emptyList()
+            override suspend fun getRecentlyStartedFeaturesCount(since: Long): Int = 0
+            override suspend fun getPendingFeaturesCount(): Int = 0
+            override suspend fun getQueuedOrInProgressCount(): Int = 0
+        }
+    }
+    val previewFeatureRepository = remember {
+        fr.geoking.julius.repository.FeatureRepository(context, previewFeatureDao, previewJulesRepository)
+    }
+    val previewBuildRepository = remember {
+        GitHubBuildRepository(GitHubClient(HttpClient(OkHttp) {}), ProjectWorkflowPreferences(context))
+    }
+    val previewQueueEngine = rememberPreviewQueueEngine(
+        context = context,
+        settingsManager = mockSettingsManager,
+        julesRepository = previewJulesRepository,
+        featureRepository = previewFeatureRepository,
+        featureDao = previewFeatureDao,
+        buildRepository = previewBuildRepository,
+    )
+
+    MainUI(
+        state = mockState,
+        store = mockStore,
+        settingsManager = mockSettingsManager,
+        authManager = mockAuthManager,
+        julesClient = remember { JulesClient(HttpClient(OkHttp) {}) },
+        julesRepository = previewJulesRepository,
+        featureRepository = previewFeatureRepository,
+        buildRepository = previewBuildRepository,
         voiceManager = mockStore.voiceManager,
         localTranscriber = NoLocalTranscriber,
         conversationalAgent = remember {
@@ -641,7 +608,41 @@ fun MainUIPreview() {
                 override val status = MutableStateFlow(NetworkStatus())
                 override suspend fun getCurrentStatus() = status.value
             }
-        }
+        },
+        queueEngine = previewQueueEngine,
+    )
+}
+
+@Composable
+private fun rememberPreviewQueueEngine(
+    context: android.content.Context,
+    settingsManager: SettingsManager,
+    julesRepository: JulesRepository,
+    featureRepository: fr.geoking.julius.repository.FeatureRepository,
+    featureDao: fr.geoking.julius.persistence.FeatureDao,
+    buildRepository: GitHubBuildRepository,
+): CodingAgentQueueEngine = remember(
+    settingsManager,
+    julesRepository,
+    featureRepository,
+    featureDao,
+    buildRepository,
+) {
+    val usageDao = object : fr.geoking.julius.persistence.AccountDailyUsageDao {
+        override suspend fun getUsage(accountId: String, dayEpoch: Long) = null
+        override suspend fun getAllForDay(dayEpoch: Long) =
+            emptyList<fr.geoking.julius.persistence.AccountDailyUsageEntity>()
+        override suspend fun upsert(entity: fr.geoking.julius.persistence.AccountDailyUsageEntity) {}
+    }
+    val ghClient = GitHubClient(HttpClient(OkHttp) {})
+    CodingAgentQueueEngine(
+        settingsManager,
+        featureDao,
+        usageDao,
+        featureRepository,
+        julesRepository,
+        fr.geoking.julius.queue.AccountAllocator(),
+        fr.geoking.julius.queue.FeatureGitHubLifecycle(julesRepository, buildRepository, ghClient),
     )
 }
 

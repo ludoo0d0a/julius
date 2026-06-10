@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/ludoo0d0a/julius
 
-Julius is a **Kotlin Multiplatform (KMP)** application designed to provide a seamless voice assistant experience on **Android** and **Android Auto**.
+Julius is a **Kotlin Multiplatform (KMP)** application designed to provide a seamless voice assistant experience on **Android** and **Android Auto**. It also includes a **coding harness** to build features via Jules or Claude Code (queue, multi-account limits, PR/CI lifecycle). See [docs/HARNESS.md](docs/HARNESS.md).
 
 ## Project Structure
 

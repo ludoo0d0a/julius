@@ -7,6 +7,7 @@ import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.persistence.FeatureEntity
+import fr.geoking.julius.queue.CodingAgentQueueEngine
 import fr.geoking.julius.repository.FeatureRepository
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.conversation.ConversationStore
@@ -29,11 +30,22 @@ class AutoJulesFeatureScreen(
 ) : Screen(carContext), KoinComponent {
 
     private val featureRepository: FeatureRepository by inject()
+    private val queueEngine: CodingAgentQueueEngine by inject()
     private var features: List<FeatureEntity> = emptyList()
     private var loading: Boolean = true
+    private var queueSummary: String = ""
 
     init {
         loadFeatures()
+        lifecycleScope.launch {
+            queueEngine.status.collectLatest { status ->
+                queueSummary = when {
+                    status.paused -> "Queue paused"
+                    else -> "Queue ${status.activeCount}/${status.parallelLimit} · ${status.pendingCount} pending"
+                }
+                invalidate()
+            }
+        }
     }
 
     private fun loadFeatures() {
@@ -55,6 +67,14 @@ class AutoJulesFeatureScreen(
         }
 
         val listBuilder = ItemList.Builder()
+
+        if (queueSummary.isNotBlank()) {
+            listBuilder.addItem(
+                Row.Builder()
+                    .setTitle(queueSummary)
+                    .build(),
+            )
+        }
 
         // "Unlinked conversations" row (All others)
         listBuilder.addItem(

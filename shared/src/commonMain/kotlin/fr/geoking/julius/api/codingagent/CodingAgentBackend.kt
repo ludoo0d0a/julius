@@ -1,10 +1,13 @@
 package fr.geoking.julius.api.codingagent
 
+import kotlinx.serialization.Serializable
+
 /**
  * Remote coding agent provider for the Jules screen.
  * - [JULES]: Google Jules API (jules.google.com)
  * - [CLAUDE_CODE]: Anthropic Claude Managed Agents API (cloud GitHub workflow)
  */
+@Serializable
 enum class CodingAgentBackend {
     JULES,
     CLAUDE_CODE;
