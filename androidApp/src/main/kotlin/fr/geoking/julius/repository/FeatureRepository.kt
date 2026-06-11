@@ -55,13 +55,22 @@ class FeatureRepository(
 
     suspend fun startFeature(featureId: String, account: AgentAccount): String {
         val feature = featureDao.getFeature(featureId) ?: throw Exception("Feature not found")
+        return startFeatureInternal(feature, account, feature.description)
+    }
+
+    suspend fun startFeatureWithTitle(featureId: String, account: AgentAccount): String {
+        val feature = featureDao.getFeature(featureId) ?: throw Exception("Feature not found")
+        return startFeatureInternal(feature, account, feature.title)
+    }
+
+    private suspend fun startFeatureInternal(feature: FeatureEntity, account: AgentAccount, prompt: String): String {
         val now = System.currentTimeMillis()
         val sessionId = julesRepository.createSession(
             account = account,
-            prompt = feature.description,
+            prompt = prompt,
             source = feature.sourceName,
             title = feature.title,
-            featureId = featureId,
+            featureId = feature.id,
         )
         featureDao.updateFeature(
             feature.copy(

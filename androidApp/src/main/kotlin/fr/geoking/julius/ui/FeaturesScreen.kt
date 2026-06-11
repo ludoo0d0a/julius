@@ -524,6 +524,19 @@ fun FeatureDetailContent(
             }
 
             FeatureActionBar(
+                onStartFeature = {
+                    scope.launch {
+                        try {
+                            val account = settings.enabledAccountsFor(settings.codingAgentBackend).firstOrNull()
+                                ?: return@launch
+                            val sessionId = featureRepository.startFeatureWithTitle(feature.id, account)
+                            val session = julesRepository.getSession(sessionId)
+                            if (session != null) onOpenConversation(session)
+                        } catch (e: Exception) {
+                            // Show error
+                        }
+                    }
+                },
                 onArchiveCompleted = {
                     val completed = sessions.filter { it.isFinished }
                     scope.launch {
@@ -591,6 +604,7 @@ fun FeatureDetailContent(
 
 @Composable
 fun FeatureActionBar(
+    onStartFeature: () -> Unit = {},
     onArchiveCompleted: () -> Unit,
     onReplayPrompts: () -> Unit = {},
     onFinishFeature: () -> Unit = {},
@@ -609,6 +623,28 @@ fun FeatureActionBar(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Start Button
+        Surface(
+            modifier = Modifier.clickable(onClick = onStartFeature),
+            color = ColorHelper.JulesAccent.copy(alpha = 0.1f),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, ColorHelper.JulesAccent.copy(alpha = 0.3f))
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = ColorHelper.JulesAccent, modifier = Modifier.size(16.dp))
+                Text(
+                    "Start",
+                    color = ColorHelper.JulesAccent,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
         // Archive Button
         Surface(
             modifier = Modifier.clickable(onClick = onArchiveCompleted),
