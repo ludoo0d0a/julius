@@ -1,10 +1,15 @@
 package fr.geoking.julius.designassistant
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
 import fr.geoking.julius.designassistant.components.DesignAssistantTheme
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.designassistant.v1.DesignAssistantV1Host
+import fr.geoking.julius.designassistant.v3.DesignAssistantV3Host
 import fr.geoking.julius.repository.FeatureRepository
 import fr.geoking.julius.repository.GitHubBuildRepository
 import fr.geoking.julius.repository.JulesRepository
@@ -21,14 +26,26 @@ fun DesignAssistantHost(
     settingsManager: SettingsManager? = null,
     buildRepository: GitHubBuildRepository? = null,
 ) {
-    DesignAssistantTheme {
-        DesignAssistantV1Host(
+    var version by remember { mutableStateOf(3) } // Par défaut sur Jarvis (V3) pour les screenshots
+
+    if (version == 3) {
+        DesignAssistantV3Host(
             onBack = onBack,
             julesRepository = julesRepository,
             featureRepository = featureRepository,
             settingsManager = settingsManager,
             buildRepository = buildRepository,
         )
+    } else {
+        DesignAssistantTheme {
+            DesignAssistantV1Host(
+                onBack = onBack,
+                julesRepository = julesRepository,
+                featureRepository = featureRepository,
+                settingsManager = settingsManager,
+                buildRepository = buildRepository,
+            )
+        }
     }
 }
 
