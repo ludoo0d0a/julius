@@ -703,6 +703,11 @@ fun JulesScreen(
                                     selectedFeatureTitle = title
                                     nav.push(HarnessRoute.Conversations(route.sourceName, featureId, title))
                                 },
+                                onMoveFeature = { reordered ->
+                                    scope.launch {
+                                        featureRepository.updatePositions(reordered)
+                                    }
+                                },
                             )
                         }
                         is HarnessRoute.EditFeature -> Text("Edit feature", color = Color.White, modifier = Modifier.padding(16.dp))

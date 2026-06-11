@@ -48,9 +48,11 @@ class FeatureRepository(
     }
 
     suspend fun updatePositions(features: List<FeatureEntity>) {
-        features.forEachIndexed { index, feature ->
-            featureDao.updateFeature(feature.copy(position = index, updatedAt = System.currentTimeMillis()))
+        val now = System.currentTimeMillis()
+        val updated = features.mapIndexed { index, feature ->
+            feature.copy(position = index, updatedAt = now)
         }
+        featureDao.updateFeatures(updated)
     }
 
     suspend fun startFeature(featureId: String, account: AgentAccount): String {

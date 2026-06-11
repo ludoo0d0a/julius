@@ -21,6 +21,9 @@ interface FeatureDao {
     @Update
     suspend fun updateFeature(feature: FeatureEntity)
 
+    @Update
+    suspend fun updateFeatures(features: List<FeatureEntity>)
+
     @Query("DELETE FROM features WHERE id = :id")
     suspend fun deleteFeature(id: String)
 
