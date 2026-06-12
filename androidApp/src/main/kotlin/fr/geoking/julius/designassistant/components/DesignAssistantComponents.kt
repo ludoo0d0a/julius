@@ -26,17 +26,7 @@ import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.AccountTree
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import fr.geoking.julius.designassistant.DesignAssistantColors
 import fr.geoking.julius.designassistant.FeatureStatus
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DesignAssistantNavyHeader(
     modifier: Modifier = Modifier,
@@ -63,25 +54,34 @@ fun DesignAssistantNavyHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(DesignAssistantColors.Navy)
-            .padding(horizontal = 4.dp, vertical = 8.dp),
+            .background(DesignAssistantColors.Navy),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (onBack != null) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour", tint = Color.White)
+        TopAppBar(
+            title = {
+                Column {
+                    Text(title, color = Color.White, fontSize = 18.sp)
+                    subtitle?.let {
+                        Text(it, color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp)
+                    }
                 }
-            } else {
-                Spacer(Modifier.width(48.dp))
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                subtitle?.let {
-                    Text(it, color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp)
+            },
+            navigationIcon = {
+                if (onBack != null) {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour", tint = Color.White)
+                    }
                 }
-            }
-            trailing?.invoke()
-        }
+            },
+            actions = {
+                trailing?.invoke()
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color.Transparent,
+                titleContentColor = Color.White,
+                navigationIconContentColor = Color.White,
+                actionIconContentColor = Color.White
+            )
+        )
         content?.invoke()
     }
 }

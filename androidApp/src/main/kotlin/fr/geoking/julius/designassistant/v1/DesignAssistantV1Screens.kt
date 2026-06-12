@@ -29,15 +29,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -405,6 +397,7 @@ fun V1SessionsScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun V1ChatScreen(
     projectName: String,
@@ -413,20 +406,28 @@ fun V1ChatScreen(
     onBack: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().background(Color.White)) {
-        Row(
-            Modifier.fillMaxWidth().padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour", tint = DesignAssistantColors.Navy)
-            }
-            JulesAvatar()
-            Spacer(Modifier.padding(horizontal = 8.dp))
-            Column {
-                Text("Jules | AI Assistant", fontWeight = FontWeight.Bold, color = DesignAssistantColors.Navy)
-                Text("$projectName › ${feature.name}", fontSize = 11.sp, color = DesignAssistantColors.TextSecondary)
-            }
-        }
+        TopAppBar(
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    JulesAvatar()
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text("Jules | AI Assistant", color = DesignAssistantColors.Navy, fontSize = 16.sp)
+                        Text("$projectName › ${feature.name}", fontSize = 11.sp, color = DesignAssistantColors.TextSecondary)
+                    }
+                }
+            },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour", tint = DesignAssistantColors.Navy)
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color.White,
+                titleContentColor = DesignAssistantColors.Navy,
+                navigationIconContentColor = DesignAssistantColors.Navy
+            )
+        )
         LazyColumn(
             modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
