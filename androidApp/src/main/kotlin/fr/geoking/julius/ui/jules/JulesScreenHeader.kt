@@ -12,10 +12,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.automirrored.filled.Rule
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -40,6 +38,11 @@ internal fun JulesScreenHeader(
     onTogglePause: (JulesSessionEntity) -> Unit,
     onOpenInWeb: (String) -> Unit,
     onShowActivities: (JulesSessionEntity) -> Unit,
+    onArchive: (JulesSessionEntity) -> Unit = {},
+    onDelete: (JulesSessionEntity) -> Unit = {},
+    onMerge: (JulesSessionEntity) -> Unit = {},
+    onFixConflicts: (JulesSessionEntity) -> Unit = {},
+    onRetry: (JulesSessionEntity) -> Unit = {},
 ) {
     Row(
         modifier = Modifier
@@ -102,6 +105,36 @@ internal fun JulesScreenHeader(
                     )
                 }
             }
+
+            // Retry
+            IconButton(onClick = { onRetry(session) }) {
+                Icon(Icons.Default.Refresh, contentDescription = "Retry", tint = Color.White)
+            }
+
+            // Fix Conflicts
+            if (session.prUrl != null && session.prState == "open" && session.prMergeable == false) {
+                IconButton(onClick = { onFixConflicts(session) }) {
+                    Icon(Icons.AutoMirrored.Filled.Rule, contentDescription = "Fix Conflicts", tint = Color.White)
+                }
+            }
+
+            // Merge
+            if (session.prUrl != null && session.prState == "open" && session.prMergeable == true) {
+                IconButton(onClick = { onMerge(session) }) {
+                    Icon(Icons.Default.Merge, contentDescription = "Merge PR", tint = Color.White)
+                }
+            }
+
+            // Archive
+            IconButton(onClick = { onArchive(session) }) {
+                Icon(Icons.Default.Archive, contentDescription = "Archive", tint = Color.White)
+            }
+
+            // Delete
+            IconButton(onClick = { onDelete(session) }) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+            }
+
             session.url?.takeIf { it.isNotBlank() }?.let { url ->
                 IconButton(onClick = { onOpenInWeb(url) }) {
                     Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open in web", tint = Color.White)
