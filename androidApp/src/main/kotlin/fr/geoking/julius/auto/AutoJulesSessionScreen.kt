@@ -45,9 +45,11 @@ class AutoJulesSessionScreen(
             try {
                 julesRepository.getSessions(apiKeys, sourceId, githubToken).collectLatest { list ->
                     sessions = list.filter {
-                        if (featureId != null) it.featureId == featureId
-                        else if (featureTitle == "Hors feature") it.featureId == null
-                        else true
+                        when {
+                            featureId == null -> true
+                            featureId.startsWith("session_") -> it.id == featureId.removePrefix("session_")
+                            else -> it.featureId == featureId
+                        }
                     }
                     loading = false
                     invalidate()

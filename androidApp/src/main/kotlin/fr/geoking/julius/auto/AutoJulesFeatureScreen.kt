@@ -76,29 +76,6 @@ class AutoJulesFeatureScreen(
             )
         }
 
-        // "Unlinked conversations" row (All others)
-        listBuilder.addItem(
-            Row.Builder()
-                .setTitle("Conversations non liées")
-                .addText("Voir les conversations sans feature")
-                .setOnClickListener {
-                    screenManager.push(
-                        AutoJulesSessionScreen(
-                            carContext,
-                            store,
-                            settingsManager,
-                            julesClient,
-                            julesRepository,
-                            sourceId = sourceId,
-                            sourceDisplayName = sourceDisplayName,
-                            featureId = null,
-                            featureTitle = "Hors feature"
-                        )
-                    )
-                }
-                .build()
-        )
-
         features.forEach { feature ->
             val statusLabel = when (feature.status) {
                 "IN_PROGRESS" -> "En cours"
