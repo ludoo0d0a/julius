@@ -50,7 +50,6 @@ internal fun JulesFeaturesContent(
     sessions: List<JulesSessionEntity>,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
-    onOpenGitDetails: () -> Unit,
     onSelectFeature: (featureId: String, title: String) -> Unit,
     onMoveFeature: (List<FeatureEntity>) -> Unit,
     onCreateFeature: (title: String) -> Unit,
@@ -129,25 +128,6 @@ internal fun JulesFeaturesContent(
                 )
             }
 
-            item(key = "git_details") {
-                ListItem(
-                    headlineContent = { Text("Git & CI") },
-                    supportingContent = { Text("Workflow runs, deploy status", fontSize = 12.sp) },
-                    trailingContent = {
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
-                    },
-                    leadingContent = {
-                        Icon(Icons.Default.Build, contentDescription = null, tint = Color.White.copy(alpha = 0.7f))
-                    },
-                    modifier = Modifier.clickable(onClick = onOpenGitDetails),
-                    colors = ListItemDefaults.colors(
-                        containerColor = Color.Transparent,
-                        headlineColor = Color.White,
-                        supportingColor = Color.White.copy(alpha = 0.6f),
-                    ),
-                )
-                HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
-            }
 
             item(key = JulesNavigation.ORPHAN_FEATURE_ID) {
                 FeatureRow(

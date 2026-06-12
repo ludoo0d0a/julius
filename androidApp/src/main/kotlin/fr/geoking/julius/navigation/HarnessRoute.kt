@@ -10,7 +10,6 @@ sealed class HarnessRoute {
         val featureTitle: String,
     ) : HarnessRoute()
     data class Chat(val sessionId: String) : HarnessRoute()
-    data class GitCi(val sourceName: String, val owner: String, val repo: String) : HarnessRoute()
     data class PrConflict(val sessionId: String) : HarnessRoute()
     data class ActivitiesDebug(val sessionId: String, val activitiesJson: String) : HarnessRoute()
     data class AddFeature(val sourceName: String? = null) : HarnessRoute()

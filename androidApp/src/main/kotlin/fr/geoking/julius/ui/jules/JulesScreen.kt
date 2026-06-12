@@ -235,7 +235,6 @@ fun JulesScreen(
             }
             is HarnessRoute.PrConflict, is HarnessRoute.ActivitiesDebug -> { nav.pop() }
             is HarnessRoute.AddFeature, is HarnessRoute.EditFeature -> { nav.pop() }
-            is HarnessRoute.GitCi -> { nav.pop() }
             is HarnessRoute.Conversations -> {
                 selectedFeatureId = null
                 selectedFeatureTitle = ""
@@ -325,7 +324,6 @@ fun JulesScreen(
 
     val headerTitle = when (val route = nav.current) {
         is HarnessRoute.Chat -> currentSession?.title ?: ""
-        is HarnessRoute.GitCi -> "Git & CI"
         is HarnessRoute.Conversations -> selectedFeatureTitle
         is HarnessRoute.Features -> selectedSourceDisplayName
         is HarnessRoute.QueueDashboard -> "Harness Queue"
@@ -338,7 +336,6 @@ fun JulesScreen(
         is HarnessRoute.Chat -> null
         is HarnessRoute.Conversations -> selectedSourceDisplayName
         is HarnessRoute.Features -> "Features"
-        is HarnessRoute.GitCi -> selectedSourceDisplayName
         else -> null
     }
     val selectedSource = sources.find { it.name == selectedSourceName }
@@ -672,17 +669,6 @@ fun JulesScreen(
                                 onHideCompletedChange = { hideCompleted = it },
                             )
                         }
-                        is HarnessRoute.GitCi -> {
-                            selectedSourceName = route.sourceName
-                            JulesGitDetailsContent(
-                                githubToken = githubToken,
-                                githubOwner = githubOwner,
-                                githubRepo = githubRepo,
-                                buildRepository = buildRepository,
-                                isRefreshing = refreshingSessions,
-                                onRefresh = { loadSessions(isRefresh = true) },
-                            )
-                        }
                         is HarnessRoute.Features -> {
                             selectedSourceName = route.sourceName
                             selectedSourceDisplayName = route.displayName
@@ -693,11 +679,6 @@ fun JulesScreen(
                                 sessions = sessions,
                                 isRefreshing = refreshingSessions,
                                 onRefresh = { loadSessions(isRefresh = true) },
-                                onOpenGitDetails = {
-                                    val owner = githubOwner ?: return@JulesFeaturesContent
-                                    val repo = githubRepo ?: return@JulesFeaturesContent
-                                    nav.push(HarnessRoute.GitCi(route.sourceName, owner, repo))
-                                },
                                 onSelectFeature = { featureId, title ->
                                     selectedFeatureId = featureId
                                     selectedFeatureTitle = title

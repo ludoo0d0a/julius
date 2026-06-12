@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -45,6 +46,8 @@ import kotlinx.coroutines.launch
 import fr.geoking.julius.BuildConfig
 import fr.geoking.julius.feature.auth.GoogleAuthManager
 import fr.geoking.julius.*
+import fr.geoking.julius.repository.JulesRepository
+import fr.geoking.julius.repository.GitHubBuildRepository
 import fr.geoking.julius.agents.LlamatikModelHelper
 import fr.geoking.julius.agents.LlamatikModelVariant
 import fr.geoking.julius.feature.voice.VoskModelHelper
@@ -56,7 +59,7 @@ import fr.geoking.julius.queue.QueueStatus
 import java.util.UUID
 import fr.geoking.julius.shared.voice.SttEnginePreference
 
-enum class SettingsScreenPage { Main, ApiKeys, Agents, AgentDetails, GitHub, Jules }
+enum class SettingsScreenPage { Main, ApiKeys, Agents, AgentDetails, GitHub, Jules, GitCi }
 
 /** Tab index for [AgentsPage]: 0 = all, 1 = remote, 2 = local (on-device). */
 private const val AGENTS_FILTER_ALL = 0
@@ -68,6 +71,8 @@ private const val AGENTS_FILTER_LOCAL = 2
 fun SettingsScreen(
     settingsManager: SettingsManager,
     authManager: GoogleAuthManager,
+    julesRepository: JulesRepository,
+    buildRepository: GitHubBuildRepository,
     errorLog: List<Any>,
     onDismiss: () -> Unit,
     initialScreenStack: List<SettingsScreenPage>? = null,
@@ -113,29 +118,32 @@ fun SettingsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        when (currentPage) {
-                            SettingsScreenPage.Main -> "Settings"
-                            SettingsScreenPage.ApiKeys -> "API keys"
-                            SettingsScreenPage.Agents -> when (agentsFilterMode) {
-                                AGENTS_FILTER_REMOTE -> "Remote agents"
-                                AGENTS_FILTER_LOCAL -> "Local agents"
-                                else -> "Agents"
+            if (currentPage != SettingsScreenPage.GitCi) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            when (currentPage) {
+                                SettingsScreenPage.Main -> "Settings"
+                                SettingsScreenPage.ApiKeys -> "API keys"
+                                SettingsScreenPage.Agents -> when (agentsFilterMode) {
+                                    AGENTS_FILTER_REMOTE -> "Remote agents"
+                                    AGENTS_FILTER_LOCAL -> "Local agents"
+                                    else -> "Agents"
+                                }
+                                SettingsScreenPage.AgentDetails -> selectedAgentForDetails?.name ?: "Agent Settings"
+                                SettingsScreenPage.GitHub -> "GitHub"
+                                SettingsScreenPage.Jules -> "Coding agent"
+                                SettingsScreenPage.GitCi -> "Git & CI"
                             }
-                            SettingsScreenPage.AgentDetails -> selectedAgentForDetails?.name ?: "Agent Settings"
-                            SettingsScreenPage.GitHub -> "GitHub"
-                            SettingsScreenPage.Jules -> "Coding agent"
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { goBack() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { goBack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
-            )
+                )
+            }
         }
     ) { padding ->
         Surface(
@@ -149,6 +157,10 @@ fun SettingsScreen(
                     authManager = authManager,
                     onNavigateToApiKeys = {
                         navigationStack.add(SettingsScreenPage.ApiKeys)
+                        @Suppress("UNUSED_EXPRESSION") Unit
+                    },
+                    onNavigateToGitCi = {
+                        navigationStack.add(SettingsScreenPage.GitCi)
                         @Suppress("UNUSED_EXPRESSION") Unit
                     }
                 )
@@ -241,6 +253,71 @@ fun SettingsScreen(
                         )
                     }
                 }
+                SettingsScreenPage.GitCi -> {
+                    GitCiPage(
+                        settings = settings,
+                        julesRepository = julesRepository,
+                        buildRepository = buildRepository,
+                        onBack = { goBack() }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun GitCiPage(
+    settings: AppSettings,
+    julesRepository: JulesRepository,
+    buildRepository: GitHubBuildRepository,
+    onBack: () -> Unit
+) {
+    var owner by remember { mutableStateOf<String?>(null) }
+    var repo by remember { mutableStateOf<String?>(null) }
+    var loading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(settings.lastJulesRepoId) {
+        loading = true
+        val sources = julesRepository.getSourcesCached()
+        val source = sources.find { it.name == settings.lastJulesRepoId }
+        owner = source?.githubRepo?.owner?.takeIf { it.isNotBlank() }
+        repo = source?.githubRepo?.repo?.takeIf { it.isNotBlank() }
+        loading = false
+    }
+
+    if (loading) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = ColorHelper.JulesAccent)
+        }
+    } else if (owner != null && repo != null) {
+        BuildRunsDetailScreen(
+            owner = owner!!,
+            repo = repo!!,
+            githubToken = settings.githubApiKey,
+            buildRepository = buildRepository,
+            onBack = onBack
+        )
+    } else {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                "No project selected",
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Select a project with a GitHub repository linked in the Jules screen to see CI status here.",
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                color = Color.Gray
+            )
+            Spacer(Modifier.height(24.dp))
+            Button(onClick = onBack) {
+                Text("Back")
             }
         }
     }
@@ -252,6 +329,7 @@ fun MainSettingsPage(
     settingsManager: SettingsManager,
     authManager: GoogleAuthManager,
     onNavigateToApiKeys: () -> Unit,
+    onNavigateToGitCi: () -> Unit,
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
@@ -352,6 +430,13 @@ fun MainSettingsPage(
                 title = "API keys",
                 subtitle = "Agents (local & remote), GitHub, and coding agent",
                 onClick = onNavigateToApiKeys,
+            )
+        }
+        item {
+            SettingsListItem(
+                title = "Git & CI",
+                subtitle = "Workflow runs and build status",
+                onClick = onNavigateToGitCi,
             )
         }
         item {
