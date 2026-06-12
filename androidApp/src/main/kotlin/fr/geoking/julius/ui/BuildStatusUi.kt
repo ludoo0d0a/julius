@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
@@ -243,7 +244,7 @@ fun BuildRunsDetailScreen(
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = workflowMenuExpanded) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor(),
+                            .menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = true),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
@@ -364,7 +365,7 @@ private fun BuildRunCard(
                 }
                 if (run.htmlUrl.isNotBlank()) {
                     IconButton(onClick = { onOpenUrl(run.htmlUrl) }) {
-                        Icon(Icons.Default.OpenInNew, contentDescription = "Open on GitHub", tint = Color.White.copy(0.6f))
+                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open on GitHub", tint = Color.White.copy(0.6f))
                     }
                 }
             }

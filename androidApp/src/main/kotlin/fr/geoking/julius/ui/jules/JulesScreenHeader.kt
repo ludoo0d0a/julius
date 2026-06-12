@@ -39,6 +39,8 @@ internal fun JulesScreenHeader(
     onMerge: (JulesSessionEntity) -> Unit = {},
     onFixConflicts: (JulesSessionEntity) -> Unit = {},
     onRetry: (JulesSessionEntity) -> Unit = {},
+    isSorting: Boolean = false,
+    onToggleSort: (() -> Unit)? = null,
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
@@ -84,6 +86,16 @@ internal fun JulesScreenHeader(
             }
         },
         actions = {
+            if (onToggleSort != null) {
+                IconButton(onClick = onToggleSort) {
+                    Icon(
+                        if (isSorting) Icons.Default.Check else Icons.Default.Reorder,
+                        contentDescription = if (isSorting) "Save" else "Sort",
+                        tint = Color.White
+                    )
+                }
+            }
+
             currentSession?.let { session ->
                 if (!session.isFinished) {
                     IconButton(onClick = { onTogglePause(session) }) {

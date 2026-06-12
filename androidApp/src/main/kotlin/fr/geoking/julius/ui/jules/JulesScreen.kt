@@ -83,6 +83,7 @@ fun JulesScreen(
     var refreshing by remember { mutableStateOf(false) }
     var loadingSessions by remember { mutableStateOf(false) }
     var refreshingSessions by remember { mutableStateOf(false) }
+    var isSortingFeatures by remember { mutableStateOf(false) }
     val archivingSessionIds = remember { mutableStateListOf<String>() }
     var hideCompleted by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -228,6 +229,7 @@ fun JulesScreen(
     }
 
     val handleBack: () -> Unit = {
+        isSortingFeatures = false
         when (nav.current) {
             is HarnessRoute.Chat -> {
                 currentSession = null
@@ -280,6 +282,7 @@ fun JulesScreen(
     }
 
     LaunchedEffect(nav.current) {
+        isSortingFeatures = false
         val route = nav.current
         if (route is HarnessRoute.Chat) {
             currentSession = sessions.find { it.id == route.sessionId }
@@ -349,6 +352,10 @@ fun JulesScreen(
                 subtitle = headerSubtitle,
                 currentSession = currentSession,
                 onBack = handleBack,
+                isSorting = isSortingFeatures,
+                onToggleSort = if (nav.current is HarnessRoute.Features) {
+                    { isSortingFeatures = !isSortingFeatures }
+                } else null,
                 onTogglePause = { session ->
                     scope.launch {
                         loading = true
@@ -719,6 +726,7 @@ fun JulesScreen(
                                 features = features,
                                 sessions = sessions,
                                 isRefreshing = refreshingSessions,
+                                isSorting = isSortingFeatures,
                                 onRefresh = { loadSessions(isRefresh = true) },
                                 onSelectFeature = { featureId, title ->
                                     selectedFeatureId = featureId

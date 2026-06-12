@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Rule
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Add
@@ -347,7 +348,7 @@ private fun InstructionItem(text: String, keyword: String, baseFontSize: Int, te
     val icon = when (keyword) {
         "updated" -> Icons.Default.Refresh
         "verified" -> Icons.Default.AssignmentTurnedIn
-        "defined" -> Icons.Default.List
+        "defined" -> Icons.AutoMirrored.Filled.List
         "created" -> Icons.Default.Add
         "refactored" -> Icons.Default.Build
         "integrated" -> Icons.Default.Link
@@ -581,7 +582,7 @@ private fun GitHubResourceCard(
                         }
                     }
                 }
-            } else if (isBranch && branchRef != null && prState == null && !loading) {
+            } else if (isBranch && branchRef != null && !loading) {
                 Text(
                     text = branchRef.branch,
                     color = Color.White,

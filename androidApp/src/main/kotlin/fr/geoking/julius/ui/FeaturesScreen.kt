@@ -24,6 +24,8 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.font.FontWeight
@@ -67,6 +69,7 @@ fun FeaturesScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var selectedFeature by remember { mutableStateOf<FeatureEntity?>(null) }
     var isEditingFeature by remember { mutableStateOf(false) }
+    var isSorting by remember { mutableStateOf(false) }
     var sources by remember { mutableStateOf<List<JulesClient.JulesSource>>(emptyList()) }
     var refreshingList by remember { mutableStateOf(false) }
     var refreshSourcesTrigger by remember { mutableIntStateOf(0) }
@@ -100,6 +103,8 @@ fun FeaturesScreen(
         if (isSearching) {
             isSearching = false
             searchQuery = ""
+        } else if (isSorting) {
+            isSorting = false
         } else if (selectedFeature != null) {
             selectedFeature = null
             isEditingFeature = false
@@ -179,11 +184,20 @@ fun FeaturesScreen(
                     },
                     actions = {
                         if (selectedFeature == null) {
-                            IconButton(onClick = { isSearching = true }) {
-                                Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.White)
+                            IconButton(onClick = { isSorting = !isSorting }) {
+                                Icon(
+                                    if (isSorting) Icons.Default.Check else Icons.Default.Reorder,
+                                    contentDescription = if (isSorting) "Save" else "Sort",
+                                    tint = Color.White
+                                )
                             }
-                            IconButton(onClick = { showAddDialog = true }) {
-                                Icon(Icons.Default.Add, contentDescription = "Add Feature", tint = Color.White)
+                            if (!isSorting) {
+                                IconButton(onClick = { isSearching = true }) {
+                                    Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.White)
+                                }
+                                IconButton(onClick = { showAddDialog = true }) {
+                                    Icon(Icons.Default.Add, contentDescription = "Add Feature", tint = Color.White)
+                                }
                             }
                         } else {
                             var showDetailMenu by remember { mutableStateOf(false) }
@@ -256,6 +270,7 @@ fun FeaturesScreen(
             if (selectedFeature == null) {
                 // List View
                 var newFeatureTitle by remember { mutableStateOf("") }
+                val listState = rememberLazyListState()
                 PullToRefreshBox(
                     isRefreshing = refreshingList,
                     onRefresh = { refreshSourcesTrigger++ },
@@ -263,7 +278,55 @@ fun FeaturesScreen(
                 ) {
                     Column(modifier = Modifier.fillMaxSize()) {
                         LazyColumn(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .pointerInput(isSorting) {
+                                    if (!isSorting) return@pointerInput
+                                    var draggedItemIndex: Int? = null
+                                    detectDragGesturesAfterLongPress(
+                                        onDragStart = { offset ->
+                                            listState.layoutInfo.visibleItemsInfo
+                                                .find { item -> offset.y.toInt() in item.offset..(item.offset + item.size) }
+                                                ?.let { item ->
+                                                    draggedItemIndex = filteredFeatures.indexOfFirst { it.id == item.key }
+                                                }
+                                        },
+                                        onDrag = { change, dragAmount ->
+                                            change.consume()
+                                            val currentDraggedIndex = draggedItemIndex ?: return@detectDragGesturesAfterLongPress
+                                            val targetItem = listState.layoutInfo.visibleItemsInfo
+                                                .find { item -> change.position.y.toInt() in item.offset..(item.offset + item.size) }
+
+                                            if (targetItem != null) {
+                                                val targetFeatureIndex = filteredFeatures.indexOfFirst { it.id == targetItem.key }
+                                                if (targetFeatureIndex != -1 && targetFeatureIndex != currentDraggedIndex) {
+                                                    val newList = localFeatures.toMutableList()
+                                                    val featureToMove = filteredFeatures[currentDraggedIndex]
+                                                    val actualIdx = newList.indexOf(featureToMove)
+                                                    val targetFeature = filteredFeatures[targetFeatureIndex]
+                                                    val actualTargetIdx = newList.indexOf(targetFeature)
+
+                                                    if (actualIdx != -1 && actualTargetIdx != -1) {
+                                                        newList.removeAt(actualIdx)
+                                                        newList.add(actualTargetIdx, featureToMove)
+                                                        localFeatures = newList
+                                                        draggedItemIndex = targetFeatureIndex
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        onDragEnd = {
+                                            if (draggedItemIndex != null) {
+                                                scope.launch { featureRepository.updatePositions(localFeatures) }
+                                            }
+                                            draggedItemIndex = null
+                                        },
+                                        onDragCancel = {
+                                            draggedItemIndex = null
+                                        },
+                                    )
+                                },
+                            state = listState,
                             contentPadding = PaddingValues(16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
@@ -272,7 +335,7 @@ fun FeaturesScreen(
                                 FeatureItem(
                                     feature = feature,
                                     sources = sources,
-                                    onClick = { selectedFeature = feature },
+                                    onClick = { if (!isSorting) selectedFeature = feature },
                                     onDelete = {
                                         scope.launch { featureRepository.deleteFeature(feature.id) }
                                     },
@@ -313,12 +376,15 @@ fun FeaturesScreen(
                                     },
                                     isFirst = localFeatures.firstOrNull()?.id == feature.id,
                                     isLast = localFeatures.lastOrNull()?.id == feature.id,
+                                    isSorting = isSorting,
+                                    modifier = Modifier.animateItem(),
                                 )
                             }
                         }
 
                         // Quick Add Bar (WhatsApp style)
-                        Row(
+                        if (!isSorting) {
+                            Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp),
@@ -339,7 +405,7 @@ fun FeaturesScreen(
                             modifier = Modifier.weight(1f),
                             placeholder = {
                                 Text(
-                                    if (currentProjectName != null) "Add to $currentProjectName..." else "Add a new feature...",
+                                    if (currentProjectName.isNotBlank()) "Add to $currentProjectName..." else "Add a new feature...",
                                     color = Color.White.copy(alpha = 0.5f),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -356,8 +422,8 @@ fun FeaturesScreen(
                             maxLines = 5
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        IconButton(
-                            onClick = {
+                            IconButton(
+                                onClick = {
                                 if (newFeatureTitle.isNotBlank()) {
                                     scope.launch {
                                         val sourceName = settings.lastJulesRepoId.takeIf { id ->
@@ -382,6 +448,7 @@ fun FeaturesScreen(
                             )
                         }
                     }
+                        }
                     }
                 }
             } else {
@@ -429,7 +496,9 @@ fun FeatureItem(
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     isFirst: Boolean,
-    isLast: Boolean
+    isLast: Boolean,
+    isSorting: Boolean = false,
+    modifier: Modifier = Modifier
 ) {
     val projectName = remember(feature.sourceName, sources) {
         sources.resolveProjectName(feature.sourceName)
@@ -437,9 +506,10 @@ fun FeatureItem(
     var showMenu by remember { mutableStateOf(false) }
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
+                enabled = !isSorting,
                 onClick = onClick,
                 onLongClick = { showMenu = true }
             ),
@@ -484,12 +554,21 @@ fun FeatureItem(
             StatusBadge(feature.status)
 
             Spacer(modifier = Modifier.width(8.dp))
-            Column {
-                IconButton(onClick = onMoveUp, enabled = !isFirst, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move Up", tint = if (isFirst) Color.Gray else Color.White)
-                }
-                IconButton(onClick = onMoveDown, enabled = !isLast, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move Down", tint = if (isLast) Color.Gray else Color.White)
+            if (isSorting) {
+                Icon(
+                    Icons.Default.Reorder,
+                    contentDescription = "Reorder",
+                    tint = Color.White.copy(alpha = 0.5f),
+                    modifier = Modifier.size(24.dp)
+                )
+            } else {
+                Column {
+                    IconButton(onClick = onMoveUp, enabled = !isFirst, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move Up", tint = if (isFirst) Color.Gray else Color.White)
+                    }
+                    IconButton(onClick = onMoveDown, enabled = !isLast, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move Down", tint = if (isLast) Color.Gray else Color.White)
+                    }
                 }
             }
         }

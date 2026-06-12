@@ -49,6 +49,7 @@ internal fun JulesFeaturesContent(
     features: List<FeatureEntity>,
     sessions: List<JulesSessionEntity>,
     isRefreshing: Boolean,
+    isSorting: Boolean = false,
     onRefresh: () -> Unit,
     onSelectFeature: (featureId: String, title: String) -> Unit,
     onMoveFeature: (List<FeatureEntity>) -> Unit,
@@ -77,7 +78,8 @@ internal fun JulesFeaturesContent(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .pointerInput(Unit) {
+                    .pointerInput(isSorting) {
+                        if (!isSorting) return@pointerInput
                         var draggedItemIndex: Int? = null
                         detectDragGesturesAfterLongPress(
                             onDragStart = { offset ->
@@ -136,6 +138,7 @@ internal fun JulesFeaturesContent(
                     onClick = {
                         onSelectFeature(JulesNavigation.ORPHAN_FEATURE_ID, JulesNavigation.ORPHAN_FEATURE_TITLE)
                     },
+                    isSorting = isSorting,
                 )
             }
 
@@ -146,17 +149,19 @@ internal fun JulesFeaturesContent(
                     subtitle = "$count conversation${if (count == 1) "" else "s"} · ${feature.status}",
                     onClick = { onSelectFeature(feature.id, feature.title) },
                     modifier = Modifier.animateItem(),
+                    isSorting = isSorting,
                 )
             }
         }
     }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        if (!isSorting) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
             OutlinedTextField(
                 value = newFeatureTitle,
                 onValueChange = { newFeatureTitle = it },
@@ -177,20 +182,21 @@ internal fun JulesFeaturesContent(
                 ),
                 maxLines = 5,
             )
-            IconButton(
-                onClick = {
-                    if (newFeatureTitle.isNotBlank()) {
-                        onCreateFeature(newFeatureTitle.trim())
-                        newFeatureTitle = ""
-                    }
-                },
-                enabled = newFeatureTitle.isNotBlank(),
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "Add",
-                    tint = if (newFeatureTitle.isNotBlank()) ColorHelper.JulesAccent else Color.Gray,
-                )
+                IconButton(
+                    onClick = {
+                        if (newFeatureTitle.isNotBlank()) {
+                            onCreateFeature(newFeatureTitle.trim())
+                            newFeatureTitle = ""
+                        }
+                    },
+                    enabled = newFeatureTitle.isNotBlank(),
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Add",
+                        tint = if (newFeatureTitle.isNotBlank()) ColorHelper.JulesAccent else Color.Gray,
+                    )
+                }
             }
         }
     }
@@ -202,21 +208,26 @@ private fun FeatureRow(
     subtitle: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isSorting: Boolean = false,
 ) {
     ListItem(
         headlineContent = { Text(title) },
         supportingContent = { Text(subtitle, fontSize = 12.sp) },
         trailingContent = {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+            if (!isSorting) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+            }
         },
         leadingContent = {
-            Icon(
-                Icons.Default.Reorder,
-                contentDescription = "Reorder",
-                tint = Color.White.copy(alpha = 0.3f),
-            )
+            if (isSorting) {
+                Icon(
+                    Icons.Default.Reorder,
+                    contentDescription = "Reorder",
+                    tint = Color.White.copy(alpha = 0.3f),
+                )
+            }
         },
-        modifier = modifier.clickable(onClick = onClick),
+        modifier = modifier.clickable(enabled = !isSorting, onClick = onClick),
         colors = ListItemDefaults.colors(
             containerColor = Color.Transparent,
             headlineColor = Color.White,
