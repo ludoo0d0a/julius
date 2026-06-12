@@ -379,6 +379,8 @@ fun MainUI(
                     SettingsScreen(
                         settingsManager = settingsManager,
                         authManager = authManager,
+                        julesRepository = julesRepository,
+                        buildRepository = buildRepository,
                         errorLog = state.errorLog,
                         onDismiss = { showSettings = false },
                         initialScreenStack = settingsInitialStack,
