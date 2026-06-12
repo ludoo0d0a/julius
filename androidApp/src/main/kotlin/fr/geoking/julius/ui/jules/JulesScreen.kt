@@ -348,9 +348,7 @@ fun JulesScreen(
                 title = headerTitle,
                 subtitle = headerSubtitle,
                 currentSession = currentSession,
-                showSwitchProject = currentSession != null || selectedSourceName != null,
                 onBack = handleBack,
-                onSwitchProject = ::resetToProjects,
                 onTogglePause = { session ->
                     scope.launch {
                         loading = true

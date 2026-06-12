@@ -114,103 +114,143 @@ fun FeaturesScreen(
     ) {
         Column {
             // Header
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (isSearching && selectedFeature == null) {
-                    IconButton(onClick = {
-                        isSearching = false
-                        searchQuery = ""
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                    }
-                    TextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Search features...", color = Color.White.copy(alpha = 0.5f)) },
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            cursorColor = ColorHelper.JulesAccent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        ),
-                        singleLine = true
-                    )
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.White)
-                        }
-                    }
-                } else {
-                    IconButton(onClick = {
-                        if (selectedFeature != null) {
-                            selectedFeature = null
-                            isEditingFeature = false
-                        } else onBack()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                    }
-                    Text(
-                        text = if (selectedFeature != null) selectedFeature!!.title else "Features",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    if (selectedFeature == null) {
-                        IconButton(onClick = { isSearching = true }) {
-                            Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.White)
-                        }
-                        IconButton(onClick = { showAddDialog = true }) {
-                            Icon(Icons.Default.Add, contentDescription = "Add Feature", tint = Color.White)
-                        }
-                    } else {
-                        isSearching = false
-                        val clipboard = LocalClipboard.current
+            if (isSearching && selectedFeature == null) {
+                TopAppBar(
+                    title = {
+                        TextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Search features...", color = Color.White.copy(alpha = 0.5f)) },
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                cursorColor = ColorHelper.JulesAccent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            singleLine = true
+                        )
+                    },
+                    navigationIcon = {
                         IconButton(onClick = {
-                            scope.launch {
-                                clipboard.setClipEntry(androidx.compose.ui.platform.ClipEntry(
-                                    android.content.ClipData.newPlainText("feature_prompt", selectedFeature!!.description.ifBlank { selectedFeature!!.title })
-                                ))
-                            }
+                            isSearching = false
+                            searchQuery = ""
                         }) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy Prompt", tint = Color.White)
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                         }
-                        IconButton(onClick = {
-                            scope.launch {
-                                try {
-                                    val account = settings.enabledAccountsFor(settings.codingAgentBackend).firstOrNull() ?: return@launch
-                                    featureRepository.replayFeature(selectedFeature!!.id, account)
-                                } catch (_: Exception) {}
+                    },
+                    actions = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.White)
                             }
-                        }) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Retry", tint = Color.White)
                         }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        titleContentColor = Color.White,
+                        navigationIconContentColor = Color.White,
+                        actionIconContentColor = Color.White
+                    )
+                )
+            } else {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = if (selectedFeature != null) selectedFeature!!.title else "Features",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    navigationIcon = {
                         IconButton(onClick = {
-                            scope.launch {
-                                featureRepository.deleteFeature(selectedFeature!!.id)
+                            if (selectedFeature != null) {
                                 selectedFeature = null
+                                isEditingFeature = false
+                            } else onBack()
+                        }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        }
+                    },
+                    actions = {
+                        if (selectedFeature == null) {
+                            IconButton(onClick = { isSearching = true }) {
+                                Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.White)
                             }
-                        }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.White)
+                            IconButton(onClick = { showAddDialog = true }) {
+                                Icon(Icons.Default.Add, contentDescription = "Add Feature", tint = Color.White)
+                            }
+                        } else {
+                            var showDetailMenu by remember { mutableStateOf(false) }
+                            val clipboard = LocalClipboard.current
+
+                            IconButton(onClick = {
+                                scope.launch {
+                                    clipboard.setClipEntry(androidx.compose.ui.platform.ClipEntry(
+                                        android.content.ClipData.newPlainText("feature_prompt", selectedFeature!!.description.ifBlank { selectedFeature!!.title })
+                                    ))
+                                }
+                            }) {
+                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy Prompt", tint = Color.White)
+                            }
+
+                            Box {
+                                IconButton(onClick = { showDetailMenu = true }) {
+                                    Icon(Icons.Default.MoreVert, contentDescription = "More", tint = Color.White)
+                                }
+                                DropdownMenu(
+                                    expanded = showDetailMenu,
+                                    onDismissRequest = { showDetailMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Retry") },
+                                        onClick = {
+                                            scope.launch {
+                                                try {
+                                                    val account = settings.enabledAccountsFor(settings.codingAgentBackend).firstOrNull() ?: return@launch
+                                                    featureRepository.replayFeature(selectedFeature!!.id, account)
+                                                } catch (_: Exception) {}
+                                            }
+                                            showDetailMenu = false
+                                        },
+                                        leadingIcon = { Icon(Icons.Default.Refresh, contentDescription = null) }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Delete", color = Color.Red) },
+                                        onClick = {
+                                            scope.launch {
+                                                featureRepository.deleteFeature(selectedFeature!!.id)
+                                                selectedFeature = null
+                                            }
+                                            showDetailMenu = false
+                                        },
+                                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red) }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Close") },
+                                        onClick = {
+                                            selectedFeature = null
+                                            isEditingFeature = false
+                                            showDetailMenu = false
+                                        },
+                                        leadingIcon = { Icon(Icons.Default.Close, contentDescription = null) }
+                                    )
+                                }
+                            }
                         }
-                        IconButton(onClick = {
-                            selectedFeature = null
-                            isEditingFeature = false
-                        }) {
-                            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
-                        }
-                    }
-                }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        titleContentColor = Color.White,
+                        navigationIconContentColor = Color.White,
+                        actionIconContentColor = Color.White
+                    )
+                )
             }
 
             if (selectedFeature == null) {
@@ -549,7 +589,7 @@ fun FeatureDetailContent(
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(feature.title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text(feature.title, color = Color.White, fontSize = 20.sp, modifier = Modifier.weight(1f))
                 IconButton(onClick = { onEditChange(true) }) {
                     Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.White)
                 }
