@@ -708,6 +708,11 @@ fun JulesScreen(
                                         featureRepository.updatePositions(reordered)
                                     }
                                 },
+                                onCreateFeature = { title ->
+                                    scope.launch {
+                                        featureRepository.addFeature(title, "", 0, route.sourceName)
+                                    }
+                                },
                             )
                         }
                         is HarnessRoute.EditFeature -> Text("Edit feature", color = Color.White, modifier = Modifier.padding(16.dp))

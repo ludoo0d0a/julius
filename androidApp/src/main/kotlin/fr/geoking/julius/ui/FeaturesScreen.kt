@@ -268,7 +268,7 @@ fun FeaturesScreen(
                                 focusedBorderColor = ColorHelper.JulesAccent,
                                 unfocusedBorderColor = Color.White.copy(alpha = 0.1f)
                             ),
-                            singleLine = true
+                            maxLines = 5
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         IconButton(
