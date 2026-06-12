@@ -17,6 +17,8 @@ data class JulesSessionEntity(
     val prRepo: String? = null,
     val prState: String?, // open, closed, merged
     val prMergeable: Boolean?, // true if no conflicts, false if conflicts, null if unknown
+    val prPatch: String? = null,
+    val prBaseCommitId: String? = null,
     val sessionState: String?, // QUEUED, PLANNING, COMPLETED, etc.
     val url: String? = null,
     val createTime: String? = null,

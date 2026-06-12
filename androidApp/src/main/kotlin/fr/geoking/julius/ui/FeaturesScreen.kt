@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,10 +25,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.queue.AgentAccount
 import fr.geoking.julius.queue.enabledAccountsFor
@@ -172,8 +175,25 @@ fun FeaturesScreen(
                         }
                     } else {
                         isSearching = false
-                        IconButton(onClick = { isEditingFeature = true }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.White)
+                        val clipboard = LocalClipboard.current
+                        IconButton(onClick = {
+                            scope.launch {
+                                clipboard.setClipEntry(androidx.compose.ui.platform.ClipEntry(
+                                    android.content.ClipData.newPlainText("feature_prompt", selectedFeature!!.description.ifBlank { selectedFeature!!.title })
+                                ))
+                            }
+                        }) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy Prompt", tint = Color.White)
+                        }
+                        IconButton(onClick = {
+                            scope.launch {
+                                try {
+                                    val account = settings.enabledAccountsFor(settings.codingAgentBackend).firstOrNull() ?: return@launch
+                                    featureRepository.replayFeature(selectedFeature!!.id, account)
+                                } catch (_: Exception) {}
+                            }
+                        }) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Retry", tint = Color.White)
                         }
                         IconButton(onClick = {
                             scope.launch {
@@ -182,6 +202,12 @@ fun FeaturesScreen(
                             }
                         }) {
                             Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.White)
+                        }
+                        IconButton(onClick = {
+                            selectedFeature = null
+                            isEditingFeature = false
+                        }) {
+                            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
                         }
                     }
                 }
@@ -202,10 +228,29 @@ fun FeaturesScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             items(filteredFeatures, key = { it.id }) { feature ->
+                                val clipboard = LocalClipboard.current
                                 FeatureItem(
                                     feature = feature,
                                     sources = sources,
                                     onClick = { selectedFeature = feature },
+                                    onDelete = {
+                                        scope.launch { featureRepository.deleteFeature(feature.id) }
+                                    },
+                                    onRetry = {
+                                        scope.launch {
+                                            try {
+                                                val account = settings.enabledAccountsFor(settings.codingAgentBackend).firstOrNull() ?: return@launch
+                                                featureRepository.replayFeature(feature.id, account)
+                                            } catch (_: Exception) {}
+                                        }
+                                    },
+                                    onCopyPrompt = {
+                                        scope.launch {
+                                            clipboard.setClipEntry(androidx.compose.ui.platform.ClipEntry(
+                                                android.content.ClipData.newPlainText("feature_prompt", feature.description.ifBlank { feature.title })
+                                            ))
+                                        }
+                                    },
                                     onMoveUp = {
                                         val idx = localFeatures.indexOf(feature)
                                         if (idx > 0) {
@@ -332,11 +377,15 @@ fun FeaturesScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FeatureItem(
     feature: FeatureEntity,
     sources: List<JulesClient.JulesSource>,
     onClick: () -> Unit,
+    onDelete: () -> Unit,
+    onRetry: () -> Unit,
+    onCopyPrompt: () -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     isFirst: Boolean,
@@ -345,13 +394,34 @@ fun FeatureItem(
     val projectName = remember(feature.sourceName, sources) {
         sources.resolveProjectName(feature.sourceName)
     }
+    var showMenu by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = { showMenu = true }
+            ),
         colors = CardDefaults.cardColors(containerColor = ColorHelper.JulesCardAgent)
     ) {
+        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+            DropdownMenuItem(
+                text = { Text("Copy Prompt") },
+                onClick = { onCopyPrompt(); showMenu = false },
+                leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) }
+            )
+            DropdownMenuItem(
+                text = { Text("Retry") },
+                onClick = { onRetry(); showMenu = false },
+                leadingIcon = { Icon(Icons.Default.Refresh, contentDescription = null) }
+            )
+            DropdownMenuItem(
+                text = { Text("Delete", color = Color.Red) },
+                onClick = { onDelete(); showMenu = false },
+                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red) }
+            )
+        }
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically

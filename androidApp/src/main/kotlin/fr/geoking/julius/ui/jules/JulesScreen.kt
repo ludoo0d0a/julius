@@ -409,6 +409,49 @@ fun JulesScreen(
                         }
                     }
                 },
+                onArchive = { session ->
+                    scope.launch {
+                        julesRepository.archiveSession(session.id)
+                        loadSessions()
+                        if (currentSession?.id == session.id) handleBack()
+                    }
+                },
+                onDelete = { session ->
+                    scope.launch {
+                        julesRepository.deleteSessionPermanently(session.id)
+                        loadSessions()
+                        if (currentSession?.id == session.id) handleBack()
+                    }
+                },
+                onMerge = { session ->
+                    val prUrl = session.prUrl ?: return@JulesScreenHeader
+                    scope.launch {
+                        loading = true
+                        val res = julesRepository.mergePr(githubToken, session.id, prUrl, deleteBranch = true)
+                        if (res.isFailure) {
+                            error = "Merge failed: ${res.exceptionOrNull()?.message}"
+                        } else {
+                            loadSessions()
+                        }
+                        loading = false
+                    }
+                },
+                onFixConflicts = { session ->
+                    nav.push(HarnessRoute.PrConflict(session.id))
+                },
+                onRetry = { session ->
+                    scope.launch {
+                        loading = true
+                        try {
+                            julesRepository.sendMessage(session.id, session.prompt)
+                            refreshActivitiesInternal()
+                        } catch (e: Exception) {
+                            error = "Retry failed: ${e.message}"
+                        } finally {
+                            loading = false
+                        }
+                    }
+                }
             )
 
             if (loading || loadingSessions || refreshing || refreshingSessions) {

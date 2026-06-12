@@ -405,6 +405,27 @@ class JulesRepository(
         }
     }
 
+    suspend fun deleteSessionPermanently(sessionId: String) {
+        try {
+            val existing = julesDao.getSession(sessionId)
+            val key = existing?.apiKey ?: activeApiKey()
+            if (key != null && !sessionId.startsWith("offline_")) {
+                try {
+                    if (isClaudeBackend() || sessionId.startsWith(CodingAgentBackend.CLAUDE_SESSION_PREFIX)) {
+                        claudeCodeClient.deleteSession(key, sessionId)
+                    } else {
+                        julesClient.deleteSession(key, sessionId)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("JulesRepository", "Remote session permanent deletion failed for $sessionId", e)
+                }
+            }
+            julesDao.deleteSession(sessionId)
+        } catch (e: Exception) {
+            android.util.Log.e("JulesRepository", "Failed to permanently delete session $sessionId", e)
+        }
+    }
+
     suspend fun archiveCompletedSessions(sourceName: String? = null) {
         try {
             val completed = if (sourceName != null) {
@@ -953,25 +974,33 @@ class JulesRepository(
 
             val resp = julesClient.listActivities(apiKey, sessionId, pageSize = 50)
 
-            // Sync PR info from activities to session if found
+            // Sync PR info and patch from activities to session if found
             for (activity in resp.activities) {
                 val pr = activity.outputs?.firstOrNull()?.pullRequest ?: activity.sessionCompleted?.outputs?.firstOrNull()?.pullRequest
-                if (pr?.url != null) {
+                val gitPatch = activity.artifacts?.mapNotNull { it.changeSet?.gitPatch }?.firstOrNull()
+
+                if (pr?.url != null || gitPatch != null) {
                     val existing = julesDao.getSession(sessionId)
-                    if (existing != null && existing.prUrl != pr.url) {
+                    if (existing != null) {
                         val updated = existing.copy(
-                            prUrl = pr.url,
-                            prTitle = pr.title,
-                            prId = pr.id,
+                            prUrl = pr?.url ?: existing.prUrl,
+                            prTitle = pr?.title ?: existing.prTitle,
+                            prId = pr?.id ?: existing.prId,
+                            prPatch = gitPatch?.unidiffPatch ?: existing.prPatch,
+                            prBaseCommitId = gitPatch?.baseCommitId ?: existing.prBaseCommitId,
                             lastUpdated = System.currentTimeMillis()
                         )
-                        julesDao.insertSessions(listOf(updated))
-                        val githubToken = settingsManager.settings.value.githubApiKey
-                        if (githubToken.isNotBlank()) {
-                            try {
-                                updatePrStatus(githubToken, updated)
-                            } catch (e: Exception) {
-                                // Ignore GitHub update errors here
+                        if (updated != existing) {
+                            julesDao.insertSessions(listOf(updated))
+                            if (updated.prUrl != existing.prUrl && updated.prUrl != null) {
+                                val githubToken = settingsManager.settings.value.githubApiKey
+                                if (githubToken.isNotBlank()) {
+                                    try {
+                                        updatePrStatus(githubToken, updated)
+                                    } catch (e: Exception) {
+                                        // Ignore
+                                    }
+                                }
                             }
                         }
                     }
