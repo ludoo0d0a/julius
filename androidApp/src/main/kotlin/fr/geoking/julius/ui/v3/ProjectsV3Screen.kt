@@ -1,0 +1,87 @@
+package fr.geoking.julius.ui.v3
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import fr.geoking.julius.api.jules.JulesClient
+import fr.geoking.julius.queue.julesApiKeys
+
+@Composable
+fun ProjectsV3Screen(
+    deps: V3Deps,
+    onOpenProject: (String) -> Unit,
+) {
+    val settings by deps.settingsManager.settings.collectAsState()
+    val apiKeys = remember(settings) { settings.julesApiKeys() }
+    val sourcesFlow = remember(apiKeys) { deps.julesRepository.getSources(apiKeys) }
+    val sources by sourcesFlow.collectAsState(initial = emptyList())
+
+    val featuresFlow = remember { deps.featureRepository.getAllFeatures() }
+    val features by featuresFlow.collectAsState(initial = emptyList())
+
+    var query by remember { mutableStateOf("") }
+    val countBySource = remember(features) { features.groupingBy { it.sourceName }.eachCount() }
+    val activeBySource = remember(features) {
+        features.filter { it.status.uppercase() in setOf("IN_PROGRESS", "PLANNING") }
+            .groupingBy { it.sourceName }.eachCount()
+    }
+
+    fun displayName(s: JulesClient.JulesSource): String =
+        s.githubRepo?.let { "${it.owner}/${it.repo}" }?.takeIf { it != "/" } ?: s.name
+
+    val filtered = remember(sources, query) {
+        val q = query.trim().lowercase()
+        if (q.isEmpty()) sources else sources.filter { displayName(it).lowercase().contains(q) }
+    }
+
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        V3LargeTitle("Projets", "Projets", "Sélectionne un dépôt pour ouvrir ses features")
+
+        Column(Modifier.padding(horizontal = 18.dp)) {
+            OutlinedTextField(
+                value = query, onValueChange = { query = it },
+                placeholder = { Text("Rechercher un dépôt…") },
+                leadingIcon = { Icon(Icons.Filled.Search, null, tint = V3.Faint) },
+                singleLine = true, shape = RoundedCornerShape(13.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+            )
+
+            SectionLabel("Dépôts", "${filtered.size}")
+            if (filtered.isEmpty()) {
+                EmptyHint("Aucun dépôt — vérifie la clé Jules / le token GitHub dans Réglages.")
+            } else {
+                V3Card {
+                    filtered.forEachIndexed { i, s ->
+                        if (i > 0) HorizontalDivider(color = V3.Border)
+                        val name = displayName(s)
+                        val total = countBySource[s.name] ?: 0
+                        val active = activeBySource[s.name] ?: 0
+                        V3Row(
+                            title = name,
+                            subtitle = if (total > 0) "$total feature(s)" + if (active > 0) " · $active en cours" else "" else "—",
+                            leadingIcon = Icons.Filled.FolderOpen,
+                            leadingTint = if (active > 0) V3.Accent else V3.Muted,
+                            onClick = { onOpenProject(s.name) },
+                            trailing = {
+                                if (active > 0) {
+                                    StatusPill(StatusVisual("$active actives", "", V3.Accent, pulse = true), showEnum = false)
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(96.dp))
+        }
+    }
+}
