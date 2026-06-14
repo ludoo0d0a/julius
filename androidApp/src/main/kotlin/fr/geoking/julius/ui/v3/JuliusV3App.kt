@@ -68,6 +68,7 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                                 is V3Route.Projects -> V3Sheet.AddProject
                                 is V3Route.ProjectFeatures -> V3Sheet.AddFeature(r.sourceName)
                                 is V3Route.Features -> V3Sheet.AddFeature(null)
+                                is V3Route.Scheduler -> V3Sheet.AddFeature(null) // null → sheet prefills lastJulesRepoName
                                 is V3Route.FeatureDetail -> V3Sheet.Launch(r.featureId)
                                 else -> null
                             }
@@ -143,7 +144,7 @@ private data class FabSpec(val label: String)
 
 private fun fabFor(route: V3Route): FabSpec? = when (route) {
     is V3Route.Projects -> FabSpec("Projet")
-    is V3Route.Features, is V3Route.ProjectFeatures -> FabSpec("Feature")
+    is V3Route.Scheduler, is V3Route.Features, is V3Route.ProjectFeatures -> FabSpec("Feature")
     is V3Route.FeatureDetail -> FabSpec("Conversation")
     else -> null
 }
