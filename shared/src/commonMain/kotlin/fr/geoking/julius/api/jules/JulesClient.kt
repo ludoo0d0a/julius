@@ -121,17 +121,29 @@ class JulesClient(
         val outputs: List<JulesOutput>? = null
     )
 
+    // SessionOutput — https://jules.google/docs/api/reference/types
+    // An output is either a pull request or a git patch.
     @Serializable
     data class JulesOutput(
-        val pullRequest: JulesPullRequest? = null
+        val pullRequest: JulesPullRequest? = null,
+        val gitPatch: JulesGitPatch? = null
     )
 
+    // PullRequest — github type (url / title / description). `id` kept for backward compat.
     @Serializable
     data class JulesPullRequest(
         val id: String? = null,
         val url: String? = null,
         val title: String? = null,
         val description: String? = null
+    )
+
+    // GitPatch — https://jules.google/docs/api/reference/types#gitpatch
+    @Serializable
+    data class JulesGitPatch(
+        val baseCommitId: String? = null,
+        val unidiffPatch: String? = null,
+        val suggestedCommitMessage: String? = null
     )
 
     suspend fun createSession(
@@ -475,10 +487,13 @@ class JulesClient(
             else -> a.description ?: "Activity"
         }
 
-        return if (!prUrl.isNullOrBlank() && !baseText.contains(prUrl)) {
-            "$baseText\n\n$prUrl"
-        } else {
-            baseText
+        val patch = a.outputs?.firstOrNull()?.gitPatch ?: a.sessionCompleted?.outputs?.firstOrNull()?.gitPatch
+        val commitMsg = patch?.suggestedCommitMessage
+        return when {
+            !prUrl.isNullOrBlank() && !baseText.contains(prUrl) -> "$baseText\n\n$prUrl"
+            prUrl.isNullOrBlank() && !commitMsg.isNullOrBlank() && !baseText.contains(commitMsg) ->
+                "$baseText\n\nPatch prêt — $commitMsg"
+            else -> baseText
         }
     }
 

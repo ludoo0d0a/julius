@@ -3,6 +3,8 @@ package fr.geoking.julius.ui.v3
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -11,8 +13,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.api.codingagent.CodingAgentBackend
+import fr.geoking.julius.queue.AgentAccount
 import fr.geoking.julius.queue.QueuePolicy
 import fr.geoking.julius.queue.queuePolicyFor
+import java.util.UUID
 
 @Composable
 fun SettingsV3Screen(deps: V3Deps) {
@@ -26,44 +30,58 @@ fun SettingsV3Screen(deps: V3Deps) {
         )
     }
 
+    // Persist accounts and derive julesKeys / anthropicApiKey (mirrors the original settings screen).
+    fun saveAccounts(list: List<AgentAccount>) {
+        val julesKeys = list.filter { it.backend == CodingAgentBackend.JULES && it.enabled }.map { it.apiKey }
+        val anthropic = list.firstOrNull { it.backend == CodingAgentBackend.CLAUDE_CODE && it.enabled }?.apiKey
+            ?: settings.anthropicApiKey
+        deps.settingsManager.saveSettings(
+            settings.copy(agentAccounts = list, julesKeys = julesKeys, anthropicApiKey = anthropic),
+        )
+    }
+
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         V3LargeTitle("Réglages", "Réglages")
 
         Column(Modifier.padding(horizontal = 18.dp)) {
-            // Agent accounts
+            // Agent accounts — editable label + API key per account, like the original screen.
             SectionLabel("Comptes agents", "${settings.agentAccounts.size}")
             if (settings.agentAccounts.isEmpty()) {
-                EmptyHint("Aucun compte. Ajoute une clé Jules / Claude dans les réglages avancés.")
-            } else {
+                EmptyHint("Aucun compte. Ajoute une clé Jules / Claude ci-dessous.")
+            }
+            settings.agentAccounts.forEach { acc ->
+                var label by remember(acc.id) { mutableStateOf(acc.label) }
+                var key by remember(acc.id) { mutableStateOf(acc.apiKey) }
                 V3Card {
-                    settings.agentAccounts.forEachIndexed { i, acc ->
-                        if (i > 0) HorizontalDivider(color = V3.Border)
-                        Row(
-                            Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 15.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text(acc.label, color = V3.Fg, fontSize = 14.5.sp)
-                                Text(acc.backend.name, color = V3.Muted, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                            }
+                    Column(Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(acc.backend.name, color = V3.Muted, fontSize = 11.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f))
                             Switch(
                                 checked = acc.enabled,
-                                onCheckedChange = { on ->
-                                    deps.settingsManager.saveSettings(
-                                        settings.copy(agentAccounts = settings.agentAccounts.map {
-                                            if (it.id == acc.id) it.copy(enabled = on) else it
-                                        }),
-                                    )
-                                },
+                                onCheckedChange = { on -> saveAccounts(settings.agentAccounts.map { if (it.id == acc.id) it.copy(enabled = on) else it }) },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = V3.AccentInk, checkedTrackColor = V3.Accent,
                                     uncheckedThumbColor = V3.Muted, uncheckedTrackColor = V3.SurfaceHi,
                                 ),
                             )
+                            IconButton(onClick = { saveAccounts(settings.agentAccounts.filter { it.id != acc.id }) }) {
+                                Icon(Icons.Filled.Delete, "Supprimer", tint = V3.Muted)
+                            }
                         }
+                        OutlinedTextField(
+                            value = label, onValueChange = { v -> label = v; saveAccounts(settings.agentAccounts.map { if (it.id == acc.id) it.copy(label = v) else it }) },
+                            label = { Text("Libellé") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = key, onValueChange = { v -> key = v; saveAccounts(settings.agentAccounts.map { if (it.id == acc.id) it.copy(apiKey = v.trim()) else it }) },
+                            label = { Text("Clé API") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                 }
+                Spacer(Modifier.height(10.dp))
             }
+            AddAccountCard(defaultBackend = backend) { newAcc -> saveAccounts(settings.agentAccounts + newAcc) }
 
             // Queue strategy (per backend)
             SectionLabel("Stratégie de file", backend.name)
@@ -85,22 +103,23 @@ fun SettingsV3Screen(deps: V3Deps) {
                 }
             }
 
-            // GitHub
+            // GitHub — editable token (merge / conflict resolution / CI).
             SectionLabel("GitHub")
             V3Card {
-                Row(
-                    Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 15.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Token d'accès", color = V3.Fg, fontSize = 14.5.sp)
-                        Text(
-                            if (settings.githubApiKey.isNotBlank()) "Merge & résolution de conflits actifs" else "Non configuré",
-                            color = V3.Muted, fontSize = 12.sp,
-                        )
+                Column(Modifier.padding(14.dp)) {
+                    var ghToken by remember { mutableStateOf(settings.githubApiKey) }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Token d'accès (PAT)", color = V3.Fg, fontSize = 14.5.sp, modifier = Modifier.weight(1f))
+                        val ok = settings.githubApiKey.isNotBlank()
+                        StatusPill(StatusVisual(if (ok) "connecté" else "absent", "", if (ok) V3.Success else V3.Danger), showEnum = false)
                     }
-                    val ok = settings.githubApiKey.isNotBlank()
-                    StatusPill(StatusVisual(if (ok) "connecté" else "absent", "", if (ok) V3.Success else V3.Danger), showEnum = false)
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = ghToken,
+                        onValueChange = { v -> ghToken = v; deps.settingsManager.saveSettings(settings.copy(githubApiKey = v.trim())) },
+                        label = { Text("GitHub token") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text("Merge, résolution de conflits et statut CI.", color = V3.Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
                 }
             }
 
@@ -114,6 +133,57 @@ fun SettingsV3Screen(deps: V3Deps) {
             Spacer(Modifier.height(96.dp))
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddAccountCard(defaultBackend: CodingAgentBackend, onAdd: (AgentAccount) -> Unit) {
+    var backend by remember { mutableStateOf(defaultBackend) }
+    var label by remember { mutableStateOf("") }
+    var key by remember { mutableStateOf("") }
+    V3Card {
+        Column(Modifier.padding(14.dp)) {
+            Text("Ajouter un compte", color = V3.Fg, fontSize = 14.sp)
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(CodingAgentBackend.JULES, CodingAgentBackend.CLAUDE_CODE).forEach { b ->
+                    FilterChip(
+                        selected = backend == b,
+                        onClick = { backend = b },
+                        label = { Text(b.name) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = V3.Accent, selectedLabelColor = V3.AccentInk,
+                            containerColor = V3.SurfaceHi, labelColor = V3.Muted,
+                        ),
+                    )
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(value = label, onValueChange = { label = it }, label = { Text("Libellé (optionnel)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(value = key, onValueChange = { key = it }, label = { Text("Clé API") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = {
+                    if (key.isNotBlank()) {
+                        onAdd(
+                            AgentAccount(
+                                id = UUID.randomUUID().toString(),
+                                label = label.ifBlank { backend.name },
+                                backend = backend,
+                                apiKey = key.trim(),
+                            ),
+                        )
+                        key = ""; label = ""
+                    }
+                },
+                enabled = key.isNotBlank(),
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = V3.Accent, contentColor = V3.AccentInk),
+            ) { Text("Ajouter le compte") }
+        }
+    }
+    Spacer(Modifier.height(10.dp))
 }
 
 @Composable

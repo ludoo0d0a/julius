@@ -39,7 +39,13 @@ fun ConversationV3Screen(
     val token = settings.githubApiKey
 
     var session by remember(sessionId) { mutableStateOf<JulesSessionEntity?>(null) }
-    LaunchedEffect(sessionId) { session = deps.julesRepository.getSession(sessionId) }
+    LaunchedEffect(sessionId) {
+        // 1) show the cached row immediately, 2) poll Jules/Claude + GitHub to refresh
+        // prUrl/prState/prMergeable/branch so the PR & git actions are accurate, 3) re-read.
+        session = deps.julesRepository.getSession(sessionId)
+        runCatching { deps.julesRepository.pollSessionStatus(sessionId, token) }
+        session = deps.julesRepository.getSession(sessionId)
+    }
 
     val activitiesFlow = remember(sessionId) { deps.julesRepository.getActivities(sessionId) }
     val items by activitiesFlow.collectAsState(initial = emptyList())

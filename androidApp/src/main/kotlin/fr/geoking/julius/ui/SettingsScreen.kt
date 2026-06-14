@@ -1096,27 +1096,47 @@ private fun AgentAccountsSection(
         SettingsExternalLink(label = "Create GitHub token", onClick = onCreateGitHubPat)
     }
     filtered.forEach { account ->
-        Row(
+        var label by remember(account.id) { mutableStateOf(account.label) }
+        var key by remember(account.id) { mutableStateOf(account.apiKey) }
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .padding(horizontal = 16.dp, vertical = 6.dp),
         ) {
-            Column(Modifier.weight(1f)) {
-                Text(account.label, fontSize = 14.sp)
-                Text(maskApiKey(account.apiKey), fontSize = 12.sp, color = Color.Gray)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(account.label.ifBlank { "Account" }, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                Switch(
+                    checked = account.enabled,
+                    onCheckedChange = { enabled ->
+                        onAccountsChange(
+                            accounts.map { if (it.id == account.id) it.copy(enabled = enabled) else it },
+                        )
+                    },
+                )
+                IconButton(onClick = { onAccountsChange(accounts.filter { it.id != account.id }) }) {
+                    Icon(Icons.Default.Delete, contentDescription = "Remove", tint = Color.Gray)
+                }
             }
-            Switch(
-                checked = account.enabled,
-                onCheckedChange = { enabled ->
-                    onAccountsChange(
-                        accounts.map { if (it.id == account.id) it.copy(enabled = enabled) else it },
-                    )
+            OutlinedTextField(
+                value = label,
+                onValueChange = { v ->
+                    label = v
+                    onAccountsChange(accounts.map { a -> if (a.id == account.id) a.copy(label = v) else a })
                 },
+                label = { Text("Account label") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
             )
-            IconButton(onClick = { onAccountsChange(accounts.filter { it.id != account.id }) }) {
-                Icon(Icons.Default.Delete, contentDescription = "Remove", tint = Color.Gray)
-            }
+            OutlinedTextField(
+                value = key,
+                onValueChange = { v ->
+                    key = v
+                    onAccountsChange(accounts.map { a -> if (a.id == account.id) a.copy(apiKey = v.trim()) else a })
+                },
+                label = { Text("API key") },
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                singleLine = true,
+            )
         }
     }
     var newLabel by remember { mutableStateOf("") }
