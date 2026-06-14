@@ -269,11 +269,14 @@ body{
 .ic-wrap{display:contents}
 
 /* FAB (android) */
-.fab{position:absolute;right:18px;bottom:calc(68px + 18px);z-index:26;width:60px;height:60px;border-radius:20px;
-  background:var(--accent);color:var(--accent-ink);border:0;display:none;place-items:center;cursor:pointer;
-  box-shadow:0 12px 28px -8px color-mix(in oklab,var(--accent) 70%,transparent)}
-.fab:active{transform:scale(.94)}
-[data-platform="android"] .fab.show{display:grid}
+/* Material 3 extended FAB — Android only, contextual add action */
+.fab{position:absolute;right:16px;bottom:calc(68px + 16px);z-index:26;height:56px;border-radius:18px;padding:0 20px;
+  background:var(--accent);color:var(--accent-ink);border:0;display:none;align-items:center;gap:10px;cursor:pointer;
+  font-family:var(--font);font-size:15px;font-weight:600;letter-spacing:.01em;
+  box-shadow:0 6px 10px -2px rgba(0,0,0,.4), 0 12px 28px -8px color-mix(in oklab,var(--accent) 60%,transparent)}
+.fab:active{transform:scale(.96)}
+.fab .fab-label{white-space:nowrap}
+[data-platform="android"] .fab.show{display:inline-flex}
 /* iOS uses an inline + in the app bar instead of FAB */
 [data-platform="android"] .ios-add{display:none}
 
@@ -490,7 +493,7 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
         <div class="appbar-row">
           <h1>Projets</h1>
           <span class="spacer"></span>
-          <button class="iconbtn ios-add" aria-label="Ajouter un dépôt">
+          <button class="iconbtn ios-add" data-sheet="addproject" aria-label="Connecter un dépôt">
             <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
           </button>
         </div>
@@ -541,7 +544,7 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
     <!-- ============ FEATURES (liste globale — onglet) ============ -->
     <section class="screen" id="featlist" data-tab="featlist" data-title="Features">
       <div class="appbar sticky">
-        <div class="appbar-row"><h1>Features</h1></div>
+        <div class="appbar-row"><h1>Features</h1><span class="spacer"></span><button class="iconbtn ios-add" data-sheet="addfeat" aria-label="Nouvelle feature"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg></button></div>
         <div class="title-xl">Features</div>
         <div class="title-sub"><span id="featCount">10</span> features · tous projets</div>
         <div style="position:relative;margin-top:14px">
@@ -834,7 +837,7 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
   </div><!-- /viewport -->
 
   <!-- FAB (android) -->
-  <button class="fab" id="fab" data-sheet="addfeat" aria-label="Nouvelle feature"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button class="fab" id="fab" data-sheet="addfeat" aria-label="Ajouter"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg><span class="fab-label" id="fabLabel">Feature</span></button>
 
   <!-- TAB BAR -->
   <nav class="tabbar" id="tabbar">
@@ -896,6 +899,14 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
     <button class="btn primary block" style="margin-top:14px" data-addfeat-go>Ajouter à la file</button>
   </div>
 
+  <div class="sheet" id="sheet-addproject">
+    <div class="grab"></div>
+    <h3>Connecter un dépôt</h3>
+    <div class="sub">Ajoute un repo GitHub comme nouveau projet</div>
+    <input placeholder="owner/repo" style="width:100%;height:48px;border-radius:13px;border:1px solid var(--border-strong);background:var(--surface);color:var(--fg);padding:0 14px;font-size:15px;font-family:var(--mono);margin-top:12px"/>
+    <button class="btn primary block" style="margin-top:14px" data-addproject-go>Connecter le dépôt</button>
+  </div>
+
   <!-- TOAST -->
   <div class="toast" id="toast"></div>
 </div>
@@ -931,9 +942,21 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
     next.querySelector('.body') && (next.querySelector('.body').scrollTop = 0);
     // tab bar visibility + active state
     syncTabbar(id);
-    // FAB only on features (android)
-    var fab = document.getElementById('fab');
-    fab.classList.toggle('show', id==='features');
+    setFab(id);
+  }
+
+  // contextual Material FAB — the add action depends on the screen
+  var FAB_MAP = {
+    projects:{sheet:'addproject',label:'Projet'},
+    featlist:{sheet:'addfeat',   label:'Feature'},
+    features:{sheet:'addfeat',   label:'Feature'},
+    feature: {sheet:'launch',    label:'Conversation'}
+  };
+  function setFab(id){
+    var fab=document.getElementById('fab'); if(!fab) return; var cfg=FAB_MAP[id];
+    if(cfg){ fab.classList.add('show'); fab.setAttribute('data-sheet',cfg.sheet);
+      document.getElementById('fabLabel').textContent=cfg.label; fab.setAttribute('aria-label','Ajouter — '+cfg.label); }
+    else { fab.classList.remove('show'); }
   }
 
   function syncTabbar(id){
@@ -965,7 +988,7 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
 
   // delegated taps
   phone.addEventListener('click', function(e){
-    var t = e.target.closest('[data-go],[data-back],[data-tab],[data-sheet],[data-toggle],[data-step],[data-switch],[data-strat],[data-ffilter],[data-agent],[data-pr],[data-launch-go],[data-addfeat-go]');
+    var t = e.target.closest('[data-go],[data-back],[data-tab],[data-sheet],[data-toggle],[data-step],[data-switch],[data-strat],[data-ffilter],[data-agent],[data-pr],[data-launch-go],[data-addfeat-go],[data-addproject-go]');
     if(!t) return;
 
     if(t.hasAttribute('data-ffilter')){
@@ -1012,6 +1035,8 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
     if(t.hasAttribute('data-launch-go')){ closeSheet(); applyConvState('running'); show('conversation'); toast('Session démarrée'); return; }
 
     if(t.hasAttribute('data-addfeat-go')){ closeSheet(); toast('Feature ajoutée à la file'); return; }
+
+    if(t.hasAttribute('data-addproject-go')){ closeSheet(); toast('Dépôt connecté'); return; }
 
     if(t.hasAttribute('data-pr')){ handlePr(t.getAttribute('data-pr')); return; }
   });
@@ -1096,7 +1121,7 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
     var el = screenEl(startScreen);
     el.style.transition='none'; el.classList.add('active');
     requestAnimationFrame(function(){ el.style.transition=''; });
-    syncTabbar(startScreen);
+    syncTabbar(startScreen); setFab(startScreen);
   } else {
     syncTabbar('queue');
   }
