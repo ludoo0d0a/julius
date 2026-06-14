@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Julius — Tous les écrans</title>
+<style>
+:root{
+  --stage:#070a12;--bg:#0e1626;--panel:#172234;--panel-2:#1d2a40;
+  --fg:#eef2f8;--muted:#8b9bb4;--faint:#5d6b82;
+  --border:rgba(255,255,255,.08);--border-strong:rgba(255,255,255,.14);
+  --accent:#34e0d0;--accent-ink:#04201d;
+  --mono:"SF Mono",ui-monospace,"JetBrains Mono","IBM Plex Mono",Menlo,monospace;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+  --s:.84;            /* tile scale */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);color:var(--fg);background:
+  radial-gradient(130% 60% at 80% -10%, #11253c 0%, transparent 55%),
+  var(--stage);min-height:100vh;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1400px;margin:0 auto;padding:clamp(22px,4vw,44px) clamp(18px,4vw,40px) 80px}
+
+/* sticky toolbar */
+.bar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  padding:16px 0 18px;margin-bottom:8px;background:linear-gradient(var(--stage) 72%,transparent)}
+.bar .home{display:inline-flex;align-items:center;gap:8px;color:var(--muted);text-decoration:none;font-size:13px;
+  border:1px solid var(--border-strong);padding:9px 13px;border-radius:11px;background:var(--panel)}
+.bar .home:hover{border-color:var(--accent);color:var(--fg)}
+.bar h1{font-size:clamp(20px,3vw,27px);font-weight:680;letter-spacing:-.02em}
+.bar .sub{color:var(--faint);font-size:12.5px;font-family:var(--mono)}
+.bar .spacer{flex:1}
+.seg{display:inline-flex;background:var(--panel);border:1px solid var(--border-strong);border-radius:12px;padding:4px;gap:2px}
+.seg button{border:0;background:transparent;color:var(--muted);font-family:var(--font);font-size:13.5px;font-weight:560;
+  padding:8px 16px;border-radius:9px;cursor:pointer;transition:background .15s,color .15s}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
+
+/* board grid */
+.board{display:grid;grid-template-columns:repeat(auto-fill,minmax(calc(392px * var(--s)),1fr));
+  gap:clamp(20px,3vw,38px);justify-items:center}
+.tile{width:calc(392px * var(--s))}
+.tile .cap{display:flex;align-items:baseline;gap:9px;margin:0 4px 11px}
+.tile .step{font-family:var(--mono);font-size:11px;color:var(--accent);font-weight:600}
+.tile .nm{font-size:14.5px;font-weight:600;letter-spacing:-.01em}
+.tile .open{margin-left:auto;color:var(--faint);font-size:11px;text-decoration:none;font-family:var(--mono)}
+.tile .open:hover{color:var(--accent)}
+.frame{position:relative;width:calc(392px * var(--s));height:calc(846px * var(--s));
+  border-radius:30px;overflow:hidden;border:1px solid var(--border-strong);
+  box-shadow:0 30px 60px -24px rgba(0,0,0,.7);background:var(--bg)}
+.frame iframe{width:392px;height:846px;border:0;display:block;transform:scale(var(--s));transform-origin:top left}
+.note{margin:30px 4px 0;color:var(--faint);font-size:12.5px;font-family:var(--mono);letter-spacing:.03em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <a class="home" href="index.html"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 6-6 6 6 6"/></svg>Carte</a>
+    <div>
+      <h1>Julius — tous les écrans</h1>
+      <span class="sub" id="platLabel">aperçu iOS · cascade complète</span>
+    </div>
+    <span class="spacer"></span>
+    <div class="seg" id="seg">
+      <button class="on" data-p="ios">iOS</button>
+      <button data-p="android">Android</button>
+    </div>
+  </div>
+
+  <div class="board" id="board"></div>
+
+  <p class="note">Chaque vignette est un écran live et interactif — clique dedans pour naviguer, ou « plein écran » pour l'ouvrir seul.</p>
+</div>
+
+<script>
+(function(){
+  var SCREENS = [
+    {id:'queue',        nm:'Scheduler'},
+    {id:'projects',     nm:'Projets'},
+    {id:'features',     nm:'Features'},
+    {id:'feature',      nm:'Détail feature'},
+    {id:'conversation', nm:'Conversation · PR ouverte'},
+    {id:'conversation', nm:'Conversation · conflit', state:'conflict'},
+    {id:'gitci',        nm:'Git & CI'},
+    {id:'settings',     nm:'Réglages'}
+  ];
+  var plat = 'ios';
+  var board = document.getElementById('board');
+
+  function src(s){
+    var u = 'app.html?board=1&p=' + plat + '&screen=' + s.id;
+    if(s.state) u += '&state=' + s.state;
+    return u;
+  }
+  function render(){
+    board.innerHTML = '';
+    SCREENS.forEach(function(s,i){
+      var t = document.createElement('div'); t.className='tile';
+      var n = String(i+1).padStart(2,'0');
+      t.innerHTML =
+        '<div class="cap"><span class="step">'+n+'</span><span class="nm">'+s.nm+'</span>'+
+        '<a class="open" href="'+src(s).replace('board=1&','')+'" target="_blank" rel="noopener">plein écran ↗</a></div>'+
+        '<div class="frame"><iframe loading="lazy" src="'+src(s)+'"></iframe></div>';
+      board.appendChild(t);
+    });
+    document.getElementById('platLabel').textContent = 'aperçu '+(plat==='ios'?'iOS':'Android')+' · cascade complète';
+  }
+  document.getElementById('seg').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-p]'); if(!b) return;
+    plat = b.getAttribute('data-p');
+    document.querySelectorAll('#seg button').forEach(function(x){x.classList.toggle('on', x===b)});
+    render();
+  });
+  render();
+})();
+</script>
+</body>
+</html>

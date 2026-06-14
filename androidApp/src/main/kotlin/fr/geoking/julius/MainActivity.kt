@@ -346,6 +346,7 @@ fun MainUI(
     }
 
     var showHarness by remember { mutableStateOf(false) }
+    var showV3 by remember { mutableStateOf(false) }
     var harnessInitialSession by remember { mutableStateOf<JulesSessionEntity?>(null) }
     var showFavorites by remember { mutableStateOf(false) }
     val settings by settingsManager.settings.collectAsState()
@@ -404,6 +405,18 @@ fun MainUI(
                         startAtQueueDashboard = harnessInitialSession == null,
                     )
                 }
+                showV3 -> {
+                    fr.geoking.julius.ui.v3.JuliusV3App(
+                        deps = fr.geoking.julius.ui.v3.V3Deps(
+                            settingsManager = settingsManager,
+                            julesRepository = julesRepository,
+                            featureRepository = featureRepository,
+                            queueEngine = queueEngine,
+                            buildRepository = buildRepository,
+                        ),
+                        onExit = { showV3 = false },
+                    )
+                }
                 showHistory -> {
                     HistoryScreen(state = state, store = store, onBack = { showHistory = false })
                 }
@@ -429,7 +442,7 @@ fun MainUI(
                         },
                         onHistoryClick = { showHistory = true },
                         onJulesClick = { showHarness = true },
-                        onFeaturesClick = { showHarness = true },
+                        onFeaturesClick = { showV3 = true },
                         onVoskTestClick = { showVoskTest = true },
                         setupIssue = setupIssue,
                         onOpenAgentSettings = {

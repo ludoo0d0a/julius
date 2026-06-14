@@ -1,0 +1,1142 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Julius — Prototype</title>
+<style>
+/* ============================================================
+   JULIUS — console-opérateur dark. Single accent (signal cyan),
+   semantic status (merge / quota / conflit). Reuses the existing
+   app's slate base (#0F172A) and real domain vocabulary.
+   ============================================================ */
+:root{
+  --stage:#070a12;
+  --bg:#0e1626;            /* JulesBg slate, refined */
+  --surface:#15203359;     /* translucent panels over bg */
+  --panel:#172234;
+  --panel-2:#1d2a40;
+  --fg:#eef2f8;
+  --muted:#8b9bb4;
+  --faint:#5d6b82;
+  --border:rgba(255,255,255,.075);
+  --border-strong:rgba(255,255,255,.13);
+  --accent:#34e0d0;        /* signal cyan — running / primary */
+  --accent-ink:#04201d;
+  --success:#46d18a;       /* merged */
+  --warn:#f5c469;          /* quota */
+  --danger:#fb7185;        /* conflit */
+  --radius:18px;
+  --radius-sm:12px;
+  --tap:44px;
+  --nav-h:84px;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+  --mono:"SF Mono",ui-monospace,"JetBrains Mono","IBM Plex Mono",Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--font);
+  background:
+    radial-gradient(120% 80% at 50% -10%, #10243a 0%, transparent 55%),
+    var(--stage);
+  color:var(--fg);
+  -webkit-font-smoothing:antialiased;
+  display:grid;place-items:center;
+  min-height:100%;
+  padding:26px 16px 18px;
+}
+
+/* ---------- stage caption (outside the device) ---------- */
+.stage-cap{
+  position:fixed;top:16px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:14px;
+  font-size:12px;color:var(--faint);letter-spacing:.04em;z-index:60;
+}
+.stage-cap a{color:var(--muted);text-decoration:none;border-bottom:1px solid var(--border-strong);padding-bottom:1px}
+.stage-cap b{color:var(--fg);font-weight:550}
+.stage-cap .dot{width:5px;height:5px;border-radius:50%;background:var(--accent)}
+
+/* ---------- device frame ---------- */
+.phone{
+  position:relative;
+  width:392px;height:846px;
+  background:var(--bg);
+  border-radius:52px;
+  border:1px solid var(--border-strong);
+  box-shadow:0 0 0 11px #05080f, 0 40px 90px -20px rgba(0,0,0,.8), inset 0 0 0 1px rgba(255,255,255,.03);
+  overflow:hidden;
+  display:flex;flex-direction:column;
+}
+.phone *{scrollbar-width:none}
+.phone *::-webkit-scrollbar{display:none}
+
+/* status bar */
+.statusbar{
+  position:relative;z-index:30;flex:none;
+  height:54px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 30px;font-size:14px;font-weight:600;letter-spacing:.02em;
+  font-variant-numeric:tabular-nums;
+}
+.statusbar .sig{display:flex;align-items:center;gap:6px}
+.statusbar svg{display:block}
+[data-platform="ios"] .island{
+  position:absolute;top:11px;left:50%;transform:translateX(-50%);
+  width:118px;height:33px;background:#000;border-radius:20px;z-index:31;
+}
+[data-platform="android"] .statusbar{height:34px;padding:0 18px;font-size:13px}
+[data-platform="android"] .island{display:none}
+
+/* viewport that holds screens */
+.viewport{position:relative;flex:1;overflow:hidden}
+.screen{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  background:var(--bg);
+  transform:translateX(100%);visibility:hidden;
+  transition:transform .34s cubic-bezier(.32,.72,.24,1);
+}
+.screen.active{transform:translateX(0);visibility:visible}
+.screen.behind{transform:translateX(-26%);visibility:visible}
+.screen.behind::after{content:"";position:absolute;inset:0;background:rgba(4,7,14,.5)}
+
+/* scroll body */
+.body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 18px 26px;scroll-behavior:smooth}
+.body.has-tabbar{padding-bottom:calc(var(--nav-h) + 14px)}
+
+/* ---------- top app bar ---------- */
+.appbar{flex:none;padding:6px 18px 12px;background:linear-gradient(var(--bg),var(--bg) 70%,transparent)}
+.appbar.sticky{position:sticky;top:0;z-index:20}
+.appbar-row{display:flex;align-items:center;gap:10px;min-height:0}
+.iconbtn{
+  width:40px;height:40px;flex:none;border:0;border-radius:12px;background:transparent;
+  color:var(--fg);display:grid;place-items:center;cursor:pointer;transition:background .15s,transform .1s;
+}
+.iconbtn:hover{background:var(--surface)}
+.iconbtn:active{transform:scale(.92)}
+.appbar h1{display:none}
+.title-xl{font-size:22px;font-weight:600;letter-spacing:-.01em;margin-top:2px;display:flex;align-items:center;gap:8px}
+.title-sub{color:var(--muted);font-size:13.5px;margin-top:3px;letter-spacing:0}
+.appbar .spacer{flex:1}
+
+/* eyebrow / project switch chip */
+.switcher{
+  display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border-strong);
+  background:var(--surface);padding:7px 11px;border-radius:999px;cursor:pointer;
+  font-size:13px;font-weight:550;color:var(--fg);transition:border-color .15s,background .15s;
+}
+.switcher:hover{border-color:var(--accent)}
+.switcher .repo{font-family:var(--mono);font-size:12.5px}
+.switcher svg{color:var(--muted)}
+
+/* ---------- cards / lists ---------- */
+.card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.sect{margin-top:22px}
+.sect-h{display:flex;align-items:baseline;justify-content:space-between;margin:0 4px 9px}
+.sect-h .lab{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.sect-h .meta{font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+
+.row{display:flex;align-items:center;gap:13px;padding:14px 15px;cursor:pointer;position:relative;
+  min-height:var(--tap);transition:background .14s}
+.row + .row{border-top:1px solid var(--border)}
+.row:hover{background:var(--panel-2)}
+.row:active{background:#223149}
+.row .lead{flex:none;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;
+  background:var(--surface);color:var(--muted)}
+.row .grow{flex:1;min-width:0}
+.row .name{font-size:15px;font-weight:560;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .desc{font-size:12.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .chev{color:var(--faint);flex:none}
+.row .trail{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+
+/* status pills (label + mono enum) */
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
+  padding:4px 9px;border-radius:999px;letter-spacing:.02em;border:1px solid transparent;white-space:nowrap}
+.pill .enum{display:none}
+.pill .led{width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.run{color:var(--accent);background:color-mix(in oklab,var(--accent) 16%,transparent);border-color:color-mix(in oklab,var(--accent) 30%,transparent)}
+.pill.run .led{animation:pulse 1.4s ease-in-out infinite}
+.pill.queued{color:var(--warn);background:color-mix(in oklab,var(--warn) 13%,transparent);border-color:color-mix(in oklab,var(--warn) 26%,transparent)}
+.pill.pending{color:var(--muted);background:var(--surface);border-color:var(--border-strong)}
+.pill.done{color:var(--success);background:color-mix(in oklab,var(--success) 14%,transparent);border-color:color-mix(in oklab,var(--success) 28%,transparent)}
+.pill.fail{color:var(--danger);background:color-mix(in oklab,var(--danger) 13%,transparent);border-color:color-mix(in oklab,var(--danger) 28%,transparent)}
+.pill.merged{color:var(--success);background:color-mix(in oklab,var(--success) 14%,transparent);border-color:color-mix(in oklab,var(--success) 28%,transparent)}
+.pill.open{color:var(--accent);background:color-mix(in oklab,var(--accent) 14%,transparent);border-color:color-mix(in oklab,var(--accent) 26%,transparent)}
+.pill.conflict{color:var(--danger);background:color-mix(in oklab,var(--danger) 14%,transparent);border-color:color-mix(in oklab,var(--danger) 30%,transparent)}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 currentColor}50%{opacity:.45;box-shadow:0 0 0 3px transparent}}
+
+/* backend chip */
+.backend{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--muted);
+  font-family:var(--mono);letter-spacing:.01em}
+.backend .gem{width:13px;height:13px;border-radius:3px;background:linear-gradient(135deg,#4f9cf9,#34e0d0)}
+.backend .cc{width:13px;height:13px;border-radius:3px;background:linear-gradient(135deg,#f5c469,#fb7185)}
+
+/* KPI strip */
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.kpi{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-sm);padding:13px 12px}
+.kpi .v{font-size:24px;font-weight:680;font-variant-numeric:tabular-nums;letter-spacing:-.02em;font-family:var(--mono)}
+.kpi .v small{font-size:14px;color:var(--faint);font-weight:600}
+.kpi .k{font-size:11px;color:var(--muted);margin-top:3px;letter-spacing:.02em}
+.kpi.accent .v{color:var(--accent)}
+
+/* progress / quota bars */
+.bar{height:6px;border-radius:99px;background:var(--surface);overflow:hidden;margin-top:9px}
+.bar > i{display:block;height:100%;border-radius:99px;background:var(--accent)}
+.bar.warn > i{background:var(--warn)}
+.bar.full > i{background:var(--danger)}
+
+/* banner */
+.banner{display:flex;gap:11px;align-items:flex-start;padding:13px 14px;border-radius:var(--radius-sm);
+  background:color-mix(in oklab,var(--warn) 11%,var(--panel));border:1px solid color-mix(in oklab,var(--warn) 26%,transparent);
+  font-size:13px;line-height:1.45}
+.banner svg{flex:none;color:var(--warn);margin-top:1px}
+.banner b{font-weight:600}
+
+/* toggle */
+.toggle{width:46px;height:28px;border-radius:99px;background:var(--surface);border:1px solid var(--border-strong);
+  position:relative;cursor:pointer;flex:none;transition:background .2s,border-color .2s}
+.toggle::after{content:"";position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;
+  background:#cbd5e1;transition:transform .2s}
+.toggle.on{background:color-mix(in oklab,var(--accent) 80%,transparent);border-color:transparent}
+.toggle.on::after{transform:translateX(18px);background:#04201d}
+
+/* line item with label + control */
+.setrow{display:flex;align-items:center;gap:13px;padding:14px 15px;min-height:var(--tap)}
+.setrow + .setrow{border-top:1px solid var(--border)}
+.setrow .grow{flex:1;min-width:0}
+.setrow .name{font-size:14.5px;font-weight:540}
+.setrow .desc{font-size:12px;color:var(--muted);margin-top:2px}
+.setrow .val{font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:600}
+.stepper{display:flex;align-items:center;gap:0;border:1px solid var(--border-strong);border-radius:10px;overflow:hidden}
+.stepper button{width:34px;height:34px;border:0;background:var(--surface);color:var(--fg);font-size:18px;cursor:pointer}
+.stepper button:active{background:var(--panel-2)}
+.stepper .n{min-width:34px;text-align:center;font-family:var(--mono);font-weight:600;font-size:14px}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;cursor:pointer;
+  font-family:var(--font);font-size:15px;font-weight:600;letter-spacing:.01em;border-radius:14px;
+  padding:0 18px;height:50px;transition:transform .1s,filter .15s}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.ghost{background:var(--surface);color:var(--fg);border:1px solid var(--border-strong)}
+.btn.danger{background:color-mix(in oklab,var(--danger) 18%,var(--panel));color:var(--danger);border:1px solid color-mix(in oklab,var(--danger) 36%,transparent)}
+.btn.block{width:100%}
+.btn.sm{height:40px;font-size:13.5px;border-radius:11px;padding:0 13px}
+
+/* chat */
+.msg{max-width:84%;padding:11px 14px;border-radius:16px;font-size:14.5px;line-height:1.5;margin-top:12px}
+.msg.user{margin-left:auto;background:var(--panel-2);border-bottom-right-radius:5px}
+.msg.agent{margin-right:auto;background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:5px}
+.msg .who{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-bottom:5px;display:flex;gap:7px;align-items:center}
+.msg code{font-family:var(--mono);font-size:12.5px;background:rgba(0,0,0,.3);padding:1px 5px;border-radius:5px}
+.daydiv{text-align:center;font-size:11px;color:var(--faint);font-family:var(--mono);margin:16px 0 4px;letter-spacing:.04em}
+
+/* PR / source action panel */
+.prcard{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:15px;margin-top:16px}
+.prcard .pr-top{display:flex;align-items:center;gap:9px}
+.prcard .pr-title{font-size:14.5px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prmeta{display:flex;flex-wrap:wrap;gap:7px 16px;margin-top:11px;font-size:12.5px;color:var(--muted);font-family:var(--mono)}
+.prmeta span{display:inline-flex;align-items:center;gap:6px}
+.ci{display:flex;align-items:center;gap:9px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:12.5px}
+.ci .check{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11.5px}
+.ci .ok{color:var(--success)}.ci .ko{color:var(--danger)}.ci .pend{color:var(--warn)}
+.pr-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}
+
+/* ---------- tab bar (iOS) ---------- */
+.tabbar{
+  position:absolute;left:0;right:0;bottom:0;z-index:25;height:var(--nav-h);
+  display:flex;align-items:flex-start;justify-content:space-around;padding:10px 14px 0;
+  background:color-mix(in oklab,var(--bg) 86%,transparent);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-top:1px solid var(--border);
+}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:0;cursor:pointer;
+  color:var(--faint);font-size:10.5px;font-weight:560;letter-spacing:.02em;padding-top:6px}
+.tab svg{width:25px;height:25px}
+.tab.on{color:var(--accent)}
+.home-ind{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:99px;background:rgba(255,255,255,.5)}
+
+/* Android nav variant */
+[data-platform="android"] .tabbar{
+  height:68px;align-items:center;padding:0 6px;background:#0c1422f2;border-top:1px solid var(--border);
+}
+[data-platform="android"] .tab{gap:3px;font-size:11px;padding-top:0}
+[data-platform="android"] .tab svg{width:24px;height:24px}
+[data-platform="android"] .tab.on{color:var(--accent)}
+[data-platform="android"] .tab.on .ic-wrap{background:color-mix(in oklab,var(--accent) 22%,transparent)}
+[data-platform="android"] .ic-wrap{width:58px;height:30px;border-radius:99px;display:grid;place-items:center;transition:background .2s}
+[data-platform="android"] .home-ind{display:none}
+.ic-wrap{display:contents}
+
+/* FAB (android) */
+/* Material 3 extended FAB — Android only, contextual add action */
+.fab{position:absolute;right:16px;bottom:calc(68px + 16px);z-index:26;height:56px;border-radius:18px;padding:0 20px;
+  background:var(--accent);color:var(--accent-ink);border:0;display:none;align-items:center;gap:10px;cursor:pointer;
+  font-family:var(--font);font-size:15px;font-weight:600;letter-spacing:.01em;
+  box-shadow:0 6px 10px -2px rgba(0,0,0,.4), 0 12px 28px -8px color-mix(in oklab,var(--accent) 60%,transparent)}
+.fab:active{transform:scale(.96)}
+.fab .fab-label{white-space:nowrap}
+[data-platform="android"] .fab.show{display:inline-flex}
+/* iOS uses an inline + in the app bar instead of FAB */
+[data-platform="android"] .ios-add{display:none}
+
+/* ---- Android = standard Material navigation -------------------------------
+   Compact Material top app bar: single left-aligned title (no iOS eyebrow,
+   no oversized hero title), Material up-arrow instead of the iOS chevron.
+   iOS keeps its large title + chevron untouched. */
+[data-platform="android"] .iconbtn[data-back] svg{display:none}
+[data-platform="android"] .iconbtn[data-back]::before{content:"\2190";font-size:23px;line-height:1;color:var(--fg)}
+
+/* ---------- bottom sheet ---------- */
+.scrim{position:absolute;inset:0;z-index:40;background:rgba(3,6,12,.6);opacity:0;visibility:hidden;transition:opacity .25s}
+.scrim.show{opacity:1;visibility:visible}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:41;background:var(--panel);
+  border-top-left-radius:26px;border-top-right-radius:26px;border:1px solid var(--border-strong);border-bottom:0;
+  padding:10px 18px calc(20px + env(safe-area-inset-bottom));transform:translateY(100%);
+  transition:transform .32s cubic-bezier(.32,.72,.24,1);max-height:86%;overflow-y:auto}
+.sheet.show{transform:translateY(0)}
+.grab{width:38px;height:4px;border-radius:99px;background:var(--border-strong);margin:4px auto 12px}
+.sheet h3{font-size:18px;font-weight:660;letter-spacing:-.01em}
+.sheet .sub{color:var(--muted);font-size:13px;margin-top:3px;margin-bottom:6px}
+
+/* agent strategy option */
+.agent-opt{display:flex;align-items:center;gap:13px;padding:13px 14px;border:1px solid var(--border);border-radius:14px;margin-top:10px;cursor:pointer;transition:border-color .15s,background .15s}
+.agent-opt:hover{border-color:var(--border-strong)}
+.agent-opt.sel{border-color:var(--accent);background:color-mix(in oklab,var(--accent) 8%,transparent)}
+.agent-opt .av{width:40px;height:40px;border-radius:11px;flex:none;display:grid;place-items:center;font-family:var(--mono);font-weight:700;font-size:13px}
+.agent-opt .nm{font-size:14.5px;font-weight:560}
+.agent-opt .mt{font-size:11.5px;color:var(--muted);margin-top:2px;font-family:var(--mono)}
+.agent-opt .radio{width:22px;height:22px;border-radius:50%;border:2px solid var(--border-strong);flex:none}
+.agent-opt.sel .radio{border-color:var(--accent);background:radial-gradient(circle,var(--accent) 0 6px,transparent 7px)}
+.strat-chips{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0 4px}
+.chip{font-size:12px;font-weight:560;padding:7px 12px;border-radius:999px;border:1px solid var(--border-strong);
+  background:var(--surface);color:var(--muted);cursor:pointer}
+.chip.on{color:var(--accent-ink);background:var(--accent);border-color:transparent}
+
+.empty{color:var(--faint);font-size:13px;text-align:center;padding:30px 10px}
+.divlbl{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin:24px 4px 9px}
+.toast{position:absolute;left:50%;bottom:104px;transform:translate(-50%,12px);z-index:50;background:#04201d;
+  color:var(--accent);border:1px solid color-mix(in oklab,var(--accent) 40%,transparent);padding:11px 16px;border-radius:13px;
+  font-size:13px;font-weight:560;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;display:flex;gap:8px;align-items:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ---------- board mode (tiled in screens.html) ---------- */
+body.board{padding:0;background:transparent;display:block}
+body.board .stage-cap{display:none}
+body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;width:100%;height:100vh;border:0}
+</style>
+</head>
+<body data-platform="ios">
+
+<div class="stage-cap">
+  <span class="dot"></span>
+  <span>Julius — <b id="capPlat">iOS</b></span>
+  <a href="index.html">↩ Carte des écrans</a>
+</div>
+
+<div class="phone" id="phone">
+  <div class="island"></div>
+  <div class="statusbar">
+    <span id="clock">9:41</span>
+    <span class="sig">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="4" width="3" height="8" rx="1"/><rect x="10" y="2" width="3" height="10" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1" opacity=".4"/></svg>
+      <svg width="17" height="12" viewBox="0 0 17 12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1 4.5C3.5 2 6 1 8.5 1S13.5 2 16 4.5M3.5 7C5 5.6 6.7 5 8.5 5s3.5.6 5 2M6 9.4c.8-.7 1.6-1 2.5-1s1.7.3 2.5 1"/></svg>
+      <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="3" stroke="currentColor" stroke-opacity=".5"/><rect x="3" y="3" width="16" height="6" rx="1.5" fill="currentColor"/><rect x="23" y="4" width="2" height="4" rx="1" fill="currentColor" fill-opacity=".5"/></svg>
+    </span>
+  </div>
+
+  <div class="viewport" id="viewport">
+
+    <!-- ============ QUEUE ENGINE ============ -->
+    <section class="screen active" id="queue" data-tab="queue" data-title="Scheduler">
+      <div class="appbar sticky">
+        <div class="appbar-row">
+          <h1>Scheduler</h1>
+          <span class="spacer"></span>
+          <button class="iconbtn" aria-label="Journal d'activité" data-go="">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+          </button>
+        </div>
+        <div class="title-xl">Scheduler <span class="pill run" style="font-size:11px"><span class="led"></span>actif</span></div>
+        <div class="title-sub">Séquenceur d'agents · 3 sessions en parallèle</div>
+      </div>
+      <div class="body has-tabbar">
+
+        <div class="kpis" style="margin-top:8px">
+          <div class="kpi accent"><div class="v">3<small>/3</small></div><div class="k">En cours</div></div>
+          <div class="kpi"><div class="v">7</div><div class="k">En file</div></div>
+          <div class="kpi"><div class="v">21<small>/30</small></div><div class="k">Quota jour</div></div>
+        </div>
+
+        <!-- Dernières features (vue fonctionnelle transverse) -->
+        <div class="sect" style="margin-top:18px">
+          <div class="sect-h"><span class="lab">Dernières features</span><span class="meta">tous projets</span></div>
+          <div class="card">
+            <div class="row" data-go="feature" data-src="acme/web-app" data-feat="Migration design tokens v2">
+              <span class="lead" style="color:var(--accent)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+              <div class="grow"><div class="name">Migration design tokens v2</div><div class="desc">acme/web-app · maj il y a 4 min</div></div>
+              <div class="trail"><span class="pill run"><span class="led"></span>En cours<span class="enum">IN_PROGRESS</span></span></div>
+            </div>
+            <div class="row" data-go="feature" data-src="acme/checkout-api" data-feat="Idempotency keys sur /payments">
+              <span class="lead" style="color:var(--accent)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+              <div class="grow"><div class="name">Idempotency keys sur /payments</div><div class="desc">acme/checkout-api · maj il y a 12 min</div></div>
+              <div class="trail"><span class="pill run"><span class="led"></span>En cours<span class="enum">PLANNING</span></span></div>
+            </div>
+            <div class="row" data-go="feature" data-src="acme/web-app" data-feat="Skeleton loaders">
+              <span class="lead" style="color:var(--success)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M20 6 9 17l-5-5"/></svg></span>
+              <div class="grow"><div class="name">Skeleton loaders</div><div class="desc">acme/web-app · mergé il y a 2 h · #318</div></div>
+              <div class="trail"><span class="pill merged">Mergé<span class="enum">merged</span></span></div>
+            </div>
+            <div class="row" data-go="feature" data-src="acme/web-app" data-feat="Refonte navigation mobile">
+              <span class="lead" style="color:var(--danger)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 8v5M12 16.5v.01"/><circle cx="12" cy="12" r="9"/></svg></span>
+              <div class="grow"><div class="name">Refonte navigation mobile</div><div class="desc">acme/web-app · échec build il y a 3 h</div></div>
+              <div class="trail"><span class="pill fail">Échec<span class="enum">FAILED</span></span></div>
+            </div>
+            <div class="row" data-go="feature" data-src="acme/checkout-api" data-feat="Webhook retry exponentiel">
+              <span class="lead" style="color:var(--warn)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h18M3 6h18M3 18h12"/></svg></span>
+              <div class="grow"><div class="name">Webhook retry exponentiel</div><div class="desc">acme/checkout-api · priorité haute</div></div>
+              <div class="trail"><span class="pill queued">En file<span class="enum">QUEUED</span></span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:18px">
+          <div class="setrow">
+            <div class="grow"><div class="name">File en pause</div><div class="desc">Suspend le démarrage de nouvelles sessions</div></div>
+            <div class="toggle" data-toggle></div>
+          </div>
+          <div class="setrow">
+            <div class="grow"><div class="name">Auto-merge si CI ✓</div><div class="desc"><span style="font-family:var(--mono);font-size:11px">autoMergeOnCiSuccess</span></div></div>
+            <div class="toggle on" data-toggle></div>
+          </div>
+        </div>
+
+        <div class="banner" style="margin-top:14px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8v5M12 16.5v.01"/><circle cx="12" cy="12" r="9"/></svg>
+          <div><b>Compte Jules · perso</b> a atteint sa limite quotidienne (15/15). 4 features rebasculées sur <b>Jules · pro</b> et <b>Claude Code</b>.</div>
+        </div>
+
+        <!-- Comptes & quotas -->
+        <div class="sect">
+          <div class="sect-h"><span class="lab">Comptes · quotas</span><span class="meta">dailyLimitPerAccount 15</span></div>
+          <div class="card">
+            <div class="setrow" style="align-items:flex-start;flex-direction:column;gap:8px">
+              <div style="display:flex;width:100%;align-items:center;gap:10px">
+                <span class="backend"><span class="gem"></span>JULES · perso</span>
+                <span class="spacer" style="flex:1"></span>
+                <span style="font-family:var(--mono);font-size:12px;color:var(--danger)">15/15</span>
+              </div>
+              <div class="bar full" style="width:100%"><i style="width:100%"></i></div>
+            </div>
+            <div class="setrow" style="align-items:flex-start;flex-direction:column;gap:8px">
+              <div style="display:flex;width:100%;align-items:center;gap:10px">
+                <span class="backend"><span class="gem"></span>JULES · pro</span>
+                <span class="spacer" style="flex:1"></span>
+                <span style="font-family:var(--mono);font-size:12px;color:var(--warn)">11/15 · 2 actives</span>
+              </div>
+              <div class="bar warn" style="width:100%"><i style="width:73%"></i></div>
+            </div>
+            <div class="setrow" style="align-items:flex-start;flex-direction:column;gap:8px">
+              <div style="display:flex;width:100%;align-items:center;gap:10px">
+                <span class="backend"><span class="cc"></span>CLAUDE_CODE</span>
+                <span class="spacer" style="flex:1"></span>
+                <span style="font-family:var(--mono);font-size:12px;color:var(--accent)">6/∞ · 1 active</span>
+              </div>
+              <div class="bar" style="width:100%"><i style="width:40%"></i></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Features en cours -->
+        <div class="sect">
+          <div class="sect-h"><span class="lab">En cours d'exécution</span><span class="meta">IN_PROGRESS</span></div>
+          <div class="card">
+            <div class="row" data-go="feature" data-src="acme/checkout-api" data-feat="Idempotency keys sur /payments">
+              <span class="lead"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+              <div class="grow"><div class="name">Idempotency keys sur /payments</div><div class="desc">acme/checkout-api · JULES · pro</div></div>
+              <div class="trail"><span class="pill run"><span class="led"></span>En cours<span class="enum">PLANNING</span></span></div>
+            </div>
+            <div class="row" data-go="feature" data-src="acme/web-app" data-feat="Migration design tokens v2">
+              <span class="lead"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+              <div class="grow"><div class="name">Migration design tokens v2</div><div class="desc">acme/web-app · CLAUDE_CODE</div></div>
+              <div class="trail"><span class="pill run"><span class="led"></span>En cours<span class="enum">IN_PROGRESS</span></span></div>
+            </div>
+            <div class="row" data-go="feature" data-src="acme/web-app" data-feat="Dark-mode persistant">
+              <span class="lead"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+              <div class="grow"><div class="name">Dark-mode persistant</div><div class="desc">acme/web-app · JULES · pro</div></div>
+              <div class="trail"><span class="pill run"><span class="led"></span>En cours<span class="enum">PLANNING</span></span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- File d'attente -->
+        <div class="sect">
+          <div class="sect-h"><span class="lab">File d'attente</span><span class="meta">QUEUED · 7</span></div>
+          <div class="card">
+            <div class="row" data-go="feature" data-src="acme/checkout-api" data-feat="Webhook retry exponentiel">
+              <span class="lead" style="color:var(--warn)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h18M3 6h18M3 18h12"/></svg></span>
+              <div class="grow"><div class="name">Webhook retry exponentiel</div><div class="desc">acme/checkout-api · priorité haute</div></div>
+              <div class="trail"><span class="pill queued">En file<span class="enum">QUEUED</span></span></div>
+            </div>
+            <div class="row" data-go="feature" data-src="acme/web-app" data-feat="Empty states illustrés">
+              <span class="lead" style="color:var(--warn)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h18M3 6h18M3 18h12"/></svg></span>
+              <div class="grow"><div class="name">Empty states illustrés</div><div class="desc">acme/web-app · position 4</div></div>
+              <div class="trail"><span class="pill queued">En file<span class="enum">QUEUED</span></span></div>
+            </div>
+            <div class="row" data-go="feature" data-src="acme/infra" data-feat="Rotation des secrets KMS">
+              <span class="lead" style="color:var(--warn)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h18M3 6h18M3 18h12"/></svg></span>
+              <div class="grow"><div class="name">Rotation des secrets KMS</div><div class="desc">acme/infra · attend quota</div></div>
+              <div class="trail"><span class="pill pending">En attente<span class="enum">PENDING</span></span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ PROJECTS ============ -->
+    <section class="screen" id="projects" data-tab="projects" data-title="Projets">
+      <div class="appbar sticky">
+        <div class="appbar-row">
+          <h1>Projets</h1>
+          <span class="spacer"></span>
+          <button class="iconbtn ios-add" data-sheet="addproject" aria-label="Connecter un dépôt">
+            <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+        </div>
+        <div class="title-xl">Projets</div>
+        <div class="title-sub">Sélectionne un projet pour ouvrir ses features</div>
+        <div style="position:relative;margin-top:14px">
+          <svg style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--faint)" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input placeholder="Rechercher un dépôt…" style="width:100%;height:44px;border-radius:13px;border:1px solid var(--border-strong);background:var(--surface);color:var(--fg);padding:0 14px 0 40px;font-size:14.5px;font-family:var(--font)"/>
+        </div>
+      </div>
+      <div class="body has-tabbar">
+
+        <div class="divlbl">Récent</div>
+        <div class="card">
+          <div class="row" data-go="features" data-src="acme/web-app">
+            <span class="lead" style="color:var(--accent)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7Z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></span>
+            <div class="grow"><div class="name">acme/web-app</div><div class="desc">5 features · 2 en cours · 1 PR ouverte</div></div>
+            <div class="trail"><span class="pill run"><span class="led"></span>2 actives</span></div>
+          </div>
+        </div>
+
+        <div class="divlbl">Tous les dépôts</div>
+        <div class="card">
+          <div class="row" data-go="features" data-src="acme/checkout-api">
+            <span class="lead"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7Z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></span>
+            <div class="grow"><div class="name">acme/checkout-api</div><div class="desc">8 features · 1 en cours · 1 conflit</div></div>
+            <div class="trail"><span class="pill conflict">conflit</span></div>
+          </div>
+          <div class="row" data-go="features" data-src="acme/web-app">
+            <span class="lead"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7Z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></span>
+            <div class="grow"><div class="name">acme/web-app</div><div class="desc">5 features · 2 en cours</div></div>
+            <div class="chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></div>
+          </div>
+          <div class="row" data-go="features" data-src="acme/infra">
+            <span class="lead"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7Z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></span>
+            <div class="grow"><div class="name">acme/infra</div><div class="desc">3 features · en attente quota</div></div>
+            <div class="trail"><span class="pill pending">PENDING</span></div>
+          </div>
+          <div class="row" data-go="features" data-src="acme/docs-site">
+            <span class="lead"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7Z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></span>
+            <div class="grow"><div class="name">acme/docs-site</div><div class="desc">2 features · tout mergé</div></div>
+            <div class="trail"><span class="pill merged">à jour</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FEATURES (liste globale — onglet) ============ -->
+    <section class="screen" id="featlist" data-tab="featlist" data-title="Features">
+      <div class="appbar sticky">
+        <div class="appbar-row"><h1>Features</h1><span class="spacer"></span><button class="iconbtn ios-add" data-sheet="addfeat" aria-label="Nouvelle feature"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg></button></div>
+        <div class="title-xl">Features</div>
+        <div class="title-sub"><span id="featCount">10</span> features · tous projets</div>
+        <div style="position:relative;margin-top:14px">
+          <svg style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--faint)" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="featSearch" placeholder="Rechercher une feature ou un projet…" style="width:100%;height:44px;border-radius:13px;border:1px solid var(--border-strong);background:var(--surface);color:var(--fg);padding:0 14px 0 40px;font-size:14.5px;font-family:var(--font)"/>
+        </div>
+        <div class="strat-chips" style="margin-top:12px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px">
+          <span class="chip on" data-ffilter="all">Toutes</span>
+          <span class="chip" data-ffilter="running">En cours</span>
+          <span class="chip" data-ffilter="tomerge">À merger</span>
+          <span class="chip" data-ffilter="queued">En file</span>
+          <span class="chip" data-ffilter="merged">Mergé</span>
+          <span class="chip" data-ffilter="failed">Échec</span>
+        </div>
+      </div>
+      <div class="body has-tabbar">
+        <div class="card" style="margin-top:6px" id="featListCard">
+          <div class="row" data-go="feature" data-src="acme/web-app" data-feat="Migration design tokens v2" data-status="running" data-text="migration design tokens v2 acme/web-app">
+            <span class="lead" style="color:var(--accent)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+            <div class="grow"><div class="name">Migration design tokens v2</div><div class="desc">acme/web-app</div></div>
+            <div class="trail"><span class="pill run"><span class="led"></span>En cours<span class="enum">IN_PROGRESS</span></span></div>
+          </div>
+          <div class="row" data-go="feature" data-src="acme/checkout-api" data-feat="Idempotency keys sur /payments" data-status="running" data-text="idempotency keys payments acme/checkout-api">
+            <span class="lead" style="color:var(--accent)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+            <div class="grow"><div class="name">Idempotency keys sur /payments</div><div class="desc">acme/checkout-api</div></div>
+            <div class="trail"><span class="pill run"><span class="led"></span>En cours<span class="enum">PLANNING</span></span></div>
+          </div>
+          <div class="row" data-go="feature" data-src="acme/web-app" data-feat="Dark-mode persistant" data-status="running" data-text="dark-mode persistant acme/web-app">
+            <span class="lead" style="color:var(--accent)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+            <div class="grow"><div class="name">Dark-mode persistant</div><div class="desc">acme/web-app</div></div>
+            <div class="trail"><span class="pill run"><span class="led"></span>En cours<span class="enum">PLANNING</span></span></div>
+          </div>
+          <div class="row" data-go="feature" data-src="acme/checkout-api" data-feat="Tri serveur des transactions" data-status="tomerge" data-text="tri serveur transactions acme/checkout-api">
+            <span class="lead" style="color:var(--accent)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="9" r="3"/><path d="M6 9v6M18 12a9 9 0 0 1-9 9"/></svg></span>
+            <div class="grow"><div class="name">Tri serveur des transactions</div><div class="desc">acme/checkout-api · PR #344</div></div>
+            <div class="trail"><span class="pill open">À merger<span class="enum">open · CI ✓</span></span></div>
+          </div>
+          <div class="row" data-go="feature" data-src="acme/web-app" data-feat="Export CSV des paiements" data-status="tomerge" data-text="export csv paiements acme/checkout-api">
+            <span class="lead" style="color:var(--accent)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="9" r="3"/><path d="M6 9v6M18 12a9 9 0 0 1-9 9"/></svg></span>
+            <div class="grow"><div class="name">Export CSV des paiements</div><div class="desc">acme/checkout-api · PR #340</div></div>
+            <div class="trail"><span class="pill open">À merger<span class="enum">open · CI ✓</span></span></div>
+          </div>
+          <div class="row" data-go="feature" data-src="acme/checkout-api" data-feat="Webhook retry exponentiel" data-status="queued" data-text="webhook retry exponentiel acme/checkout-api">
+            <span class="lead" style="color:var(--warn)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h18M3 6h18M3 18h12"/></svg></span>
+            <div class="grow"><div class="name">Webhook retry exponentiel</div><div class="desc">acme/checkout-api · priorité haute</div></div>
+            <div class="trail"><span class="pill queued">En file<span class="enum">QUEUED</span></span></div>
+          </div>
+          <div class="row" data-go="feature" data-src="acme/web-app" data-feat="Empty states illustrés" data-status="queued" data-text="empty states illustres acme/web-app">
+            <span class="lead" style="color:var(--warn)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h18M3 6h18M3 18h12"/></svg></span>
+            <div class="grow"><div class="name">Empty states illustrés</div><div class="desc">acme/web-app · position 4</div></div>
+            <div class="trail"><span class="pill queued">En file<span class="enum">QUEUED</span></span></div>
+          </div>
+          <div class="row" data-go="feature" data-src="acme/infra" data-feat="Rotation des secrets KMS" data-status="queued" data-text="rotation secrets kms acme/infra">
+            <span class="lead" style="color:var(--muted)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h18M3 6h18M3 18h12"/></svg></span>
+            <div class="grow"><div class="name">Rotation des secrets KMS</div><div class="desc">acme/infra · attend quota</div></div>
+            <div class="trail"><span class="pill pending">En attente<span class="enum">PENDING</span></span></div>
+          </div>
+          <div class="row" data-go="feature" data-src="acme/web-app" data-feat="Skeleton loaders" data-status="merged" data-text="skeleton loaders acme/web-app">
+            <span class="lead" style="color:var(--success)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M20 6 9 17l-5-5"/></svg></span>
+            <div class="grow"><div class="name">Skeleton loaders</div><div class="desc">acme/web-app · mergé il y a 2 h · #318</div></div>
+            <div class="trail"><span class="pill merged">Mergé<span class="enum">merged</span></span></div>
+          </div>
+          <div class="row" data-go="feature" data-src="acme/web-app" data-feat="Refonte navigation mobile" data-status="failed" data-text="refonte navigation mobile acme/web-app">
+            <span class="lead" style="color:var(--danger)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 8v5M12 16.5v.01"/><circle cx="12" cy="12" r="9"/></svg></span>
+            <div class="grow"><div class="name">Refonte navigation mobile</div><div class="desc">acme/web-app · échec build</div></div>
+            <div class="trail"><span class="pill fail">Échec<span class="enum">FAILED</span></span></div>
+          </div>
+        </div>
+        <div class="empty" id="featEmpty" style="display:none">Aucune feature ne correspond à ce filtre.</div>
+      </div>
+    </section>
+
+    <!-- ============ FEATURES (d'un projet) ============ -->
+    <section class="screen" id="features" data-title="Features">
+      <div class="appbar sticky">
+        <div class="appbar-row">
+          <button class="iconbtn" data-back aria-label="Retour"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 6-6 6 6 6"/></svg></button>
+          <div class="switcher" data-sheet="switch">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7Z"/></svg>
+            <span class="repo" id="featSrc">acme/web-app</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+          <span class="spacer"></span>
+          <button class="iconbtn ios-add" data-sheet="addfeat" aria-label="Nouvelle feature"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg></button>
+        </div>
+        <div class="title-xl">Features</div>
+        <div class="title-sub" id="featSub">5 features · 2 en cours</div>
+      </div>
+      <div class="body has-tabbar">
+        <div class="card" style="margin-top:6px">
+          <div class="row" data-go="feature" data-feat="Migration design tokens v2">
+            <span class="lead" style="color:var(--accent)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+            <div class="grow"><div class="name">Migration design tokens v2</div><div class="desc">2 conversations · 1 PR ouverte</div></div>
+            <div class="trail"><span class="pill run"><span class="led"></span>En cours<span class="enum">IN_PROGRESS</span></span></div>
+          </div>
+          <div class="row" data-go="feature" data-feat="Dark-mode persistant">
+            <span class="lead" style="color:var(--accent)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+            <div class="grow"><div class="name">Dark-mode persistant</div><div class="desc">1 conversation · planification</div></div>
+            <div class="trail"><span class="pill run"><span class="led"></span>En cours<span class="enum">PLANNING</span></span></div>
+          </div>
+          <div class="row" data-go="feature" data-feat="Empty states illustrés">
+            <span class="lead" style="color:var(--warn)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h18M3 6h18M3 18h12"/></svg></span>
+            <div class="grow"><div class="name">Empty states illustrés</div><div class="desc">position 4 · en file</div></div>
+            <div class="trail"><span class="pill queued">En file<span class="enum">QUEUED</span></span></div>
+          </div>
+          <div class="row" data-go="feature" data-feat="Skeleton loaders">
+            <span class="lead" style="color:var(--success)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M20 6 9 17l-5-5"/></svg></span>
+            <div class="grow"><div class="name">Skeleton loaders</div><div class="desc">mergé il y a 2 h · #318</div></div>
+            <div class="trail"><span class="pill merged">Mergé<span class="enum">merged</span></span></div>
+          </div>
+          <div class="row" data-go="feature" data-feat="Refonte navigation mobile">
+            <span class="lead" style="color:var(--danger)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 8v5M12 16.5v.01"/><circle cx="12" cy="12" r="9"/></svg></span>
+            <div class="grow"><div class="name">Refonte navigation mobile</div><div class="desc">échec build · à relancer</div></div>
+            <div class="trail"><span class="pill fail">Échec<span class="enum">FAILED</span></span></div>
+          </div>
+        </div>
+        <div class="divlbl">Autres conversations</div>
+        <div class="card">
+          <div class="row" data-go="conversation" data-feat="">
+            <span class="lead"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10Z"/></svg></span>
+            <div class="grow"><div class="name">Exploration perfs bundle</div><div class="desc">sans feature · CLAUDE_CODE</div></div>
+            <div class="trail"><span class="pill done">Terminé<span class="enum">COMPLETED</span></span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FEATURE DETAIL ============ -->
+    <section class="screen" id="feature" data-title="Feature">
+      <div class="appbar sticky">
+        <div class="appbar-row">
+          <button class="iconbtn" data-back aria-label="Retour"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 6-6 6 6 6"/></svg></button>
+          <span class="repo" style="font-family:var(--mono);font-size:12.5px;color:var(--muted)" id="featDetailSrc">acme/web-app</span>
+          <span class="spacer"></span>
+          <button class="iconbtn" aria-label="Éditer"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg></button>
+        </div>
+        <div class="title-xl" id="featDetailTitle">Migration design tokens v2</div>
+        <div class="title-sub"><span class="pill run" style="font-size:11px"><span class="led"></span>En cours · IN_PROGRESS</span></div>
+      </div>
+      <div class="body has-tabbar">
+        <p style="color:var(--muted);font-size:14px;line-height:1.55;margin:6px 4px 0;max-width:60ch">
+          Remplacer les valeurs hex codées en dur par les tokens <code style="font-family:var(--mono);font-size:12.5px;background:rgba(0,0,0,.3);padding:1px 5px;border-radius:5px">--color-*</code> et brancher le thème sombre. Priorité haute, assignée au compte <b style="color:var(--fg)">JULES · pro</b>.
+        </p>
+
+        <div class="sect">
+          <div class="sect-h"><span class="lab">Conversations</span><span class="meta">2 sessions</span></div>
+          <div class="card">
+            <div class="row" data-go="conversation" data-state="open">
+              <span class="lead"><span class="backend"><span class="gem"></span></span></span>
+              <div class="grow"><div class="name">Jules · pro</div><div class="desc">PR #341 · feat/tokens-v2 · 14 activités</div></div>
+              <div class="trail"><span class="pill open">PR ouverte<span class="enum">open</span></span><span class="backend">JULES</span></div>
+            </div>
+            <div class="row" data-go="conversation" data-state="conflict">
+              <span class="lead"><span class="backend"><span class="cc"></span></span></span>
+              <div class="grow"><div class="name">Claude Code</div><div class="desc">PR #339 · approche alternative · conflits</div></div>
+              <div class="trail"><span class="pill conflict">Conflit<span class="enum">mergeable=false</span></span><span class="backend">CLAUDE_CODE</span></div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn primary block" style="margin-top:18px" data-sheet="launch">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          Lancer une conversation
+        </button>
+        <p style="text-align:center;color:var(--faint);font-size:12px;margin-top:10px">Plusieurs agents peuvent traiter la même feature en parallèle.</p>
+      </div>
+    </section>
+
+    <!-- ============ CONVERSATION ============ -->
+    <section class="screen" id="conversation" data-title="Conversation">
+      <div class="appbar sticky">
+        <div class="appbar-row">
+          <button class="iconbtn" data-back aria-label="Retour"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 6-6 6 6 6"/></svg></button>
+          <div class="grow" style="min-width:0">
+            <div style="font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px"><span class="backend" id="convAgentDot"><span class="gem"></span></span><span id="convAgent">Jules · pro</span></div>
+            <div style="font-size:11.5px;color:var(--muted);font-family:var(--mono)" id="convSub">sessionState · COMPLETED</div>
+          </div>
+          <button class="iconbtn" data-go="gitci" aria-label="Git & CI"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="9" r="2.5"/><path d="M6 8.5v7M8.5 6H14a4 4 0 0 1 4 4v.5"/></svg></button>
+        </div>
+      </div>
+      <div class="body" style="padding-bottom:18px" id="convBody">
+        <div class="daydiv">Aujourd'hui · 14:02</div>
+        <div class="msg user"><div class="who">Vous</div>Migre <code>Button</code>, <code>Card</code> et <code>Input</code> vers les tokens <code>--color-*</code>. Garde le thème clair iso, branche le sombre.</div>
+        <div class="msg agent"><div class="who"><span class="backend"><span class="gem"></span></span>Jules · pro</div>Plan : 1) extraire la palette en tokens, 2) remplacer les hex dans les 3 composants, 3) ajouter le data-theme sur <code>:root</code>. Je commence par <code>Button</code>.</div>
+        <div class="msg agent"><div class="who"><span class="backend"><span class="gem"></span></span>Jules · pro</div>23 fichiers modifiés, build vert. J'ai ouvert la PR <code>#341</code> sur <code>feat/tokens-v2</code>. Prêt à merger.</div>
+
+        <!-- PR / source actions (fin de conversation) -->
+        <div class="prcard" id="prPanel">
+          <div class="pr-top">
+            <span style="color:var(--accent)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="M6 9v6M18 9a9 9 0 0 1-9 9"/></svg></span>
+            <span class="pr-title">Migrate Button/Card/Input to tokens</span>
+            <span class="pill open" id="prStatePill">PR ouverte<span class="enum">open</span></span>
+          </div>
+          <div class="prmeta">
+            <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3v12M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0 0v3a3 3 0 0 1-3 3H6"/></svg>#341</span>
+            <span>feat/tokens-v2 → main</span>
+            <span style="color:var(--success)">+412 −188</span>
+          </div>
+          <div class="ci" id="ciRow">
+            <span class="check ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>build · success</span>
+            <span class="check ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>tests · success</span>
+            <span class="check pend"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>deploy · queued</span>
+          </div>
+          <div class="pr-actions" id="prActions">
+            <button class="btn primary" data-pr="merge"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="9" r="3"/><path d="M6 9v6M18 12a9 9 0 0 1-9 9"/></svg>Merger</button>
+            <button class="btn ghost" data-pr="view">Voir la PR ↗</button>
+            <button class="btn ghost" data-pr="retry"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4"/></svg>Relancer l'agent</button>
+            <button class="btn ghost" data-pr="branch">Changer de stratégie</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ GIT & CI ============ -->
+    <section class="screen" id="gitci" data-title="Git & CI">
+      <div class="appbar sticky">
+        <div class="appbar-row">
+          <button class="iconbtn" data-back aria-label="Retour"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 6-6 6 6 6"/></svg></button>
+          <h1>Git &amp; CI</h1>
+        </div>
+        <div class="title-xl" style="font-size:24px">feat/tokens-v2</div>
+        <div class="title-sub">acme/web-app · 3 workflows GitHub</div>
+      </div>
+      <div class="body">
+        <div class="card" style="margin-top:6px">
+          <div class="setrow"><span style="color:var(--success)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg></span><div class="grow"><div class="name">CI · build & test</div><div class="desc" style="font-family:var(--mono);font-size:11px">run #1284 · conclusion success</div></div><span class="pill merged">success</span></div>
+          <div class="setrow"><span style="color:var(--warn)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div class="grow"><div class="name">Deploy · Play Store</div><div class="desc" style="font-family:var(--mono);font-size:11px">run #1285 · status queued</div></div><span class="pill queued">queued</span></div>
+          <div class="setrow"><span style="color:var(--success)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg></span><div class="grow"><div class="name">Lint</div><div class="desc" style="font-family:var(--mono);font-size:11px">run #1283 · conclusion success</div></div><span class="pill merged">success</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SETTINGS ============ -->
+    <section class="screen" id="settings" data-tab="settings" data-title="Réglages">
+      <div class="appbar sticky">
+        <div class="appbar-row"><h1>Réglages</h1></div>
+        <div class="title-xl">Réglages</div>
+      </div>
+      <div class="body has-tabbar">
+
+        <div class="divlbl">Comptes agents</div>
+        <p style="color:var(--faint);font-size:12px;margin:0 4px 11px;line-height:1.5">Les sessions en parallèle et la limite quotidienne se règlent <b style="color:var(--muted)">par compte</b>.</p>
+
+        <!-- compte 1 -->
+        <div class="card" style="margin-bottom:10px">
+          <div class="setrow" style="background:var(--panel-2)"><span class="backend" style="font-size:13px"><span class="gem"></span></span><div class="grow"><div class="name">Jules · perso</div><div class="desc">JULES · actif</div></div><div class="toggle on" data-toggle></div></div>
+          <div class="setrow" style="padding-left:18px"><div class="grow"><div class="name" style="font-weight:450">Sessions en parallèle</div><div class="desc" style="font-family:var(--mono);font-size:11px">parallelLimit</div></div><div class="stepper"><button data-step="-1">−</button><span class="n">2</span><button data-step="1">+</button></div></div>
+          <div class="setrow" style="padding-left:18px"><div class="grow"><div class="name" style="font-weight:450">Limite quotidienne</div><div class="desc" style="font-family:var(--mono);font-size:11px;color:var(--danger)">dailyLimit · 15/15 utilisées</div></div><div class="stepper"><button data-step="-1">−</button><span class="n">15</span><button data-step="1">+</button></div></div>
+        </div>
+
+        <!-- compte 2 -->
+        <div class="card" style="margin-bottom:10px">
+          <div class="setrow" style="background:var(--panel-2)"><span class="backend" style="font-size:13px"><span class="gem"></span></span><div class="grow"><div class="name">Jules · pro</div><div class="desc">JULES · 2 sessions actives</div></div><div class="toggle on" data-toggle></div></div>
+          <div class="setrow" style="padding-left:18px"><div class="grow"><div class="name" style="font-weight:450">Sessions en parallèle</div><div class="desc" style="font-family:var(--mono);font-size:11px">parallelLimit</div></div><div class="stepper"><button data-step="-1">−</button><span class="n">3</span><button data-step="1">+</button></div></div>
+          <div class="setrow" style="padding-left:18px"><div class="grow"><div class="name" style="font-weight:450">Limite quotidienne</div><div class="desc" style="font-family:var(--mono);font-size:11px;color:var(--warn)">dailyLimit · 11/15 utilisées</div></div><div class="stepper"><button data-step="-1">−</button><span class="n">15</span><button data-step="1">+</button></div></div>
+        </div>
+
+        <!-- compte 3 -->
+        <div class="card" style="margin-bottom:10px">
+          <div class="setrow" style="background:var(--panel-2)"><span class="backend" style="font-size:13px"><span class="cc"></span></span><div class="grow"><div class="name">Claude Code</div><div class="desc">CLAUDE_CODE · 1 session active</div></div><div class="toggle on" data-toggle></div></div>
+          <div class="setrow" style="padding-left:18px"><div class="grow"><div class="name" style="font-weight:450">Sessions en parallèle</div><div class="desc" style="font-family:var(--mono);font-size:11px">parallelLimit</div></div><div class="stepper"><button data-step="-1">−</button><span class="n">1</span><button data-step="1">+</button></div></div>
+          <div class="setrow" style="padding-left:18px"><div class="grow"><div class="name" style="font-weight:450">Limite quotidienne</div><div class="desc" style="font-family:var(--mono);font-size:11px;color:var(--accent)">dailyLimit · 6/40 utilisées</div></div><div class="stepper"><button data-step="-1">−</button><span class="n">40</span><button data-step="1">+</button></div></div>
+        </div>
+
+        <div class="card">
+          <div class="row" style="color:var(--accent)"><span class="lead" style="color:var(--accent)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 5v14M5 12h14"/></svg></span><div class="grow"><div class="name" style="color:var(--accent)">Ajouter un compte</div></div></div>
+        </div>
+
+        <div class="divlbl">Stratégie de file</div>
+        <div class="card">
+          <div class="setrow"><div class="grow"><div class="name">Sélection par coût d'abord</div><div class="desc">Privilégie le compte le moins cher disponible</div></div><div class="toggle on" data-toggle></div></div>
+          <div class="setrow"><div class="grow"><div class="name">Auto-merge si CI ✓</div><div class="desc" style="font-family:var(--mono);font-size:11px">autoMergeOnCiSuccess</div></div><div class="toggle on" data-toggle></div></div>
+        </div>
+
+        <div class="divlbl">GitHub</div>
+        <div class="card">
+          <div class="setrow"><div class="grow"><div class="name">Token d'accès</div><div class="desc">Connecté · merge & résolution de conflits actifs</div></div><span class="pill merged">connecté</span></div>
+          <div class="setrow"><div class="grow"><div class="name">Workflow de déploiement</div><div class="desc">Préfère « deploy » ou « play store »</div></div><span class="val">auto</span></div>
+        </div>
+
+        <div class="divlbl">Général</div>
+        <div class="card">
+          <div class="setrow"><div class="grow"><div class="name">Langue de l'assistant</div></div><span class="val">fr</span></div>
+          <div class="setrow"><div class="grow"><div class="name">Journaux de debug</div><div class="desc" style="font-family:var(--mono);font-size:11px">debugLoggingEnabled</div></div><div class="toggle" data-toggle></div></div>
+        </div>
+        <p style="text-align:center;color:var(--faint);font-size:11.5px;margin-top:20px;font-family:var(--mono)">Julius · build interne</p>
+      </div>
+    </section>
+
+  </div><!-- /viewport -->
+
+  <!-- FAB (android) -->
+  <button class="fab" id="fab" data-sheet="addfeat" aria-label="Ajouter"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg><span class="fab-label" id="fabLabel">Feature</span></button>
+
+  <!-- TAB BAR -->
+  <nav class="tabbar" id="tabbar">
+    <button class="tab on" data-tab="queue"><span class="ic-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="10" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg></span>Scheduler</button>
+    <button class="tab" data-tab="featlist"><span class="ic-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m3 7 2 2 3-3"/><path d="m3 14 2 2 3-3"/><path d="M11 7h10M11 14h10M11 20h7"/></svg></span>Features</button>
+    <button class="tab" data-tab="projects"><span class="ic-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7Z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></span>Projets</button>
+    <button class="tab" data-tab="settings"><span class="ic-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 0 1-4 0v-.1A1.6 1.6 0 0 0 6.8 19l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1-2.7H3a2 2 0 0 1 0-4h.1A1.6 1.6 0 0 0 4.6 6.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 2.7-1H10a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 2.7 1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1 2.7H21a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z"/></svg></span>Réglages</button>
+  </nav>
+  <div class="home-ind"></div>
+
+  <!-- SCRIM + SHEETS -->
+  <div class="scrim" id="scrim"></div>
+
+  <div class="sheet" id="sheet-switch">
+    <div class="grab"></div>
+    <h3>Changer de projet</h3>
+    <div class="sub">Bascule rapide entre dépôts</div>
+    <div class="card" style="margin-top:10px">
+      <div class="row" data-switch="acme/web-app"><span class="lead" style="color:var(--accent)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7Z"/></svg></span><div class="grow"><div class="name">acme/web-app</div><div class="desc">5 features · 2 en cours</div></div><span class="pill run"><span class="led"></span></span></div>
+      <div class="row" data-switch="acme/checkout-api"><span class="lead"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7Z"/></svg></span><div class="grow"><div class="name">acme/checkout-api</div><div class="desc">8 features · 1 conflit</div></div><span class="pill conflict">conflit</span></div>
+      <div class="row" data-switch="acme/infra"><span class="lead"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7Z"/></svg></span><div class="grow"><div class="name">acme/infra</div><div class="desc">3 features · en attente</div></div><span class="pill pending">PENDING</span></div>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheet-launch">
+    <div class="grab"></div>
+    <h3>Lancer une conversation</h3>
+    <div class="sub">Choix de l'agent selon la stratégie disponible</div>
+    <div class="strat-chips">
+      <span class="chip on" data-strat>Coût le + bas</span>
+      <span class="chip" data-strat>Plus rapide</span>
+      <span class="chip" data-strat>Quota restant</span>
+      <span class="chip" data-strat>Multi-comptes</span>
+    </div>
+    <div class="agent-opt sel" data-agent>
+      <div class="av" style="background:linear-gradient(135deg,#4f9cf9,#34e0d0);color:#04201d">J</div>
+      <div class="grow"><div class="nm">Jules · pro <span style="color:var(--success);font-size:11px;font-weight:600">recommandé</span></div><div class="mt">JULES · 11/15 · ~0,02€ · dispo</div></div>
+      <div class="radio"></div>
+    </div>
+    <div class="agent-opt" data-agent>
+      <div class="av" style="background:linear-gradient(135deg,#f5c469,#fb7185);color:#2a0f14">C</div>
+      <div class="grow"><div class="nm">Claude Code</div><div class="mt">CLAUDE_CODE · sans limite · ~0,06€ · dispo</div></div>
+      <div class="radio"></div>
+    </div>
+    <div class="agent-opt" data-agent style="opacity:.5">
+      <div class="av" style="background:linear-gradient(135deg,#4f9cf9,#34e0d0);color:#04201d">J</div>
+      <div class="grow"><div class="nm">Jules · perso</div><div class="mt">JULES · 15/15 · quota atteint</div></div>
+      <div class="radio"></div>
+    </div>
+    <button class="btn primary block" style="margin-top:16px" data-launch-go>Démarrer la session</button>
+  </div>
+
+  <div class="sheet" id="sheet-addfeat">
+    <div class="grab"></div>
+    <h3>Nouvelle feature</h3>
+    <div class="sub" id="addfeatSrc">acme/web-app</div>
+    <input placeholder="Titre de la feature" style="width:100%;height:48px;border-radius:13px;border:1px solid var(--border-strong);background:var(--surface);color:var(--fg);padding:0 14px;font-size:15px;font-family:var(--font);margin-top:12px"/>
+    <textarea placeholder="Description / contexte pour l'agent…" style="width:100%;height:96px;border-radius:13px;border:1px solid var(--border-strong);background:var(--surface);color:var(--fg);padding:12px 14px;font-size:14.5px;font-family:var(--font);margin-top:10px;resize:none"></textarea>
+    <button class="btn primary block" style="margin-top:14px" data-addfeat-go>Ajouter à la file</button>
+  </div>
+
+  <div class="sheet" id="sheet-addproject">
+    <div class="grab"></div>
+    <h3>Connecter un dépôt</h3>
+    <div class="sub">Ajoute un repo GitHub comme nouveau projet</div>
+    <input placeholder="owner/repo" style="width:100%;height:48px;border-radius:13px;border:1px solid var(--border-strong);background:var(--surface);color:var(--fg);padding:0 14px;font-size:15px;font-family:var(--mono);margin-top:12px"/>
+    <button class="btn primary block" style="margin-top:14px" data-addproject-go>Connecter le dépôt</button>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+(function(){
+  var phone = document.getElementById('phone');
+  var body = document.body;
+  var stack = [];               // navigation stack of screen ids (for back)
+  var TABS = ['queue','featlist','projects','settings'];
+
+  // platform + mode from URL
+  var qs = new URLSearchParams(location.search);
+  var p = qs.get('p');
+  if(p === 'android'){ body.setAttribute('data-platform','android'); document.getElementById('capPlat').textContent='Android'; }
+  else { body.setAttribute('data-platform','ios'); document.getElementById('capPlat').textContent='iOS'; }
+  if(qs.get('board')) body.classList.add('board');
+
+  function screenEl(id){ return document.getElementById(id); }
+  function current(){ return document.querySelector('.screen.active'); }
+
+  function show(id, opts){
+    opts = opts || {};
+    var cur = current();
+    var next = screenEl(id);
+    if(!next || (cur && cur.id===id)) return;
+    // tab vs push
+    var isTab = TABS.indexOf(id) !== -1;
+    if(isTab){ stack = [id]; }
+    else if(opts.push !== false){ if(cur) stack.push(cur.id); }
+    if(cur){ cur.classList.remove('active','behind'); }
+    next.classList.add('active');
+    next.querySelector('.body') && (next.querySelector('.body').scrollTop = 0);
+    // tab bar visibility + active state
+    syncTabbar(id);
+    setFab(id);
+  }
+
+  // contextual Material FAB — the add action depends on the screen
+  var FAB_MAP = {
+    projects:{sheet:'addproject',label:'Projet'},
+    featlist:{sheet:'addfeat',   label:'Feature'},
+    features:{sheet:'addfeat',   label:'Feature'},
+    feature: {sheet:'launch',    label:'Conversation'}
+  };
+  function setFab(id){
+    var fab=document.getElementById('fab'); if(!fab) return; var cfg=FAB_MAP[id];
+    if(cfg){ fab.classList.add('show'); fab.setAttribute('data-sheet',cfg.sheet);
+      document.getElementById('fabLabel').textContent=cfg.label; fab.setAttribute('aria-label','Ajouter — '+cfg.label); }
+    else { fab.classList.remove('show'); }
+  }
+
+  function syncTabbar(id){
+    var tabbar = document.getElementById('tabbar');
+    var ind = document.querySelector('.home-ind');
+    var onTab = TABS.indexOf(id) !== -1;
+    // tab bar shown on tab roots + their children except full-screen chat
+    var hideOn = ['conversation','gitci'];
+    var hide = hideOn.indexOf(id) !== -1;
+    tabbar.style.display = hide ? 'none' : '';
+    if(ind) ind.style.opacity = hide ? '.25':'1';
+    document.querySelectorAll('.tab').forEach(function(t){
+      var tt = t.getAttribute('data-tab');
+      // keep a tab highlighted based on the active cascade root
+      var root = rootOf(id);
+      t.classList.toggle('on', tt===root);
+    });
+  }
+  function rootOf(id){
+    if(id==='features'||id==='feature'||id==='conversation'||id==='gitci') return 'projects';
+    if(TABS.indexOf(id)!==-1) return id;
+    return 'queue';
+  }
+
+  function back(){
+    if(stack.length){ var prev = stack.pop(); show(prev,{push:false}); }
+    else show('queue',{push:false});
+  }
+
+  // delegated taps
+  phone.addEventListener('click', function(e){
+    var t = e.target.closest('[data-go],[data-back],[data-tab],[data-sheet],[data-toggle],[data-step],[data-switch],[data-strat],[data-ffilter],[data-agent],[data-pr],[data-launch-go],[data-addfeat-go],[data-addproject-go]');
+    if(!t) return;
+
+    if(t.hasAttribute('data-ffilter')){
+      var fl=document.getElementById('featlist');
+      fl.querySelectorAll('[data-ffilter]').forEach(function(c){c.classList.remove('on')});
+      t.classList.add('on'); applyFeatFilter(); return;
+    }
+
+    if(t.hasAttribute('data-back')){ back(); return; }
+
+    if(t.hasAttribute('data-tab')){ show(t.getAttribute('data-tab')); return; }
+
+    if(t.hasAttribute('data-go')){
+      var dest = t.getAttribute('data-go'); if(!dest) return;
+      // carry context into the feature/features screens
+      var src = t.getAttribute('data-src'); var feat = t.getAttribute('data-feat'); var st = t.getAttribute('data-state');
+      if(src){ setText('featSrc',src); setText('featDetailSrc',src); setText('addfeatSrc',src); }
+      if(feat){ setText('featDetailTitle',feat); }
+      if(dest==='conversation'){ applyConvState(st || 'merged-ready'); }
+      show(dest); return;
+    }
+
+    if(t.hasAttribute('data-sheet')){ openSheet(t.getAttribute('data-sheet')); return; }
+
+    if(t.hasAttribute('data-switch')){
+      var s = t.getAttribute('data-switch'); setText('featSrc',s); setText('featDetailSrc',s); setText('addfeatSrc',s);
+      closeSheet(); show('features',{push:false}); toast('Projet : '+s); return;
+    }
+
+    if(t.hasAttribute('data-toggle')){ t.classList.toggle('on'); return; }
+
+    if(t.hasAttribute('data-step')){
+      var n = t.parentElement.querySelector('.n'); var v = parseInt(n.textContent,10) + parseInt(t.getAttribute('data-step'),10);
+      if(v<1) v=1; n.textContent = v; return;
+    }
+
+    if(t.hasAttribute('data-strat')){ t.parentElement.querySelectorAll('.chip').forEach(function(c){c.classList.remove('on')}); t.classList.add('on'); return; }
+
+    if(t.hasAttribute('data-agent')){
+      if(t.style.opacity && parseFloat(t.style.opacity)<.6) return; // quota atteint
+      t.parentElement && document.querySelectorAll('#sheet-launch .agent-opt').forEach(function(a){a.classList.remove('sel')}); t.classList.add('sel'); return;
+    }
+
+    if(t.hasAttribute('data-launch-go')){ closeSheet(); applyConvState('running'); show('conversation'); toast('Session démarrée'); return; }
+
+    if(t.hasAttribute('data-addfeat-go')){ closeSheet(); toast('Feature ajoutée à la file'); return; }
+
+    if(t.hasAttribute('data-addproject-go')){ closeSheet(); toast('Dépôt connecté'); return; }
+
+    if(t.hasAttribute('data-pr')){ handlePr(t.getAttribute('data-pr')); return; }
+  });
+
+  function setText(id,txt){ var el=document.getElementById(id); if(el) el.textContent=txt; }
+
+  // ----- conversation state variants -----
+  function applyConvState(state){
+    var pill = document.getElementById('prStatePill');
+    var actions = document.getElementById('prActions');
+    var ci = document.getElementById('ciRow');
+    var sub = document.getElementById('convSub');
+    if(state==='conflict'){
+      pill.className='pill conflict'; pill.innerHTML='Conflit<span class="enum">mergeable=false</span>';
+      sub.textContent='sessionState · COMPLETED · conflits';
+      ci.innerHTML='<span class="check ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>build · success</span><span class="check ko"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6 6 18"/></svg>merge · conflits</span>';
+      actions.innerHTML='<button class="btn danger" data-pr="resolve" style="grid-column:1/-1"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/></svg>Résoudre les conflits</button><button class="btn ghost" data-pr="retry"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4"/></svg>Relancer</button><button class="btn ghost" data-pr="view">Voir la PR ↗</button>';
+    } else if(state==='running'){
+      pill.className='pill run'; pill.innerHTML='<span class="led"></span>En cours<span class="enum">PLANNING</span>';
+      sub.textContent='sessionState · PLANNING';
+      ci.innerHTML='<span class="check pend"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>en attente de la PR…</span>';
+      actions.innerHTML='<button class="btn ghost" data-pr="view" style="grid-column:1/-1">Suivre la session</button>';
+    } else {
+      pill.className='pill open'; pill.innerHTML='PR ouverte<span class="enum">open</span>';
+      sub.textContent='sessionState · COMPLETED';
+      ci.innerHTML='<span class="check ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>build · success</span><span class="check ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>tests · success</span><span class="check pend"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>deploy · queued</span>';
+      actions.innerHTML='<button class="btn primary" data-pr="merge"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="9" r="3"/><path d="M6 9v6M18 12a9 9 0 0 1-9 9"/></svg>Merger</button><button class="btn ghost" data-pr="view">Voir la PR ↗</button><button class="btn ghost" data-pr="retry"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4"/></svg>Relancer l\'agent</button><button class="btn ghost" data-pr="branch">Changer de stratégie</button>';
+    }
+  }
+
+  function handlePr(action){
+    if(action==='merge'){
+      var pill=document.getElementById('prStatePill'); pill.className='pill merged'; pill.innerHTML='Mergé<span class="enum">merged</span>';
+      document.getElementById('prActions').innerHTML='<button class="btn ghost" data-pr="view" style="grid-column:1/-1"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>Mergé dans main · voir la PR ↗</button>';
+      toast('PR #341 mergée dans main'); return;
+    }
+    if(action==='resolve'){ toast('Ouverture de la résolution de conflits…'); return; }
+    if(action==='retry'){ toast('Agent relancé sur la feature'); return; }
+    if(action==='view'){ toast('Ouverture GitHub ↗'); return; }
+    if(action==='branch'){ openSheet('launch'); return; }
+  }
+
+  // ----- features list: filter + search -----
+  function applyFeatFilter(){
+    var fl=document.getElementById('featlist'); if(!fl) return;
+    var on=fl.querySelector('[data-ffilter].on');
+    var f= on? on.getAttribute('data-ffilter') : 'all';
+    var q=(document.getElementById('featSearch').value||'').trim().toLowerCase();
+    var rows=fl.querySelectorAll('[data-status]'); var shown=0;
+    rows.forEach(function(r){
+      var okF = (f==='all') || r.getAttribute('data-status')===f;
+      var okQ = !q || (r.getAttribute('data-text')||'').indexOf(q)!==-1;
+      var vis = okF && okQ; r.style.display = vis?'':'none'; if(vis) shown++;
+    });
+    var em=document.getElementById('featEmpty'); if(em) em.style.display = shown?'none':'';
+    var c=document.getElementById('featCount'); if(c) c.textContent = shown;
+  }
+
+  // ----- sheets -----
+  var scrim = document.getElementById('scrim');
+  function openSheet(name){ var s=document.getElementById('sheet-'+name); if(!s) return; scrim.classList.add('show'); s.classList.add('show'); }
+  function closeSheet(){ scrim.classList.remove('show'); document.querySelectorAll('.sheet.show').forEach(function(s){s.classList.remove('show')}); }
+  scrim.addEventListener('click', closeSheet);
+
+  // ----- toast -----
+  var toastT;
+  function toast(msg){
+    var el=document.getElementById('toast'); el.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>'+msg;
+    el.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(function(){el.classList.remove('show')},2100);
+  }
+
+  // ----- clock -----
+  function tick(){ try{ var d=new Date(); document.getElementById('clock').textContent = d.getHours()+':'+String(d.getMinutes()).padStart(2,'0'); }catch(_){} }
+  tick(); setInterval(tick, 30000);
+
+  // init — optional deep-link to a single screen (board tiles)
+  var startScreen = qs.get('screen');
+  var startState = qs.get('state');
+  if(startScreen && screenEl(startScreen)){
+    document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+    if(startScreen==='conversation') applyConvState(startState || 'merged-ready');
+    var el = screenEl(startScreen);
+    el.style.transition='none'; el.classList.add('active');
+    requestAnimationFrame(function(){ el.style.transition=''; });
+    syncTabbar(startScreen); setFab(startScreen);
+  } else {
+    syncTabbar('queue');
+  }
+
+  // wire features search + initial filter sync
+  var fs=document.getElementById('featSearch'); if(fs) fs.addEventListener('input', applyFeatFilter);
+  applyFeatFilter();
+})();
+</script>
+</body>
+</html>
