@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.queue.CodingAgentQueueEngine
 import fr.geoking.julius.repository.FeatureRepository
@@ -50,13 +51,13 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
         BackHandler(enabled = true) { if (!nav.pop()) onExit() }
 
         val route = nav.current
-        val showBottomBar = route !is V3Route.Conversation
+        val showBottomBar = route !is V3Route.Conversation && route !is V3Route.GitCi && route !is V3Route.PrConflict
         val fab = fabFor(route)
 
         Scaffold(
             containerColor = V3.Bg,
             snackbarHost = { SnackbarHost(snackbar) },
-            bottomBar = { if (showBottomBar) V3BottomBar(route) { nav.selectTab(it) } },
+            bottomBar = { if (showBottomBar) V3BottomBar(nav.activeTab) { nav.selectTab(it) } },
             floatingActionButton = {
                 if (fab != null && showBottomBar) {
                     ExtendedFloatingActionButton(
@@ -103,6 +104,14 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                     )
                     is V3Route.Conversation -> ConversationV3Screen(
                         deps = deps, sessionId = r.sessionId, onBack = { nav.pop() },
+                        onOpenGitCi = { owner, repo -> nav.push(V3Route.GitCi(owner, repo)) },
+                        onOpenConflict = { prUrl -> nav.push(V3Route.PrConflict(r.sessionId, prUrl)) },
+                    )
+                    is V3Route.GitCi -> GitCiV3Screen(
+                        deps = deps, owner = r.owner, repo = r.repo, onBack = { nav.pop() },
+                    )
+                    is V3Route.PrConflict -> PrConflictV3Screen(
+                        deps = deps, prUrl = r.prUrl, onBack = { nav.pop() },
                     )
                     is V3Route.Settings -> SettingsV3Screen(deps = deps)
                 }
@@ -114,7 +123,7 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
             is V3Sheet.AddFeature -> AddFeatureSheet(deps, s.sourceName, onClose = { sheet = null }) { msg ->
                 sheet = null; scope.launch { snackbar.showSnackbar(msg) }
             }
-            is V3Sheet.AddProject -> AddProjectSheet(onClose = { sheet = null }) { msg ->
+            is V3Sheet.AddProject -> AddProjectSheet(deps, onClose = { sheet = null }) { msg ->
                 sheet = null; scope.launch { snackbar.showSnackbar(msg) }
             }
             is V3Sheet.Launch -> LaunchConversationSheet(
@@ -213,13 +222,14 @@ private fun AddFeatureSheet(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddProjectSheet(onClose: () -> Unit, onDone: (String) -> Unit) {
-    var repo by remember { mutableStateOf("") }
+private fun AddProjectSheet(deps: V3Deps, onClose: () -> Unit, onDone: (String) -> Unit) {
+    val settings by deps.settingsManager.settings.collectAsState()
+    var repo by remember { mutableStateOf(settings.lastJulesRepoName) }
     ModalBottomSheet(onDismissRequest = onClose, containerColor = V3.Surface) {
         Column(Modifier.padding(horizontal = 18.dp).padding(bottom = 24.dp)) {
-            Text("Connecter un dépôt", color = V3.Fg, style = MaterialTheme.typography.titleLarge)
+            Text("Projet actif", color = V3.Fg, style = MaterialTheme.typography.titleLarge)
             Text(
-                "Les dépôts sont découverts via Jules / GitHub. Renseigne owner/repo pour le cibler.",
+                "Les dépôts sont découverts via Jules / GitHub. Renseigne owner/repo pour le définir comme projet actif (mémorisé).",
                 color = V3.Muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
             )
             OutlinedTextField(
@@ -228,11 +238,17 @@ private fun AddProjectSheet(onClose: () -> Unit, onDone: (String) -> Unit) {
             )
             Spacer(Modifier.height(14.dp))
             Button(
-                onClick = { if (repo.isNotBlank()) onDone("Dépôt ciblé : ${repo.trim()}") },
+                onClick = {
+                    val r = repo.trim()
+                    if (r.isNotBlank()) {
+                        deps.settingsManager.saveSettings(settings.copy(lastJulesRepoName = r, lastJulesRepoId = r))
+                        onDone("Projet actif : $r")
+                    }
+                },
                 enabled = repo.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = V3.Accent, contentColor = V3.AccentInk),
-            ) { Text("Cibler le dépôt") }
+            ) { Text("Définir comme projet actif") }
         }
     }
 }
@@ -246,9 +262,17 @@ private fun LaunchConversationSheet(
     onStarted: (String) -> Unit,
 ) {
     val settings by deps.settingsManager.settings.collectAsState()
+    val status by deps.queueEngine.status.collectAsState()
     val scope = rememberCoroutineScope()
     val accounts = remember(settings) { settings.agentAccounts.filter { it.enabled && it.apiKey.isNotBlank() } }
-    var selected by remember(accounts) { mutableStateOf(accounts.firstOrNull()) }
+    val rows = remember(status) { status.accounts.associateBy { it.accountId } }
+    fun atLimit(id: String): Boolean { val r = rows[id]; return r != null && r.dailyLimit > 0 && r.usedToday >= r.dailyLimit }
+    // Strategy: prefer accounts under quota, fewest active sessions, then lowest daily usage.
+    val recommended = remember(accounts, rows) {
+        accounts.filterNot { atLimit(it.id) }
+            .minWithOrNull(compareBy({ rows[it.id]?.activeSessions ?: 0 }, { rows[it.id]?.usedToday ?: 0 }))
+    }
+    var selected by remember(recommended) { mutableStateOf(recommended ?: accounts.firstOrNull { !atLimit(it.id) } ?: accounts.firstOrNull()) }
     var starting by remember { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onClose, containerColor = V3.Surface) {
@@ -263,12 +287,31 @@ private fun LaunchConversationSheet(
             } else {
                 accounts.forEach { acc ->
                     val sel = acc.id == selected?.id
+                    val r = rows[acc.id]
+                    val full = atLimit(acc.id)
+                    val quota = when {
+                        r == null -> acc.backend.name
+                        r.dailyLimit > 0 -> "${acc.backend.name} · ${r.usedToday}/${r.dailyLimit}" + if (r.activeSessions > 0) " · ${r.activeSessions} act." else ""
+                        else -> "${acc.backend.name} · ${r.usedToday} aujourd'hui"
+                    }
                     ListItem(
-                        headlineContent = { Text(acc.label, color = V3.Fg) },
-                        supportingContent = { Text(acc.backend.name, color = V3.Muted, fontFamily = FontFamily.Monospace) },
-                        trailingContent = { RadioButton(selected = sel, onClick = { selected = acc }) },
+                        headlineContent = {
+                            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                Text(acc.label, color = if (full) V3.Faint else V3.Fg)
+                                if (acc.id == recommended?.id && !full) {
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("recommandé", color = V3.Success, fontSize = 11.sp)
+                                }
+                                if (full) {
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("quota atteint", color = V3.Danger, fontSize = 11.sp)
+                                }
+                            }
+                        },
+                        supportingContent = { Text(quota, color = V3.Muted, fontFamily = FontFamily.Monospace, fontSize = 11.5.sp) },
+                        trailingContent = { RadioButton(selected = sel, onClick = { if (!full) selected = acc }, enabled = !full) },
                         colors = ListItemDefaults.colors(containerColor = if (sel) V3.SurfaceHi else V3.Surface),
-                        modifier = Modifier.clickable { selected = acc },
+                        modifier = Modifier.clickable(enabled = !full) { selected = acc },
                     )
                 }
                 Spacer(Modifier.height(14.dp))

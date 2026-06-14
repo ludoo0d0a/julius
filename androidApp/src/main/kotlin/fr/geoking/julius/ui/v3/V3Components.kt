@@ -179,14 +179,17 @@ fun KpiCell(value: String, label: String, accent: Boolean = false, modifier: Mod
     }
 }
 
-/** Large screen title (mirrors prototype's eyebrow + big title). */
+/**
+ * Compact Material top-app-bar title: a single title + optional supporting line
+ * (aligned with the prototype — no oversized hero title, no uppercase eyebrow).
+ * The `eyebrow` param is kept for call-site compatibility but intentionally unused.
+ */
 @Composable
 fun V3LargeTitle(eyebrow: String, title: String, subtitle: String? = null) {
-    Column(Modifier.padding(horizontal = 18.dp).padding(top = 6.dp, bottom = 4.dp)) {
-        Text(eyebrow.uppercase(), color = V3.Muted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 2.sp)
-        Text(title, color = V3.Fg, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp, modifier = Modifier.padding(top = 2.dp))
+    Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp).padding(top = 10.dp, bottom = 6.dp)) {
+        Text(title, color = V3.Fg, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp)
         if (subtitle != null) {
-            Text(subtitle, color = V3.Muted, fontSize = 13.5.sp, modifier = Modifier.padding(top = 3.dp))
+            Text(subtitle, color = V3.Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
         }
     }
 }

@@ -48,7 +48,7 @@ fun FeatureDetailV3Screen(
 
         val v = featureStatusVisual(f.status)
         Column(Modifier.padding(horizontal = 18.dp)) {
-            Text(f.title, color = V3.Fg, fontSize = 28.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, modifier = Modifier.padding(top = 4.dp))
+            Text(f.title, color = V3.Fg, fontSize = 22.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
             Spacer(Modifier.height(10.dp))
             StatusPill(v)
             if (f.description.isNotBlank()) {

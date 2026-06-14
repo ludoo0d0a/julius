@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,6 +20,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import fr.geoking.julius.api.github.parseGitHubPullRequestUrl
 import fr.geoking.julius.api.jules.JulesChatItem
 import fr.geoking.julius.persistence.JulesSessionEntity
 import kotlinx.coroutines.launch
@@ -28,6 +30,8 @@ fun ConversationV3Screen(
     deps: V3Deps,
     sessionId: String,
     onBack: () -> Unit,
+    onOpenGitCi: (String, String) -> Unit,
+    onOpenConflict: (String) -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -55,6 +59,11 @@ fun ConversationV3Screen(
                 Text("sessionState · ${s?.sessionState ?: "…"}", color = V3.Muted, fontSize = 11.5.sp, fontFamily = FontFamily.Monospace)
             }
             s?.let { StatusPill(sessionStatusVisual(it)) }
+            if (s != null && !s.prUrl.isNullOrBlank()) {
+                IconButton(onClick = { parseGitHubPullRequestUrl(s.prUrl!!)?.let { onOpenGitCi(it.owner, it.repo) } }) {
+                    Icon(Icons.Filled.Build, "Git & CI", tint = V3.Muted)
+                }
+            }
         }
 
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp)) {
@@ -77,17 +86,7 @@ fun ConversationV3Screen(
                             else feedback = "Échec du merge : ${res.exceptionOrNull()?.message ?: "erreur"}"
                         }
                     },
-                    onResolve = {
-                        busy = true
-                        scope.launch {
-                            val res = deps.julesRepository.getConflictingFiles(token, s.prUrl!!)
-                            busy = false
-                            feedback = res.fold(
-                                { files -> "${files.size} fichier(s) en conflit : ${files.joinToString().take(80)}" },
-                                { "Impossible de lister les conflits." },
-                            )
-                        }
-                    },
+                    onResolve = { onOpenConflict(s.prUrl!!) },
                     onRetry = {
                         busy = true
                         scope.launch {

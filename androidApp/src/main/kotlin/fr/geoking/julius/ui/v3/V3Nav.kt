@@ -16,6 +16,8 @@ sealed class V3Route {
     data class ProjectFeatures(val sourceName: String) : V3Route()
     data class FeatureDetail(val featureId: String) : V3Route()
     data class Conversation(val sessionId: String) : V3Route()
+    data class GitCi(val owner: String, val repo: String) : V3Route()
+    data class PrConflict(val sessionId: String, val prUrl: String) : V3Route()
 
     /** Which bottom-bar tab is highlighted for this route. */
     val tabRoot: V3Route
@@ -24,7 +26,7 @@ sealed class V3Route {
             is Features -> Features
             is Settings -> Settings
             is Projects, is ProjectFeatures -> Projects
-            is FeatureDetail, is Conversation -> Features
+            is FeatureDetail, is Conversation, is GitCi, is PrConflict -> Features
         }
 }
 
@@ -35,6 +37,10 @@ class V3NavController {
     private val _stack = mutableStateListOf<V3Route>(V3Route.Scheduler)
     val current: V3Route get() = _stack.last()
     val canPop: Boolean get() = _stack.size > 1
+
+    /** Bottom-bar highlight follows the tab the stack is rooted on (where you navigated from),
+     *  not the type of the current detail route. */
+    val activeTab: V3Route get() = _stack.first().tabRoot
 
     fun push(route: V3Route) { _stack.add(route) }
 
