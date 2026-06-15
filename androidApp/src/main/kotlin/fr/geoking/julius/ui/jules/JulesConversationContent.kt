@@ -22,8 +22,10 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,6 +61,12 @@ internal fun JulesConversationContent(
     onRefresh: () -> Unit,
     activitiesJson: String = "",
 ) {
+    LaunchedEffect(chatItems.size) {
+        if (chatItems.isNotEmpty()) {
+            listState.animateScrollToItem(chatItems.size - 1)
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         val progressStep = remember(currentSession, chatItems.size) {
             calculateJulesProgressStep(currentSession, chatItems)
@@ -134,21 +142,30 @@ internal fun JulesConversationContent(
                         }
                     }
                 }
-            }
-        }
 
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedTextField(
-                value = inputText,
-                onValueChange = onInputChange,
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("Message Jules…") },
-            )
-            IconButton(onClick = onSend, enabled = inputText.isNotBlank() && !loading) {
-                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = ColorHelper.JulesAccent)
+                item(key = "end_prompt") {
+                    OutlinedTextField(
+                        value = inputText,
+                        onValueChange = onInputChange,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        placeholder = { Text("Answer Jules…") },
+                        trailingIcon = {
+                            IconButton(onClick = onSend, enabled = inputText.isNotBlank() && !loading) {
+                                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = ColorHelper.JulesAccent)
+                            }
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            cursorColor = ColorHelper.JulesAccent,
+                            focusedBorderColor = ColorHelper.JulesAccent.copy(alpha = 0.5f),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                    )
+                }
             }
         }
 
