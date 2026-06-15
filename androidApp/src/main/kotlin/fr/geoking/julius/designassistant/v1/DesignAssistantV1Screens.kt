@@ -383,10 +383,13 @@ fun V1SessionsScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
+                                val backend = if (session.id.startsWith("sesn_")) "CLAUDE_CODE" else "JULES"
                                 Text(
-                                    DesignAssistantMapper.formatRelativeTime(session.lastUpdated),
+                                    "$backend · ${session.sourceName} · ${DesignAssistantMapper.formatRelativeTime(session.lastUpdated)}",
                                     fontSize = 12.sp,
-                                    color = DesignAssistantColors.TextSecondary
+                                    color = DesignAssistantColors.TextSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
