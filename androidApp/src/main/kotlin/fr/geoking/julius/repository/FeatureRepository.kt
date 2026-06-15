@@ -28,7 +28,14 @@ class FeatureRepository(
 
     fun getFeatureFlow(id: String): Flow<FeatureEntity?> = featureDao.getFeatureFlow(id)
 
-    suspend fun addFeature(title: String, description: String, priority: Int, sourceName: String): String {
+    suspend fun addFeature(
+        title: String,
+        description: String,
+        priority: Int,
+        sourceName: String,
+        status: String = "PENDING",
+        sessionId: String? = null,
+    ): String {
         val maxPos = featureDao.getMaxPosition() ?: -1
         val id = UUID.randomUUID().toString()
         val feature = FeatureEntity(
@@ -38,8 +45,10 @@ class FeatureRepository(
             priority = priority,
             position = maxPos + 1,
             sourceName = sourceName,
+            status = status,
+            sessionId = sessionId,
             createdAt = System.currentTimeMillis(),
-            updatedAt = System.currentTimeMillis()
+            updatedAt = System.currentTimeMillis(),
         )
         featureDao.insertFeature(feature)
         scheduleWorker()
@@ -172,11 +181,14 @@ class FeatureRepository(
             if (!promotingSessionIds.add(session.id)) continue
             scope.launch {
                 try {
+                    val initialStatus = calculateFeatureStatus(listOf(session))
                     val featureId = addFeature(
                         title = session.title.ifBlank { "Conversation" },
                         description = session.prompt,
                         priority = 0,
-                        sourceName = sourceName
+                        sourceName = sourceName,
+                        status = initialStatus,
+                        sessionId = session.id,
                     )
                     julesRepository.linkSessionToFeature(session.id, featureId)
                 } catch (e: Exception) {
@@ -186,6 +198,27 @@ class FeatureRepository(
                 }
             }
         }
+    }
+
+    /**
+     * Derives feature status from its associated sessions.
+     * Terminated if all sessions are finished.
+     */
+    fun calculateFeatureStatus(sessions: List<JulesSessionEntity>): String {
+        if (sessions.isEmpty()) return "PENDING"
+
+        val allFinished = sessions.all { it.isFinished }
+        if (allFinished) {
+            val anySuccess = sessions.any {
+                it.prState == "merged" || it.sessionState == "COMPLETED"
+            }
+            return if (anySuccess) "COMPLETED" else "FAILED"
+        }
+
+        val anyInProgress = sessions.any {
+            it.sessionState in setOf("PLANNING", "ACTIVE", "AWAITING_PLAN_APPROVAL")
+        }
+        return if (anyInProgress) "IN_PROGRESS" else "QUEUED"
     }
 
     fun scheduleWorker() {
