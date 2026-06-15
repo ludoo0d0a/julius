@@ -56,7 +56,7 @@ fun FeaturesV3Screen(
         Column(Modifier.padding(horizontal = 18.dp)) {
             OutlinedTextField(
                 value = query, onValueChange = { query = it },
-                placeholder = { Text("Rechercher une feature ou un projet…") },
+                placeholder = { Text("Rechercher…") },
                 leadingIcon = { Icon(Icons.Filled.Search, null, tint = V3.Faint) },
                 singleLine = true,
                 shape = RoundedCornerShape(13.dp),
@@ -82,9 +82,8 @@ fun FeaturesV3Screen(
 
         Spacer(Modifier.height(10.dp))
         if (filtered.isEmpty()) {
-            Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                Text("Aucune feature ne correspond.", color = V3.Faint, fontSize = 13.sp)
-            }
+            val hint = if (query.trim().isEmpty()) "Aucune feature" else "Aucun résultat pour « $query »"
+            EmptyHint(hint)
         } else {
             LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
                 item {

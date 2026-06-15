@@ -93,6 +93,18 @@ fun StatusPill(v: StatusVisual, showEnum: Boolean = false) {
 }
 
 @Composable
+fun EmptyHint(text: String) {
+    Text(
+        text = text,
+        color = V3.Faint,
+        fontSize = 13.sp,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.padding(vertical = 20.dp, horizontal = 6.dp)
+    )
+}
+
+@Composable
 fun SectionLabel(text: String, meta: String? = null) {
     Row(
         Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 22.dp, bottom = 8.dp),

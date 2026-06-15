@@ -50,7 +50,7 @@ fun ProjectsV3Screen(
         Column(Modifier.padding(horizontal = 18.dp)) {
             OutlinedTextField(
                 value = query, onValueChange = { query = it },
-                placeholder = { Text("Rechercher un dépôt…") },
+                placeholder = { Text("Rechercher…") },
                 leadingIcon = { Icon(Icons.Filled.Search, null, tint = V3.Faint) },
                 singleLine = true, shape = RoundedCornerShape(13.dp),
                 modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
@@ -58,7 +58,8 @@ fun ProjectsV3Screen(
 
             SectionLabel("Dépôts", "${filtered.size}")
             if (filtered.isEmpty()) {
-                EmptyHint("Aucun dépôt — vérifie la clé Jules / le token GitHub dans Réglages.")
+                val hint = if (query.trim().isEmpty()) "Aucun dépôt" else "Aucun résultat pour « $query »"
+                EmptyHint(hint)
             } else {
                 V3Card {
                     filtered.forEachIndexed { i, s ->

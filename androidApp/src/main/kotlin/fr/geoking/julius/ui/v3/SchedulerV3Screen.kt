@@ -171,7 +171,3 @@ fun FeatureRow(f: FeatureEntity, onClick: () -> Unit) {
     )
 }
 
-@Composable
-fun EmptyHint(text: String) {
-    Text(text, color = V3.Faint, fontSize = 13.sp, modifier = Modifier.padding(vertical = 20.dp, horizontal = 6.dp))
-}
