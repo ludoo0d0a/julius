@@ -156,6 +156,7 @@ fun JulesScreen(
                     currentSession?.let { curr ->
                         list.find { it.id == curr.id }?.let { updated -> currentSession = updated }
                     }
+                    featureRepository.autoPromoteOrphans(scope, sourceName, list)
                 }
             } catch (e: Exception) {
                 error = "Could not load sessions: ${e.message ?: "Unknown error"}"

@@ -74,7 +74,6 @@ class DesignAssistantState(
     private var sessionsJob: Job? = null
     private var activitiesJob: Job? = null
     private val defaultBranchBySource = mutableMapOf<String, String>()
-    private val promotingSessionIds = mutableSetOf<String>()
 
     val apiKeys: List<String>
         get() = settingsManager.settings.value.julesKeys
@@ -122,33 +121,10 @@ class DesignAssistantState(
                 julesRepository.getSessions(apiKeys, sourceName, githubToken).collectLatest { list ->
                     sessions = mergeSessionsForSource(sourceName, list)
                     refreshProjectList(sources, allFeatures, sessions)
-                    autoPromoteOrphanSessions(sourceName, list)
+                    featureRepository.autoPromoteOrphans(scope, sourceName, list)
                 }
             } catch (e: Exception) {
                 projectsError = e.message
-            }
-        }
-    }
-
-    private fun autoPromoteOrphanSessions(sourceName: String, incoming: List<JulesSessionEntity>) {
-        val orphans = incoming.filter { it.featureId.isNullOrBlank() }
-        for (session in orphans) {
-            if (promotingSessionIds.contains(session.id)) continue
-            promotingSessionIds.add(session.id)
-            scope.launch {
-                try {
-                    val featureId = featureRepository.addFeature(
-                        title = session.title.ifBlank { "Conversation" },
-                        description = session.prompt,
-                        priority = 0,
-                        sourceName = sourceName
-                    )
-                    julesRepository.linkSessionToFeature(session.id, featureId)
-                } catch (e: Exception) {
-                    android.util.Log.e("DesignAssistantState", "Auto promotion failed for ${session.id}", e)
-                } finally {
-                    promotingSessionIds.remove(session.id)
-                }
             }
         }
     }

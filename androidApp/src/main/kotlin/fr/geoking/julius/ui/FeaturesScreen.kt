@@ -533,6 +533,7 @@ fun FeatureDetailContent(
         julesRepository.getSessions(apiKeys, feature.sourceName, settings.githubApiKey).collect { list ->
             sessions = list.filter { it.featureId == feature.id }
             refreshingSessions = false
+            featureRepository.autoPromoteOrphans(scope, feature.sourceName, list)
         }
     }
 
