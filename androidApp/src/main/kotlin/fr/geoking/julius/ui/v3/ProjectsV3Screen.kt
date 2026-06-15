@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.api.jules.JulesClient
@@ -50,7 +51,7 @@ fun ProjectsV3Screen(
         Column(Modifier.padding(horizontal = 18.dp)) {
             OutlinedTextField(
                 value = query, onValueChange = { query = it },
-                placeholder = { Text("Rechercher un dépôt…") },
+                placeholder = { Text("Rechercher…", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 leadingIcon = { Icon(Icons.Filled.Search, null, tint = V3.Faint) },
                 singleLine = true, shape = RoundedCornerShape(13.dp),
                 modifier = Modifier.fillMaxWidth().padding(top = 6.dp),

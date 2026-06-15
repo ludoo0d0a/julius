@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -56,7 +57,7 @@ fun FeaturesV3Screen(
         Column(Modifier.padding(horizontal = 18.dp)) {
             OutlinedTextField(
                 value = query, onValueChange = { query = it },
-                placeholder = { Text("Rechercher une feature ou un projet…") },
+                placeholder = { Text("Rechercher…", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 leadingIcon = { Icon(Icons.Filled.Search, null, tint = V3.Faint) },
                 singleLine = true,
                 shape = RoundedCornerShape(13.dp),

@@ -121,7 +121,7 @@ fun FeaturesScreen(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
                             modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("Search features...", color = Color.White.copy(alpha = 0.5f)) },
+                            placeholder = { Text("Search…", color = Color.White.copy(alpha = 0.5f), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent,
