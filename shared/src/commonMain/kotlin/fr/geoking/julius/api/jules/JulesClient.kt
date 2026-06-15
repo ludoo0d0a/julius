@@ -24,7 +24,10 @@ class JulesClient(
     private val client: HttpClient,
     private val baseUrl: String = "https://jules.googleapis.com/v1alpha"
 ) {
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = false
+    }
 
     /** API key from Jules web app Settings. Required for all requests. */
     private fun requireApiKey(apiKey: String): String {
@@ -42,6 +45,9 @@ class JulesClient(
         requireApiKey(apiKey)
         return apiKey
     }
+
+    private fun sessionName(id: String): String = if (id.startsWith("sessions/")) id else "sessions/$id"
+    private fun sourceName(id: String): String = if (id.startsWith("sources/")) id else "sources/$id"
 
     // --- Sources ---
 
@@ -74,7 +80,7 @@ class JulesClient(
             header("X-Goog-Api-Key", token)
         }
         val body = response.bodyAsText()
-        if (response.status.value != 200) {
+        if (response.status.value !in 200..299) {
             throw NetworkException(
                 httpCode = response.status.value,
                 message = "Jules listSources: $body",
@@ -150,7 +156,7 @@ class JulesClient(
         apiKey: String,
         prompt: String,
         source: String,
-        startingBranch: String? = "main",
+        startingBranch: String? = null,
         title: String? = null,
         automationMode: String? = null,
         requirePlanApproval: Boolean? = null
@@ -159,7 +165,7 @@ class JulesClient(
         val body = CreateSessionRequest(
             prompt = prompt,
             sourceContext = SourceContext(
-                source = source,
+                source = sourceName(source),
                 githubRepoContext = if (startingBranch != null) GitHubRepoContext(startingBranch = startingBranch) else null
             ),
             automationMode = automationMode,
@@ -186,12 +192,12 @@ class JulesClient(
 
     suspend fun getSession(apiKey: String, sessionId: String): JulesSession {
         val token = apiKeyHeader(apiKey)
-        val url = "$baseUrl/sessions/$sessionId"
+        val url = "$baseUrl/${sessionName(sessionId)}"
         val response = client.get(url) {
             header("X-Goog-Api-Key", token)
         }
         val body = response.bodyAsText()
-        if (response.status.value != 200) {
+        if (response.status.value !in 200..299) {
             throw NetworkException(
                 httpCode = response.status.value,
                 message = "Jules getSession: $body",
@@ -218,7 +224,7 @@ class JulesClient(
             header("X-Goog-Api-Key", token)
         }
         val body = response.bodyAsText()
-        if (response.status.value != 200) {
+        if (response.status.value !in 200..299) {
             throw NetworkException(
                 httpCode = response.status.value,
                 message = "Jules listSessions: $body",
@@ -231,7 +237,7 @@ class JulesClient(
 
     suspend fun deleteSession(apiKey: String, sessionId: String) {
         val token = apiKeyHeader(apiKey)
-        val url = "$baseUrl/sessions/$sessionId"
+        val url = "$baseUrl/${sessionName(sessionId)}"
         val response = client.delete(url) {
             header("X-Goog-Api-Key", token)
         }
@@ -248,7 +254,7 @@ class JulesClient(
 
     suspend fun pauseSession(apiKey: String, sessionId: String) {
         val token = apiKeyHeader(apiKey)
-        val url = "$baseUrl/sessions/$sessionId:pause"
+        val url = "$baseUrl/${sessionName(sessionId)}:pause"
         val response = client.post(url) {
             header("X-Goog-Api-Key", token)
             contentType(ContentType.Application.Json)
@@ -267,7 +273,7 @@ class JulesClient(
 
     suspend fun resumeSession(apiKey: String, sessionId: String) {
         val token = apiKeyHeader(apiKey)
-        val url = "$baseUrl/sessions/$sessionId:resume"
+        val url = "$baseUrl/${sessionName(sessionId)}:resume"
         val response = client.post(url) {
             header("X-Goog-Api-Key", token)
             contentType(ContentType.Application.Json)
@@ -291,7 +297,7 @@ class JulesClient(
 
     suspend fun sendMessage(apiKey: String, sessionId: String, prompt: String) {
         val token = apiKeyHeader(apiKey)
-        val url = "$baseUrl/sessions/$sessionId:sendMessage"
+        val url = "$baseUrl/${sessionName(sessionId)}:sendMessage"
         val response = client.post(url) {
             header("X-Goog-Api-Key", token)
             contentType(ContentType.Application.Json)
@@ -312,7 +318,7 @@ class JulesClient(
 
     suspend fun approvePlan(apiKey: String, sessionId: String) {
         val token = apiKeyHeader(apiKey)
-        val url = "$baseUrl/sessions/$sessionId:approvePlan"
+        val url = "$baseUrl/${sessionName(sessionId)}:approvePlan"
         val response = client.post(url) {
             header("X-Goog-Api-Key", token)
             contentType(ContentType.Application.Json)
@@ -436,14 +442,14 @@ class JulesClient(
     suspend fun listActivities(apiKey: String, sessionId: String, pageSize: Int = 30, pageToken: String? = null): ListActivitiesResponse {
         val token = apiKeyHeader(apiKey)
         val url = buildString {
-            append("$baseUrl/sessions/$sessionId/activities?pageSize=$pageSize")
+            append("$baseUrl/${sessionName(sessionId)}/activities?pageSize=$pageSize")
             if (pageToken != null) append("&pageToken=$pageToken")
         }
         val response = client.get(url) {
             header("X-Goog-Api-Key", token)
         }
         val body = response.bodyAsText()
-        if (response.status.value != 200) {
+        if (response.status.value !in 200..299) {
             throw NetworkException(
                 httpCode = response.status.value,
                 message = "Jules listActivities: $body",
