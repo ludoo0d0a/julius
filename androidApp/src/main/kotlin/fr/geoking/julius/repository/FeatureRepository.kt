@@ -57,7 +57,8 @@ class FeatureRepository(
 
     suspend fun startFeature(featureId: String, account: AgentAccount): String {
         val feature = featureDao.getFeature(featureId) ?: throw Exception("Feature not found")
-        return startFeatureInternal(feature, account, feature.description)
+        val prompt = feature.description.ifBlank { feature.title }
+        return startFeatureInternal(feature, account, prompt)
     }
 
     suspend fun startFeatureWithTitle(featureId: String, account: AgentAccount): String {

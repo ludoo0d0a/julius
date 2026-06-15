@@ -503,6 +503,7 @@ class JulesRepository(
         title: String,
         featureId: String? = null,
     ): String {
+        val prompt = prompt.ifBlank { title }.ifBlank { "New session" }
         val isOnline = networkService.status.value.isConnected
         if (isOnline) {
             if (account.backend == CodingAgentBackend.CLAUDE_CODE || isClaudeBackend()) {
