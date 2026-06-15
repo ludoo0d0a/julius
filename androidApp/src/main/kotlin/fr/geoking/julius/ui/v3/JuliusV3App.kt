@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -19,6 +20,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -75,6 +77,9 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                 val session by produceState<fr.geoking.julius.persistence.JulesSessionEntity?>(initialValue = null, sessionId) {
                     value = sessionId?.let { deps.julesRepository.getSession(it) }
                 }
+                val feature by produceState<fr.geoking.julius.persistence.FeatureEntity?>(initialValue = null, featureId) {
+                    value = featureId?.let { deps.featureRepository.getFeature(it) }
+                }
 
                 TopAppBar(
                     title = {
@@ -120,6 +125,20 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                     actions = {
                         if (route is V3Route.Conversation && session != null) {
                             StatusPill(sessionStatusVisual(session!!))
+                        }
+
+                        if (route is V3Route.FeatureDetail && feature != null) {
+                            val clipboard = LocalClipboard.current
+                            IconButton(onClick = {
+                                scope.launch {
+                                    clipboard.setClipEntry(androidx.compose.ui.platform.ClipEntry(
+                                        android.content.ClipData.newPlainText("feature_prompt", feature!!.description.ifBlank { feature!!.title })
+                                    ))
+                                    snackbar.showSnackbar("Texte copié")
+                                }
+                            }) {
+                                Icon(Icons.Filled.ContentCopy, "Copier le texte")
+                            }
                         }
 
                         if (route is V3Route.Features || route is V3Route.ProjectFeatures) {
