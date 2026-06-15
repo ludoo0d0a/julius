@@ -3,9 +3,11 @@ package fr.geoking.julius.ui.v3
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -58,30 +60,22 @@ fun ConversationV3Screen(
     val backend = if (sessionId.startsWith("sesn_")) "CLAUDE_CODE" else "JULES"
 
     Column(Modifier.fillMaxSize()) {
-        // header
-        Row(Modifier.fillMaxWidth().padding(start = 4.dp, top = 6.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Retour", tint = V3.Fg) }
-            Column(Modifier.weight(1f)) {
-                Text(
-                    s?.prTitle ?: s?.title?.ifBlank { s.prompt.take(48) } ?: backend,
-                    color = V3.Fg, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    "$backend${if (s?.prUrl.isNullOrBlank()) "" else " · PR"} · ${s?.sourceName ?: "…"}",
-                    color = V3.Muted, fontSize = 11.5.sp, fontFamily = FontFamily.Monospace,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis
-                )
-            }
-            s?.let { StatusPill(sessionStatusVisual(it)) }
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp).padding(top = 8.dp)) {
             if (s != null && !s.prUrl.isNullOrBlank()) {
-                IconButton(onClick = { parseGitHubPullRequestUrl(s.prUrl!!)?.let { onOpenGitCi(it.owner, it.repo) } }) {
-                    Icon(Icons.Filled.Build, "Git & CI", tint = V3.Muted)
+                V3Card {
+                    Row(
+                        Modifier.fillMaxWidth().clickable { parseGitHubPullRequestUrl(s.prUrl!!)?.let { onOpenGitCi(it.owner, it.repo) } }.padding(15.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Filled.Build, null, tint = V3.Accent, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text("Git & CI", color = V3.Fg, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                        Icon(Icons.Filled.ArrowBack, null, tint = V3.Faint, modifier = Modifier.size(16.dp).rotate(180f))
+                    }
                 }
+                Spacer(Modifier.height(12.dp))
             }
-        }
 
-        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp)) {
             Spacer(Modifier.height(8.dp))
             if (items.isEmpty()) {
                 Text("Pas encore d'activité.", color = V3.Faint, fontSize = 13.sp, modifier = Modifier.padding(vertical = 24.dp))

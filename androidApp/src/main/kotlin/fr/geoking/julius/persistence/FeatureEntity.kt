@@ -16,6 +16,7 @@ data class FeatureEntity(
     val startedAt: Long? = null,
     val status: String = "PENDING", // PENDING, QUEUED, IN_PROGRESS, COMPLETED, FAILED
     val errorMessage: String? = null,
+    val isArchived: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

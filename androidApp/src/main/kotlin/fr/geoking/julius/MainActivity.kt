@@ -585,6 +585,9 @@ fun MainUIPreview() {
             override suspend fun getRecentlyStartedFeaturesCount(since: Long): Int = 0
             override suspend fun getPendingFeaturesCount(): Int = 0
             override suspend fun getQueuedOrInProgressCount(): Int = 0
+            override suspend fun retryFailedFeatures(sourceName: String?) {}
+            override suspend fun archiveCompletedFeatures(sourceName: String?) {}
+            override suspend fun deleteAllFeatures(sourceName: String?) {}
         }
     }
     val previewFeatureRepository = remember {

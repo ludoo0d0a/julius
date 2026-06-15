@@ -5,14 +5,21 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,6 +53,7 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
         val scope = rememberCoroutineScope()
         val snackbar = remember { SnackbarHostState() }
         var sheet by remember { mutableStateOf<V3Sheet?>(null) }
+        var showMenu by remember { mutableStateOf(false) }
 
         // Hardware back: pop the v3 stack, or exit to the host dashboard.
         BackHandler(enabled = true) { if (!nav.pop()) onExit() }
@@ -54,9 +62,107 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
         val showBottomBar = route !is V3Route.Conversation && route !is V3Route.GitCi && route !is V3Route.PrConflict
         val fab = fabFor(route)
 
+        var showDeleteConfirm by remember { mutableStateOf(false) }
+
         Scaffold(
             containerColor = V3.Bg,
             snackbarHost = { SnackbarHost(snackbar) },
+            topBar = {
+                val sourceName = (route as? V3Route.ProjectFeatures)?.sourceName
+                val featureId = (route as? V3Route.FeatureDetail)?.featureId
+                val sessionId = (route as? V3Route.Conversation)?.sessionId
+
+                val session by produceState<fr.geoking.julius.persistence.JulesSessionEntity?>(initialValue = null, sessionId) {
+                    value = sessionId?.let { deps.julesRepository.getSession(it) }
+                }
+
+                TopAppBar(
+                    title = {
+                        Column {
+                            val title = when (route) {
+                                is V3Route.Scheduler -> "Scheduler"
+                                is V3Route.Features -> "Features"
+                                is V3Route.Projects -> "Projets"
+                                is V3Route.Settings -> "Réglages"
+                                is V3Route.ProjectFeatures -> route.sourceName
+                                is V3Route.FeatureDetail -> "Détail Feature"
+                                is V3Route.Conversation -> session?.prTitle ?: session?.title?.ifBlank { session?.prompt?.take(48) } ?: "Conversation"
+                                is V3Route.GitCi -> "Git & CI"
+                                is V3Route.PrConflict -> "Conflits PR"
+                            }
+                            Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+
+                            val subtitle = when (route) {
+                                is V3Route.Conversation -> {
+                                    val backend = if (sessionId?.startsWith("sesn_") == true) "CLAUDE_CODE" else "JULES"
+                                    "$backend${if (session?.prUrl.isNullOrBlank()) "" else " · PR"} · ${session?.sourceName ?: "…"}"
+                                }
+                                is V3Route.GitCi -> "${route.owner}/${route.repo}"
+                                is V3Route.PrConflict -> "Résolution de conflits"
+                                else -> null
+                            }
+                            if (subtitle != null) {
+                                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = V3.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                    },
+                    navigationIcon = {
+                        if (nav.canPop) {
+                            IconButton(onClick = {
+                                // PrConflict has its own back handling for selected file
+                                // But TopAppBar back should probably always pop the route
+                                nav.pop()
+                            }) {
+                                Icon(Icons.Filled.ArrowBack, "Retour")
+                            }
+                        }
+                    },
+                    actions = {
+                        if (route is V3Route.Conversation && session != null) {
+                            StatusPill(sessionStatusVisual(session!!))
+                        }
+
+                        if (route is V3Route.Features || route is V3Route.ProjectFeatures) {
+                            val scopedSource = (route as? V3Route.ProjectFeatures)?.sourceName
+                            IconButton(onClick = { deps.featureRepository.scheduleWorker() }) {
+                                Icon(Icons.Filled.Refresh, "Refresh")
+                            }
+                            IconButton(onClick = { scope.launch { deps.featureRepository.retryFailedFeatures(scopedSource) } }) {
+                                Icon(Icons.Filled.Replay, "Retry FAILED", tint = V3.Warn)
+                            }
+                            Box {
+                                IconButton(onClick = { showMenu = true }) {
+                                    Icon(Icons.Filled.MoreVert, "Plus")
+                                }
+                                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                                    DropdownMenuItem(
+                                        text = { Text(if (scopedSource != null) "Archiver terminées ($scopedSource)" else "Archiver toutes les terminées") },
+                                        onClick = {
+                                            showMenu = false
+                                            scope.launch { deps.featureRepository.archiveCompletedFeatures(scopedSource) }
+                                        },
+                                        leadingIcon = { Icon(Icons.Filled.Archive, null) }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(if (scopedSource != null) "Supprimer TOUT ($scopedSource)" else "Supprimer TOUT", color = V3.Danger) },
+                                        onClick = {
+                                            showMenu = false
+                                            showDeleteConfirm = true
+                                        },
+                                        leadingIcon = { Icon(Icons.Filled.Delete, null, tint = V3.Danger) }
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = V3.Surface,
+                        titleContentColor = V3.Fg,
+                        navigationIconContentColor = V3.Fg,
+                        actionIconContentColor = V3.Fg,
+                    )
+                )
+            },
             bottomBar = { if (showBottomBar) V3BottomBar(nav.activeTab) { nav.selectTab(it) } },
             floatingActionButton = {
                 if (fab != null && showBottomBar) {
@@ -136,6 +242,30 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                 },
             )
             null -> {}
+        }
+
+        if (showDeleteConfirm) {
+            val scopedSource = (route as? V3Route.ProjectFeatures)?.sourceName
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirm = false },
+                title = { Text("Supprimer TOUT") },
+                text = { Text(if (scopedSource != null) "Voulez-vous vraiment supprimer toutes les features du projet $scopedSource ?" else "Voulez-vous vraiment supprimer TOUTES les features de TOUS les projets ?") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDeleteConfirm = false
+                            scope.launch { deps.featureRepository.deleteAllFeatures(scopedSource) }
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = V3.Danger)
+                    ) { Text("Supprimer") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirm = false }) { Text("Annuler") }
+                },
+                containerColor = V3.Surface,
+                titleContentColor = V3.Fg,
+                textContentColor = V3.Muted,
+            )
         }
     }
 }

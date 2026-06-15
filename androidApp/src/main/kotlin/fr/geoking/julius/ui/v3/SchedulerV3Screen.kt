@@ -35,9 +35,7 @@ fun SchedulerV3Screen(
     val latest = remember(features) { features.sortedByDescending { it.updatedAt }.take(6) }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        V3LargeTitle("Scheduler", "Scheduler", "Séquenceur d'agents · file & quotas")
-
-        Column(Modifier.padding(horizontal = 18.dp)) {
+        Column(Modifier.padding(horizontal = 18.dp).padding(top = 16.dp)) {
             // KPIs
             Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 KpiCell("${status.activeCount}/${status.parallelLimit}", "En cours", accent = true, modifier = Modifier.weight(1f))
