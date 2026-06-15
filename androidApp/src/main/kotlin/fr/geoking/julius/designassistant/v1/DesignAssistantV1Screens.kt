@@ -26,9 +26,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -187,7 +191,20 @@ fun DesignAssistantV1Host(
                     V1ChatScreen(
                         projectName = p.name,
                         feature = f,
+                        session = controller?.activeSession,
                         messages = controller?.chatMessages?.toList() ?: emptyList(),
+                        messageDraft = controller?.messageDraft ?: "",
+                        onMessageDraftChange = { controller?.messageDraft = it },
+                        onSend = { controller?.sendMessage(p, f) },
+                        onTogglePause = {
+                            if (controller?.activeSession?.sessionState == "PAUSED") {
+                                controller.resumeSession()
+                            } else {
+                                controller?.pauseSession()
+                            }
+                        },
+                        onArchive = { controller?.archiveSession() },
+                        onStop = { controller?.pauseSession() },
                         onBack = ::navigateBack,
                     )
                 }
@@ -402,7 +419,14 @@ fun V1SessionsScreen(
 fun V1ChatScreen(
     projectName: String,
     feature: DesignFeature,
+    session: JulesSessionEntity?,
     messages: List<DesignChatMessage>,
+    messageDraft: String,
+    onMessageDraftChange: (String) -> Unit,
+    onSend: () -> Unit,
+    onTogglePause: () -> Unit,
+    onArchive: () -> Unit,
+    onStop: () -> Unit,
     onBack: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().background(Color.White)) {
@@ -422,6 +446,24 @@ fun V1ChatScreen(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour", tint = DesignAssistantColors.Navy)
                 }
             },
+            actions = {
+                if (session != null) {
+                    val isPaused = session.sessionState == "PAUSED"
+                    IconButton(onClick = onTogglePause) {
+                        Icon(
+                            if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                            contentDescription = if (isPaused) "Reprendre" else "Pause",
+                            tint = DesignAssistantColors.Navy
+                        )
+                    }
+                    IconButton(onClick = onStop) {
+                        Icon(Icons.Default.Stop, contentDescription = "Arrêter", tint = DesignAssistantColors.Navy)
+                    }
+                    IconButton(onClick = onArchive) {
+                        Icon(Icons.Default.Archive, contentDescription = "Archiver", tint = DesignAssistantColors.Navy)
+                    }
+                }
+            },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = Color.White,
                 titleContentColor = DesignAssistantColors.Navy,
@@ -436,7 +478,13 @@ fun V1ChatScreen(
                 V1ChatBubble(msg)
             }
         }
-        DesignChatInputBar(placeholder = "Demander à Jules…")
+        DesignChatInputBar(
+            value = messageDraft,
+            onValueChange = onMessageDraftChange,
+            placeholder = "Demander à Jules…",
+            onSend = onSend,
+            enabled = true
+        )
     }
 }
 

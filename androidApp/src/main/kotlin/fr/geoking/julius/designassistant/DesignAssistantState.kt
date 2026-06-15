@@ -396,6 +396,14 @@ class DesignAssistantState(
                     }
                     session = julesRepository.getSession(sessionId)
                     activeSession = session
+                    if (!isVirtual) {
+                        val updated = entity!!.copy(
+                            sessionId = sessionId,
+                            status = "QUEUED",
+                            updatedAt = System.currentTimeMillis()
+                        )
+                        featureRepository.updateFeature(updated)
+                    }
                     loadFeaturesForProject(sourceName)
                 } else {
                     julesRepository.sendMessage(session.id, text, session.apiKey)
