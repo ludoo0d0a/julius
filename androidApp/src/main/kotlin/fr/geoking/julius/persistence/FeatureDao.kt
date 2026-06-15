@@ -33,10 +33,10 @@ interface FeatureDao {
     @Query("SELECT * FROM features WHERE status = 'PENDING' AND isArchived = 0 ORDER BY priority DESC, position ASC LIMIT 1")
     suspend fun getNextPendingFeature(): FeatureEntity?
 
-    @Query("SELECT COUNT(*) FROM features WHERE (status = 'IN_PROGRESS' OR status = 'QUEUED') AND isArchived = 0")
+    @Query("SELECT COUNT(*) FROM features WHERE isArchived = 0 AND status IN ('QUEUED', 'IN_PROGRESS')")
     suspend fun getActiveFeaturesCount(): Int
 
-    @Query("SELECT * FROM features WHERE (status = 'QUEUED' OR status = 'IN_PROGRESS') AND isArchived = 0")
+    @Query("SELECT * FROM features WHERE isArchived = 0 AND status IN ('QUEUED', 'IN_PROGRESS')")
     suspend fun getActiveFeatures(): List<FeatureEntity>
 
     @Query("SELECT COUNT(*) FROM features WHERE status IN ('QUEUED', 'IN_PROGRESS', 'COMPLETED') AND updatedAt >= :since AND isArchived = 0")

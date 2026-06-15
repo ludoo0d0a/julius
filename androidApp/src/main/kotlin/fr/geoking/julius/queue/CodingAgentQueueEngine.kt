@@ -57,30 +57,41 @@ class CodingAgentQueueEngine(
     private suspend fun pollActiveFeatures(githubToken: String, policy: QueuePolicy) {
         val activeFeatures = featureDao.getActiveFeatures()
         for (feature in activeFeatures) {
-            val sessionId = feature.sessionId ?: continue
             try {
-                julesRepository.pollSessionStatus(sessionId, githubToken)
-                val session = julesRepository.getSession(sessionId)
-                if (session != null) {
-                    var updated = feature
-                    val newStatus = when {
-                        session.prState == "merged" -> "COMPLETED"
-                        session.sessionState == "COMPLETED" && session.prUrl == null -> "COMPLETED"
-                        session.sessionState == "FAILED" -> "FAILED"
-                        session.sessionState == "AWAITING_PLAN_APPROVAL" -> "IN_PROGRESS"
-                        session.sessionState == "PLANNING" -> "IN_PROGRESS"
-                        session.sessionState == "ACTIVE" -> "IN_PROGRESS"
-                        feature.status == "QUEUED" && session.sessionState !in setOf("QUEUED", null) -> "IN_PROGRESS"
-                        else -> feature.status
+                val sessions = julesRepository.getSessionsByFeature(feature.id)
+                if (sessions.isEmpty()) continue
+
+                // 1. Poll all non-finished sessions
+                for (session in sessions) {
+                    if (!session.isFinished) {
+                        julesRepository.pollSessionStatus(session.id, githubToken)
                     }
-                    if (newStatus != feature.status) {
-                        updated = feature.copy(status = newStatus, updatedAt = System.currentTimeMillis())
-                        featureDao.updateFeature(updated)
-                    }
-                    if (session.prUrl != null && session.prState == "open" && githubToken.isNotBlank()) {
-                        val afterPr = gitHubLifecycle.processOpenPr(updated, session, githubToken, policy.autoMergeOnCiSuccess)
-                        if (afterPr.status != updated.status) {
-                            featureDao.updateFeature(afterPr)
+                }
+
+                // 2. Fetch updated sessions and recalculate aggregated status
+                val updatedSessions = julesRepository.getSessionsByFeature(feature.id)
+                val allFinished = updatedSessions.all { it.isFinished }
+                val anyFailed = updatedSessions.any { it.sessionState == "FAILED" }
+                val anyStarted = updatedSessions.any { it.sessionState !in setOf("QUEUED", "QUEUED_OFFLINE", null) }
+
+                val newStatus = when {
+                    allFinished && anyFailed -> "FAILED"
+                    allFinished -> "COMPLETED"
+                    anyStarted -> "IN_PROGRESS"
+                    else -> feature.status
+                }
+
+                var currentFeature = feature
+                if (newStatus != feature.status) {
+                    currentFeature = feature.copy(status = newStatus, updatedAt = System.currentTimeMillis())
+                    featureDao.updateFeature(currentFeature)
+                }
+
+                // 3. Process open PRs for auto-merge
+                if (githubToken.isNotBlank()) {
+                    for (session in updatedSessions) {
+                        if (session.prUrl != null && session.prState == "open") {
+                            gitHubLifecycle.processOpenPr(currentFeature, session, githubToken, policy.autoMergeOnCiSuccess)
                         }
                     }
                 }

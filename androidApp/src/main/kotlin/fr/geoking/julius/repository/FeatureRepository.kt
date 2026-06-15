@@ -26,7 +26,14 @@ class FeatureRepository(
 
     suspend fun getFeature(id: String): FeatureEntity? = featureDao.getFeature(id)
 
-    suspend fun addFeature(title: String, description: String, priority: Int, sourceName: String): String {
+    suspend fun addFeature(
+        title: String,
+        description: String,
+        priority: Int,
+        sourceName: String,
+        sessionId: String? = null,
+        status: String = "PENDING"
+    ): String {
         val maxPos = featureDao.getMaxPosition() ?: -1
         val id = UUID.randomUUID().toString()
         val feature = FeatureEntity(
@@ -36,6 +43,8 @@ class FeatureRepository(
             priority = priority,
             position = maxPos + 1,
             sourceName = sourceName,
+            sessionId = sessionId,
+            status = status,
             createdAt = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis()
         )
@@ -164,7 +173,9 @@ class FeatureRepository(
                         title = session.title.ifBlank { "Conversation" },
                         description = session.prompt,
                         priority = 0,
-                        sourceName = sourceName
+                        sourceName = sourceName,
+                        sessionId = session.id,
+                        status = if (session.isFinished) "COMPLETED" else "IN_PROGRESS"
                     )
                     julesRepository.linkSessionToFeature(session.id, featureId)
                 } catch (e: Exception) {

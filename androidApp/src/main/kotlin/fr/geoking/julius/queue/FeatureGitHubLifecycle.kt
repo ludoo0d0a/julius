@@ -47,11 +47,7 @@ class FeatureGitHubLifecycle(
         if (summary.isInProgress) return feature
         if (!summary.latestConclusion.equals("success", ignoreCase = true)) return feature
 
-        val mergeResult = julesRepository.mergePr(githubToken, session.id, prUrl, deleteBranch = true)
-        return if (mergeResult.isSuccess) {
-            feature.copy(status = "COMPLETED", updatedAt = System.currentTimeMillis())
-        } else {
-            feature
-        }
+        julesRepository.mergePr(githubToken, session.id, prUrl, deleteBranch = true)
+        return feature
     }
 }
