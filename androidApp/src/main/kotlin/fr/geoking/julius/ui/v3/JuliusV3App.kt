@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Archive
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.style.TextOverflow
@@ -65,6 +67,8 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
         val fab = fabFor(route)
 
         var showDeleteConfirm by remember { mutableStateOf(false) }
+
+        val uriHandler = LocalUriHandler.current
 
         Scaffold(
             containerColor = V3.Bg,
@@ -124,6 +128,13 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                     },
                     actions = {
                         if (route is V3Route.Conversation && session != null) {
+                            session!!.url?.let { url ->
+                                if (url.isNotBlank()) {
+                                    IconButton(onClick = { uriHandler.openUri(url) }) {
+                                        Icon(Icons.AutoMirrored.Filled.OpenInNew, "Ouvrir dans le navigateur")
+                                    }
+                                }
+                            }
                             StatusPill(sessionStatusVisual(session!!))
                         }
 
