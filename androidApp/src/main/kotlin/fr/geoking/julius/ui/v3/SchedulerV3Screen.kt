@@ -45,32 +45,6 @@ fun SchedulerV3Screen(
                 KpiCell(if (quotaLimit > 0) "$quotaUsed/$quotaLimit" else "—", "Quota jour", modifier = Modifier.weight(1f))
             }
 
-            // Controls
-            Spacer(Modifier.height(14.dp))
-            V3Card {
-                ControlRow(
-                    title = "File en pause",
-                    subtitle = "Suspend le démarrage de nouvelles sessions",
-                    checked = policy.queuePaused,
-                ) {
-                    deps.settingsManager.saveSettings(
-                        settings.copy(queuePolicies = settings.queuePolicies + (backend to policy.copy(queuePaused = it))),
-                    )
-                    scope.launch { deps.queueEngine.tick() }
-                }
-                HorizontalDivider(color = V3.Border)
-                ControlRow(
-                    title = "Auto-merge si CI ✓",
-                    subtitle = "autoMergeOnCiSuccess",
-                    subtitleMono = true,
-                    checked = policy.autoMergeOnCiSuccess,
-                ) {
-                    deps.settingsManager.saveSettings(
-                        settings.copy(queuePolicies = settings.queuePolicies + (backend to policy.copy(autoMergeOnCiSuccess = it))),
-                    )
-                }
-            }
-
             // Latest features
             SectionLabel("Dernières features", "tous projets")
             if (latest.isEmpty()) {
@@ -120,6 +94,32 @@ fun SchedulerV3Screen(
                             )
                         }
                     }
+                }
+            }
+
+            // Options
+            SectionLabel("Options")
+            V3Card {
+                ControlRow(
+                    title = "File en pause",
+                    subtitle = "Suspend le démarrage de nouvelles sessions",
+                    checked = policy.queuePaused,
+                ) {
+                    deps.settingsManager.saveSettings(
+                        settings.copy(queuePolicies = settings.queuePolicies + (backend to policy.copy(queuePaused = it))),
+                    )
+                    scope.launch { deps.queueEngine.tick() }
+                }
+                HorizontalDivider(color = V3.Border)
+                ControlRow(
+                    title = "Auto-merge si CI ✓",
+                    subtitle = "autoMergeOnCiSuccess",
+                    subtitleMono = true,
+                    checked = policy.autoMergeOnCiSuccess,
+                ) {
+                    deps.settingsManager.saveSettings(
+                        settings.copy(queuePolicies = settings.queuePolicies + (backend to policy.copy(autoMergeOnCiSuccess = it))),
+                    )
                 }
             }
 
