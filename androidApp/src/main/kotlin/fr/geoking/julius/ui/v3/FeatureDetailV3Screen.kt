@@ -70,8 +70,8 @@ fun FeatureDetailV3Screen(
                         val sv = sessionStatusVisual(s)
                         val backend = if (s.id.startsWith("sesn_")) "CLAUDE_CODE" else "JULES"
                         V3Row(
-                            title = if (s.prUrl.isNullOrBlank()) backend else "$backend · PR",
-                            subtitle = s.prTitle ?: s.title.ifBlank { s.prompt.take(48) },
+                            title = s.prTitle ?: s.title.ifBlank { s.prompt.take(48) },
+                            subtitle = "$backend${if (s.prUrl.isNullOrBlank()) "" else " · PR"} · ${f.sourceName}",
                             leadingIcon = Icons.Filled.Chat,
                             leadingTint = sv.color,
                             onClick = { onOpenConversation(s.id) },

@@ -100,6 +100,7 @@ class AutoJulesSessionScreen(
         )
 
         sessions.filter { !it.isArchived }.take(10).forEach { session ->
+            val backend = if (session.id.startsWith("sesn_")) "CLAUDE_CODE" else "JULES"
             val status = when {
                 session.prState == "merged" -> "Merged"
                 session.prState == "closed" -> "Closed"
@@ -117,7 +118,7 @@ class AutoJulesSessionScreen(
             listBuilder.addItem(
                 Row.Builder()
                     .setTitle(session.title.ifBlank { session.prompt.take(60) }.ifBlank { "Conversation" })
-                    .addText(status)
+                    .addText("$backend · ${session.sourceName} · $status")
                     .setOnClickListener {
                         screenManager.push(
                             AutoJulesConversationScreen(

@@ -612,10 +612,14 @@ fun FeatureDetailContent(
                     androidx.compose.material3.ListItem(
                         headlineContent = { Text(session.title.ifBlank { session.prompt }, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         supportingContent = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                StatusBadge(session.sessionState ?: "Active")
-                                Spacer(modifier = Modifier.size(8.dp))
-                                Text(session.updateTime?.take(16) ?: "", fontSize = 12.sp)
+                            Column {
+                                val backend = if (session.id.startsWith("sesn_")) "CLAUDE_CODE" else "JULES"
+                                Text("$backend · ${session.sourceName}", fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f), modifier = Modifier.padding(bottom = 2.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    StatusBadge(session.sessionState ?: "Active")
+                                    Spacer(modifier = Modifier.size(8.dp))
+                                    Text(session.updateTime?.take(16) ?: "", fontSize = 12.sp)
+                                }
                             }
                         },
                         trailingContent = {

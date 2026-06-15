@@ -1,7 +1,9 @@
 package fr.geoking.julius.ui.jules
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Archive
@@ -40,10 +42,16 @@ internal fun JulesSessionListItem(
             Text(session.title.ifBlank { session.prompt }, maxLines = 1, overflow = TextOverflow.Ellipsis)
         },
         supportingContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                JulesSessionStatusBadge(session)
-                androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(8.dp))
-                Text(session.sessionState ?: "In progress", fontSize = 12.sp)
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val backend = if (session.id.startsWith("sesn_")) "CLAUDE_CODE" else "JULES"
+                    Text("$backend · ${session.sourceName}", fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f), modifier = Modifier.padding(bottom = 2.dp))
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    JulesSessionStatusBadge(session)
+                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(8.dp))
+                    Text(session.sessionState ?: "In progress", fontSize = 12.sp)
+                }
             }
         },
         trailingContent = {

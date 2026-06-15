@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.api.github.parseGitHubPullRequestUrl
@@ -61,8 +62,16 @@ fun ConversationV3Screen(
         Row(Modifier.fillMaxWidth().padding(start = 4.dp, top = 6.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Retour", tint = V3.Fg) }
             Column(Modifier.weight(1f)) {
-                Text(if (s?.prUrl.isNullOrBlank()) backend else "$backend · PR", color = V3.Fg, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                Text("sessionState · ${s?.sessionState ?: "…"}", color = V3.Muted, fontSize = 11.5.sp, fontFamily = FontFamily.Monospace)
+                Text(
+                    s?.prTitle ?: s?.title?.ifBlank { s.prompt.take(48) } ?: backend,
+                    color = V3.Fg, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    "$backend${if (s?.prUrl.isNullOrBlank()) "" else " · PR"} · ${s?.sourceName ?: "…"}",
+                    color = V3.Muted, fontSize = 11.5.sp, fontFamily = FontFamily.Monospace,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
             }
             s?.let { StatusPill(sessionStatusVisual(it)) }
             if (s != null && !s.prUrl.isNullOrBlank()) {
