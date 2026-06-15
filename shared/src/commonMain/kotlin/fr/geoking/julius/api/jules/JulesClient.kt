@@ -505,13 +505,14 @@ class JulesClient(
 
     /**
      * Flatten activities into a linear list of chat-like items for UI.
-     * Consecutive agent activities of the same type (like progress) are grouped.
+     * Consecutive agent activities are grouped into chunks, split by main sections (headers).
      */
     fun activitiesToChatItems(activities: List<JulesActivity>): List<JulesChatItem> {
         val sorted = activities.sortedBy { it.createTime }
         val items = mutableListOf<JulesChatItem>()
 
         var currentAgentGroup: JulesChatItem.AgentMessage? = null
+        var planApprovedShown = false
 
         fun flush() {
             currentAgentGroup?.let { group ->
@@ -535,36 +536,63 @@ class JulesClient(
         }
 
         for (a in sorted) {
-            if (a.originator == "user") {
+            // Deduplicate Plan Approved (often appears multiple times in activities)
+            if (a.planApproved != null) {
+                if (planApprovedShown) continue
+                planApprovedShown = true
+
                 flush()
-                if (a.userMessaged != null) {
-                    items.add(JulesChatItem.UserMessage(a.id, a.createTime, a.userMessaged.userMessage))
-                } else if (a.messageSent != null) {
-                    items.add(JulesChatItem.UserMessage(a.id, a.createTime, a.messageSent.prompt ?: ""))
-                } else if (a.planApproved != null) {
-                    // Plan approved is special: show as a single agent message for now as it triggers agent work
-                    items.add(JulesChatItem.AgentMessage(
+                items.add(
+                    JulesChatItem.UserMessage(
                         id = a.id,
                         createTime = a.createTime,
-                        title = "Plan approved. 🚀",
-                        subItems = listOf(JulesChatItem.AgentSubItem(a.id, a.createTime, "Plan approved. 🚀")),
                         text = "Plan approved. 🚀"
-                    ))
+                    )
+                )
+                continue
+            }
+
+            if (a.originator == "user") {
+                flush()
+                val text = when {
+                    a.userMessaged != null -> a.userMessaged.userMessage
+                    a.messageSent != null -> a.messageSent.prompt ?: ""
+                    else -> null
+                }
+                if (text != null) {
+                    items.add(JulesChatItem.UserMessage(a.id, a.createTime, text))
                 }
                 continue
             }
 
             // Agent activity
+            val text = extractText(a)
             val type = when {
                 a.planGenerated != null -> "plan"
                 a.progressUpdated != null -> "progress"
                 a.sessionCompleted != null -> "completion"
                 else -> "other"
             }
-            val text = extractText(a)
+
+            // Parse text to detect main sections for chunking
+            val blocks = parseJulesMessage(text)
+            val hasMainSection = blocks.any { it is MessageBlock.Header || it is MessageBlock.SectionHeader }
+
             val subItem = JulesChatItem.AgentSubItem(a.id, a.createTime, text, type)
 
-            if (type == "progress") {
+            // Start a new chunk if we hit a main section or if it's a major non-progress event
+            if (hasMainSection || type != "progress") {
+                flush()
+                currentAgentGroup = JulesChatItem.AgentMessage(
+                    id = a.id,
+                    createTime = a.createTime,
+                    title = if (type == "progress") "Progress" else text,
+                    subItems = listOf(subItem)
+                )
+                // If it's not progress, flush it immediately so the next activity doesn't merge into it unless it's progress
+                if (type != "progress") flush()
+            } else {
+                // Try to group into current progress chunk
                 if (currentAgentGroup != null && currentAgentGroup!!.title == "Progress") {
                     currentAgentGroup = currentAgentGroup!!.copy(
                         subItems = currentAgentGroup!!.subItems + subItem
@@ -578,15 +606,6 @@ class JulesClient(
                         subItems = listOf(subItem)
                     )
                 }
-            } else {
-                flush()
-                items.add(JulesChatItem.AgentMessage(
-                    id = a.id,
-                    createTime = a.createTime,
-                    title = text,
-                    subItems = listOf(subItem),
-                    text = text
-                ))
             }
         }
         flush()

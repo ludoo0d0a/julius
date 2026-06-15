@@ -72,12 +72,12 @@ import fr.geoking.julius.designassistant.components.DesignChatInputBar
 import fr.geoking.julius.designassistant.components.JulesAvatar
 import fr.geoking.julius.designassistant.components.StatusDot
 import fr.geoking.julius.designassistant.components.WhiteContentSheet
+import fr.geoking.julius.api.jules.parseJulesMessage
 import fr.geoking.julius.persistence.JulesSessionEntity
 import fr.geoking.julius.repository.FeatureRepository
 import fr.geoking.julius.repository.GitHubBuildRepository
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.ui.components.RenderMessageBlock
-import fr.geoking.julius.ui.components.parseJulesMessage
 
 enum class V1Screen { PROJECTS, FEATURES, SESSIONS, CHAT }
 
