@@ -32,6 +32,15 @@ fun FeatureDetailV3Screen(
         value = deps.julesRepository.getSessionsByFeature(featureId)
     }
 
+    val scope = rememberCoroutineScope()
+    val settings by deps.settingsManager.settings.collectAsState()
+    LaunchedEffect(feature?.sourceName, settings.julesKeys, settings.githubApiKey) {
+        val sourceName = feature?.sourceName ?: return@LaunchedEffect
+        deps.julesRepository.getSessions(settings.julesKeys, sourceName, settings.githubApiKey).collect { list ->
+            deps.featureRepository.autoPromoteOrphans(scope, sourceName, list)
+        }
+    }
+
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         val f = feature
         if (f == null) {

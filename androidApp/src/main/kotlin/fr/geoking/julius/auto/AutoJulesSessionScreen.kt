@@ -8,10 +8,13 @@ import androidx.lifecycle.lifecycleScope
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.persistence.JulesSessionEntity
+import fr.geoking.julius.repository.FeatureRepository
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.conversation.ConversationStore
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 /**
  * Android Auto screen to list sessions for a selected repository.
@@ -26,8 +29,9 @@ class AutoJulesSessionScreen(
     private val sourceDisplayName: String,
     private val featureId: String? = null,
     private val featureTitle: String? = null
-) : Screen(carContext) {
+) : Screen(carContext), KoinComponent {
 
+    private val featureRepository: FeatureRepository by inject()
     private var sessions: List<JulesSessionEntity> = emptyList()
     private var loading: Boolean = true
     private var error: String? = null
@@ -53,6 +57,7 @@ class AutoJulesSessionScreen(
                     }
                     loading = false
                     invalidate()
+                    featureRepository.autoPromoteOrphans(lifecycleScope, sourceId, list)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load sessions", e)

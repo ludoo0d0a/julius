@@ -8,8 +8,11 @@ import androidx.work.WorkManager
 import fr.geoking.julius.persistence.FeatureDao
 import fr.geoking.julius.persistence.FeatureEntity
 import fr.geoking.julius.queue.AgentAccount
+import fr.geoking.julius.persistence.JulesSessionEntity
 import fr.geoking.julius.worker.FeatureSchedulerWorker
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import java.util.UUID
 
 class FeatureRepository(
@@ -17,6 +20,8 @@ class FeatureRepository(
     private val featureDao: FeatureDao,
     private val julesRepository: JulesRepository
 ) {
+    private val promotingSessionIds = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
     fun getAllFeatures(): Flow<List<FeatureEntity>> = featureDao.getAllFeaturesFlow()
 
     suspend fun getFeature(id: String): FeatureEntity? = featureDao.getFeature(id)
@@ -147,6 +152,28 @@ class FeatureRepository(
         )
         scheduleWorker()
         return sessionId
+    }
+
+    fun autoPromoteOrphans(scope: CoroutineScope, sourceName: String, incoming: List<JulesSessionEntity>) {
+        val orphans = incoming.filter { it.featureId.isNullOrBlank() }
+        for (session in orphans) {
+            if (!promotingSessionIds.add(session.id)) continue
+            scope.launch {
+                try {
+                    val featureId = addFeature(
+                        title = session.title.ifBlank { "Conversation" },
+                        description = session.prompt,
+                        priority = 0,
+                        sourceName = sourceName
+                    )
+                    julesRepository.linkSessionToFeature(session.id, featureId)
+                } catch (e: Exception) {
+                    android.util.Log.e("FeatureRepository", "Auto promotion failed for ${session.id}", e)
+                } finally {
+                    promotingSessionIds.remove(session.id)
+                }
+            }
+        }
     }
 
     fun scheduleWorker() {
