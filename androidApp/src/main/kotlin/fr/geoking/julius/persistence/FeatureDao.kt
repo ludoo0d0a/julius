@@ -15,6 +15,9 @@ interface FeatureDao {
     @Query("SELECT * FROM features WHERE id = :id")
     suspend fun getFeature(id: String): FeatureEntity?
 
+    @Query("SELECT * FROM features WHERE id = :id")
+    fun getFeatureFlow(id: String): Flow<FeatureEntity?>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFeature(feature: FeatureEntity)
 

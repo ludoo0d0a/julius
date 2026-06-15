@@ -26,6 +26,8 @@ class FeatureRepository(
 
     suspend fun getFeature(id: String): FeatureEntity? = featureDao.getFeature(id)
 
+    fun getFeatureFlow(id: String): Flow<FeatureEntity?> = featureDao.getFeatureFlow(id)
+
     suspend fun addFeature(title: String, description: String, priority: Int, sourceName: String): String {
         val maxPos = featureDao.getMaxPosition() ?: -1
         val id = UUID.randomUUID().toString()
@@ -46,6 +48,16 @@ class FeatureRepository(
 
     suspend fun updateFeature(feature: FeatureEntity) {
         featureDao.updateFeature(feature.copy(updatedAt = System.currentTimeMillis()))
+    }
+
+    suspend fun updateFeatureStatus(featureId: String, status: String) {
+        val feature = featureDao.getFeature(featureId) ?: return
+        featureDao.updateFeature(feature.copy(status = status, updatedAt = System.currentTimeMillis()))
+    }
+
+    suspend fun toggleArchiveFeature(featureId: String) {
+        val feature = featureDao.getFeature(featureId) ?: return
+        featureDao.updateFeature(feature.copy(isArchived = !feature.isArchived, updatedAt = System.currentTimeMillis()))
     }
 
     suspend fun deleteFeature(id: String) {

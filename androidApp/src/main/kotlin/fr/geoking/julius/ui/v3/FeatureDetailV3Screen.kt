@@ -10,12 +10,14 @@ import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.persistence.FeatureEntity
 import fr.geoking.julius.persistence.JulesSessionEntity
+import kotlinx.coroutines.launch
 
 @Composable
 fun FeatureDetailV3Screen(
@@ -25,9 +27,7 @@ fun FeatureDetailV3Screen(
     onOpenConversation: (String) -> Unit,
     onLaunch: () -> Unit,
 ) {
-    val feature by produceState<FeatureEntity?>(initialValue = null, featureId) {
-        value = deps.featureRepository.getFeature(featureId)
-    }
+    val feature by remember(featureId) { deps.featureRepository.getFeatureFlow(featureId) }.collectAsState(initial = null)
     val sessions by produceState<List<JulesSessionEntity>>(initialValue = emptyList(), featureId) {
         value = deps.julesRepository.getSessionsByFeature(featureId)
     }
@@ -86,6 +86,49 @@ fun FeatureDetailV3Screen(
             }
 
             Spacer(Modifier.height(18.dp))
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (f.status != "COMPLETED") {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                deps.featureRepository.updateFeatureStatus(f.id, "COMPLETED")
+                            }
+                        },
+                        modifier = Modifier.weight(1f).height(52.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = V3.Success, contentColor = V3.AccentInk),
+                    ) {
+                        Text(stringResource(fr.geoking.julius.R.string.mark_as_done), fontSize = 15.sp)
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                deps.featureRepository.updateFeatureStatus(f.id, "PENDING")
+                            }
+                        },
+                        modifier = Modifier.weight(1f).height(52.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = V3.Warn, contentColor = V3.AccentInk),
+                    ) {
+                        Text(stringResource(fr.geoking.julius.R.string.mark_as_pending), fontSize = 15.sp)
+                    }
+                }
+
+                Button(
+                    onClick = {
+                        scope.launch {
+                            deps.featureRepository.toggleArchiveFeature(f.id)
+                        }
+                    },
+                    modifier = Modifier.weight(1f).height(52.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = V3.Surface, contentColor = V3.Fg),
+                ) {
+                    Text(stringResource(if (f.isArchived) fr.geoking.julius.R.string.unarchive_feature else fr.geoking.julius.R.string.archive_feature), fontSize = 15.sp)
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
             Button(
                 onClick = onLaunch,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
