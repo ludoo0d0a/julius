@@ -16,4 +16,8 @@
     <string name="in_progress">En cours</string>
     <string name="unmerged_code">Code non mergé</string>
     <string name="message_jules_on">Message Jules sur %s…</string>
+    <string name="mark_as_done">Marquer comme terminé</string>
+    <string name="mark_as_pending">Marquer comme en attente</string>
+    <string name="archive_feature">Archiver</string>
+    <string name="unarchive_feature">Désarchiver</string>
 </resources>

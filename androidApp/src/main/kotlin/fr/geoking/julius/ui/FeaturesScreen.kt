@@ -684,6 +684,20 @@ fun FeatureDetailContent(
                         }
                     }
                 },
+                onUpdateStatus = { newStatus ->
+                    scope.launch {
+                        featureRepository.updateFeatureStatus(feature.id, newStatus)
+                        onUpdateFeature(feature.copy(status = newStatus))
+                    }
+                },
+                onToggleArchive = {
+                    scope.launch {
+                        featureRepository.toggleArchiveFeature(feature.id)
+                        onUpdateFeature(feature.copy(isArchived = !feature.isArchived))
+                    }
+                },
+                status = feature.status,
+                isArchived = feature.isArchived,
                 hasOpenPr = sessions.any { it.prUrl != null && it.prState == "open" },
                 showInProgressOnly = showInProgressOnly,
                 onShowInProgressOnlyChange = { showInProgressOnly = it },
@@ -723,6 +737,10 @@ fun FeatureActionBar(
     onArchiveCompleted: () -> Unit,
     onReplayPrompts: () -> Unit = {},
     onFinishFeature: () -> Unit = {},
+    onUpdateStatus: (String) -> Unit = {},
+    onToggleArchive: () -> Unit = {},
+    status: String = "PENDING",
+    isArchived: Boolean = false,
     hasOpenPr: Boolean = false,
     showInProgressOnly: Boolean,
     onShowInProgressOnlyChange: (Boolean) -> Unit,
@@ -738,6 +756,51 @@ fun FeatureActionBar(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Done/Pending Button
+        if (status != "COMPLETED") {
+            Surface(
+                modifier = Modifier.clickable { onUpdateStatus("COMPLETED") },
+                color = Color.Green.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, Color.Green.copy(alpha = 0.3f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(Icons.Default.Check, contentDescription = null, tint = Color.Green, modifier = Modifier.size(16.dp))
+                    Text(
+                        androidx.compose.ui.res.stringResource(fr.geoking.julius.R.string.mark_as_done),
+                        color = Color.Green,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        } else {
+            Surface(
+                modifier = Modifier.clickable { onUpdateStatus("PENDING") },
+                color = Color.Yellow.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, Color.Yellow.copy(alpha = 0.3f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(Icons.Default.History, contentDescription = null, tint = Color.Yellow, modifier = Modifier.size(16.dp))
+                    Text(
+                        androidx.compose.ui.res.stringResource(fr.geoking.julius.R.string.mark_as_pending),
+                        color = Color.Yellow,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
         // Start Button
         Surface(
             modifier = Modifier.clickable(onClick = onStartFeature),
@@ -760,7 +823,28 @@ fun FeatureActionBar(
             }
         }
 
-        // Archive Button
+        // Archive Feature Button
+        Surface(
+            modifier = Modifier.clickable(onClick = onToggleArchive),
+            color = Color.White.copy(alpha = 0.05f),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(if (isArchived) Icons.Default.Unarchive else Icons.Default.Archive, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                Text(
+                    androidx.compose.ui.res.stringResource(if (isArchived) fr.geoking.julius.R.string.unarchive_feature else fr.geoking.julius.R.string.archive_feature),
+                    color = Color.White,
+                    fontSize = 12.sp
+                )
+            }
+        }
+
+        // Archive Completed Sessions Button
         Surface(
             modifier = Modifier.clickable(onClick = onArchiveCompleted),
             color = Color.White.copy(alpha = 0.05f),
