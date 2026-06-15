@@ -45,7 +45,7 @@ fun SettingsV3Screen(deps: V3Deps) {
             // Agent accounts — editable label + API key per account, like the original screen.
             SectionLabel("Comptes agents", "${settings.agentAccounts.size}")
             if (settings.agentAccounts.isEmpty()) {
-                EmptyHint("Aucun compte. Ajoute une clé Jules / Claude ci-dessous.")
+                EmptyHint("Aucun compte.")
             }
             settings.agentAccounts.forEach { acc ->
                 var label by remember(acc.id) { mutableStateOf(acc.label) }

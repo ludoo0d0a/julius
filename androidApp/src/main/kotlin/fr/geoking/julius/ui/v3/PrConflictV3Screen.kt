@@ -82,7 +82,7 @@ fun PrConflictV3Screen(
             if (selected == null) {
                 // file list
                 if (f.isEmpty()) {
-                    EmptyHint("Aucun fichier en conflit. La PR est peut-être mergeable.")
+                    EmptyHint("Aucun conflit.")
                 } else {
                     SectionLabel("Fichiers en conflit", "${f.size}")
                     V3Card {
@@ -103,7 +103,7 @@ fun PrConflictV3Screen(
                 if (content == null) {
                     Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = V3.Accent) }
                 } else if (conflicts.isEmpty()) {
-                    EmptyHint("Aucun marqueur de conflit détecté dans ce fichier.")
+                    EmptyHint("Aucun marqueur.")
                 } else {
                     SectionLabel("Conflits", "${conflicts.size}")
                     conflicts.forEachIndexed { idx, c ->
