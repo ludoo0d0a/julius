@@ -57,32 +57,33 @@ class CodingAgentQueueEngine(
     private suspend fun pollActiveFeatures(githubToken: String, policy: QueuePolicy) {
         val activeFeatures = featureDao.getActiveFeatures()
         for (feature in activeFeatures) {
-            val sessionId = feature.sessionId ?: continue
             try {
-                julesRepository.pollSessionStatus(sessionId, githubToken)
-                val session = julesRepository.getSession(sessionId)
-                if (session != null) {
-                    var updated = feature
-                    val newStatus = when {
-                        session.prState == "merged" -> "COMPLETED"
-                        session.sessionState == "COMPLETED" && session.prUrl == null -> "COMPLETED"
-                        session.sessionState == "FAILED" -> "FAILED"
-                        session.sessionState == "AWAITING_PLAN_APPROVAL" -> "IN_PROGRESS"
-                        session.sessionState == "PLANNING" -> "IN_PROGRESS"
-                        session.sessionState == "ACTIVE" -> "IN_PROGRESS"
-                        feature.status == "QUEUED" && session.sessionState !in setOf("QUEUED", null) -> "IN_PROGRESS"
-                        else -> feature.status
-                    }
-                    if (newStatus != feature.status) {
-                        updated = feature.copy(status = newStatus, updatedAt = System.currentTimeMillis())
-                        featureDao.updateFeature(updated)
-                    }
+                // 1. Poll status for all sessions associated with this feature
+                val sessions = julesRepository.getSessionsByFeature(feature.id)
+                for (session in sessions) {
+                    julesRepository.pollSessionStatus(session.id, githubToken)
+                }
+
+                // 2. Re-fetch updated sessions and process open PRs
+                val updatedSessions = julesRepository.getSessionsByFeature(feature.id)
+                var updatedFeature = feature
+                for (session in updatedSessions) {
                     if (session.prUrl != null && session.prState == "open" && githubToken.isNotBlank()) {
-                        val afterPr = gitHubLifecycle.processOpenPr(updated, session, githubToken, policy.autoMergeOnCiSuccess)
-                        if (afterPr.status != updated.status) {
-                            featureDao.updateFeature(afterPr)
-                        }
+                        updatedFeature = gitHubLifecycle.processOpenPr(updatedFeature, session, githubToken, policy.autoMergeOnCiSuccess)
                     }
+                }
+
+                // 3. Re-fetch sessions again (status might have changed after PR processing) and calculate final status
+                val finalSessions = julesRepository.getSessionsByFeature(feature.id)
+                val newStatus = featureRepository.calculateFeatureStatus(finalSessions)
+
+                if (newStatus != feature.status) {
+                    featureDao.updateFeature(
+                        updatedFeature.copy(
+                            status = newStatus,
+                            updatedAt = System.currentTimeMillis(),
+                        ),
+                    )
                 }
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "Failed to poll feature ${feature.id}", e)
