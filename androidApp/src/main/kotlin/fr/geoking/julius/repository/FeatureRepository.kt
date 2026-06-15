@@ -47,6 +47,19 @@ class FeatureRepository(
         featureDao.deleteFeature(id)
     }
 
+    suspend fun deleteAllFeatures(sourceName: String? = null) {
+        featureDao.deleteAllFeatures(sourceName)
+    }
+
+    suspend fun retryFailedFeatures(sourceName: String? = null) {
+        featureDao.retryFailedFeatures(sourceName)
+        scheduleWorker()
+    }
+
+    suspend fun archiveCompletedFeatures(sourceName: String? = null) {
+        featureDao.archiveCompletedFeatures(sourceName)
+    }
+
     suspend fun updatePositions(features: List<FeatureEntity>) {
         val now = System.currentTimeMillis()
         val updated = features.mapIndexed { index, feature ->

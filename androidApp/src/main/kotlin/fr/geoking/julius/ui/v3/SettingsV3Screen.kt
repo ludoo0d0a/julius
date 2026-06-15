@@ -41,9 +41,7 @@ fun SettingsV3Screen(deps: V3Deps) {
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        V3LargeTitle("Réglages", "Réglages")
-
-        Column(Modifier.padding(horizontal = 18.dp)) {
+        Column(Modifier.padding(horizontal = 18.dp).padding(top = 16.dp)) {
             // Agent accounts — editable label + API key per account, like the original screen.
             SectionLabel("Comptes agents", "${settings.agentAccounts.size}")
             if (settings.agentAccounts.isEmpty()) {

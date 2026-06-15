@@ -63,13 +63,8 @@ fun GitCiV3Screen(
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Row(Modifier.fillMaxWidth().padding(start = 4.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Retour", tint = V3.Fg) }
-            Text("Git & CI", color = V3.Fg, fontSize = 22.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
-        }
-        Text("$owner/$repo", color = V3.Muted, fontSize = 13.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.padding(horizontal = 18.dp))
-
-        Column(Modifier.padding(horizontal = 18.dp)) {
+        Column(Modifier.padding(horizontal = 18.dp).padding(top = 16.dp)) {
+            Text("$owner/$repo", color = V3.Muted, fontSize = 13.sp, fontFamily = FontFamily.Monospace)
             val s = state
             if (s == null) {
                 Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = V3.Accent) }

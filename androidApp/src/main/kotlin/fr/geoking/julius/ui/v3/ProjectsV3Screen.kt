@@ -46,9 +46,7 @@ fun ProjectsV3Screen(
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        V3LargeTitle("Projets", "Projets", "Sélectionne un dépôt pour ouvrir ses features")
-
-        Column(Modifier.padding(horizontal = 18.dp)) {
+        Column(Modifier.padding(horizontal = 18.dp).padding(top = 16.dp)) {
             OutlinedTextField(
                 value = query, onValueChange = { query = it },
                 placeholder = { Text("Rechercher…", maxLines = 1, overflow = TextOverflow.Ellipsis) },

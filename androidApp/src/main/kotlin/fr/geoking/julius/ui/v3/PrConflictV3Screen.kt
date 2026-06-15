@@ -1,5 +1,6 @@
 package fr.geoking.julius.ui.v3
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -63,18 +64,14 @@ fun PrConflictV3Screen(
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Row(Modifier.fillMaxWidth().padding(start = 4.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { if (selected != null) selected = null else onBack() }) {
-                Icon(Icons.Filled.ArrowBack, "Retour", tint = V3.Fg)
-            }
-            Text(
-                selected ?: "Résolution de conflits",
-                color = V3.Fg, fontSize = 19.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-                fontFamily = if (selected != null) FontFamily.Monospace else FontFamily.Default,
-            )
-        }
+        // Handle back manually for file selection
+        BackHandler(enabled = selected != null) { selected = null }
 
-        Column(Modifier.padding(horizontal = 18.dp)) {
+        Column(Modifier.padding(horizontal = 18.dp).padding(top = 16.dp)) {
+            if (selected != null) {
+                Text(selected!!, color = V3.Accent, fontSize = 14.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.padding(bottom = 12.dp))
+            }
+
             val f = files
             if (f == null) {
                 Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = V3.Accent) }

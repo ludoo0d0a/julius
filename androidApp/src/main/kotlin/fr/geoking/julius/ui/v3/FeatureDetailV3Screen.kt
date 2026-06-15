@@ -33,11 +33,6 @@ fun FeatureDetailV3Screen(
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Row(Modifier.fillMaxWidth().padding(start = 4.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Retour", tint = V3.Fg) }
-            Text(feature?.sourceName ?: "", color = V3.Muted, fontSize = 12.5.sp, fontFamily = FontFamily.Monospace)
-        }
-
         val f = feature
         if (f == null) {
             Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
@@ -47,7 +42,7 @@ fun FeatureDetailV3Screen(
         }
 
         val v = featureStatusVisual(f.status)
-        Column(Modifier.padding(horizontal = 18.dp)) {
+        Column(Modifier.padding(horizontal = 18.dp).padding(top = 16.dp)) {
             Text(f.title, color = V3.Fg, fontSize = 22.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
             Spacer(Modifier.height(10.dp))
             StatusPill(v)
