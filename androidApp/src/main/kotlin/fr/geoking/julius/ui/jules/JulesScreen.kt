@@ -120,12 +120,13 @@ fun JulesScreen(
             return
         }
         scope.launch {
-            if (isRefresh) refreshing = true else loading = true
+            if (isRefresh) refreshing = true else if (sources.isEmpty()) loading = true
             clearError()
             try {
                 julesRepository.getSources(apiKeys).collectLatest { list ->
                     sources = list
                     sourcesLoaded = true
+                    loading = false
                     selectedSourceName?.let { id ->
                         sources.find { it.name == id }?.let { found ->
                             selectedSourceDisplayName = sourceDisplayName(found)
