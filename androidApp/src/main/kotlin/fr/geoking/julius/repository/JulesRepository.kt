@@ -120,15 +120,13 @@ class JulesRepository(
     }
 
     fun getSources(apiKeys: List<String>): Flow<List<JulesClient.JulesSource>> = flow {
-        // 1. Emit from cache
+        // 1. Emit from cache immediately
         val cached = getSourcesCached()
-        if (cached.isNotEmpty()) {
-            emit(cached)
-        }
+        emit(cached)
 
-        // 2. Refresh if needed (e.g. once a month = 30 days)
+        // 2. Refresh if needed (e.g. once a day)
         val lastUpdated = julesDao.getSources().firstOrNull()?.lastUpdated ?: 0L
-        val ttlMs = 30L * 24 * 60 * 60 * 1000L
+        val ttlMs = 24 * 60 * 60 * 1000L
         if (System.currentTimeMillis() - lastUpdated > ttlMs || cached.isEmpty()) {
             try {
                 val allSources = mutableMapOf<String, JulesClient.JulesSource>()
