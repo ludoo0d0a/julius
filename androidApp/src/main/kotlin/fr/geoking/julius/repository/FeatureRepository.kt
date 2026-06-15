@@ -67,6 +67,8 @@ class FeatureRepository(
     }
 
     private suspend fun startFeatureInternal(feature: FeatureEntity, account: AgentAccount, prompt: String): String {
+        if (feature.sessionId != null) return feature.sessionId
+
         val now = System.currentTimeMillis()
         val sessionId = julesRepository.createSession(
             account = account,
