@@ -320,6 +320,37 @@ body{
   font-size:13px;font-weight:560;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;display:flex;gap:8px;align-items:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 
+/* ---------- conversation v3 : bulles compactes + zone git + input ---------- */
+.conv-body{flex:1;overflow-y:auto;padding:10px 16px 14px;-webkit-overflow-scrolling:touch}
+.cbubble{display:flex;gap:8px;align-items:flex-start;margin-top:8px}
+.cbubble.user{flex-direction:row-reverse}
+.cb-ic{flex:none;width:26px;height:26px;border-radius:8px;background:var(--panel-2);display:grid;place-items:center;color:var(--muted);margin-top:2px}
+.cb-ic.plan{color:var(--accent)}
+.cb-ic.done{color:var(--success)}
+.cb-ic svg{width:15px;height:15px}
+.cb-text{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:9px 12px;font-size:14px;line-height:1.45;color:var(--fg);max-width:80%}
+.cbubble.user .cb-text{background:var(--panel-2);border-color:transparent}
+.cb-text code{font-family:var(--mono);font-size:12px;background:rgba(0,0,0,.3);padding:1px 5px;border-radius:5px}
+.git-zone{display:flex;align-items:center;gap:10px;flex:none;padding:10px 16px;background:var(--surface);border-top:1px solid var(--border);cursor:pointer}
+.git-zone .gz-ic{color:var(--accent);flex:none;display:grid;place-items:center}
+.gz-title{font-size:13px;color:var(--fg);font-family:var(--mono)}
+.gz-sub{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:1px}
+.conv-input{display:flex;align-items:center;gap:8px;flex:none;padding:10px 12px;background:var(--bg);border-top:1px solid var(--border)}
+.conv-input input{flex:1;height:44px;border-radius:22px;border:1px solid var(--border-strong);background:var(--surface);color:var(--fg);padding:0 16px;font-size:14.5px;font-family:var(--font)}
+.ci-btn{width:44px;height:44px;flex:none;border-radius:50%;border:0;display:grid;place-items:center;cursor:pointer}
+.ci-mic{background:var(--surface);color:var(--accent)}
+.ci-send{background:var(--accent);color:var(--accent-ink)}
+.pr-fab-wrap{position:absolute;right:16px;bottom:150px;z-index:30;display:flex;flex-direction:column;align-items:flex-end;gap:12px}
+.pr-fab{width:56px;height:56px;border-radius:18px;background:var(--accent);color:var(--accent-ink);border:0;display:grid;place-items:center;cursor:pointer;box-shadow:0 10px 24px -6px color-mix(in oklab,var(--accent) 60%,transparent)}
+.pr-fab:active{transform:scale(.96)}
+.pr-fab-menu{display:none;flex-direction:column;gap:10px;align-items:flex-end}
+.pr-fab-menu.open{display:flex}
+.pr-mini{display:flex;align-items:center;gap:10px}
+.pr-mini .lbl{background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:6px 11px;font-size:13px;color:var(--fg);white-space:nowrap}
+.pr-mini .mfab{width:42px;height:42px;border-radius:14px;background:var(--panel-2);color:var(--fg);border:0;display:grid;place-items:center;cursor:pointer}
+/* Features : statut porté par l'icône de tête (pas de chip à droite) */
+#featlist .body .row .trail, #features .body .card .row .trail{display:none}
+
 /* ---------- board mode (tiled in screens.html) ---------- */
 body.board{padding:0;background:transparent;display:block}
 body.board .stage-cap{display:none}
@@ -352,10 +383,6 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
       <div class="appbar sticky">
         <div class="appbar-row">
           <h1>Dashboard</h1>
-          <span class="spacer"></span>
-          <button class="iconbtn" aria-label="Journal d'activité" data-go="">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
-          </button>
         </div>
         <div class="title-xl">Dashboard <span class="pill run" style="font-size:11px"><span class="led"></span>actif</span></div>
         <div class="title-sub">Séquenceur d'agents · 3 sessions en parallèle</div>
@@ -682,10 +709,15 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
           <button class="iconbtn" data-back aria-label="Retour"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 6-6 6 6 6"/></svg></button>
           <span class="repo" style="font-family:var(--mono);font-size:12.5px;color:var(--muted)" id="featDetailSrc">acme/web-app</span>
           <span class="spacer"></span>
-          <button class="iconbtn" aria-label="Éditer"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg></button>
+          <button class="iconbtn" data-toast="Édition de la feature" aria-label="Éditer"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg></button>
+          <button class="iconbtn" data-toast="Texte copié" aria-label="Copier"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
         </div>
         <div class="title-xl" id="featDetailTitle">Migration design tokens v2</div>
         <div class="title-sub"><span class="pill run" style="font-size:11px"><span class="led"></span>En cours · IN_PROGRESS</span></div>
+        <div style="position:relative;margin-top:14px">
+          <svg style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--faint)" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input placeholder="Rechercher une conversation…" style="width:100%;height:44px;border-radius:13px;border:1px solid var(--border-strong);background:var(--surface);color:var(--fg);padding:0 14px 0 40px;font-size:14.5px;font-family:var(--font)"/>
+        </div>
       </div>
       <div class="body has-tabbar">
         <p style="color:var(--muted);font-size:14px;line-height:1.55;margin:6px 4px 0;max-width:60ch">
@@ -708,11 +740,16 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
           </div>
         </div>
 
-        <button class="btn primary block" style="margin-top:18px" data-sheet="launch">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-          Lancer une conversation
-        </button>
-        <p style="text-align:center;color:var(--faint);font-size:12px;margin-top:10px">Plusieurs agents peuvent traiter la même feature en parallèle.</p>
+      </div>
+
+      <!-- FAB speed-dial : lancer / relancer / fermer -->
+      <div class="pr-fab-wrap" style="bottom:96px">
+        <div class="pr-fab-menu" id="featFabMenu">
+          <div class="pr-mini"><span class="lbl">Fermer</span><button class="mfab" data-toast="Feature fermée"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg></button></div>
+          <div class="pr-mini"><span class="lbl">Relancer</span><button class="mfab" data-toast="Feature relancée"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4"/></svg></button></div>
+          <div class="pr-mini"><span class="lbl">Conversation</span><button class="mfab" data-sheet="launch"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10Z"/></svg></button></div>
+        </div>
+        <button class="pr-fab" id="featFab" aria-label="Actions feature"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
       </div>
     </section>
 
@@ -722,42 +759,44 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
         <div class="appbar-row">
           <button class="iconbtn" data-back aria-label="Retour"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 6-6 6 6 6"/></svg></button>
           <div class="grow" style="min-width:0">
-            <div style="font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px"><span class="backend" id="convAgentDot"><span class="gem"></span></span><span id="convAgent">Jules · pro</span></div>
+            <div style="font-size:15px;font-weight:600">Jules · pro</div>
             <div style="font-size:11.5px;color:var(--muted);font-family:var(--mono)" id="convSub">sessionState · COMPLETED</div>
           </div>
-          <button class="iconbtn" data-go="gitci" aria-label="Git & CI"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="9" r="2.5"/><path d="M6 8.5v7M8.5 6H14a4 4 0 0 1 4 4v.5"/></svg></button>
         </div>
       </div>
-      <div class="body" style="padding-bottom:18px" id="convBody">
-        <div class="daydiv">Aujourd'hui · 14:02</div>
-        <div class="msg user"><div class="who">Vous</div>Migre <code>Button</code>, <code>Card</code> et <code>Input</code> vers les tokens <code>--color-*</code>. Garde le thème clair iso, branche le sombre.</div>
-        <div class="msg agent"><div class="who"><span class="backend"><span class="gem"></span></span>Jules · pro</div>Plan : 1) extraire la palette en tokens, 2) remplacer les hex dans les 3 composants, 3) ajouter le data-theme sur <code>:root</code>. Je commence par <code>Button</code>.</div>
-        <div class="msg agent"><div class="who"><span class="backend"><span class="gem"></span></span>Jules · pro</div>23 fichiers modifiés, build vert. J'ai ouvert la PR <code>#341</code> sur <code>feat/tokens-v2</code>. Prêt à merger.</div>
 
-        <!-- PR / source actions (fin de conversation) -->
-        <div class="prcard" id="prPanel">
-          <div class="pr-top">
-            <span style="color:var(--accent)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="M6 9v6M18 9a9 9 0 0 1-9 9"/></svg></span>
-            <span class="pr-title">Migrate Button/Card/Input to tokens</span>
-            <span class="pill open" id="prStatePill">PR ouverte<span class="enum">open</span></span>
-          </div>
-          <div class="prmeta">
-            <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3v12M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0 0v3a3 3 0 0 1-3 3H6"/></svg>#341</span>
-            <span>feat/tokens-v2 → main</span>
-            <span style="color:var(--success)">+412 −188</span>
-          </div>
-          <div class="ci" id="ciRow">
-            <span class="check ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>build · success</span>
-            <span class="check ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>tests · success</span>
-            <span class="check pend"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>deploy · queued</span>
-          </div>
-          <div class="pr-actions" id="prActions">
-            <button class="btn primary" data-pr="merge"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="9" r="3"/><path d="M6 9v6M18 12a9 9 0 0 1-9 9"/></svg>Merger</button>
-            <button class="btn ghost" data-pr="view">Voir la PR ↗</button>
-            <button class="btn ghost" data-pr="retry"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4"/></svg>Relancer l'agent</button>
-            <button class="btn ghost" data-pr="branch">Changer de stratégie</button>
-          </div>
+      <!-- chat : une bulle compacte par segment, icône contextuelle, sans titre -->
+      <div class="conv-body" id="convBody">
+        <div class="cbubble user"><div class="cb-text">Migre <code>Button</code>, <code>Card</code> et <code>Input</code> vers les tokens <code>--color-*</code>.</div><span class="cb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.2"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></span></div>
+        <div class="cbubble agent"><span class="cb-ic plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 7 2 2 3-3"/><path d="m3 14 2 2 3-3"/><path d="M11 7h10M11 14h10M11 20h7"/></svg></span><div class="cb-text">Plan : extraire la palette en tokens, remplacer les hex, brancher le thème sombre.</div></div>
+        <div class="cbubble agent"><span class="cb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4"/></svg></span><div class="cb-text">Migration de <code>Button</code> terminée.</div></div>
+        <div class="cbubble agent"><span class="cb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4"/></svg></span><div class="cb-text">Migration de <code>Card</code> et <code>Input</code> terminée.</div></div>
+        <div class="cbubble agent"><span class="cb-ic done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg></span><div class="cb-text">23 fichiers modifiés, build vert. PR <code>#341</code> ouverte sur <code>feat/tokens-v2</code>.</div></div>
+      </div>
+
+      <!-- zone git en bas : statut PR / branche -->
+      <div class="git-zone" data-go="gitci">
+        <span class="gz-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="9" r="2.5"/><path d="M6 8.5v7M8.5 6H14a4 4 0 0 1 4 4v.5"/></svg></span>
+        <div class="grow"><div class="gz-title">feat/tokens-v2 → main</div><div class="gz-sub" id="gzSub">sessionState · COMPLETED</div></div>
+        <span class="pill open" id="gzPill">PR ouverte</span>
+      </div>
+
+      <!-- barre de saisie : prompt + micro + envoi -->
+      <div class="conv-input">
+        <input placeholder="Message à l'agent…" />
+        <button class="ci-btn ci-mic" aria-label="Dicter"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+        <button class="ci-btn ci-send" aria-label="Envoyer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 12h15M13 6l6 6-6 6"/></svg></button>
+      </div>
+
+      <!-- FAB actions PR (speed dial, icône PR) -->
+      <div class="pr-fab-wrap">
+        <div class="pr-fab-menu" id="prFabMenu">
+          <div class="pr-mini"><span class="lbl">Relancer</span><button class="mfab" data-pr="retry"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4"/></svg></button></div>
+          <div class="pr-mini"><span class="lbl">Git & CI</span><button class="mfab" data-go="gitci"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="9" r="2.5"/><path d="M6 8.5v7M8.5 6H14a4 4 0 0 1 4 4v.5"/></svg></button></div>
+          <div class="pr-mini"><span class="lbl">Voir la PR</span><button class="mfab" data-pr="view"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 5h5v5M19 5l-9 9M19 13v6H5V5h6"/></svg></button></div>
+          <div class="pr-mini"><span class="lbl" id="prMiniLbl">Merger</span><button class="mfab" data-pr="merge" id="prMiniBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="9" r="3"/><path d="M6 9v6M18 12a9 9 0 0 1-9 9"/></svg></button></div>
         </div>
+        <button class="pr-fab" id="prFab" aria-label="Actions PR"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="9" r="2.5"/><path d="M6 8.5v7M8.5 6H14a4 4 0 0 1 4 4v.5"/></svg></button>
       </div>
     </section>
 
@@ -953,8 +992,7 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
     queue:   {sheet:'addfeat',   label:'Feature'},
     projects:{sheet:'addproject',label:'Projet'},
     featlist:{sheet:'addfeat',   label:'Feature'},
-    features:{sheet:'addfeat',   label:'Feature'},
-    feature: {sheet:'launch',    label:'Conversation'}
+    features:{sheet:'addfeat',   label:'Feature'}
   };
   function setFab(id){
     var fab=document.getElementById('fab'); if(!fab) return; var cfg=FAB_MAP[id];
@@ -992,8 +1030,13 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
 
   // delegated taps
   phone.addEventListener('click', function(e){
-    var t = e.target.closest('[data-go],[data-back],[data-tab],[data-sheet],[data-toggle],[data-step],[data-switch],[data-strat],[data-ffilter],[data-agent],[data-pr],[data-launch-go],[data-addfeat-go],[data-addproject-go]');
+    var t = e.target.closest('[data-go],[data-back],[data-tab],[data-sheet],[data-toggle],[data-step],[data-switch],[data-strat],[data-ffilter],[data-agent],[data-pr],[data-toast],[data-launch-go],[data-addfeat-go],[data-addproject-go]');
     if(!t) return;
+
+    if(t.hasAttribute('data-toast')){
+      document.querySelectorAll('.pr-fab-menu.open').forEach(function(m){m.classList.remove('open')});
+      toast(t.getAttribute('data-toast')); return;
+    }
 
     if(t.hasAttribute('data-ffilter')){
       var fl=document.getElementById('featlist');
@@ -1015,7 +1058,7 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
       show(dest); return;
     }
 
-    if(t.hasAttribute('data-sheet')){ openSheet(t.getAttribute('data-sheet')); return; }
+    if(t.hasAttribute('data-sheet')){ document.querySelectorAll('.pr-fab-menu.open').forEach(function(m){m.classList.remove('open')}); openSheet(t.getAttribute('data-sheet')); return; }
 
     if(t.hasAttribute('data-switch')){
       var s = t.getAttribute('data-switch'); setText('featSrc',s); setText('featDetailSrc',s); setText('addfeatSrc',s);
@@ -1049,38 +1092,37 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
 
   // ----- conversation state variants -----
   function applyConvState(state){
-    var pill = document.getElementById('prStatePill');
-    var actions = document.getElementById('prActions');
-    var ci = document.getElementById('ciRow');
     var sub = document.getElementById('convSub');
+    var gz = document.getElementById('gzSub');
+    var pill = document.getElementById('gzPill');
+    var miniLbl = document.getElementById('prMiniLbl');
+    var miniBtn = document.getElementById('prMiniBtn');
+    if(!pill) return;
     if(state==='conflict'){
-      pill.className='pill conflict'; pill.innerHTML='Conflit<span class="enum">mergeable=false</span>';
-      sub.textContent='sessionState · COMPLETED · conflits';
-      ci.innerHTML='<span class="check ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>build · success</span><span class="check ko"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6 6 18"/></svg>merge · conflits</span>';
-      actions.innerHTML='<button class="btn danger" data-pr="resolve" style="grid-column:1/-1"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/></svg>Résoudre les conflits</button><button class="btn ghost" data-pr="retry"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4"/></svg>Relancer</button><button class="btn ghost" data-pr="view">Voir la PR ↗</button>';
+      pill.className='pill conflict'; pill.textContent='Conflit';
+      if(sub) sub.textContent='sessionState · COMPLETED · conflits'; if(gz) gz.textContent='mergeable=false';
+      if(miniLbl) miniLbl.textContent='Résoudre'; if(miniBtn) miniBtn.setAttribute('data-pr','resolve');
     } else if(state==='running'){
-      pill.className='pill run'; pill.innerHTML='<span class="led"></span>En cours<span class="enum">PLANNING</span>';
-      sub.textContent='sessionState · PLANNING';
-      ci.innerHTML='<span class="check pend"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>en attente de la PR…</span>';
-      actions.innerHTML='<button class="btn ghost" data-pr="view" style="grid-column:1/-1">Suivre la session</button>';
+      pill.className='pill run'; pill.innerHTML='<span class="led"></span>En cours';
+      if(sub) sub.textContent='sessionState · PLANNING'; if(gz) gz.textContent='PLANNING';
+      if(miniLbl) miniLbl.textContent='Suivre'; if(miniBtn) miniBtn.setAttribute('data-pr','view');
     } else {
-      pill.className='pill open'; pill.innerHTML='PR ouverte<span class="enum">open</span>';
-      sub.textContent='sessionState · COMPLETED';
-      ci.innerHTML='<span class="check ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>build · success</span><span class="check ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>tests · success</span><span class="check pend"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>deploy · queued</span>';
-      actions.innerHTML='<button class="btn primary" data-pr="merge"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="9" r="3"/><path d="M6 9v6M18 12a9 9 0 0 1-9 9"/></svg>Merger</button><button class="btn ghost" data-pr="view">Voir la PR ↗</button><button class="btn ghost" data-pr="retry"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4"/></svg>Relancer l\'agent</button><button class="btn ghost" data-pr="branch">Changer de stratégie</button>';
+      pill.className='pill open'; pill.textContent='PR ouverte';
+      if(sub) sub.textContent='sessionState · COMPLETED'; if(gz) gz.textContent='COMPLETED';
+      if(miniLbl) miniLbl.textContent='Merger'; if(miniBtn) miniBtn.setAttribute('data-pr','merge');
     }
   }
 
   function handlePr(action){
+    var menu = document.getElementById('prFabMenu'); if(menu) menu.classList.remove('open');
     if(action==='merge'){
-      var pill=document.getElementById('prStatePill'); pill.className='pill merged'; pill.innerHTML='Mergé<span class="enum">merged</span>';
-      document.getElementById('prActions').innerHTML='<button class="btn ghost" data-pr="view" style="grid-column:1/-1"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>Mergé dans main · voir la PR ↗</button>';
+      var pill=document.getElementById('gzPill'); if(pill){ pill.className='pill merged'; pill.textContent='Mergé'; }
+      var gz=document.getElementById('gzSub'); if(gz) gz.textContent='merged';
       toast('PR #341 mergée dans main'); return;
     }
     if(action==='resolve'){ toast('Ouverture de la résolution de conflits…'); return; }
-    if(action==='retry'){ toast('Agent relancé sur la feature'); return; }
+    if(action==='retry'){ toast('Agent relancé'); return; }
     if(action==='view'){ toast('Ouverture GitHub ↗'); return; }
-    if(action==='branch'){ openSheet('launch'); return; }
   }
 
   // ----- features list: filter + search -----
@@ -1133,6 +1175,12 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
   // wire features search + initial filter sync
   var fs=document.getElementById('featSearch'); if(fs) fs.addEventListener('input', applyFeatFilter);
   applyFeatFilter();
+
+  // speed-dial toggles (conversation PR + feature detail)
+  var prFab=document.getElementById('prFab');
+  if(prFab) prFab.addEventListener('click', function(){ document.getElementById('prFabMenu').classList.toggle('open'); });
+  var featFab=document.getElementById('featFab');
+  if(featFab) featFab.addEventListener('click', function(){ document.getElementById('featFabMenu').classList.toggle('open'); });
 })();
 </script>
 </body>
