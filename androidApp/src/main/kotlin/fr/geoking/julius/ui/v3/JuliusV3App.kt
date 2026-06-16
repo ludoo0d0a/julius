@@ -20,6 +20,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
@@ -42,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.queue.CodingAgentQueueEngine
+import fr.geoking.julius.queue.queuePolicyFor
 import fr.geoking.julius.repository.FeatureRepository
 import fr.geoking.julius.repository.GitHubBuildRepository
 import fr.geoking.julius.repository.JulesRepository
@@ -145,7 +148,21 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                         }
                     },
                     actions = {
-
+                        if (route is V3Route.Scheduler) {
+                            val st by deps.settingsManager.settings.collectAsState()
+                            val backend = st.codingAgentBackend
+                            val policy = st.queuePolicyFor(backend)
+                            TooltipIconButton(
+                                hint = if (policy.queuePaused) "Reprendre la file" else "Mettre la file en pause",
+                                icon = if (policy.queuePaused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                                tint = if (policy.queuePaused) V3.Warn else V3.Fg,
+                            ) {
+                                deps.settingsManager.saveSettings(
+                                    st.copy(queuePolicies = st.queuePolicies + (backend to policy.copy(queuePaused = !policy.queuePaused))),
+                                )
+                                scope.launch { deps.queueEngine.tick() }
+                            }
+                        }
                         if (route is V3Route.FeatureDetail && feature != null) {
                             val clipboard = LocalClipboard.current
                             TooltipIconButton("Éditer", Icons.Filled.Edit) {

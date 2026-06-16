@@ -96,32 +96,6 @@ fun SchedulerV3Screen(
                 }
             }
 
-            // Options
-            SectionLabel("Options")
-            V3Card {
-                ControlRow(
-                    title = "File en pause",
-                    subtitle = "Suspend le démarrage de nouvelles sessions",
-                    checked = policy.queuePaused,
-                ) {
-                    deps.settingsManager.saveSettings(
-                        settings.copy(queuePolicies = settings.queuePolicies + (backend to policy.copy(queuePaused = it))),
-                    )
-                    scope.launch { deps.queueEngine.tick() }
-                }
-                HorizontalDivider(color = V3.Border)
-                ControlRow(
-                    title = "Auto-merge si CI ✓",
-                    subtitle = "autoMergeOnCiSuccess",
-                    subtitleMono = true,
-                    checked = policy.autoMergeOnCiSuccess,
-                ) {
-                    deps.settingsManager.saveSettings(
-                        settings.copy(queuePolicies = settings.queuePolicies + (backend to policy.copy(autoMergeOnCiSuccess = it))),
-                    )
-                }
-            }
-
             Spacer(Modifier.height(96.dp))
         }
     }
@@ -160,10 +134,11 @@ private fun ControlRow(
 @Composable
 fun FeatureRow(f: FeatureEntity, onClick: () -> Unit) {
     val v = featureStatusVisual(f.status)
-    // Status is conveyed by the leading icon (shape + color) instead of a trailing chip.
+    // Status is conveyed ONLY by the leading icon (shape + color) — no label, no chip,
+    // so the title/subtitle text gets the full width.
     V3Row(
         title = f.title,
-        subtitle = "${v.label} · ${f.sourceName}",
+        subtitle = f.sourceName,
         leadingIcon = featureStatusIcon(f.status),
         leadingTint = v.color,
         onClick = onClick,

@@ -383,6 +383,8 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
       <div class="appbar sticky">
         <div class="appbar-row">
           <h1>Dashboard</h1>
+          <span class="spacer"></span>
+          <button class="iconbtn" id="qpause" data-paused="0" aria-label="Mettre la file en pause"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
         </div>
         <div class="title-xl">Dashboard <span class="pill run" style="font-size:11px"><span class="led"></span>actif</span></div>
         <div class="title-sub">Séquenceur d'agents · 3 sessions en parallèle</div>
@@ -427,16 +429,6 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
           </div>
         </div>
 
-        <div class="card" style="margin-top:18px">
-          <div class="setrow">
-            <div class="grow"><div class="name">File en pause</div><div class="desc">Suspend le démarrage de nouvelles sessions</div></div>
-            <div class="toggle" data-toggle></div>
-          </div>
-          <div class="setrow">
-            <div class="grow"><div class="name">Auto-merge si CI ✓</div><div class="desc"><span style="font-family:var(--mono);font-size:11px">autoMergeOnCiSuccess</span></div></div>
-            <div class="toggle on" data-toggle></div>
-          </div>
-        </div>
 
         <div class="banner" style="margin-top:14px">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8v5M12 16.5v.01"/><circle cx="12" cy="12" r="9"/></svg>
@@ -1181,6 +1173,18 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
   if(prFab) prFab.addEventListener('click', function(){ document.getElementById('prFabMenu').classList.toggle('open'); });
   var featFab=document.getElementById('featFab');
   if(featFab) featFab.addEventListener('click', function(){ document.getElementById('featFabMenu').classList.toggle('open'); });
+
+  // dashboard queue play/pause (topbar)
+  var qpause=document.getElementById('qpause');
+  if(qpause) qpause.addEventListener('click', function(){
+    var paused = qpause.getAttribute('data-paused') !== '1';
+    qpause.setAttribute('data-paused', paused?'1':'0');
+    qpause.style.color = paused ? 'var(--warn)' : 'var(--fg)';
+    qpause.innerHTML = paused
+      ? '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5l12 7-12 7z"/></svg>'
+      : '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+    toast(paused ? 'File mise en pause' : 'File reprise');
+  });
 })();
 </script>
 </body>
