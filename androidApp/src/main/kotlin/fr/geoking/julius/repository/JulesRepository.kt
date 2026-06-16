@@ -567,10 +567,13 @@ class JulesRepository(
             }
 
             val apiKey = account.apiKey.takeIf { it.isNotBlank() } ?: throw Exception("No API key available")
+            // Resolve a possibly "owner/repo" sourceName to a valid Jules source resource
+            // name (avoids 400 invalid_argument when the feature was created with a raw repo).
+            val resolvedSource = resolveJulesSource(source)
             val session = julesClient.createSession(
                 apiKey = apiKey,
                 prompt = prompt,
-                source = source,
+                source = resolvedSource,
                 title = title
             )
             val entity = JulesSessionEntity(
@@ -616,6 +619,56 @@ class JulesRepository(
             scheduleSync()
             return tempId
         }
+    }
+
+    /**
+     * Maps a feature sourceName (which may be a raw "owner/repo") to a valid Jules source
+     * resource name using the cached sources. Falls back to the input if no match is found.
+     */
+    private suspend fun resolveJulesSource(source: String): String {
+        if (source.startsWith("sources/")) return source
+        val cached = runCatching { getSourcesCached() }.getOrDefault(emptyList())
+        cached.firstOrNull { it.name == source }?.let { return it.name }
+        cached.firstOrNull { s ->
+            val gh = s.githubRepo
+            gh != null && ("${gh.owner}/${gh.repo}" == source || gh.repo == source)
+        }?.let { return it.name }
+        return source
+    }
+
+    /**
+     * Records a local FAILED session so a start error is surfaced on the conversation
+     * (with the error as a system activity) rather than on the feature.
+     */
+    suspend fun createFailedSession(source: String, title: String, prompt: String, featureId: String?, error: String?): String {
+        val id = "error_${java.util.UUID.randomUUID()}"
+        val now = System.currentTimeMillis()
+        val entity = JulesSessionEntity(
+            id = id,
+            title = title.ifBlank { "Conversation" },
+            prompt = prompt,
+            sourceName = source,
+            prUrl = null,
+            prTitle = null,
+            prState = null,
+            prMergeable = null,
+            sessionState = "FAILED",
+            isArchived = false,
+            lastUpdated = now,
+            featureId = featureId,
+        )
+        julesDao.insertSessions(listOf(entity))
+        val act = JulesActivityEntity(
+            id = "err_${java.util.UUID.randomUUID()}",
+            sessionId = id,
+            originator = "system",
+            text = "Échec du démarrage de la session : ${error ?: "erreur inconnue"}",
+            timestamp = OffsetDateTime.now().toString(),
+            sortTimestamp = now,
+            type = "error",
+        )
+        julesDao.insertActivities(listOf(act))
+        return id
     }
 
     suspend fun sendMessage(sessionId: String, prompt: String, apiKey: String? = null) {

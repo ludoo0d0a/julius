@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,7 +21,7 @@ import fr.geoking.julius.queue.queuePolicyFor
 import java.util.UUID
 
 @Composable
-fun SettingsV3Screen(deps: V3Deps) {
+fun SettingsV3Screen(deps: V3Deps, onOpenAgent: (String?) -> Unit) {
     val settings by deps.settingsManager.settings.collectAsState()
     val backend = settings.codingAgentBackend
     val policy = settings.queuePolicyFor(backend)
@@ -30,56 +32,31 @@ fun SettingsV3Screen(deps: V3Deps) {
         )
     }
 
-    // Persist accounts and derive julesKeys / anthropicApiKey (mirrors the original settings screen).
-    fun saveAccounts(list: List<AgentAccount>) {
-        val julesKeys = list.filter { it.backend == CodingAgentBackend.JULES && it.enabled }.map { it.apiKey }
-        val anthropic = list.firstOrNull { it.backend == CodingAgentBackend.CLAUDE_CODE && it.enabled }?.apiKey
-            ?: settings.anthropicApiKey
-        deps.settingsManager.saveSettings(
-            settings.copy(agentAccounts = list, julesKeys = julesKeys, anthropicApiKey = anthropic),
-        )
-    }
-
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Column(Modifier.padding(horizontal = 18.dp).padding(top = 16.dp)) {
-            // Agent accounts — editable label + API key per account, like the original screen.
-            SectionLabel("Comptes agents", "${settings.agentAccounts.size}")
-            if (settings.agentAccounts.isEmpty()) {
-                EmptyHint("Aucun compte.")
-            }
-            settings.agentAccounts.forEach { acc ->
-                var label by remember(acc.id) { mutableStateOf(acc.label) }
-                var key by remember(acc.id) { mutableStateOf(acc.apiKey) }
-                V3Card {
-                    Column(Modifier.padding(14.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(acc.backend.name, color = V3.Muted, fontSize = 11.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f))
-                            Switch(
-                                checked = acc.enabled,
-                                onCheckedChange = { on -> saveAccounts(settings.agentAccounts.map { if (it.id == acc.id) it.copy(enabled = on) else it }) },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = V3.AccentInk, checkedTrackColor = V3.Accent,
-                                    uncheckedThumbColor = V3.Muted, uncheckedTrackColor = V3.SurfaceHi,
-                                ),
-                            )
-                            IconButton(onClick = { saveAccounts(settings.agentAccounts.filter { it.id != acc.id }) }) {
-                                Icon(Icons.Filled.Delete, "Supprimer", tint = V3.Muted)
-                            }
-                        }
-                        OutlinedTextField(
-                            value = label, onValueChange = { v -> label = v; saveAccounts(settings.agentAccounts.map { if (it.id == acc.id) it.copy(label = v) else it }) },
-                            label = { Text("Libellé") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = key, onValueChange = { v -> key = v; saveAccounts(settings.agentAccounts.map { if (it.id == acc.id) it.copy(apiKey = v.trim()) else it }) },
-                            label = { Text("Clé API") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
+            // Agent accounts — tappable list; add/update open a per-agent screen.
+            SectionLabel("Agents", "${settings.agentAccounts.size}")
+            V3Card {
+                settings.agentAccounts.forEachIndexed { i, acc ->
+                    if (i > 0) HorizontalDivider(color = V3.Border)
+                    V3Row(
+                        title = acc.label.ifBlank { acc.backend.name },
+                        subtitle = acc.backend.name + if (acc.enabled) " · activé" else " · désactivé",
+                        leadingIcon = Icons.Filled.SmartToy,
+                        leadingTint = if (acc.enabled) V3.Accent else V3.Muted,
+                        onClick = { onOpenAgent(acc.id) },
+                        trailing = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = V3.Faint) },
+                    )
                 }
-                Spacer(Modifier.height(10.dp))
+                if (settings.agentAccounts.isNotEmpty()) HorizontalDivider(color = V3.Border)
+                V3Row(
+                    title = "Ajouter un agent",
+                    leadingIcon = Icons.Filled.Add,
+                    leadingTint = V3.Accent,
+                    onClick = { onOpenAgent(null) },
+                )
             }
-            AddAccountCard(defaultBackend = backend) { newAcc -> saveAccounts(settings.agentAccounts + newAcc) }
+            Spacer(Modifier.height(4.dp))
 
             // Queue strategy (per backend)
             SectionLabel("Stratégie de file", backend.name)
@@ -131,57 +108,6 @@ fun SettingsV3Screen(deps: V3Deps) {
             Spacer(Modifier.height(96.dp))
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AddAccountCard(defaultBackend: CodingAgentBackend, onAdd: (AgentAccount) -> Unit) {
-    var backend by remember { mutableStateOf(defaultBackend) }
-    var label by remember { mutableStateOf("") }
-    var key by remember { mutableStateOf("") }
-    V3Card {
-        Column(Modifier.padding(14.dp)) {
-            Text("Ajouter un compte", color = V3.Fg, fontSize = 14.sp)
-            Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(CodingAgentBackend.JULES, CodingAgentBackend.CLAUDE_CODE).forEach { b ->
-                    FilterChip(
-                        selected = backend == b,
-                        onClick = { backend = b },
-                        label = { Text(b.name) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = V3.Accent, selectedLabelColor = V3.AccentInk,
-                            containerColor = V3.SurfaceHi, labelColor = V3.Muted,
-                        ),
-                    )
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-            OutlinedTextField(value = label, onValueChange = { label = it }, label = { Text("Libellé (optionnel)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(value = key, onValueChange = { key = it }, label = { Text("Clé API") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = {
-                    if (key.isNotBlank()) {
-                        onAdd(
-                            AgentAccount(
-                                id = UUID.randomUUID().toString(),
-                                label = label.ifBlank { backend.name },
-                                backend = backend,
-                                apiKey = key.trim(),
-                            ),
-                        )
-                        key = ""; label = ""
-                    }
-                },
-                enabled = key.isNotBlank(),
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = V3.Accent, contentColor = V3.AccentInk),
-            ) { Text("Ajouter le compte") }
-        }
-    }
-    Spacer(Modifier.height(10.dp))
 }
 
 @Composable

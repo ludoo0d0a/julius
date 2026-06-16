@@ -160,13 +160,13 @@ private fun ControlRow(
 @Composable
 fun FeatureRow(f: FeatureEntity, onClick: () -> Unit) {
     val v = featureStatusVisual(f.status)
+    // Status is conveyed by the leading icon (shape + color) instead of a trailing chip.
     V3Row(
         title = f.title,
-        subtitle = f.sourceName,
-        leadingIcon = Icons.Filled.Schedule,
+        subtitle = "${v.label} · ${f.sourceName}",
+        leadingIcon = featureStatusIcon(f.status),
         leadingTint = v.color,
         onClick = onClick,
-        trailing = { StatusPill(v) },
     )
 }
 

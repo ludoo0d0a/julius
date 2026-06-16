@@ -109,13 +109,20 @@ class FeatureRepository(
         if (feature.sessionId != null) return feature.sessionId
 
         val now = System.currentTimeMillis()
-        val sessionId = julesRepository.createSession(
-            account = account,
-            prompt = prompt,
-            source = feature.sourceName,
-            title = feature.title,
-            featureId = feature.id,
-        )
+        // A start failure (e.g. Jules 400 invalid_argument) must surface on the conversation,
+        // not crash and not mark the feature FAILED. Record a FAILED session instead.
+        val sessionId = try {
+            julesRepository.createSession(
+                account = account,
+                prompt = prompt,
+                source = feature.sourceName,
+                title = feature.title,
+                featureId = feature.id,
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("FeatureRepository", "createSession failed for ${feature.id}", e)
+            julesRepository.createFailedSession(feature.sourceName, feature.title, prompt, feature.id, e.message)
+        }
         featureDao.updateFeature(
             feature.copy(
                 sessionId = sessionId,
@@ -226,6 +233,20 @@ class FeatureRepository(
         if (sourceName != null) {
             julesRepository.getSessions(apiKeys, sourceName, githubToken).collect { sessions ->
                 autoPromoteOrphans(kotlinx.coroutines.GlobalScope, sourceName, sessions)
+            }
+        } else {
+            // Global reconcile: refresh the source list, then pull sessions for every known
+            // project and auto-promote orphan conversations (sessions without a feature).
+            julesRepository.refreshSources(apiKeys)
+            val sources = runCatching { julesRepository.getSourcesCached() }.getOrDefault(emptyList())
+            for (src in sources) {
+                try {
+                    julesRepository.getSessions(apiKeys, src.name, githubToken).collect { sessions ->
+                        autoPromoteOrphans(kotlinx.coroutines.GlobalScope, src.name, sessions)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("FeatureRepository", "Global reconcile failed for ${src.name}", e)
+                }
             }
         }
     }

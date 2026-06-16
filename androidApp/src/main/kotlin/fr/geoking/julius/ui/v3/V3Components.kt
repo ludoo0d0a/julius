@@ -5,6 +5,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Autorenew
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.HourglassEmpty
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -65,6 +71,16 @@ fun bucketOf(status: String): FeatureBucket = when (status.uppercase()) {
     "COMPLETED" -> FeatureBucket.MERGED
     "FAILED" -> FeatureBucket.FAILED
     else -> FeatureBucket.QUEUED
+}
+
+/** Status as a leading icon (used in feature rows instead of a trailing chip). */
+fun featureStatusIcon(status: String): androidx.compose.ui.graphics.vector.ImageVector = when (status.uppercase()) {
+    "IN_PROGRESS", "PLANNING" -> Icons.Filled.Autorenew
+    "QUEUED" -> Icons.Filled.Schedule
+    "PENDING" -> Icons.Filled.HourglassEmpty
+    "COMPLETED" -> Icons.Filled.CheckCircle
+    "FAILED" -> Icons.Filled.ErrorOutline
+    else -> Icons.Filled.Schedule
 }
 
 @Composable

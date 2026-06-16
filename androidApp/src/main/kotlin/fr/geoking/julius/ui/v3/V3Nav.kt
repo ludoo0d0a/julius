@@ -19,15 +19,16 @@ sealed class V3Route {
     data class GitCi(val owner: String, val repo: String) : V3Route()
     data class PrConflict(val sessionId: String, val prUrl: String) : V3Route()
     data class AddFeature(val sourceName: String?) : V3Route()
+    data class AgentDetail(val accountId: String?) : V3Route()
 
     /** Which bottom-bar tab is highlighted for this route. */
     val tabRoot: V3Route
         get() = when (this) {
             is Scheduler -> Scheduler
             is Features -> Features
-            is Settings -> Settings
-            is Projects, is ProjectFeatures -> Projects
-            is FeatureDetail, is Conversation, is GitCi, is PrConflict, is AddFeature -> Features
+            is Settings, is AgentDetail -> Settings
+            is Projects -> Projects
+            is ProjectFeatures, is FeatureDetail, is Conversation, is GitCi, is PrConflict, is AddFeature -> Features
         }
 }
 

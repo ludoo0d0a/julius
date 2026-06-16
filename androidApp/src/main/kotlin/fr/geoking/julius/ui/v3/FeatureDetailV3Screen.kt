@@ -2,11 +2,11 @@ package fr.geoking.julius.ui.v3
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,16 +28,21 @@ fun FeatureDetailV3Screen(
     onLaunch: () -> Unit,
 ) {
     val feature by remember(featureId) { deps.featureRepository.getFeatureFlow(featureId) }.collectAsState(initial = null)
-    val sessions by produceState<List<JulesSessionEntity>>(initialValue = emptyList(), featureId) {
-        value = deps.julesRepository.getSessionsByFeature(featureId)
-    }
 
     val scope = rememberCoroutineScope()
     val settings by deps.settingsManager.settings.collectAsState()
+
+    // Cache-first: show this feature's conversations from Room immediately.
+    var sessions by remember(featureId) { mutableStateOf<List<JulesSessionEntity>>(emptyList()) }
+    LaunchedEffect(featureId) { sessions = deps.julesRepository.getSessionsByFeature(featureId) }
+
+    // Then update from the agents (Jules API): refresh the source's sessions, auto-promote
+    // orphan conversations, and re-read this feature's sessions from the refreshed cache.
     LaunchedEffect(feature?.sourceName, settings.julesKeys, settings.githubApiKey) {
         val sourceName = feature?.sourceName ?: return@LaunchedEffect
         deps.julesRepository.getSessions(settings.julesKeys, sourceName, settings.githubApiKey).collect { list ->
             deps.featureRepository.autoPromoteOrphans(scope, sourceName, list)
+            sessions = deps.julesRepository.getSessionsByFeature(featureId)
         }
     }
 
@@ -64,12 +69,31 @@ fun FeatureDetailV3Screen(
                 Text(f.errorMessage!!, color = V3.Danger, fontSize = 13.sp)
             }
 
-            SectionLabel("Conversations", "${sessions.size} session(s)")
-            if (sessions.isEmpty()) {
-                EmptyHint("Aucune conversation.")
+            var query by remember { mutableStateOf("") }
+            val filtered = remember(sessions, query) {
+                val q = query.trim().lowercase()
+                if (q.isEmpty()) sessions
+                else sessions.filter {
+                    (it.prTitle ?: "").lowercase().contains(q) ||
+                        it.title.lowercase().contains(q) ||
+                        it.prompt.lowercase().contains(q)
+                }
+            }
+
+            SectionLabel("Conversations", "${filtered.size}")
+            OutlinedTextField(
+                value = query, onValueChange = { query = it },
+                placeholder = { Text("Rechercher une conversation…") },
+                leadingIcon = { Icon(Icons.Filled.Search, null, tint = V3.Faint) },
+                singleLine = true, shape = RoundedCornerShape(13.dp),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(12.dp))
+            if (filtered.isEmpty()) {
+                EmptyHint(if (query.isEmpty()) "Aucune conversation." else "Aucun résultat.")
             } else {
                 V3Card {
-                    sessions.forEachIndexed { i, s ->
+                    filtered.forEachIndexed { i, s ->
                         if (i > 0) HorizontalDivider(color = V3.Border)
                         val sv = sessionStatusVisual(s)
                         val backend = if (s.id.startsWith("sesn_")) "CLAUDE_CODE" else "JULES"
@@ -84,65 +108,6 @@ fun FeatureDetailV3Screen(
                     }
                 }
             }
-
-            Spacer(Modifier.height(18.dp))
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (f.status != "COMPLETED") {
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                deps.featureRepository.updateFeatureStatus(f.id, "COMPLETED")
-                            }
-                        },
-                        modifier = Modifier.weight(1f).height(52.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = V3.Success, contentColor = V3.AccentInk),
-                    ) {
-                        Text(stringResource(fr.geoking.julius.R.string.mark_as_done), fontSize = 15.sp)
-                    }
-                } else {
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                deps.featureRepository.updateFeatureStatus(f.id, "PENDING")
-                            }
-                        },
-                        modifier = Modifier.weight(1f).height(52.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = V3.Warn, contentColor = V3.AccentInk),
-                    ) {
-                        Text(stringResource(fr.geoking.julius.R.string.mark_as_pending), fontSize = 15.sp)
-                    }
-                }
-
-                Button(
-                    onClick = {
-                        scope.launch {
-                            deps.featureRepository.toggleArchiveFeature(f.id)
-                        }
-                    },
-                    modifier = Modifier.weight(1f).height(52.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = V3.Surface, contentColor = V3.Fg),
-                ) {
-                    Text(stringResource(if (f.isArchived) fr.geoking.julius.R.string.unarchive_feature else fr.geoking.julius.R.string.archive_feature), fontSize = 15.sp)
-                }
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            Button(
-                onClick = onLaunch,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = V3.Accent, contentColor = V3.AccentInk),
-            ) {
-                Icon(Icons.Filled.Add, null, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Lancer une conversation", fontSize = 15.sp)
-            }
-            Text(
-                "Plusieurs agents peuvent traiter la même feature en parallèle.",
-                color = V3.Faint, fontSize = 12.sp, modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            )
             Spacer(Modifier.height(96.dp))
         }
     }
