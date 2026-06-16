@@ -510,6 +510,7 @@ fun JulesScreen(
                         )
                         is HarnessRoute.AddFeature -> AddFeatureScreen(
                             defaultSourceName = route.sourceName ?: selectedSourceName ?: "",
+                            voiceManager = voiceManager,
                             onBack = { nav.pop() },
                             onSave = { title, description, source ->
                                 scope.launch {
@@ -629,6 +630,7 @@ fun JulesScreen(
                             JulesConversationsContent(
                                 selectedSourceName = selectedSourceName ?: "",
                                 selectedFeatureId = featureId,
+                                voiceManager = voiceManager,
                                 sessions = sessions,
                                 features = features,
                                 loading = loading,
@@ -719,6 +721,7 @@ fun JulesScreen(
                             JulesFeaturesContent(
                                 selectedSourceName = route.sourceName,
                                 features = features,
+                                voiceManager = voiceManager,
                                 sessions = sessions,
                                 isRefreshing = refreshingSessions,
                                 onRefresh = { loadSessions(isRefresh = true) },

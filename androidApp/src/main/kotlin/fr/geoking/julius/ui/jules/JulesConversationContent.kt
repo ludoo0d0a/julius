@@ -39,6 +39,7 @@ import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.ui.ColorHelper
 import fr.geoking.julius.ui.components.DebugBar
 import fr.geoking.julius.ui.components.JulesMessageContent
+import fr.geoking.julius.ui.components.VoiceInputIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -152,8 +153,14 @@ internal fun JulesConversationContent(
                             .padding(vertical = 16.dp),
                         placeholder = { Text("Answer Jules…") },
                         trailingIcon = {
-                            IconButton(onClick = onSend, enabled = inputText.isNotBlank() && !loading) {
-                                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = ColorHelper.JulesAccent)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                VoiceInputIcon(
+                                    voiceManager = voiceManager,
+                                    onTranscriptionReceived = { onInputChange((inputText + " " + it).trim()) }
+                                )
+                                IconButton(onClick = onSend, enabled = inputText.isNotBlank() && !loading) {
+                                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = ColorHelper.JulesAccent)
+                                }
                             }
                         },
                         colors = OutlinedTextFieldDefaults.colors(

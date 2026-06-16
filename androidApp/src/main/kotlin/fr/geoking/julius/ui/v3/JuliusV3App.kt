@@ -32,6 +32,8 @@ import fr.geoking.julius.queue.CodingAgentQueueEngine
 import fr.geoking.julius.repository.FeatureRepository
 import fr.geoking.julius.repository.GitHubBuildRepository
 import fr.geoking.julius.repository.JulesRepository
+import fr.geoking.julius.shared.voice.VoiceManager
+import fr.geoking.julius.ui.components.VoiceInputIcon
 import kotlinx.coroutines.launch
 
 /** Dependency bundle threaded into the v3 screens (reuses existing Koin singletons). */
@@ -41,10 +43,10 @@ class V3Deps(
     val featureRepository: FeatureRepository,
     val queueEngine: CodingAgentQueueEngine,
     val buildRepository: GitHubBuildRepository,
+    val voiceManager: VoiceManager,
 )
 
 private sealed class V3Sheet {
-    data class AddFeature(val sourceName: String?) : V3Sheet()
     data object AddProject : V3Sheet()
     data class Launch(val featureId: String) : V3Sheet()
 }
@@ -94,6 +96,7 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                                 is V3Route.Projects -> "Projets"
                                 is V3Route.Settings -> "Réglages"
                                 is V3Route.ProjectFeatures -> route.sourceName
+                                is V3Route.AddFeature -> "Nouvelle feature"
                                 is V3Route.FeatureDetail -> "Détail Feature"
                                 is V3Route.Conversation -> session?.prTitle ?: session?.title?.ifBlank { session?.prompt?.take(48) } ?: "Conversation"
                                 is V3Route.GitCi -> "Git & CI"
@@ -200,13 +203,13 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                         text = { Text(fab.label) },
                         icon = { Icon(Icons.Filled.Add, null) },
                         onClick = {
-                            sheet = when (val r = nav.current) {
-                                is V3Route.Projects -> V3Sheet.AddProject
-                                is V3Route.ProjectFeatures -> V3Sheet.AddFeature(r.sourceName)
-                                is V3Route.Features -> V3Sheet.AddFeature(null)
-                                is V3Route.Scheduler -> V3Sheet.AddFeature(null) // null → sheet prefills lastJulesRepoName
-                                is V3Route.FeatureDetail -> V3Sheet.Launch(r.featureId)
-                                else -> null
+                            when (val r = nav.current) {
+                                is V3Route.Projects -> sheet = V3Sheet.AddProject
+                                is V3Route.ProjectFeatures -> nav.push(V3Route.AddFeature(r.sourceName))
+                                is V3Route.Features -> nav.push(V3Route.AddFeature(null))
+                                is V3Route.Scheduler -> nav.push(V3Route.AddFeature(null)) // null → screen prefills lastJulesRepoName
+                                is V3Route.FeatureDetail -> sheet = V3Sheet.Launch(r.featureId)
+                                else -> {}
                             }
                         },
                         containerColor = V3.Accent,
@@ -250,6 +253,10 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                     is V3Route.PrConflict -> PrConflictV3Screen(
                         deps = deps, prUrl = r.prUrl, onBack = { nav.pop() },
                     )
+                    is V3Route.AddFeature -> AddFeatureV3Screen(
+                        deps = deps, sourceName = r.sourceName, onBack = { nav.pop() },
+                        onDone = { msg -> nav.pop(); scope.launch { snackbar.showSnackbar(msg) } }
+                    )
                     is V3Route.Settings -> SettingsV3Screen(deps = deps)
                 }
             }
@@ -257,9 +264,6 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
 
         // ---- bottom sheets (add feature / connect repo / launch conversation) ----
         when (val s = sheet) {
-            is V3Sheet.AddFeature -> AddFeatureSheet(deps, s.sourceName, onClose = { sheet = null }) { msg ->
-                sheet = null; scope.launch { snackbar.showSnackbar(msg) }
-            }
             is V3Sheet.AddProject -> AddProjectSheet(deps, onClose = { sheet = null }) { msg ->
                 sheet = null; scope.launch { snackbar.showSnackbar(msg) }
             }
@@ -342,12 +346,11 @@ private fun v3TabItems(): List<Triple<V3Route, String, ImageVector>> = listOf(
 // Sheets
 // ---------------------------------------------------------------------------
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddFeatureSheet(
+private fun AddFeatureV3Screen(
     deps: V3Deps,
     sourceName: String?,
-    onClose: () -> Unit,
+    onBack: () -> Unit,
     onDone: (String) -> Unit,
 ) {
     val settings by deps.settingsManager.settings.collectAsState()
@@ -355,29 +358,78 @@ private fun AddFeatureSheet(
     var title by remember { mutableStateOf("") }
     var desc by remember { mutableStateOf("") }
     var source by remember { mutableStateOf(sourceName ?: settings.lastJulesRepoName) }
-    ModalBottomSheet(onDismissRequest = onClose, containerColor = V3.Surface) {
-        Column(Modifier.padding(horizontal = 18.dp).padding(bottom = 24.dp)) {
-            Text("Nouvelle feature", color = V3.Fg, style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(12.dp))
-            OutlinedTextField(title, { title = it }, label = { Text("Titre") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(10.dp))
-            OutlinedTextField(desc, { desc = it }, label = { Text("Description / contexte") }, modifier = Modifier.fillMaxWidth().height(110.dp))
-            Spacer(Modifier.height(10.dp))
-            OutlinedTextField(source, { source = it }, label = { Text("Dépôt (owner/repo)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(14.dp))
-            Button(
-                onClick = {
-                    if (title.isNotBlank() && source.isNotBlank()) scope.launch {
-                        deps.featureRepository.addFeature(title.trim(), desc.trim(), 0, source.trim())
-                        deps.featureRepository.scheduleWorker()
-                        onDone("Feature ajoutée à la file")
-                    }
-                },
-                enabled = title.isNotBlank() && source.isNotBlank(),
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = V3.Accent, contentColor = V3.AccentInk),
-            ) { Text("Ajouter à la file") }
-        }
+
+    Column(Modifier.fillMaxSize().padding(horizontal = 18.dp).padding(top = 8.dp)) {
+        OutlinedTextField(
+            title, { title = it },
+            label = { Text("Titre") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            trailingIcon = {
+                VoiceInputIcon(
+                    voiceManager = deps.voiceManager,
+                    onTranscriptionReceived = { title = (title + " " + it).trim() },
+                    tint = V3.Accent
+                )
+            },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = V3.Fg,
+                unfocusedTextColor = V3.Fg,
+                focusedBorderColor = V3.Accent,
+                unfocusedBorderColor = V3.Border,
+                focusedLabelColor = V3.Accent,
+                unfocusedLabelColor = V3.Muted,
+            )
+        )
+        Spacer(Modifier.height(14.dp))
+        OutlinedTextField(
+            desc, { desc = it },
+            label = { Text("Description / contexte") },
+            modifier = Modifier.fillMaxWidth().height(150.dp),
+            trailingIcon = {
+                VoiceInputIcon(
+                    voiceManager = deps.voiceManager,
+                    onTranscriptionReceived = { desc = (desc + " " + it).trim() },
+                    tint = V3.Accent
+                )
+            },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = V3.Fg,
+                unfocusedTextColor = V3.Fg,
+                focusedBorderColor = V3.Accent,
+                unfocusedBorderColor = V3.Border,
+                focusedLabelColor = V3.Accent,
+                unfocusedLabelColor = V3.Muted,
+            )
+        )
+        Spacer(Modifier.height(14.dp))
+        OutlinedTextField(
+            source, { source = it },
+            label = { Text("Dépôt (owner/repo)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = V3.Fg,
+                unfocusedTextColor = V3.Fg,
+                focusedBorderColor = V3.Accent,
+                unfocusedBorderColor = V3.Border,
+                focusedLabelColor = V3.Accent,
+                unfocusedLabelColor = V3.Muted,
+            )
+        )
+        Spacer(Modifier.height(24.dp))
+        Button(
+            onClick = {
+                if (title.isNotBlank() && source.isNotBlank()) scope.launch {
+                    deps.featureRepository.addFeature(title.trim(), desc.trim(), 0, source.trim())
+                    deps.featureRepository.scheduleWorker()
+                    onDone("Feature ajoutée à la file")
+                }
+            },
+            enabled = title.isNotBlank() && source.isNotBlank(),
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = V3.Accent, contentColor = V3.AccentInk),
+        ) { Text("Ajouter à la file") }
     }
 }
 

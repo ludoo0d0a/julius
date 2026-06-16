@@ -11,6 +11,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,11 +22,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.ui.ColorHelper
+import fr.geoking.julius.ui.components.VoiceInputIcon
 
 @Composable
 fun AddFeatureScreen(
     defaultSourceName: String,
+    voiceManager: VoiceManager,
     onBack: () -> Unit,
     onSave: (title: String, description: String, sourceName: String) -> Unit,
 ) {
@@ -46,6 +50,20 @@ fun AddFeatureScreen(
                 onValueChange = { title = it },
                 label = { Text("Title") },
                 modifier = Modifier.fillMaxWidth(),
+                trailingIcon = {
+                    VoiceInputIcon(
+                        voiceManager = voiceManager,
+                        onTranscriptionReceived = { title = (title + " " + it).trim() }
+                    )
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedLabelColor = ColorHelper.JulesAccent,
+                    unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
+                    focusedBorderColor = ColorHelper.JulesAccent,
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.2f)
+                )
             )
             OutlinedTextField(
                 value = description,
@@ -53,12 +71,34 @@ fun AddFeatureScreen(
                 label = { Text("Description / prompt") },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 minLines = 4,
+                trailingIcon = {
+                    VoiceInputIcon(
+                        voiceManager = voiceManager,
+                        onTranscriptionReceived = { description = (description + " " + it).trim() }
+                    )
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedLabelColor = ColorHelper.JulesAccent,
+                    unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
+                    focusedBorderColor = ColorHelper.JulesAccent,
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.2f)
+                )
             )
             OutlinedTextField(
                 value = sourceName,
                 onValueChange = { sourceName = it },
                 label = { Text("Repository source id") },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedLabelColor = ColorHelper.JulesAccent,
+                    unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
+                    focusedBorderColor = ColorHelper.JulesAccent,
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.2f)
+                )
             )
             FilledTonalButton(
                 onClick = {

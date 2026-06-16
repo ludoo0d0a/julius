@@ -40,7 +40,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.persistence.FeatureEntity
 import fr.geoking.julius.persistence.JulesSessionEntity
+import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.ui.ColorHelper
+import fr.geoking.julius.ui.components.VoiceInputIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +50,7 @@ internal fun JulesFeaturesContent(
     selectedSourceName: String,
     features: List<FeatureEntity>,
     sessions: List<JulesSessionEntity>,
+    voiceManager: VoiceManager,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
     onSelectFeature: (featureId: String, title: String) -> Unit,
@@ -168,6 +171,12 @@ internal fun JulesFeaturesContent(
                     )
                 },
                 shape = RoundedCornerShape(24.dp),
+                trailingIcon = {
+                    VoiceInputIcon(
+                        voiceManager = voiceManager,
+                        onTranscriptionReceived = { newFeatureTitle = (newFeatureTitle + " " + it).trim() }
+                    )
+                },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White,
