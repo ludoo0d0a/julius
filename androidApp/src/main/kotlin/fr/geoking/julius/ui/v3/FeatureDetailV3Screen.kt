@@ -66,7 +66,7 @@ fun FeatureDetailV3Screen(
 
             SectionLabel("Conversations", "${sessions.size} session(s)")
             if (sessions.isEmpty()) {
-                EmptyHint("Aucune conversation. Lance un agent sur cette feature.")
+                EmptyHint("Aucune conversation.")
             } else {
                 V3Card {
                     sessions.forEachIndexed { i, s ->

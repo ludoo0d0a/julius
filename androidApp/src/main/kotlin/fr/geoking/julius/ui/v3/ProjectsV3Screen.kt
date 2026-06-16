@@ -57,7 +57,7 @@ fun ProjectsV3Screen(
 
             SectionLabel("Dépôts", "${filtered.size}")
             if (filtered.isEmpty()) {
-                EmptyHint("Aucun dépôt — vérifie la clé Jules / le token GitHub dans Réglages.")
+                EmptyHint(if (query.isEmpty()) "Aucun dépôt." else "Aucun résultat pour « $query »")
             } else {
                 V3Card {
                     filtered.forEachIndexed { i, s ->

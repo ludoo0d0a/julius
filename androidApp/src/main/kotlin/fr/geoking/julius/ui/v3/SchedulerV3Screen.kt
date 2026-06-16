@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -46,7 +47,7 @@ fun SchedulerV3Screen(
             // Latest features
             SectionLabel("Dernières features", "tous projets")
             if (latest.isEmpty()) {
-                EmptyHint("Aucune feature pour l'instant.")
+                EmptyHint("Aucune feature.")
             } else {
                 V3Card {
                     latest.forEachIndexed { i, f ->
@@ -61,7 +62,7 @@ fun SchedulerV3Screen(
             // Accounts / quotas
             SectionLabel("Comptes · quotas", "dailyLimitPerAccount ${policy.dailyLimitPerAccount}")
             if (status.accounts.isEmpty()) {
-                EmptyHint("Aucun compte agent configuré.")
+                EmptyHint("Aucun compte configuré.")
             } else {
                 V3Card {
                     status.accounts.forEachIndexed { i, acc ->
@@ -171,5 +172,9 @@ fun FeatureRow(f: FeatureEntity, onClick: () -> Unit) {
 
 @Composable
 fun EmptyHint(text: String) {
-    Text(text, color = V3.Faint, fontSize = 13.sp, modifier = Modifier.padding(vertical = 20.dp, horizontal = 6.dp))
+    Text(
+        text, color = V3.Faint, fontSize = 13.sp,
+        maxLines = 1, overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.padding(vertical = 20.dp, horizontal = 6.dp),
+    )
 }

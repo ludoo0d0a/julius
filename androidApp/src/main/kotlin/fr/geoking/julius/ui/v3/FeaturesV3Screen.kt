@@ -70,9 +70,7 @@ fun FeaturesV3Screen(
 
         Spacer(Modifier.height(10.dp))
         if (filtered.isEmpty()) {
-            Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                Text("Aucune feature ne correspond.", color = V3.Faint, fontSize = 13.sp)
-            }
+            EmptyHint(if (query.isEmpty()) "Aucune feature." else "Aucun résultat pour « $query »")
         } else {
             LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
                 item {

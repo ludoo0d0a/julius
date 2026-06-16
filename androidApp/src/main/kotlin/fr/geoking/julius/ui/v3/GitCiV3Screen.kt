@@ -98,7 +98,7 @@ fun GitCiV3Screen(
 
             SectionLabel("Runs depuis le dernier succès", "${s.sinceSuccess}")
             if (s.runs.isEmpty()) {
-                EmptyHint("Tout est à jour — dernier run au vert.")
+                EmptyHint("Tout est à jour.")
             } else {
                 V3Card {
                     s.runs.forEachIndexed { i, run ->
