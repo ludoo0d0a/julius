@@ -561,6 +561,7 @@ fun MainUIPreview() {
                     override suspend fun clearActivitiesBySession(sessionId: String) {}
                     override suspend fun insertSources(sources: List<JulesSourceEntity>) {}
                     override suspend fun getSources(): List<JulesSourceEntity> = emptyList()
+                    override fun getSourcesFlow(): kotlinx.coroutines.flow.Flow<List<JulesSourceEntity>> = kotlinx.coroutines.flow.flowOf(emptyList())
                     override suspend fun clearSources() {}
                 },
                 object : NetworkService {

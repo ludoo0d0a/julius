@@ -10,6 +10,9 @@ import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,8 +30,19 @@ fun ProjectsV3Screen(
 ) {
     val settings by deps.settingsManager.settings.collectAsState()
     val apiKeys = remember(settings) { settings.julesApiKeys() }
-    val sourcesFlow = remember(apiKeys) { deps.julesRepository.getSources(apiKeys) }
+    val sourcesFlow = remember { deps.julesRepository.getSourcesFlow() }
     val sources by sourcesFlow.collectAsState(initial = emptyList())
+
+    var isRefreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(apiKeys) {
+        if (apiKeys.isNotEmpty()) {
+            isRefreshing = true
+            deps.julesRepository.refreshSources(apiKeys)
+            isRefreshing = false
+        }
+    }
 
     val featuresFlow = remember { deps.featureRepository.getAllFeatures() }
     val features by featuresFlow.collectAsState(initial = emptyList())
@@ -48,9 +62,20 @@ fun ProjectsV3Screen(
         if (q.isEmpty()) sources else sources.filter { displayName(it).lowercase().contains(q) }
     }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Column(Modifier.padding(horizontal = 18.dp).padding(top = 16.dp)) {
-            OutlinedTextField(
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            scope.launch {
+                isRefreshing = true
+                deps.julesRepository.refreshSources(apiKeys)
+                isRefreshing = false
+            }
+        },
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            Column(Modifier.padding(horizontal = 18.dp).padding(top = 16.dp)) {
+                OutlinedTextField(
                 value = query, onValueChange = { query = it },
                 placeholder = { Text("Rechercher…", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 leadingIcon = { Icon(Icons.Filled.Search, null, tint = V3.Faint) },
@@ -60,7 +85,13 @@ fun ProjectsV3Screen(
 
             SectionLabel("Dépôts", "${filtered.size}")
             if (filtered.isEmpty()) {
-                EmptyHint(if (query.isEmpty()) "Aucun dépôt." else "Aucun résultat pour « $query »")
+                if (isRefreshing) {
+                    Box(Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = V3.Accent)
+                    }
+                } else {
+                    EmptyHint(if (query.isEmpty()) "Aucun dépôt." else "Aucun résultat pour « $query »")
+                }
             } else {
                 V3Card {
                     filtered.forEachIndexed { i, s ->
@@ -95,7 +126,8 @@ fun ProjectsV3Screen(
                     }
                 }
             }
-            Spacer(Modifier.height(96.dp))
+                Spacer(Modifier.height(96.dp))
+            }
         }
     }
 }

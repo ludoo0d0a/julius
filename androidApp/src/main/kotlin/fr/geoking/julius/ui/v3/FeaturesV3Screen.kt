@@ -8,6 +8,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import fr.geoking.julius.queue.julesApiKeys
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,6 +26,10 @@ fun FeaturesV3Screen(
     onBack: (() -> Unit)?,
     onOpenFeature: (String) -> Unit,
 ) {
+    val settings by deps.settingsManager.settings.collectAsState()
+    var isRefreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
     val featuresFlow = remember { deps.featureRepository.getAllFeatures() }
     val all by featuresFlow.collectAsState(initial = emptyList())
     var query by remember { mutableStateOf("") }
@@ -40,6 +47,19 @@ fun FeaturesV3Screen(
     }
     val chips = listOf(FeatureBucket.ALL, FeatureBucket.RUNNING, FeatureBucket.QUEUED, FeatureBucket.MERGED, FeatureBucket.FAILED)
 
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            scope.launch {
+                isRefreshing = true
+                val apiKeys = deps.settingsManager.settings.value.julesApiKeys()
+                val githubToken = deps.settingsManager.settings.value.githubApiKey
+                deps.featureRepository.refreshFeatures(sourceName, apiKeys, githubToken)
+                isRefreshing = false
+            }
+        },
+        modifier = Modifier.fillMaxSize()
+    ) {
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.padding(horizontal = 18.dp).padding(top = 16.dp)) {
             OutlinedTextField(
@@ -70,7 +90,13 @@ fun FeaturesV3Screen(
 
         Spacer(Modifier.height(10.dp))
         if (filtered.isEmpty()) {
-            EmptyHint(if (query.isEmpty()) "Aucune feature." else "Aucun résultat pour « $query »")
+            if (isRefreshing) {
+                Box(Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = V3.Accent)
+                }
+            } else {
+                EmptyHint(if (query.isEmpty()) "Aucune feature." else "Aucun résultat pour « $query »")
+            }
         } else {
             LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
                 item {
@@ -85,5 +111,6 @@ fun FeaturesV3Screen(
                 }
             }
         }
+    }
     }
 }

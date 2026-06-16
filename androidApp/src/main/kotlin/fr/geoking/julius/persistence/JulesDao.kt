@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface JulesDao {
@@ -85,6 +86,9 @@ interface JulesDao {
 
     @Query("SELECT * FROM jules_sources")
     suspend fun getSources(): List<JulesSourceEntity>
+
+    @Query("SELECT * FROM jules_sources")
+    fun getSourcesFlow(): Flow<List<JulesSourceEntity>>
 
     @Query("DELETE FROM jules_sources")
     suspend fun clearSources()

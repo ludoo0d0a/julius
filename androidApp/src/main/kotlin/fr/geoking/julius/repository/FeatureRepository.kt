@@ -221,6 +221,15 @@ class FeatureRepository(
         return if (anyInProgress) "IN_PROGRESS" else "QUEUED"
     }
 
+    suspend fun refreshFeatures(sourceName: String?, apiKeys: List<String>, githubToken: String) {
+        julesRepository.syncOfflineData()
+        if (sourceName != null) {
+            julesRepository.getSessions(apiKeys, sourceName, githubToken).collect { sessions ->
+                autoPromoteOrphans(kotlinx.coroutines.GlobalScope, sourceName, sessions)
+            }
+        }
+    }
+
     fun scheduleWorker() {
         try {
             val constraints = Constraints.Builder()
