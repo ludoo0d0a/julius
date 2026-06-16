@@ -26,6 +26,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.sync.withPermit
@@ -119,6 +120,75 @@ class JulesRepository(
         }
     }
 
+    fun getSourcesFlow(): Flow<List<JulesClient.JulesSource>> = julesDao.getSourcesFlow().map { entities ->
+        entities.map {
+            JulesClient.JulesSource(
+                name = it.name,
+                id = it.id,
+                githubRepo = if (it.owner != null && it.repo != null) {
+                    JulesClient.JulesGitHubRepo(it.owner, it.repo)
+                } else null
+            )
+        }
+    }
+
+    suspend fun refreshSources(apiKeys: List<String>) {
+        try {
+            val allSources = mutableMapOf<String, JulesClient.JulesSource>()
+            if (isClaudeBackend()) {
+                val githubToken = settingsManager.settings.value.githubApiKey
+                if (githubToken.isNotBlank()) {
+                    val repos = githubClient.listUserRepositories(githubToken)
+                    repos.forEach { repo ->
+                        val name = repo.fullName.ifBlank { "${repo.owner.login}/${repo.name}" }
+                        allSources[name] = JulesClient.JulesSource(
+                            name = name,
+                            id = name,
+                            githubRepo = JulesClient.JulesGitHubRepo(
+                                owner = repo.owner.login,
+                                repo = repo.name
+                            )
+                        )
+                    }
+                }
+            } else {
+                coroutineScope {
+                    apiKeys.map { key ->
+                        async {
+                            try {
+                                val resp = julesClient.listSources(key)
+                                synchronized(allSources) {
+                                    resp.sources.forEach { src ->
+                                        allSources[src.name] = src
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("JulesRepository", "Failed to load sources for a key", e)
+                            }
+                        }
+                    }.awaitAll()
+                }
+            }
+
+            if (allSources.isNotEmpty()) {
+                val now = System.currentTimeMillis()
+                val entities = allSources.values.map {
+                    JulesSourceEntity(
+                        name = it.name,
+                        id = it.id,
+                        owner = it.githubRepo?.owner,
+                        repo = it.githubRepo?.repo,
+                        lastUpdated = now
+                    )
+                }
+                julesDao.clearSources()
+                julesDao.insertSources(entities)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("JulesRepository", "Failed to refresh sources", e)
+        }
+    }
+
     fun getSources(apiKeys: List<String>): Flow<List<JulesClient.JulesSource>> = flow {
         // 1. Emit from cache immediately
         val cached = getSourcesCached()
@@ -128,61 +198,8 @@ class JulesRepository(
         val lastUpdated = julesDao.getSources().firstOrNull()?.lastUpdated ?: 0L
         val ttlMs = 24 * 60 * 60 * 1000L
         if (System.currentTimeMillis() - lastUpdated > ttlMs || cached.isEmpty()) {
-            try {
-                val allSources = mutableMapOf<String, JulesClient.JulesSource>()
-                if (isClaudeBackend()) {
-                    val githubToken = settingsManager.settings.value.githubApiKey
-                    if (githubToken.isNotBlank()) {
-                        val repos = githubClient.listUserRepositories(githubToken)
-                        repos.forEach { repo ->
-                            val name = repo.fullName.ifBlank { "${repo.owner.login}/${repo.name}" }
-                            allSources[name] = JulesClient.JulesSource(
-                                name = name,
-                                id = name,
-                                githubRepo = JulesClient.JulesGitHubRepo(
-                                    owner = repo.owner.login,
-                                    repo = repo.name
-                                )
-                            )
-                        }
-                    }
-                } else {
-                    coroutineScope {
-                        apiKeys.map { key ->
-                            async {
-                                try {
-                                    val resp = julesClient.listSources(key)
-                                    synchronized(allSources) {
-                                        resp.sources.forEach { src ->
-                                            allSources[src.name] = src
-                                        }
-                                    }
-                                } catch (e: Exception) {
-                                    android.util.Log.e("JulesRepository", "Failed to load sources for a key", e)
-                                }
-                            }
-                        }.awaitAll()
-                    }
-                }
-
-                if (allSources.isNotEmpty()) {
-                    val now = System.currentTimeMillis()
-                    val entities = allSources.values.map {
-                        JulesSourceEntity(
-                            name = it.name,
-                            id = it.id,
-                            owner = it.githubRepo?.owner,
-                            repo = it.githubRepo?.repo,
-                            lastUpdated = now
-                        )
-                    }
-                    julesDao.clearSources()
-                    julesDao.insertSources(entities)
-                    emit(allSources.values.toList())
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("JulesRepository", "Failed to refresh sources", e)
-            }
+            refreshSources(apiKeys)
+            emit(getSourcesCached())
         }
     }
 

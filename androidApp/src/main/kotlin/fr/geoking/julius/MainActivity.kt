@@ -560,6 +560,7 @@ fun MainUIPreview() {
                     override suspend fun clearActivitiesBySession(sessionId: String) {}
                     override suspend fun insertSources(sources: List<JulesSourceEntity>) {}
                     override suspend fun getSources(): List<JulesSourceEntity> = emptyList()
+                    override fun getSourcesFlow(): kotlinx.coroutines.flow.Flow<List<JulesSourceEntity>> = kotlinx.coroutines.flow.flowOf(emptyList())
                     override suspend fun clearSources() {}
                 },
                 object : NetworkService {
@@ -576,8 +577,6 @@ fun MainUIPreview() {
             override fun getFeatureFlow(id: String): kotlinx.coroutines.flow.Flow<fr.geoking.julius.persistence.FeatureEntity?> =
                 kotlinx.coroutines.flow.flowOf(null)
             override suspend fun getFeature(id: String): fr.geoking.julius.persistence.FeatureEntity? = null
-            override fun getFeatureFlow(id: String): kotlinx.coroutines.flow.Flow<fr.geoking.julius.persistence.FeatureEntity?> =
-                kotlinx.coroutines.flow.flowOf(null)
             override suspend fun insertFeature(feature: fr.geoking.julius.persistence.FeatureEntity) {}
             override suspend fun updateFeature(feature: fr.geoking.julius.persistence.FeatureEntity) {}
             override suspend fun updateFeatures(features: List<fr.geoking.julius.persistence.FeatureEntity>) {}
@@ -589,8 +588,6 @@ fun MainUIPreview() {
             override suspend fun getRecentlyStartedFeaturesCount(since: Long): Int = 0
             override suspend fun getPendingFeaturesCount(): Int = 0
             override suspend fun getQueuedOrInProgressCount(): Int = 0
-            override fun getFeatureFlow(id: String): kotlinx.coroutines.flow.Flow<fr.geoking.julius.persistence.FeatureEntity?> =
-                kotlinx.coroutines.flow.flowOf(null)
             override suspend fun retryFailedFeatures(sourceName: String?) {}
             override suspend fun archiveCompletedFeatures(sourceName: String?) {}
             override suspend fun deleteAllFeatures(sourceName: String?) {}
