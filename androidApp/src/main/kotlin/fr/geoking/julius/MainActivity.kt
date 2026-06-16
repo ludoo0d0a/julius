@@ -573,6 +573,8 @@ fun MainUIPreview() {
         object : fr.geoking.julius.persistence.FeatureDao {
             override fun getAllFeaturesFlow(): kotlinx.coroutines.flow.Flow<List<fr.geoking.julius.persistence.FeatureEntity>> =
                 kotlinx.coroutines.flow.flowOf(emptyList())
+            override fun getFeatureFlow(id: String): kotlinx.coroutines.flow.Flow<fr.geoking.julius.persistence.FeatureEntity?> =
+                kotlinx.coroutines.flow.flowOf(null)
             override suspend fun getFeature(id: String): fr.geoking.julius.persistence.FeatureEntity? = null
             override fun getFeatureFlow(id: String): kotlinx.coroutines.flow.Flow<fr.geoking.julius.persistence.FeatureEntity?> =
                 kotlinx.coroutines.flow.flowOf(null)
