@@ -381,12 +381,11 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
     <!-- ============ QUEUE ENGINE ============ -->
     <section class="screen active" id="queue" data-tab="queue" data-title="Dashboard">
       <div class="appbar sticky">
-        <div class="appbar-row">
-          <h1>Dashboard</h1>
-          <span class="spacer"></span>
+        <div class="appbar-row"><h1>Dashboard</h1></div>
+        <div class="title-xl">
+          <span style="display:flex;align-items:center;gap:8px;flex:1">Dashboard <span class="pill run" style="font-size:11px"><span class="led"></span>actif</span></span>
           <button class="iconbtn" id="qpause" data-paused="0" aria-label="Mettre la file en pause"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
         </div>
-        <div class="title-xl">Dashboard <span class="pill run" style="font-size:11px"><span class="led"></span>actif</span></div>
         <div class="title-sub">Séquenceur d'agents · 3 sessions en parallèle</div>
       </div>
       <div class="body has-tabbar">
@@ -510,6 +509,10 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
           </div>
         </div>
 
+      </div>
+      <!-- FAB ajout feature (icône Features de la bottom bar, sans texte) -->
+      <div class="pr-fab-wrap" style="bottom:96px">
+        <button class="pr-fab" data-sheet="addfeat" aria-label="Ajouter une feature"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m3 7 2 2 3-3"/><path d="m3 14 2 2 3-3"/><path d="M11 7h10M11 14h10M11 20h7"/></svg></button>
       </div>
     </section>
 
@@ -981,7 +984,6 @@ body.board .phone{box-shadow:0 0 0 1px var(--border-strong);border-radius:0;widt
 
   // contextual Material FAB — the add action depends on the screen
   var FAB_MAP = {
-    queue:   {sheet:'addfeat',   label:'Feature'},
     projects:{sheet:'addproject',label:'Projet'},
     featlist:{sheet:'addfeat',   label:'Feature'},
     features:{sheet:'addfeat',   label:'Feature'}

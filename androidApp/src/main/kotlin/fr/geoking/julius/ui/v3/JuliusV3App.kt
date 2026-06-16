@@ -241,6 +241,12 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                                 }
                             },
                         )
+                    } else if (r is V3Route.Scheduler) {
+                        // Dashboard: icon-only FAB (Features icon) to add a feature.
+                        FloatingActionButton(
+                            onClick = { nav.push(V3Route.AddFeature(null)) },
+                            containerColor = V3.Accent, contentColor = V3.AccentInk,
+                        ) { Icon(Icons.Filled.List, "Ajouter une feature") }
                     } else if (fabFor(r) != null) {
                         ExtendedFloatingActionButton(
                             text = { Text(fabFor(r)!!.label) },
