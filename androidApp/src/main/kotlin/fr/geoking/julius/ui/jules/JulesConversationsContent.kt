@@ -38,13 +38,16 @@ import androidx.compose.ui.unit.sp
 import fr.geoking.julius.api.github.GitHubClient
 import fr.geoking.julius.persistence.FeatureEntity
 import fr.geoking.julius.persistence.JulesSessionEntity
+import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.ui.ColorHelper
+import fr.geoking.julius.ui.components.VoiceInputIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun JulesConversationsContent(
     selectedSourceName: String,
     selectedFeatureId: String,
+    voiceManager: VoiceManager,
     sessions: List<JulesSessionEntity>,
     features: List<FeatureEntity>,
     loading: Boolean,
@@ -90,8 +93,14 @@ internal fun JulesConversationsContent(
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     placeholder = { Text("What should Jules do?") },
                     trailingIcon = {
-                        IconButton(onClick = onCreateSession, enabled = newSessionPrompt.isNotBlank() && !loading) {
-                            Icon(Icons.Default.Add, contentDescription = "Create")
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            VoiceInputIcon(
+                                voiceManager = voiceManager,
+                                onTranscriptionReceived = { onNewSessionPromptChange((newSessionPrompt + " " + it).trim()) }
+                            )
+                            IconButton(onClick = onCreateSession, enabled = newSessionPrompt.isNotBlank() && !loading) {
+                                Icon(Icons.Default.Add, contentDescription = "Create")
+                            }
                         }
                     },
                 )

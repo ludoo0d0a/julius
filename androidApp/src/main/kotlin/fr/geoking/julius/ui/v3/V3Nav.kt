@@ -18,6 +18,7 @@ sealed class V3Route {
     data class Conversation(val sessionId: String) : V3Route()
     data class GitCi(val owner: String, val repo: String) : V3Route()
     data class PrConflict(val sessionId: String, val prUrl: String) : V3Route()
+    data class AddFeature(val sourceName: String?) : V3Route()
 
     /** Which bottom-bar tab is highlighted for this route. */
     val tabRoot: V3Route
@@ -26,7 +27,7 @@ sealed class V3Route {
             is Features -> Features
             is Settings -> Settings
             is Projects, is ProjectFeatures -> Projects
-            is FeatureDetail, is Conversation, is GitCi, is PrConflict -> Features
+            is FeatureDetail, is Conversation, is GitCi, is PrConflict, is AddFeature -> Features
         }
 }
 

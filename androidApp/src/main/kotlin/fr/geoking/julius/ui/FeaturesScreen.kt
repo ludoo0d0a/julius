@@ -37,8 +37,10 @@ import fr.geoking.julius.queue.enabledAccountsFor
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.persistence.FeatureEntity
 import fr.geoking.julius.persistence.JulesSessionEntity
+import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.repository.FeatureRepository
 import fr.geoking.julius.repository.JulesRepository
+import fr.geoking.julius.ui.components.VoiceInputIcon
 import kotlinx.coroutines.launch
 import java.util.*
 
@@ -56,6 +58,7 @@ fun FeaturesScreen(
     julesRepository: JulesRepository,
     julesClient: JulesClient,
     settingsManager: SettingsManager,
+    voiceManager: VoiceManager,
     onOpenConversation: (JulesSessionEntity) -> Unit
 ) {
     val features by featureRepository.getAllFeatures().collectAsState(initial = emptyList())
@@ -253,7 +256,7 @@ fun FeaturesScreen(
                 )
             }
 
-            if (selectedFeature == null) {
+            if (selectedFeature == null && !showAddDialog) {
                 // List View
                 var newFeatureTitle by remember { mutableStateOf("") }
                 PullToRefreshBox(
@@ -345,6 +348,12 @@ fun FeaturesScreen(
                                     overflow = TextOverflow.Ellipsis
                                 )
                             },
+                            trailingIcon = {
+                                VoiceInputIcon(
+                                    voiceManager = voiceManager,
+                                    onTranscriptionReceived = { newFeatureTitle = (newFeatureTitle + " " + it).trim() }
+                                )
+                            },
                             shape = RoundedCornerShape(24.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = Color.White,
@@ -384,7 +393,7 @@ fun FeaturesScreen(
                     }
                     }
                 }
-            } else {
+            } else if (selectedFeature != null) {
                 // Detail View
                 FeatureDetailContent(
                     feature = selectedFeature!!,
@@ -392,28 +401,29 @@ fun FeaturesScreen(
                     julesRepository = julesRepository,
                     featureRepository = featureRepository,
                     settingsManager = settingsManager,
+                    voiceManager = voiceManager,
                     apiKeys = apiKeys,
                     onOpenConversation = onOpenConversation,
                     onUpdateFeature = { selectedFeature = it },
                     isEditing = isEditingFeature,
                     onEditChange = { isEditingFeature = it }
                 )
+            } else if (showAddDialog) {
+                // Full Screen Add View
+                AddFeatureFullScreen(
+                    sources = sources,
+                    initialSourceName = settings.lastJulesRepoId,
+                    voiceManager = voiceManager,
+                    onDismiss = { showAddDialog = false },
+                    onConfirm = { title, desc, priority, source ->
+                        scope.launch {
+                            featureRepository.addFeature(title, desc, priority, source)
+                            showAddDialog = false
+                        }
+                    }
+                )
             }
         }
-    }
-
-    if (showAddDialog) {
-        AddFeatureDialog(
-            sources = sources,
-            initialSourceName = settings.lastJulesRepoId,
-            onDismiss = { showAddDialog = false },
-            onConfirm = { title, desc, priority, source ->
-                scope.launch {
-                    featureRepository.addFeature(title, desc, priority, source)
-                    showAddDialog = false
-                }
-            }
-        )
     }
 }
 
@@ -503,6 +513,7 @@ fun FeatureDetailContent(
     julesRepository: JulesRepository,
     featureRepository: FeatureRepository,
     settingsManager: SettingsManager,
+    voiceManager: VoiceManager,
     apiKeys: List<String>,
     onOpenConversation: (JulesSessionEntity) -> Unit,
     onUpdateFeature: (FeatureEntity) -> Unit,
@@ -708,6 +719,7 @@ fun FeatureDetailContent(
             FeatureChatInput(
                 value = messageDraft,
                 onValueChange = { messageDraft = it },
+                voiceManager = voiceManager,
                 placeholder = androidx.compose.ui.res.stringResource(fr.geoking.julius.R.string.message_jules_on, feature.title),
                 onSend = {
                     val prompt = messageDraft.trim()
@@ -951,6 +963,7 @@ fun FeatureActionBar(
 fun FeatureChatInput(
     value: String,
     onValueChange: (String) -> Unit,
+    voiceManager: VoiceManager,
     placeholder: String,
     onSend: () -> Unit,
     enabled: Boolean
@@ -967,6 +980,12 @@ fun FeatureChatInput(
             onValueChange = onValueChange,
             modifier = Modifier.weight(1f),
             placeholder = { Text(placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            trailingIcon = {
+                VoiceInputIcon(
+                    voiceManager = voiceManager,
+                    onTranscriptionReceived = { onValueChange((value + " " + it).trim()) }
+                )
+            },
             enabled = enabled,
             shape = RoundedCornerShape(24.dp),
             colors = OutlinedTextFieldDefaults.colors(
@@ -1018,8 +1037,9 @@ fun StatusBadge(status: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddFeatureDialog(
+fun AddFeatureFullScreen(
     sources: List<JulesClient.JulesSource>,
+    voiceManager: VoiceManager,
     onDismiss: () -> Unit,
     onConfirm: (String, String, Int, String) -> Unit,
     initialSourceName: String? = null,
@@ -1036,29 +1056,90 @@ fun AddFeatureDialog(
     }
     var expanded by remember { mutableStateOf(false) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add Feature") },
-        text = {
-            Column {
-                OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title") })
-                OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Description") })
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = ColorHelper.JulesBg
+    ) {
+        Column(Modifier.fillMaxSize()) {
+            TopAppBar(
+                title = { Text("Add Feature", color = Color.White) },
+                navigationIcon = {
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+            )
 
-                Spacer(modifier = Modifier.height(8.dp))
+            Column(modifier = Modifier.padding(16.dp)) {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Title") },
+                    modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = {
+                        VoiceInputIcon(
+                            voiceManager = voiceManager,
+                            onTranscriptionReceived = { title = (title + " " + it).trim() }
+                        )
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedLabelColor = ColorHelper.JulesAccent,
+                        unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
+                        focusedBorderColor = ColorHelper.JulesAccent,
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.2f)
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3,
+                    trailingIcon = {
+                        VoiceInputIcon(
+                            voiceManager = voiceManager,
+                            onTranscriptionReceived = { description = (description + " " + it).trim() }
+                        )
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedLabelColor = ColorHelper.JulesAccent,
+                        unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
+                        focusedBorderColor = ColorHelper.JulesAccent,
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.2f)
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 ExposedDropdownMenuBox(
                     expanded = expanded,
                     onExpandedChange = { expanded = !expanded }
                 ) {
                     OutlinedTextField(
-                        value = selectedSource,
+                        value = sources.find { it.name == selectedSource }?.let { it.githubRepo?.let { gr -> "${gr.owner}/${gr.repo}" } ?: it.name } ?: selectedSource,
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Source Repository") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        modifier = Modifier.menuAnchor(
+                        modifier = Modifier.fillMaxWidth().menuAnchor(
                             type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
                             enabled = true,
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedLabelColor = ColorHelper.JulesAccent,
+                            unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
+                            focusedBorderColor = ColorHelper.JulesAccent,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.2f)
                         )
                     )
                     ExposedDropdownMenu(
@@ -1076,15 +1157,18 @@ fun AddFeatureDialog(
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = { onConfirm(title, description, priority, selectedSource) },
+                    enabled = title.isNotBlank() && selectedSource.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ColorHelper.JulesAccent)
+                ) {
+                    Text("Add Feature")
+                }
             }
-        },
-        confirmButton = {
-            Button(onClick = { onConfirm(title, description, priority, selectedSource) }, enabled = title.isNotBlank() && selectedSource.isNotBlank()) {
-                Text("Add")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
         }
-    )
+    }
 }
