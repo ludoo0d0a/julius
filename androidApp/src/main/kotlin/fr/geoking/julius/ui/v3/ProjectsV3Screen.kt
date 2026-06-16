@@ -5,10 +5,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -65,15 +68,27 @@ fun ProjectsV3Screen(
                         val name = displayName(s)
                         val total = countBySource[s.name] ?: 0
                         val active = activeBySource[s.name] ?: 0
+                        val isCurrent = s.name == settings.lastJulesRepoName
+
                         V3Row(
                             title = name,
                             subtitle = if (total > 0) "$total feature(s)" + if (active > 0) " · $active en cours" else "" else "—",
-                            leadingIcon = Icons.Filled.FolderOpen,
-                            leadingTint = if (active > 0) V3.Accent else V3.Muted,
-                            onClick = { onOpenProject(s.name) },
+                            leadingIcon = if (isCurrent) Icons.Filled.CheckCircle else Icons.Filled.FolderOpen,
+                            leadingTint = if (isCurrent) V3.Accent else if (active > 0) V3.Accent.copy(alpha = 0.7f) else V3.Muted,
+                            onClick = {
+                                deps.settingsManager.saveSettings(settings.copy(lastJulesRepoName = s.name, lastJulesRepoId = s.name))
+                            },
                             trailing = {
-                                if (active > 0) {
-                                    StatusPill(StatusVisual("$active actives", "", V3.Accent, pulse = true), showEnum = false)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (isCurrent) {
+                                        StatusPill(StatusVisual("ACTIF", "", V3.Accent))
+                                    } else if (active > 0) {
+                                        StatusPill(StatusVisual("$active actives", "", V3.Accent, pulse = true), showEnum = false)
+                                    }
+                                    Spacer(Modifier.width(8.dp))
+                                    IconButton(onClick = { onOpenProject(s.name) }) {
+                                        Icon(Icons.Filled.List, "Features", tint = V3.Muted)
+                                    }
                                 }
                             },
                         )
