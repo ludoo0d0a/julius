@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.ArrowBack
@@ -26,6 +27,8 @@ import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.VerticalAlignBottom
+import androidx.compose.material.icons.filled.VerticalAlignTop
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -79,6 +82,10 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
         var showMenu by remember { mutableStateOf(false) }
         var convActionTick by remember { mutableStateOf(0) }
 
+        // Scroll triggers for conversation
+        var scrollTrigger by remember { mutableStateOf<Int?>(null) } // 0 for Top, 1 for Bottom
+        var getActivitiesJson by remember { mutableStateOf< (suspend () -> String)?>(null) }
+
         // Hardware back: pop the v3 stack, or exit to the host dashboard.
         BackHandler(enabled = true) { if (!nav.pop()) onExit() }
 
@@ -119,6 +126,7 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                                 is V3Route.Conversation -> session?.prTitle ?: session?.title?.ifBlank { session?.prompt?.take(48) } ?: "Conversation"
                                 is V3Route.GitCi -> "Git & CI"
                                 is V3Route.PrConflict -> "Conflits PR"
+                                is V3Route.JsonDebug -> route.title
                             }
                             Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
 
@@ -174,6 +182,24 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                                         android.content.ClipData.newPlainText("feature_prompt", feature!!.description.ifBlank { feature!!.title })
                                     ))
                                     snackbar.showSnackbar("Texte copié")
+                                }
+                            }
+                        }
+
+                        if (route is V3Route.Conversation && session != null) {
+                            TooltipIconButton("Ouvrir dans une page web", Icons.AutoMirrored.Filled.OpenInNew) {
+                                session?.url?.let { uriHandler.openUri(it) }
+                            }
+                            TooltipIconButton("Début", Icons.Filled.VerticalAlignTop) {
+                                scrollTrigger = 0
+                            }
+                            TooltipIconButton("Fin", Icons.Filled.VerticalAlignBottom) {
+                                scrollTrigger = 1
+                            }
+                            TooltipIconButton("Debug API", Icons.Filled.BugReport) {
+                                scope.launch {
+                                    val json = getActivitiesJson?.invoke() ?: "{}"
+                                    nav.push(V3Route.JsonDebug("Debug Activités", json))
                                 }
                             }
                         }
@@ -295,6 +321,9 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                         deps = deps, sessionId = r.sessionId, onBack = { nav.pop() },
                         onOpenGitCi = { owner, repo -> nav.push(V3Route.GitCi(owner, repo)) },
                         onOpenConflict = { prUrl -> nav.push(V3Route.PrConflict(r.sessionId, prUrl)) },
+                        scrollTrigger = scrollTrigger,
+                        onScrolled = { scrollTrigger = null },
+                        onProvideJson = { getActivitiesJson = it as (suspend () -> String) }
                     )
                     is V3Route.GitCi -> GitCiV3Screen(
                         deps = deps, owner = r.owner, repo = r.repo, onBack = { nav.pop() },
@@ -308,6 +337,7 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                     )
                     is V3Route.Settings -> SettingsV3Screen(deps = deps, onOpenAgent = { nav.push(V3Route.AgentDetail(it)) })
                     is V3Route.AgentDetail -> AgentDetailV3Screen(deps = deps, accountId = r.accountId, onBack = { nav.pop() })
+                    is V3Route.JsonDebug -> JsonDebugScreen(title = r.title, json = r.json, onBack = { nav.pop() })
                 }
             }
         }

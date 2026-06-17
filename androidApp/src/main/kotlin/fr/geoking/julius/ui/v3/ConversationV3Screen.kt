@@ -4,9 +4,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
@@ -47,6 +48,9 @@ fun ConversationV3Screen(
     onBack: () -> Unit,
     onOpenGitCi: (String, String) -> Unit,
     onOpenConflict: (String) -> Unit,
+    scrollTrigger: Int? = null, // 0: top, 1: bottom
+    onScrolled: () -> Unit = {},
+    onProvideJson: (((suspend () -> String)) -> Unit) = {}
 ) {
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
@@ -64,6 +68,31 @@ fun ConversationV3Screen(
 
     val activitiesFlow = remember(sessionId, sendTick) { deps.julesRepository.getActivities(sessionId) }
     val items by activitiesFlow.collectAsState(initial = emptyList())
+
+    val scrollState = rememberLazyListState()
+
+    // Provide raw JSON for debug
+    LaunchedEffect(sessionId) {
+        onProvideJson {
+            val activities = try { deps.julesRepository.getActivitiesBySession(sessionId) } catch (e: Exception) { emptyList() }
+            if (activities.isEmpty()) "[]"
+            else {
+                "[" + activities.joinToString(",") { it.activityJson ?: "{ \"id\": \"${it.id}\", \"text\": \"${it.text}\" }" } + "]"
+            }
+        }
+    }
+
+    LaunchedEffect(scrollTrigger) {
+        when (scrollTrigger) {
+            0 -> { scrollState.animateScrollToItem(0); onScrolled() }
+            1 -> {
+                if (items.isNotEmpty()) {
+                    scrollState.animateScrollToItem(items.size - 1)
+                }
+                onScrolled()
+            }
+        }
+    }
 
     var prompt by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
@@ -87,15 +116,20 @@ fun ConversationV3Screen(
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             // ---- chat ----
-            Column(
-                Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+            LazyColumn(
+                state = scrollState,
+                modifier = Modifier.weight(1f).fillMaxWidth()
                     .padding(horizontal = 18.dp).padding(top = 8.dp),
             ) {
                 if (items.isEmpty()) {
-                    Text("Pas encore d'activité.", color = V3.Faint, fontSize = 13.sp, modifier = Modifier.padding(vertical = 24.dp))
+                    item {
+                        Text("Pas encore d'activité.", color = V3.Faint, fontSize = 13.sp, modifier = Modifier.padding(vertical = 24.dp))
+                    }
                 }
-                items.forEach { item -> ChatBubble(item) }
-                Spacer(Modifier.height(if (hasPr) 90.dp else 12.dp))
+                items(items) { item -> ChatBubble(item) }
+                item {
+                    Spacer(Modifier.height(if (hasPr) 90.dp else 12.dp))
+                }
             }
 
             // ---- bottom git status zone (PR / branch) ----
