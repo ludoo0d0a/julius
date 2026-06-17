@@ -106,9 +106,20 @@ class FeatureRepository(
     }
 
     private suspend fun startFeatureInternal(feature: FeatureEntity, account: AgentAccount, prompt: String): String {
-        if (feature.sessionId != null) return feature.sessionId
-
         val now = System.currentTimeMillis()
+
+        // 1. Mark feature as QUEUED immediately to avoid race conditions in the queue engine
+        // (prevents duplicate session creation if multiple ticks happen during the network call).
+        featureDao.updateFeature(
+            feature.copy(
+                status = "QUEUED",
+                assignedAccountId = account.id,
+                startedAt = now,
+                updatedAt = now,
+            ),
+        )
+
+        // 2. Actually create the session (network call)
         // A start failure (e.g. Jules 400 invalid_argument) must surface on the conversation,
         // not crash and not mark the feature FAILED. Record a FAILED session instead.
         val sessionId = try {
@@ -123,15 +134,18 @@ class FeatureRepository(
             android.util.Log.e("FeatureRepository", "createSession failed for ${feature.id}", e)
             julesRepository.createFailedSession(feature.sourceName, feature.title, prompt, feature.id, e.message)
         }
+
+        // 3. Link the sessionId to the feature
         featureDao.updateFeature(
             feature.copy(
                 sessionId = sessionId,
                 assignedAccountId = account.id,
                 startedAt = now,
                 status = "QUEUED",
-                updatedAt = now,
+                updatedAt = System.currentTimeMillis(),
             ),
         )
+
         scheduleWorker()
         return sessionId
     }

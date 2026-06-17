@@ -604,6 +604,7 @@ private fun AddFeatureV3Screen(
     var title by remember { mutableStateOf("") }
     var desc by remember { mutableStateOf("") }
     var source by remember { mutableStateOf(sourceName ?: settings.lastJulesRepoName) }
+    var saving by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 18.dp).padding(top = 8.dp)) {
         OutlinedTextField(
@@ -666,16 +667,29 @@ private fun AddFeatureV3Screen(
         Spacer(Modifier.height(24.dp))
         Button(
             onClick = {
-                if (title.isNotBlank() && source.isNotBlank()) scope.launch {
-                    deps.featureRepository.addFeature(title.trim(), desc.trim(), 0, source.trim())
-                    deps.featureRepository.scheduleWorker()
-                    onDone("Feature ajoutée à la file")
+                if (title.isNotBlank() && source.isNotBlank()) {
+                    saving = true
+                    scope.launch {
+                        try {
+                            deps.featureRepository.addFeature(title.trim(), desc.trim(), 0, source.trim())
+                            deps.featureRepository.scheduleWorker()
+                            onDone("Feature ajoutée à la file")
+                        } finally {
+                            saving = false
+                        }
+                    }
                 }
             },
-            enabled = title.isNotBlank() && source.isNotBlank(),
+            enabled = title.isNotBlank() && source.isNotBlank() && !saving,
             modifier = Modifier.fillMaxWidth().height(56.dp),
             colors = ButtonDefaults.buttonColors(containerColor = V3.Accent, contentColor = V3.AccentInk),
-        ) { Text("Ajouter à la file") }
+        ) {
+            if (saving) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = V3.AccentInk, strokeWidth = 2.dp)
+            } else {
+                Text("Ajouter à la file")
+            }
+        }
     }
 }
 
