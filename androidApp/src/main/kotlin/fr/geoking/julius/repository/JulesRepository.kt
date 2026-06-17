@@ -520,7 +520,9 @@ class JulesRepository(
         title: String,
         featureId: String? = null,
     ): String {
-        val prompt = prompt.ifBlank { title }.ifBlank { "New session" }
+        val finalPrompt = prompt.ifBlank { title }.ifBlank { "New session" }
+        val finalTitle = title.ifBlank { prompt }.take(80).ifBlank { "New session" }
+
         val isOnline = networkService.status.value.isConnected
         if (isOnline) {
             if (account.backend == CodingAgentBackend.CLAUDE_CODE || isClaudeBackend()) {
@@ -537,11 +539,11 @@ class JulesRepository(
                     agentId = agentId,
                     agentVersion = agentVersion,
                     environmentId = environmentId,
-                    prompt = prompt,
+                    prompt = finalPrompt,
                     owner = owner,
                     repo = repo,
                     githubToken = githubToken,
-                    title = title
+                    title = finalTitle
                 )
                 val entity = JulesSessionEntity(
                     id = session.id,
@@ -572,9 +574,9 @@ class JulesRepository(
             val resolvedSource = resolveJulesSource(source)
             val session = julesClient.createSession(
                 apiKey = apiKey,
-                prompt = prompt,
+                prompt = finalPrompt,
                 source = resolvedSource,
-                title = title
+                title = finalTitle
             )
             val entity = JulesSessionEntity(
                 id = session.id,
@@ -601,8 +603,8 @@ class JulesRepository(
             val tempId = "offline_${java.util.UUID.randomUUID()}"
             val entity = JulesSessionEntity(
                 id = tempId,
-                title = title,
-                prompt = prompt,
+                title = finalTitle,
+                prompt = finalPrompt,
                 sourceName = source,
                 prUrl = null,
                 prTitle = null,
