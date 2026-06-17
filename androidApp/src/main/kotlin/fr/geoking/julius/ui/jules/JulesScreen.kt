@@ -126,7 +126,7 @@ fun JulesScreen(
                 julesRepository.getSources(apiKeys).collectLatest { list ->
                     sources = list
                     sourcesLoaded = true
-                    loading = false
+                    if (list.isNotEmpty()) loading = false
                     selectedSourceName?.let { id ->
                         sources.find { it.name == id }?.let { found ->
                             selectedSourceDisplayName = sourceDisplayName(found)
@@ -147,12 +147,13 @@ fun JulesScreen(
         val sourceName = selectedSourceName ?: return
         if (!isAgentConfigured) return
         scope.launch {
-            if (isRefresh) refreshingSessions = true else loadingSessions = true
+            if (isRefresh) refreshingSessions = true else if (sessions.isEmpty()) loadingSessions = true
             clearError()
             try {
                 julesRepository.getUsageQuota(apiKeys)
                 julesRepository.getSessions(apiKeys, sourceName, githubToken).collectLatest { list ->
                     sessions = list
+                    if (list.isNotEmpty()) loadingSessions = false
                     currentSession?.let { curr ->
                         list.find { it.id == curr.id }?.let { updated -> currentSession = updated }
                     }
@@ -170,10 +171,11 @@ fun JulesScreen(
     suspend fun refreshActivitiesInternal(isRefresh: Boolean = false) {
         val session = currentSession ?: return
         if (!isAgentConfigured) return
-        if (isRefresh) refreshing = true else loading = true
+        if (isRefresh) refreshing = true else if (chatItems.isEmpty()) loading = true
         clearError()
         try {
             julesRepository.getActivities(session.id).collectLatest { list ->
+                if (list.isNotEmpty()) loading = false
                 try {
                     val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
                     val cached = julesRepository.getActivitiesBySession(session.id)

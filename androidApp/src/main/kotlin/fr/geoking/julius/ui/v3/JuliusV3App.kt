@@ -198,7 +198,13 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                             }
                             TooltipIconButton("Debug API", Icons.Filled.BugReport) {
                                 scope.launch {
-                                    val json = getActivitiesJson?.invoke() ?: "{}"
+                                val json = try {
+                                    val activities = deps.julesRepository.getActivitiesBySession(sessionId!!)
+                                    if (activities.isEmpty()) "[]"
+                                    else {
+                                        "[" + activities.joinToString(",") { it.activityJson ?: "{ \"id\": \"${it.id}\", \"text\": \"${it.text}\" }" } + "]"
+                                    }
+                                } catch (e: Exception) { "[]" }
                                     nav.push(V3Route.JsonDebug("Debug Activités", json))
                                 }
                             }

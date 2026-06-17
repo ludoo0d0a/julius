@@ -42,6 +42,12 @@ fun FeatureDetailV3Screen(
         val sourceName = feature?.sourceName ?: return@LaunchedEffect
         deps.julesRepository.getSessions(settings.julesKeys, sourceName, settings.githubApiKey).collect { list ->
             deps.featureRepository.autoPromoteOrphans(scope, sourceName, list)
+        }
+    }
+
+    LaunchedEffect(featureId) {
+        // Reactive local sessions for this feature (including newly promoted ones)
+        deps.julesRepository.getSessionsFlow(feature?.sourceName ?: "").collect {
             sessions = deps.julesRepository.getSessionsByFeature(featureId)
         }
     }

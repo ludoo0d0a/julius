@@ -36,8 +36,11 @@ fun ProjectsV3Screen(
     LaunchedEffect(apiKeys) {
         if (apiKeys.isNotEmpty()) {
             isRefreshing = true
-            deps.julesRepository.refreshSources(apiKeys)
-            isRefreshing = false
+            try {
+                deps.julesRepository.refreshSources(apiKeys)
+            } finally {
+                isRefreshing = false
+            }
         }
     }
 
@@ -57,13 +60,13 @@ fun ProjectsV3Screen(
 
     PullToRefreshBox(
         isRefreshing = isRefreshing,
-        onRefresh = { scope.launch { isRefreshing = true; deps.julesRepository.refreshSources(apiKeys); isRefreshing = false } },
+        onRefresh = { scope.launch { isRefreshing = true; try { deps.julesRepository.refreshSources(apiKeys) } finally { isRefreshing = false } } },
         modifier = Modifier.fillMaxSize(),
     ) {
         when {
             sources.isEmpty() && isRefreshing ->
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = V3.Accent) }
-            sources.isEmpty() ->
+            sources.isEmpty() && !isRefreshing ->
                 Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp)) {
                     EmptyHint("Aucun dépôt — vérifie la clé Jules dans Réglages.")
                 }

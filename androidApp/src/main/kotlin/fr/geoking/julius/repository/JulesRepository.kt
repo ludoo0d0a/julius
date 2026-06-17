@@ -6,6 +6,7 @@ import fr.geoking.julius.api.github.GitHubClient
 import fr.geoking.julius.api.github.parseGitHubPullRequestUrl
 import fr.geoking.julius.api.jules.JulesChatItem
 import fr.geoking.julius.api.jules.JulesClient
+import fr.geoking.julius.queue.currentDayEpochUtc
 import android.content.Context
 import androidx.work.Constraints
 import androidx.work.NetworkType
@@ -17,6 +18,7 @@ import fr.geoking.julius.queue.enabledAccountsFor
 import fr.geoking.julius.queue.julesApiKeys
 import fr.geoking.julius.queue.queuePolicyFor
 import fr.geoking.julius.persistence.JulesActivityEntity
+import fr.geoking.julius.persistence.AccountDailyUsageDao
 import fr.geoking.julius.persistence.JulesDao
 import fr.geoking.julius.persistence.JulesSessionEntity
 import fr.geoking.julius.persistence.JulesSourceEntity
@@ -25,8 +27,11 @@ import fr.geoking.julius.shared.network.NetworkException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.sync.withPermit
@@ -40,6 +45,7 @@ class JulesRepository(
     private val claudeCodeClient: ClaudeCodeClient,
     private val githubClient: GitHubClient,
     private val julesDao: JulesDao,
+    private val accountDailyUsageDao: AccountDailyUsageDao,
     private val networkService: NetworkService,
     private val settingsManager: SettingsManager
 ) {
@@ -62,6 +68,9 @@ class JulesRepository(
     }
 
     suspend fun getAllActiveSessions(): List<JulesSessionEntity> = julesDao.getActiveSessions()
+
+    fun getSessionsFlow(sourceName: String): Flow<List<JulesSessionEntity>> =
+        julesDao.getSessionsFlowBySource(sourceName).map { filterSessionsForBackend(it) }
 
     suspend fun updateSessionPrMergeable(sessionId: String, state: String?, mergeable: Boolean?) {
         julesDao.updateSessionPrStatus(sessionId, state ?: "open", mergeable)
@@ -204,30 +213,26 @@ class JulesRepository(
     }
 
     fun getSessions(apiKeys: List<String>, sourceName: String, githubToken: String): Flow<List<JulesSessionEntity>> = flow {
-        // 1. Emit from cache
-        try {
-            val cached = filterSessionsForBackend(julesDao.getSessionsBySource(sourceName))
-            emit(cached)
-        } catch (e: Exception) {
-            emit(emptyList())
+        emitAll(getSessionsFlow(sourceName))
+    }.onStart {
+        // Fire-and-forget refresh in background scope to avoid blocking onStart
+        kotlinx.coroutines.GlobalScope.launch {
+            refreshSessionsInternal(apiKeys, sourceName, githubToken)
         }
+    }
 
-        // 2. Fetch from network
+    suspend fun refreshSessionsInternal(apiKeys: List<String>, sourceName: String, githubToken: String) {
         var anySuccess = false
-
         if (isClaudeBackend()) {
             val apiKey = activeApiKey()
             if (apiKey != null) {
                 try {
                     val resp = claudeCodeClient.listSessions(apiKey)
-                    val localForSource = julesDao.getSessionsBySource(sourceName)
-                        .filter { backend().matchesSessionId(it.id) || it.isPendingOffline }
-                    val knownIds = localForSource.map { it.id }.toSet()
-                    val remoteSessions = resp.data.filter { it.id in knownIds }
-
+                    val remoteSessions = resp.data
                     val currentEntities = mutableListOf<JulesSessionEntity>()
                     for (session in remoteSessions) {
                         val existing = try { julesDao.getSession(session.id) } catch (e: Exception) { null }
+                        if (existing != null && existing.sourceName != sourceName) continue
                         val apiUpdateTime = try {
                             if (session.updatedAt.isNotBlank()) {
                                 OffsetDateTime.parse(session.updatedAt).toInstant().toEpochMilli()
@@ -241,7 +246,7 @@ class JulesRepository(
                                 id = session.id,
                                 title = session.title.ifBlank { existing?.title ?: "Claude session" },
                                 prompt = existing?.prompt ?: "",
-                                sourceName = sourceName,
+                                sourceName = existing?.sourceName ?: sourceName,
                                 prUrl = existing?.prUrl,
                                 prTitle = existing?.prTitle,
                                 prId = existing?.prId,
@@ -272,27 +277,24 @@ class JulesRepository(
                     async {
                         try {
                             val resp = julesClient.listSessions(key, pageSize = 50)
-                            val sessions = resp.sessions.orEmpty().filter { it.sourceContext?.source == sourceName }
+                            val sessions = resp.sessions.orEmpty().filter {
+                                it.sourceContext?.source == sourceName || it.sourceContext?.source == resolveJulesSource(sourceName)
+                            }
                             anySuccess = true
-
                             val currentEntities = mutableListOf<JulesSessionEntity>()
                             for (session in sessions) {
                                 val sessionId = session.id.takeIf { it.isNotBlank() } ?: session.name
                                 if (sessionId.isBlank()) continue
-
                                 val pr = session.outputs?.firstOrNull()?.pullRequest
                                 val existing = try { julesDao.getSession(sessionId) } catch (e: Exception) { null }
-
                                 val apiUpdateTime = try {
                                     if (!session.updateTime.isNullOrBlank()) {
                                         OffsetDateTime.parse(session.updateTime).toInstant().toEpochMilli()
                                     } else 0L
                                 } catch (e: Exception) { 0L }
-
                                 val newLastUpdated = maxOf(existing?.lastUpdated ?: 0L, apiUpdateTime).let {
                                     if (it == 0L) System.currentTimeMillis() else it
                                 }
-
                                 currentEntities.add(JulesSessionEntity(
                                     id = sessionId,
                                     title = session.title,
@@ -313,11 +315,9 @@ class JulesRepository(
                                     featureId = existing?.featureId
                                 ))
                             }
-
                             val localSessionsForKey = julesDao.getSessionsBySourceAndKey(sourceName, key)
                             val currentIds = currentEntities.map { it.id }.toSet()
                             val toDelete = localSessionsForKey.filter { !currentIds.contains(it.id) && !it.isPendingOffline }
-
                             toDelete.forEach { julesDao.deleteSession(it.id) }
                             if (currentEntities.isNotEmpty()) {
                                 julesDao.insertSessions(currentEntities)
@@ -329,26 +329,12 @@ class JulesRepository(
                 }.awaitAll()
             }
         }
-
         if (anySuccess) {
-            val entities = try {
-                filterSessionsForBackend(julesDao.getSessionsBySource(sourceName))
-            } catch (e: Exception) {
-                emptyList()
-            }
-            emit(entities)
-
-            // Update PR statuses in parallel
+            val entities = try { julesDao.getSessionsBySource(sourceName) } catch (e: Exception) { emptyList() }
             coroutineScope {
                 entities.filter { !it.prUrl.isNullOrBlank() }.map { entity ->
                     async { updatePrStatus(githubToken, entity) }
                 }.awaitAll()
-            }
-
-            try {
-                emit(julesDao.getSessionsBySource(sourceName))
-            } catch (e: Exception) {
-                // Ignore
             }
         }
     }
@@ -674,32 +660,38 @@ class JulesRepository(
     }
 
     suspend fun sendMessage(sessionId: String, prompt: String, apiKey: String? = null) {
-        val isOnline = networkService.status.value.isConnected
-        if (isOnline && !sessionId.startsWith("offline_")) {
+        val tempId = "msg_${java.util.UUID.randomUUID()}"
+        val nowStr = OffsetDateTime.now().toString()
+        val nowMs = System.currentTimeMillis()
+        val isOnline = networkService.status.value.isConnected && !sessionId.startsWith("offline_")
+
+        val localActivity = JulesActivityEntity(
+            id = tempId,
+            sessionId = sessionId,
+            originator = "user",
+            text = prompt,
+            timestamp = nowStr,
+            sortTimestamp = nowMs,
+            isPendingOffline = !isOnline
+        )
+        julesDao.insertActivities(listOf(localActivity))
+        julesDao.updateSessionLastUpdated(sessionId, nowMs)
+
+        if (isOnline) {
             val existing = julesDao.getSession(sessionId)
             val key = apiKey ?: existing?.apiKey ?: activeApiKey()
                 ?: throw Exception("No API key available")
 
-            if (isClaudeBackend() || sessionId.startsWith(CodingAgentBackend.CLAUDE_SESSION_PREFIX)) {
-                claudeCodeClient.sendMessage(key, sessionId, prompt)
-            } else {
-                julesClient.sendMessage(key, sessionId, prompt)
+            try {
+                if (isClaudeBackend() || sessionId.startsWith(CodingAgentBackend.CLAUDE_SESSION_PREFIX)) {
+                    claudeCodeClient.sendMessage(key, sessionId, prompt)
+                } else {
+                    julesClient.sendMessage(key, sessionId, prompt)
+                }
+            } catch (e: Exception) {
+                throw e
             }
-            julesDao.updateSessionLastUpdated(sessionId, System.currentTimeMillis())
         } else {
-            val activityId = "offline_act_${java.util.UUID.randomUUID()}"
-            val now = OffsetDateTime.now().toString()
-            val entity = JulesActivityEntity(
-                id = activityId,
-                sessionId = sessionId,
-                originator = "user",
-                text = prompt,
-                timestamp = now,
-                sortTimestamp = System.currentTimeMillis(),
-                isPendingOffline = true
-            )
-            julesDao.insertActivities(listOf(entity))
-            julesDao.updateSessionLastUpdated(sessionId, System.currentTimeMillis())
             scheduleSync()
         }
     }
@@ -931,62 +923,60 @@ class JulesRepository(
     }
 
     fun getActivities(sessionId: String): Flow<List<JulesChatItem>> = flow {
-        val existingSession = try { julesDao.getSession(sessionId) } catch (e: Exception) { null }
-        val apiKey = existingSession?.apiKey ?: activeApiKey()
+        emitAll(julesDao.getActivitiesFlowBySession(sessionId).map { entities ->
+            mapActivityEntitiesToChatItems(sessionId, entities)
+        })
+    }.onStart {
+        // Fire-and-forget refresh in background scope to avoid blocking onStart
+        kotlinx.coroutines.GlobalScope.launch {
+            refreshActivitiesInternal(sessionId)
+        }
+    }
 
-        // 1. Emit from cache
-        try {
-            val cached = julesDao.getActivitiesBySession(sessionId)
-            if (cached.isNotEmpty()) {
-                // Re-apply grouping logic on cached entities if needed, but for now we reconstruct from flattened entities
-                val items = mutableListOf<JulesChatItem>()
-                var currentAgentGroup: JulesChatItem.AgentMessage? = null
-
-                fun flush() {
-                    currentAgentGroup?.let { items.add(it) }
-                    currentAgentGroup = null
-                }
-
-                for (a in cached.sortedBy { it.timestamp }) {
-                    if (a.originator == "user") {
-                        flush()
-                        items.add(JulesChatItem.UserMessage(a.id, a.timestamp, a.text))
-                    } else {
-                        val subItem = JulesChatItem.AgentSubItem(a.id, a.timestamp, a.text, a.type)
-                        if (a.type == "progress") {
-                            if (currentAgentGroup != null && currentAgentGroup!!.title == "Progress") {
-                                currentAgentGroup = currentAgentGroup!!.copy(
-                                    subItems = currentAgentGroup!!.subItems + subItem
-                                )
-                            } else {
-                                flush()
-                                currentAgentGroup = JulesChatItem.AgentMessage(
-                                    id = a.id,
-                                    createTime = a.timestamp,
-                                    title = "Progress",
-                                    subItems = listOf(subItem)
-                                )
-                            }
-                        } else {
-                            flush()
-                            items.add(JulesChatItem.AgentMessage(
-                                id = a.id,
-                                createTime = a.timestamp,
-                                title = a.text,
-                                subItems = listOf(subItem)
-                            ))
-                        }
-                    }
-                }
-                flush()
-                emit(items)
+    private fun mapActivityEntitiesToChatItems(sessionId: String, entities: List<JulesActivityEntity>): List<JulesChatItem> {
+        val json = Json { ignoreUnknownKeys = true }
+        if (isClaudeBackend() || sessionId.startsWith(CodingAgentBackend.CLAUDE_SESSION_PREFIX)) {
+            val events = entities.mapNotNull { it.activityJson }.map {
+                json.decodeFromString(ClaudeCodeClient.ClaudeEvent.serializer(), it)
             }
-        } catch (e: Exception) {
-            // Ignore cache error
+            if (events.isNotEmpty()) return claudeCodeClient.eventsToChatItems(events)
+        } else {
+            val activities = entities.mapNotNull { it.activityJson }.map {
+                json.decodeFromString(JulesClient.JulesActivity.serializer(), it)
+            }
+            if (activities.isNotEmpty()) return julesClient.activitiesToChatItems(activities)
         }
 
-        // 2. Fetch from network
-        if (apiKey != null) {
+        val items = mutableListOf<JulesChatItem>()
+        var currentAgentGroup: JulesChatItem.AgentMessage? = null
+        fun flush() { currentAgentGroup?.let { items.add(it) }; currentAgentGroup = null }
+        for (a in entities.sortedBy { it.timestamp }) {
+            if (a.originator == "user") {
+                flush()
+                items.add(JulesChatItem.UserMessage(a.id, a.timestamp, a.text))
+            } else {
+                val subItem = JulesChatItem.AgentSubItem(a.id, a.timestamp, a.text, a.type)
+                if (a.type == "progress") {
+                    if (currentAgentGroup?.title == "Progress") {
+                        currentAgentGroup = currentAgentGroup!!.copy(subItems = currentAgentGroup!!.subItems + subItem)
+                    } else {
+                        flush()
+                        currentAgentGroup = JulesChatItem.AgentMessage(a.id, a.timestamp, "Progress", listOf(subItem))
+                    }
+                } else {
+                    flush()
+                    items.add(JulesChatItem.AgentMessage(a.id, a.timestamp, a.text, listOf(subItem)))
+                }
+            }
+        }
+        flush()
+        return items
+    }
+
+    suspend fun refreshActivitiesInternal(sessionId: String) {
+        val existingSession = try { julesDao.getSession(sessionId) } catch (e: Exception) { null }
+        val apiKey = existingSession?.apiKey ?: activeApiKey() ?: return
+
         try {
             if (isClaudeBackend() || sessionId.startsWith(CodingAgentBackend.CLAUDE_SESSION_PREFIX)) {
                 val resp = claudeCodeClient.listEvents(apiKey, sessionId)
@@ -1007,7 +997,6 @@ class JulesRepository(
                     }
                 }
 
-                val items = claudeCodeClient.eventsToChatItems(resp.data)
                 val entities = resp.data.mapNotNull { event ->
                     val text = claudeCodeClient.extractText(event)
                     if (text.isBlank() && event.type !in listOf("session.status_terminated")) return@mapNotNull null
@@ -1033,19 +1022,12 @@ class JulesRepository(
                         activityJson = Json.encodeToString(ClaudeCodeClient.ClaudeEvent.serializer(), event)
                     )
                 }
-                try {
-                    julesDao.clearActivitiesBySession(sessionId)
-                    julesDao.insertActivities(entities)
-                } catch (e: Exception) {
-                    // Ignore DB error
-                }
-                emit(items)
-                return@flow
+                julesDao.clearActivitiesBySession(sessionId)
+                julesDao.insertActivities(entities)
+                return
             }
 
             val resp = julesClient.listActivities(apiKey, sessionId, pageSize = 50)
-
-            // Sync PR info and patch from activities to session if found
             for (activity in resp.activities) {
                 val pr = activity.outputs?.firstOrNull()?.pullRequest ?: activity.sessionCompleted?.outputs?.firstOrNull()?.pullRequest
                 val gitPatch = activity.artifacts?.mapNotNull { it.changeSet?.gitPatch }?.firstOrNull()
@@ -1078,8 +1060,6 @@ class JulesRepository(
                 }
             }
 
-            val items = julesClient.activitiesToChatItems(resp.activities)
-
             val entities = mutableListOf<JulesActivityEntity>()
             for (activity in resp.activities) {
                 val a = activity
@@ -1108,18 +1088,10 @@ class JulesRepository(
                     activityJson = Json.encodeToString(JulesClient.JulesActivity.serializer(), a)
                 ))
             }
-
-            try {
-                julesDao.clearActivitiesBySession(sessionId)
-                julesDao.insertActivities(entities)
-            } catch (e: Exception) {
-                // Ignore DB error
-            }
-
-            emit(items)
+            julesDao.clearActivitiesBySession(sessionId)
+            julesDao.insertActivities(entities)
         } catch (e: Exception) {
-            // Ignore network/processing error
-        }
+            android.util.Log.e("JulesRepository", "refreshActivitiesInternal failed for $sessionId", e)
         }
     }
 
@@ -1331,9 +1303,12 @@ class JulesRepository(
         val policy = settings.queuePolicyFor(backend())
         val accounts = settings.enabledAccountsFor(backend()).filter { it.apiKey in apiKeys }
         if (accounts.isEmpty()) return null
+
+        val dayEpoch = currentDayEpochUtc()
+        val dailyUsage = accountDailyUsageDao.getAllForDay(dayEpoch)
+
         val used = accounts.sumOf { account ->
-            // Caller may pass AccountDailyUsageDao via queue engine status instead
-            0
+            dailyUsage.find { it.accountId == account.id }?.startedCount ?: 0
         }
         return JulesQuota(used = used, limit = policy.dailyLimitPerAccount * accounts.size.coerceAtLeast(1))
     }
