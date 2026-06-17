@@ -14,6 +14,9 @@ interface JulesDao {
     @Query("SELECT * FROM jules_sessions WHERE sourceName = :sourceName AND isArchived = 0 ORDER BY lastUpdated DESC")
     suspend fun getSessionsBySource(sourceName: String): List<JulesSessionEntity>
 
+    @Query("SELECT * FROM jules_sessions WHERE sourceName = :sourceName AND isArchived = 0 ORDER BY lastUpdated DESC")
+    fun getSessionsFlowBySource(sourceName: String): Flow<List<JulesSessionEntity>>
+
     @Query("SELECT * FROM jules_sessions WHERE sourceName = :sourceName AND isArchived = 0 AND (prState IN ('merged', 'closed') OR (prUrl IS NULL AND sessionState IN ('COMPLETED', 'FAILED')))")
     suspend fun getCompletedSessions(sourceName: String): List<JulesSessionEntity>
 
@@ -77,6 +80,9 @@ interface JulesDao {
 
     @Query("SELECT * FROM jules_activities WHERE sessionId = :sessionId ORDER BY sortTimestamp ASC")
     suspend fun getActivitiesBySession(sessionId: String): List<JulesActivityEntity>
+
+    @Query("SELECT * FROM jules_activities WHERE sessionId = :sessionId ORDER BY sortTimestamp ASC")
+    fun getActivitiesFlowBySession(sessionId: String): Flow<List<JulesActivityEntity>>
 
     @Query("DELETE FROM jules_activities WHERE sessionId = :sessionId AND isPendingOffline = 0 AND type != 'github_log'")
     suspend fun clearActivitiesBySession(sessionId: String)

@@ -539,6 +539,7 @@ fun MainUIPreview() {
                 object : JulesDao {
                     override suspend fun insertSessions(sessions: List<JulesSessionEntity>) {}
                     override suspend fun getSessionsBySource(sourceName: String): List<JulesSessionEntity> = emptyList()
+                    override fun getSessionsFlowBySource(sourceName: String): kotlinx.coroutines.flow.Flow<List<JulesSessionEntity>> = kotlinx.coroutines.flow.flowOf(emptyList())
                     override suspend fun getCompletedSessions(sourceName: String): List<JulesSessionEntity> = emptyList()
                     override suspend fun getAllCompletedSessions(): List<JulesSessionEntity> = emptyList()
                     override suspend fun getSessionsBySourceAndKey(sourceName: String, apiKey: String): List<JulesSessionEntity> = emptyList()
@@ -558,11 +559,17 @@ fun MainUIPreview() {
                     override suspend fun updateActivitiesSessionId(oldSessionId: String, newSessionId: String) {}
                     override suspend fun insertActivities(activities: List<JulesActivityEntity>) {}
                     override suspend fun getActivitiesBySession(sessionId: String): List<JulesActivityEntity> = emptyList()
+                    override fun getActivitiesFlowBySession(sessionId: String): kotlinx.coroutines.flow.Flow<List<JulesActivityEntity>> = kotlinx.coroutines.flow.flowOf(emptyList())
                     override suspend fun clearActivitiesBySession(sessionId: String) {}
                     override suspend fun insertSources(sources: List<JulesSourceEntity>) {}
                     override suspend fun getSources(): List<JulesSourceEntity> = emptyList()
                     override fun getSourcesFlow(): kotlinx.coroutines.flow.Flow<List<JulesSourceEntity>> = kotlinx.coroutines.flow.flowOf(emptyList())
                     override suspend fun clearSources() {}
+                },
+                object : fr.geoking.julius.persistence.AccountDailyUsageDao {
+                    override suspend fun getUsage(accountId: String, dayEpoch: Long) = null
+                    override suspend fun getAllForDay(dayEpoch: Long) = emptyList<fr.geoking.julius.persistence.AccountDailyUsageEntity>()
+                    override suspend fun upsert(entity: fr.geoking.julius.persistence.AccountDailyUsageEntity) {}
                 },
                 object : NetworkService {
                     override val status = MutableStateFlow(NetworkStatus())

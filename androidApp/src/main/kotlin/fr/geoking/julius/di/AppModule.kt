@@ -449,7 +449,7 @@ val appModule = module {
     single { get<AppDatabase>().featureDao() }
     single { get<AppDatabase>().accountDailyUsageDao() }
 
-    single { JulesRepository(androidContext(), get(), get(), get(), get(), get(), get()) }
+    single { JulesRepository(androidContext(), get(), get(), get(), get(), get(), get(), get()) }
     single { FeatureRepository(androidContext(), get(), get()) }
     single { AccountAllocator() }
     single { FeatureGitHubLifecycle(get(), get(), get()) }

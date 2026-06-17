@@ -245,19 +245,13 @@ class FeatureRepository(
     suspend fun refreshFeatures(sourceName: String?, apiKeys: List<String>, githubToken: String) {
         julesRepository.syncOfflineData()
         if (sourceName != null) {
-            julesRepository.getSessions(apiKeys, sourceName, githubToken).collect { sessions ->
-                autoPromoteOrphans(kotlinx.coroutines.GlobalScope, sourceName, sessions)
-            }
+            julesRepository.refreshSessionsInternal(apiKeys, sourceName, githubToken)
         } else {
-            // Global reconcile: refresh the source list, then pull sessions for every known
-            // project and auto-promote orphan conversations (sessions without a feature).
             julesRepository.refreshSources(apiKeys)
             val sources = runCatching { julesRepository.getSourcesCached() }.getOrDefault(emptyList())
             for (src in sources) {
                 try {
-                    julesRepository.getSessions(apiKeys, src.name, githubToken).collect { sessions ->
-                        autoPromoteOrphans(kotlinx.coroutines.GlobalScope, src.name, sessions)
-                    }
+                    julesRepository.refreshSessionsInternal(apiKeys, src.name, githubToken)
                 } catch (e: Exception) {
                     android.util.Log.e("FeatureRepository", "Global reconcile failed for ${src.name}", e)
                 }

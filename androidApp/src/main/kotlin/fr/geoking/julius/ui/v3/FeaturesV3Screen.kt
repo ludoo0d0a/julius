@@ -80,14 +80,16 @@ fun FeaturesV3Screen(
     var isRefreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    // On open: reconcile features from DB + conversations from agents (orphan sessions
-    // become features). sourceName == null reconciles every project (global).
+    // On open: background reconcile features from DB + conversations from agents.
     LaunchedEffect(sourceName) {
         isRefreshing = true
         val apiKeys = deps.settingsManager.settings.value.julesApiKeys()
         val githubToken = deps.settingsManager.settings.value.githubApiKey
-        runCatching { deps.featureRepository.refreshFeatures(sourceName, apiKeys, githubToken) }
-        isRefreshing = false
+        try {
+            deps.featureRepository.refreshFeatures(sourceName, apiKeys, githubToken)
+        } finally {
+            isRefreshing = false
+        }
     }
 
     val featuresFlow = remember { deps.featureRepository.getAllFeatures() }
@@ -114,8 +116,11 @@ fun FeaturesV3Screen(
                 isRefreshing = true
                 val apiKeys = deps.settingsManager.settings.value.julesApiKeys()
                 val githubToken = deps.settingsManager.settings.value.githubApiKey
-                deps.featureRepository.refreshFeatures(sourceName, apiKeys, githubToken)
-                isRefreshing = false
+                try {
+                    deps.featureRepository.refreshFeatures(sourceName, apiKeys, githubToken)
+                } finally {
+                    isRefreshing = false
+                }
             }
         },
         modifier = Modifier.fillMaxSize()
