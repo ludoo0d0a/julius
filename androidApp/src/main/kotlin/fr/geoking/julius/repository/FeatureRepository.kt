@@ -2,6 +2,7 @@ package fr.geoking.julius.repository
 
 import android.content.Context
 import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -267,7 +268,13 @@ class FeatureRepository(
             val request = OneTimeWorkRequestBuilder<FeatureSchedulerWorker>()
                 .setConstraints(constraints)
                 .build()
-            WorkManager.getInstance(context).enqueue(request)
+            // Unique work so repeated triggers (e.g. addFeature + a UI re-trigger) collapse
+            // into a single serialized worker run instead of two concurrent ticks.
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                FeatureSchedulerWorker.WORK_NAME,
+                ExistingWorkPolicy.APPEND_OR_REPLACE,
+                request,
+            )
         } catch (e: Exception) {
             android.util.Log.e("FeatureRepository", "Failed to schedule worker", e)
         }

@@ -103,7 +103,8 @@ class CodingAgentQueueEngine(
         val activeSessions = julesRepository.getAllActiveSessions()
 
         while (slots > 0) {
-            val pending = featureDao.getNextPendingFeature() ?: break
+            // Pick the account before claiming so a claimed feature is never left QUEUED
+            // without a start attempt when no account is available.
             val account = accountAllocator.selectAccount(
                 backend = backend,
                 accounts = accounts,
@@ -112,6 +113,9 @@ class CodingAgentQueueEngine(
                 dailyUsage = dailyUsage,
                 dayEpoch = dayEpoch,
             ) ?: break
+            // Atomic claim: flips the feature to QUEUED in one transaction so concurrent
+            // ticks (worker x worker, or worker x UI tick) can't start a second conversation.
+            val pending = featureDao.claimNextPendingFeature(System.currentTimeMillis()) ?: break
 
             try {
                 featureRepository.startFeature(pending.id, account)

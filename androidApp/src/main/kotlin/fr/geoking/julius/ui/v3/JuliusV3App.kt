@@ -677,8 +677,9 @@ private fun AddFeatureV3Screen(
                     saving = true
                     scope.launch {
                         try {
+                            // addFeature() already schedules the queue worker; a second
+                            // call here spawned a duplicate run that started two conversations.
                             deps.featureRepository.addFeature(title.trim(), desc.trim(), 0, source.trim())
-                            deps.featureRepository.scheduleWorker()
                             onDone("Feature ajoutée à la file")
                         } finally {
                             saving = false

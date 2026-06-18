@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
@@ -35,6 +36,25 @@ interface FeatureDao {
 
     @Query("SELECT * FROM features WHERE status = 'PENDING' AND isArchived = 0 ORDER BY priority DESC, position ASC LIMIT 1")
     suspend fun getNextPendingFeature(): FeatureEntity?
+
+    @Query("UPDATE features SET status = 'QUEUED', updatedAt = :now WHERE id = :id")
+    suspend fun markFeatureQueued(id: String, now: Long)
+
+    /**
+     * Atomically claim the next PENDING feature by flipping it to QUEUED inside a single
+     * transaction, returning the feature that was claimed (or null if none are pending).
+     *
+     * This is the guard against duplicate conversations: SQLite serializes write
+     * transactions, so two concurrent queue ticks can never both claim the same feature —
+     * the loser sees it already QUEUED and moves on. Without this, the read-then-mark gap
+     * let a single new feature start two sessions.
+     */
+    @Transaction
+    suspend fun claimNextPendingFeature(now: Long): FeatureEntity? {
+        val next = getNextPendingFeature() ?: return null
+        markFeatureQueued(next.id, now)
+        return next
+    }
 
     @Query("SELECT COUNT(*) FROM features WHERE (status = 'IN_PROGRESS' OR status = 'QUEUED') AND isArchived = 0")
     suspend fun getActiveFeaturesCount(): Int
