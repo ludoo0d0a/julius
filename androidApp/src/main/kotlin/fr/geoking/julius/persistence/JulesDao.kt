@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -98,4 +99,15 @@ interface JulesDao {
 
     @Query("DELETE FROM jules_sources")
     suspend fun clearSources()
+
+    /**
+     * Atomically swap the cached source list. Wrapping the clear + insert in a single
+     * transaction means the [getSourcesFlow] cache never momentarily emits an empty list
+     * during a background refresh (which would blink the UI back to the loading/empty state).
+     */
+    @Transaction
+    suspend fun replaceSources(sources: List<JulesSourceEntity>) {
+        clearSources()
+        insertSources(sources)
+    }
 }

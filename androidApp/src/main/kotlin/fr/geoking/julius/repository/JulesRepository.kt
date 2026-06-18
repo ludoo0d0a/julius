@@ -190,8 +190,8 @@ class JulesRepository(
                         lastUpdated = now
                     )
                 }
-                julesDao.clearSources()
-                julesDao.insertSources(entities)
+                // Atomic swap so the cached source Flow never blinks empty mid-refresh.
+                julesDao.replaceSources(entities)
             }
         } catch (e: Exception) {
             android.util.Log.e("JulesRepository", "Failed to refresh sources", e)
