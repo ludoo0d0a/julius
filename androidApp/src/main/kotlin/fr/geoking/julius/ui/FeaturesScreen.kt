@@ -374,7 +374,7 @@ fun FeaturesScreen(
                                         } ?: sources.firstOrNull()?.name ?: ""
                                         featureRepository.addFeature(
                                             title = newFeatureTitle,
-                                            description = "",
+                                            description = newFeatureTitle,
                                             priority = 0,
                                             sourceName = sourceName
                                         )
@@ -1162,7 +1162,7 @@ fun AddFeatureFullScreen(
 
                 Button(
                     onClick = { onConfirm(title, description, priority, selectedSource) },
-                    enabled = title.isNotBlank() && selectedSource.isNotBlank(),
+                    enabled = title.isNotBlank() && description.isNotBlank() && selectedSource.isNotBlank(),
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = ColorHelper.JulesAccent)
                 ) {

@@ -102,10 +102,10 @@ fun AddFeatureScreen(
             )
             FilledTonalButton(
                 onClick = {
-                    if (title.isNotBlank()) onSave(title.trim(), description.trim(), sourceName.trim())
+                    if (title.isNotBlank() && description.isNotBlank()) onSave(title.trim(), description.trim(), sourceName.trim())
                 },
                 modifier = Modifier.padding(top = 16.dp),
-                enabled = title.isNotBlank(),
+                enabled = title.isNotBlank() && description.isNotBlank(),
             ) {
                 Text("Add to queue")
             }

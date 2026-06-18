@@ -51,9 +51,11 @@ internal fun JulesConversationsContent(
     sessions: List<JulesSessionEntity>,
     features: List<FeatureEntity>,
     loading: Boolean,
+    newSessionTitle: String,
+    onNewSessionTitleChange: (String) -> Unit,
     newSessionPrompt: String,
     onNewSessionPromptChange: (String) -> Unit,
-    onCreateSession: () -> Unit,
+    onCreateSession: (title: String, prompt: String) -> Unit,
     onOpenSession: (JulesSessionEntity) -> Unit,
     onGetPrDetails: (JulesSessionEntity, (GitHubClient.GitHubPullRequestDetail?) -> Unit) -> Unit,
     onArchive: (JulesSessionEntity) -> Unit,
@@ -84,25 +86,63 @@ internal fun JulesConversationsContent(
         modifier = Modifier.fillMaxSize(),
     ) {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
+            item(key = "new_session_title") {
+                OutlinedTextField(
+                    value = newSessionTitle,
+                    onValueChange = onNewSessionTitleChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    placeholder = { Text("Titre de la conversation") },
+                    trailingIcon = {
+                        VoiceInputIcon(
+                            voiceManager = voiceManager,
+                            onTranscriptionReceived = { onNewSessionTitleChange((newSessionTitle + " " + it).trim()) }
+                        )
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = ColorHelper.JulesAccent,
+                        focusedBorderColor = ColorHelper.JulesAccent,
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                )
+            }
+
             item(key = "new_session") {
                 OutlinedTextField(
                     value = newSessionPrompt,
                     onValueChange = onNewSessionPromptChange,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    placeholder = { Text("What should Jules do?") },
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    placeholder = { Text("Description / Prompt") },
                     trailingIcon = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             VoiceInputIcon(
                                 voiceManager = voiceManager,
                                 onTranscriptionReceived = { onNewSessionPromptChange((newSessionPrompt + " " + it).trim()) }
                             )
-                            IconButton(onClick = onCreateSession, enabled = newSessionPrompt.isNotBlank() && !loading) {
+                            IconButton(
+                                onClick = {
+                                    onCreateSession(newSessionTitle, newSessionPrompt)
+                                },
+                                enabled = newSessionPrompt.isNotBlank() && newSessionTitle.isNotBlank() && !loading
+                            ) {
                                 Icon(Icons.Default.Add, contentDescription = "Create")
                             }
                         }
                     },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = ColorHelper.JulesAccent,
+                        focusedBorderColor = ColorHelper.JulesAccent,
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                    ),
+                    shape = RoundedCornerShape(12.dp),
                 )
             }
 

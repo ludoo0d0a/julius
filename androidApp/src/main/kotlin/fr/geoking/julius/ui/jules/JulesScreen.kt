@@ -87,6 +87,7 @@ fun JulesScreen(
     var hideCompleted by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var inputText by remember { mutableStateOf("") }
+    var newSessionTitle by remember { mutableStateOf("") }
     var newSessionPrompt by remember { mutableStateOf("") }
     var selectedSourceName by remember { mutableStateOf<String?>(null) }
     var selectedSourceDisplayName by remember { mutableStateOf("Select project") }
@@ -636,11 +637,12 @@ fun JulesScreen(
                                 sessions = sessions,
                                 features = features,
                                 loading = loading,
+                                newSessionTitle = newSessionTitle,
+                                onNewSessionTitleChange = { newSessionTitle = it },
                                 newSessionPrompt = newSessionPrompt,
                                 onNewSessionPromptChange = { newSessionPrompt = it },
-                                onCreateSession = {
+                                onCreateSession = { title, prompt ->
                                     val source = selectedSourceName ?: return@JulesConversationsContent
-                                    if (newSessionPrompt.isBlank()) return@JulesConversationsContent
                                     scope.launch {
                                         loading = true
                                         clearError()
@@ -648,14 +650,15 @@ fun JulesScreen(
                                             val linkedFeatureId = featureId.takeUnless { JulesNavigation.isOrphanFeature(it) }
                                             val sessionId = julesRepository.createSession(
                                                 apiKeys = apiKeys,
-                                                prompt = newSessionPrompt,
+                                                prompt = prompt,
                                                 source = source,
-                                                title = newSessionPrompt.take(80),
+                                                title = title,
                                                 featureId = linkedFeatureId,
                                             )
                                             val session = julesRepository.getSession(sessionId)
                                             currentSession = session
                                             newSessionPrompt = ""
+                                            newSessionTitle = ""
                                             loadSessions()
                                             nav.push(HarnessRoute.Chat(sessionId))
                                         } catch (e: Exception) {
@@ -690,7 +693,7 @@ fun JulesScreen(
                                 },
                                 onCreateFeatureAndLink = { session, title ->
                                     scope.launch {
-                                        val newFeatureId = featureRepository.addFeature(title, "", 0, session.sourceName)
+                                        val newFeatureId = featureRepository.addFeature(title, title, 0, session.sourceName)
                                         julesRepository.linkSessionToFeature(session.id, newFeatureId)
                                         loadSessions()
                                     }
@@ -739,7 +742,7 @@ fun JulesScreen(
                                 },
                                 onCreateFeature = { title ->
                                     scope.launch {
-                                        featureRepository.addFeature(title, "", 0, route.sourceName)
+                                        featureRepository.addFeature(title, title, 0, route.sourceName)
                                     }
                                 },
                             )

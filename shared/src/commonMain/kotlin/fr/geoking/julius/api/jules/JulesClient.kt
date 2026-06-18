@@ -108,8 +108,8 @@ class JulesClient(
     data class CreateSessionRequest(
         val prompt: String,
         val sourceContext: SourceContext,
+        val title: String,
         val automationMode: String? = null,
-        val title: String? = null,
         val requirePlanApproval: Boolean? = null
     )
 
@@ -156,8 +156,8 @@ class JulesClient(
         apiKey: String,
         prompt: String,
         source: String,
+        title: String,
         startingBranch: String? = null,
-        title: String? = null,
         automationMode: String? = null,
         requirePlanApproval: Boolean? = null
     ): JulesSession {
@@ -168,8 +168,8 @@ class JulesClient(
                 source = sourceName(source),
                 githubRepoContext = if (startingBranch != null) GitHubRepoContext(startingBranch = startingBranch) else null
             ),
-            automationMode = automationMode,
             title = title,
+            automationMode = automationMode,
             requirePlanApproval = requirePlanApproval
         )
         val fullUrl = "$baseUrl/sessions"

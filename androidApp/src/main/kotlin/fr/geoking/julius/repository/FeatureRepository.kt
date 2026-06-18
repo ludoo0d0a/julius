@@ -36,6 +36,9 @@ class FeatureRepository(
         status: String = "PENDING",
         sessionId: String? = null,
     ): String {
+        if (title.isBlank()) throw Exception("Le titre est obligatoire")
+        if (description.isBlank()) throw Exception("La description est obligatoire")
+
         val maxPos = featureDao.getMaxPosition() ?: -1
         val id = UUID.randomUUID().toString()
         val feature = FeatureEntity(

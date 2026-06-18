@@ -673,7 +673,7 @@ private fun AddFeatureV3Screen(
         Spacer(Modifier.height(24.dp))
         Button(
             onClick = {
-                if (title.isNotBlank() && source.isNotBlank()) {
+                if (title.isNotBlank() && desc.isNotBlank() && source.isNotBlank()) {
                     saving = true
                     scope.launch {
                         try {
@@ -686,7 +686,7 @@ private fun AddFeatureV3Screen(
                     }
                 }
             },
-            enabled = title.isNotBlank() && source.isNotBlank() && !saving,
+            enabled = title.isNotBlank() && desc.isNotBlank() && source.isNotBlank() && !saving,
             modifier = Modifier.fillMaxWidth().height(56.dp),
             colors = ButtonDefaults.buttonColors(containerColor = V3.Accent, contentColor = V3.AccentInk),
         ) {

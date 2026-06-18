@@ -506,8 +506,8 @@ class JulesRepository(
         title: String,
         featureId: String? = null,
     ): String {
-        val finalPrompt = prompt.ifBlank { title }.ifBlank { "New session" }
-        val finalTitle = title.ifBlank { prompt }.take(80).ifBlank { "New session" }
+        if (title.isBlank()) throw Exception("Le titre est obligatoire")
+        if (prompt.isBlank()) throw Exception("La description est obligatoire")
 
         val isOnline = networkService.status.value.isConnected
         if (isOnline) {
@@ -525,11 +525,11 @@ class JulesRepository(
                     agentId = agentId,
                     agentVersion = agentVersion,
                     environmentId = environmentId,
-                    prompt = finalPrompt,
+                    prompt = prompt,
                     owner = owner,
                     repo = repo,
                     githubToken = githubToken,
-                    title = finalTitle
+                    title = title
                 )
                 val entity = JulesSessionEntity(
                     id = session.id,
@@ -560,9 +560,9 @@ class JulesRepository(
             val resolvedSource = resolveJulesSource(source)
             val session = julesClient.createSession(
                 apiKey = apiKey,
-                prompt = finalPrompt,
+                prompt = prompt,
                 source = resolvedSource,
-                title = finalTitle
+                title = title
             )
             val entity = JulesSessionEntity(
                 id = session.id,
@@ -589,8 +589,8 @@ class JulesRepository(
             val tempId = "offline_${java.util.UUID.randomUUID()}"
             val entity = JulesSessionEntity(
                 id = tempId,
-                title = finalTitle,
-                prompt = finalPrompt,
+                title = title,
+                prompt = prompt,
                 sourceName = source,
                 prUrl = null,
                 prTitle = null,
@@ -633,7 +633,7 @@ class JulesRepository(
         val now = System.currentTimeMillis()
         val entity = JulesSessionEntity(
             id = id,
-            title = title.ifBlank { "Conversation" },
+            title = title,
             prompt = prompt,
             sourceName = source,
             prUrl = null,
