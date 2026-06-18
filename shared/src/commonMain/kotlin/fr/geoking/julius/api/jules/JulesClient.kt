@@ -184,7 +184,8 @@ class JulesClient(
                 httpCode = response.status.value,
                 message = "Jules createSession: $responseBody",
                 url = fullUrl,
-                provider = "Jules"
+                provider = "Jules",
+                requestBody = json.encodeToString(CreateSessionRequest.serializer(), body)
             )
         }
         return json.decodeFromString(JulesSession.serializer(), responseBody)
@@ -255,18 +256,20 @@ class JulesClient(
     suspend fun pauseSession(apiKey: String, sessionId: String) {
         val token = apiKeyHeader(apiKey)
         val url = "$baseUrl/${sessionName(sessionId)}:pause"
+        val body = JsonObject(emptyMap())
         val response = client.post(url) {
             header("X-Goog-Api-Key", token)
             contentType(ContentType.Application.Json)
-            setBody(JsonObject(emptyMap()))
+            setBody(body)
         }
         if (response.status.value !in 200..299) {
-            val body = response.bodyAsText()
+            val responseBody = response.bodyAsText()
             throw NetworkException(
                 httpCode = response.status.value,
-                message = "Jules pauseSession: $body",
+                message = "Jules pauseSession: $responseBody",
                 url = url,
-                provider = "Jules"
+                provider = "Jules",
+                requestBody = body.toString()
             )
         }
     }
@@ -274,18 +277,20 @@ class JulesClient(
     suspend fun resumeSession(apiKey: String, sessionId: String) {
         val token = apiKeyHeader(apiKey)
         val url = "$baseUrl/${sessionName(sessionId)}:resume"
+        val body = JsonObject(emptyMap())
         val response = client.post(url) {
             header("X-Goog-Api-Key", token)
             contentType(ContentType.Application.Json)
-            setBody(JsonObject(emptyMap()))
+            setBody(body)
         }
         if (response.status.value !in 200..299) {
-            val body = response.bodyAsText()
+            val responseBody = response.bodyAsText()
             throw NetworkException(
                 httpCode = response.status.value,
-                message = "Jules resumeSession: $body",
+                message = "Jules resumeSession: $responseBody",
                 url = url,
-                provider = "Jules"
+                provider = "Jules",
+                requestBody = body.toString()
             )
         }
     }
@@ -298,18 +303,20 @@ class JulesClient(
     suspend fun sendMessage(apiKey: String, sessionId: String, prompt: String) {
         val token = apiKeyHeader(apiKey)
         val url = "$baseUrl/${sessionName(sessionId)}:sendMessage"
+        val body = SendMessageRequest(prompt = prompt)
         val response = client.post(url) {
             header("X-Goog-Api-Key", token)
             contentType(ContentType.Application.Json)
-            setBody(SendMessageRequest(prompt = prompt))
+            setBody(body)
         }
         if (response.status.value !in 200..299) {
-            val body = response.bodyAsText()
+            val responseBody = response.bodyAsText()
             throw NetworkException(
                 httpCode = response.status.value,
-                message = "Jules sendMessage: $body",
+                message = "Jules sendMessage: $responseBody",
                 url = url,
-                provider = "Jules"
+                provider = "Jules",
+                requestBody = json.encodeToString(SendMessageRequest.serializer(), body)
             )
         }
     }
@@ -319,18 +326,20 @@ class JulesClient(
     suspend fun approvePlan(apiKey: String, sessionId: String) {
         val token = apiKeyHeader(apiKey)
         val url = "$baseUrl/${sessionName(sessionId)}:approvePlan"
+        val body = JsonObject(emptyMap())
         val response = client.post(url) {
             header("X-Goog-Api-Key", token)
             contentType(ContentType.Application.Json)
-            setBody(JsonObject(emptyMap()))
+            setBody(body)
         }
         if (response.status.value !in 200..299) {
-            val body = response.bodyAsText()
+            val responseBody = response.bodyAsText()
             throw NetworkException(
                 httpCode = response.status.value,
-                message = "Jules approvePlan: $body",
+                message = "Jules approvePlan: $responseBody",
                 url = url,
-                provider = "Jules"
+                provider = "Jules",
+                requestBody = body.toString()
             )
         }
     }
