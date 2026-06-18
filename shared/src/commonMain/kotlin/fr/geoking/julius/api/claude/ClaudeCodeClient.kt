@@ -98,12 +98,13 @@ class ClaudeCodeClient(
                 )
             }
         }
+        val bodyStr = body.toString()
         val response = client.post(url) {
             applyAnthropicHeaders(apiKey)
             contentType(ContentType.Application.Json)
-            setBody(body.toString())
+            setBody(bodyStr)
         }
-        return decodeOrThrow(response.bodyAsText(), response.status.value, url, ClaudeAgent.serializer())
+        return decodeOrThrow(response.bodyAsText(), response.status.value, url, ClaudeAgent.serializer(), requestBody = bodyStr)
     }
 
     suspend fun createEnvironment(apiKey: String, name: String): ClaudeEnvironment {
@@ -115,12 +116,13 @@ class ClaudeCodeClient(
                 putJsonObject("networking") { put("type", "unrestricted") }
             }
         }
+        val bodyStr = body.toString()
         val response = client.post(url) {
             applyAnthropicHeaders(apiKey)
             contentType(ContentType.Application.Json)
-            setBody(body.toString())
+            setBody(bodyStr)
         }
-        return decodeOrThrow(response.bodyAsText(), response.status.value, url, ClaudeEnvironment.serializer())
+        return decodeOrThrow(response.bodyAsText(), response.status.value, url, ClaudeEnvironment.serializer(), requestBody = bodyStr)
     }
 
     // --- Sessions ---
@@ -181,12 +183,13 @@ class ClaudeCodeClient(
                 )
             }
         }
+        val bodyStr = body.toString()
         val response = client.post(url) {
             applyAnthropicHeaders(apiKey)
             contentType(ContentType.Application.Json)
-            setBody(body.toString())
+            setBody(bodyStr)
         }
-        val session = decodeOrThrow(response.bodyAsText(), response.status.value, url, ClaudeSession.serializer())
+        val session = decodeOrThrow(response.bodyAsText(), response.status.value, url, ClaudeSession.serializer(), requestBody = bodyStr)
         if (prompt.isNotBlank()) {
             sendMessage(apiKey, session.id, prompt)
         }
@@ -215,13 +218,14 @@ class ClaudeCodeClient(
 
     suspend fun archiveSession(apiKey: String, sessionId: String) {
         val url = "$baseUrl/v1/sessions/$sessionId/archive"
+        val body = "{}"
         val response = client.post(url) {
             applyAnthropicHeaders(apiKey)
             contentType(ContentType.Application.Json)
-            setBody("{}")
+            setBody(body)
         }
         if (response.status.value !in 200..299) {
-            throw networkError(response.status.value, response.bodyAsText(), url)
+            throw networkError(response.status.value, response.bodyAsText(), url, requestBody = body)
         }
     }
 
@@ -263,13 +267,14 @@ class ClaudeCodeClient(
                 )
             }
         }
+        val bodyStr = body.toString()
         val response = client.post(url) {
             applyAnthropicHeaders(apiKey)
             contentType(ContentType.Application.Json)
-            setBody(body.toString())
+            setBody(bodyStr)
         }
         if (response.status.value !in 200..299) {
-            throw networkError(response.status.value, response.bodyAsText(), url)
+            throw networkError(response.status.value, response.bodyAsText(), url, requestBody = bodyStr)
         }
     }
 
@@ -416,16 +421,18 @@ class ClaudeCodeClient(
         body: String,
         status: Int,
         url: String,
-        serializer: kotlinx.serialization.KSerializer<T>
+        serializer: kotlinx.serialization.KSerializer<T>,
+        requestBody: String? = null
     ): T {
-        if (status !in 200..299) throw networkError(status, body, url)
+        if (status !in 200..299) throw networkError(status, body, url, requestBody = requestBody)
         return json.decodeFromString(serializer, body)
     }
 
-    private fun networkError(httpCode: Int, body: String, url: String) = NetworkException(
+    private fun networkError(httpCode: Int, body: String, url: String, requestBody: String? = null) = NetworkException(
         httpCode = httpCode,
         message = "Claude Code: $body",
         url = url,
-        provider = "Claude Code"
+        provider = "Claude Code",
+        requestBody = requestBody
     )
 }
