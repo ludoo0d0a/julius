@@ -21,6 +21,7 @@ import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.feature.voice.VoskTranscriber
 import fr.geoking.julius.shared.action.ActionExecutor
 import fr.geoking.julius.shared.platform.PermissionManager
+import fr.geoking.julius.api.claude.ClaudeClient
 import fr.geoking.julius.api.claude.ClaudeCodeClient
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.api.github.GitHubClient
@@ -357,6 +358,7 @@ val appModule = module {
     }
 
     single<JulesClient> { JulesClient(get()) }
+    single<ClaudeClient> { ClaudeClient(get()) }
     single<ClaudeCodeClient> { ClaudeCodeClient(get()) }
     single<GitHubClient> { GitHubClient(get()) }
     single { FirebaseAuth.getInstance() }

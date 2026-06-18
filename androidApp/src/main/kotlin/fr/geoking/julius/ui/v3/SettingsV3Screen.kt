@@ -15,13 +15,14 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.api.codingagent.CodingAgentBackend
+import fr.geoking.julius.ui.AgentApiUsageTarget
 import fr.geoking.julius.queue.AgentAccount
 import fr.geoking.julius.queue.QueuePolicy
 import fr.geoking.julius.queue.queuePolicyFor
 import java.util.UUID
 
 @Composable
-fun SettingsV3Screen(deps: V3Deps, onOpenAgent: (String?) -> Unit) {
+fun SettingsV3Screen(deps: V3Deps, onOpenAgent: (String?) -> Unit, onOpenBilling: (String) -> Unit) {
     val settings by deps.settingsManager.settings.collectAsState()
     val backend = settings.codingAgentBackend
     val policy = settings.queuePolicyFor(backend)
@@ -56,6 +57,14 @@ fun SettingsV3Screen(deps: V3Deps, onOpenAgent: (String?) -> Unit) {
                     onClick = { onOpenAgent(null) },
                 )
             }
+            Spacer(Modifier.height(4.dp))
+
+            SectionLabel("Facturation API", backend.name)
+            AgentBillingNavV3Row(
+                title = "Usage, tokens & quotas",
+                subtitle = "Limites et modèle de coût pour ${backend.name}",
+                onClick = { onOpenBilling(AgentApiUsageTarget.Coding(backend).encode()) },
+            )
             Spacer(Modifier.height(4.dp))
 
             // Queue strategy (per backend)

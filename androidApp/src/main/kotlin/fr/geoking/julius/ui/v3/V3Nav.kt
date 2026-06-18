@@ -20,6 +20,7 @@ sealed class V3Route {
     data class PrConflict(val sessionId: String, val prUrl: String) : V3Route()
     data class AddFeature(val sourceName: String?) : V3Route()
     data class AgentDetail(val accountId: String?) : V3Route()
+    data class AgentBilling(val targetKey: String) : V3Route()
     data class JsonDebug(val title: String, val json: String) : V3Route()
 
     /** Which bottom-bar tab is highlighted for this route. */
@@ -27,7 +28,7 @@ sealed class V3Route {
         get() = when (this) {
             is Scheduler -> Scheduler
             is Features -> Features
-            is Settings, is AgentDetail -> Settings
+            is Settings, is AgentDetail, is AgentBilling -> Settings
             is Projects -> Projects
             is ProjectFeatures, is FeatureDetail, is Conversation, is GitCi, is PrConflict, is AddFeature, is JsonDebug -> Features
         }

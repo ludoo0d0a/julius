@@ -59,7 +59,7 @@ import fr.geoking.julius.queue.QueueStatus
 import java.util.UUID
 import fr.geoking.julius.shared.voice.SttEnginePreference
 
-enum class SettingsScreenPage { Main, ApiKeys, Agents, AgentDetails, GitHub, Jules, GitCi }
+enum class SettingsScreenPage { Main, ApiKeys, Agents, AgentDetails, AgentBilling, GitHub, Jules, GitCi }
 
 /** Tab index for [AgentsPage]: 0 = all, 1 = remote, 2 = local (on-device). */
 private const val AGENTS_FILTER_ALL = 0
@@ -102,6 +102,8 @@ fun SettingsScreen(
         )
     }
 
+    var billingTarget by rememberSaveable { mutableStateOf<String?>(null) }
+
     var agentsFilterMode by rememberSaveable { mutableIntStateOf(AGENTS_FILTER_ALL) }
 
     fun goBack() {
@@ -131,6 +133,7 @@ fun SettingsScreen(
                                     else -> "Agents"
                                 }
                                 SettingsScreenPage.AgentDetails -> selectedAgentForDetails?.name ?: "Agent Settings"
+                                SettingsScreenPage.AgentBilling -> AgentApiUsageTarget.decode(billingTarget ?: "")?.displayName?.let { "$it — billing" } ?: "Usage & billing"
                                 SettingsScreenPage.GitHub -> "GitHub"
                                 SettingsScreenPage.Jules -> "Coding agent"
                                 SettingsScreenPage.GitCi -> "Git & CI"
@@ -241,6 +244,10 @@ fun SettingsScreen(
                         onGetJulesApiKey = { context.openExternalUrl(CredentialUrls.JULES_API_KEYS) },
                         onGetAnthropicApiKey = { context.openExternalUrl(CredentialUrls.ANTHROPIC_API_KEYS) },
                         onCreateGitHubPat = { context.openExternalUrl(GitHubPatUrls.CREATE_CLASSIC_PAT) },
+                        onNavigateToBilling = { b ->
+                            billingTarget = AgentApiUsageTarget.Coding(b).encode()
+                            navigationStack.add(SettingsScreenPage.AgentBilling)
+                        },
                     )
                 }
                 SettingsScreenPage.AgentDetails -> {
@@ -249,8 +256,17 @@ fun SettingsScreen(
                             agent = agent,
                             settings = settings,
                             settingsManager = settingsManager,
-                            onSettingsChange = { settingsManager.saveSettings(it) }
+                            onSettingsChange = { settingsManager.saveSettings(it) },
+                            onNavigateToBilling = {
+                                billingTarget = AgentApiUsageTarget.Voice(agent).encode()
+                                navigationStack.add(SettingsScreenPage.AgentBilling)
+                            },
                         )
+                    }
+                }
+                SettingsScreenPage.AgentBilling -> {
+                    AgentApiUsageTarget.decode(billingTarget ?: "")?.let { target ->
+                        AgentBillingInfoPage(target = target)
                     }
                 }
                 SettingsScreenPage.GitCi -> {
@@ -623,6 +639,7 @@ fun AgentDetailsPage(
     settings: AppSettings,
     settingsManager: SettingsManager,
     onSettingsChange: (AppSettings) -> Unit,
+    onNavigateToBilling: () -> Unit,
 ) {
     val context = LocalContext.current
     val helper = remember { LlamatikModelHelper(context) }
@@ -639,6 +656,8 @@ fun AgentDetailsPage(
     var refreshTrigger by remember { mutableIntStateOf(0) }
 
     Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
+        AgentBillingNavRow(onClick = onNavigateToBilling)
+        Spacer(Modifier.height(8.dp))
         when (agent) {
             AgentType.OpenAI -> {
                 ApiKeyTextField(
@@ -1031,6 +1050,7 @@ fun CodingAgentSettingsPage(
     onGetJulesApiKey: () -> Unit,
     onGetAnthropicApiKey: () -> Unit,
     onCreateGitHubPat: () -> Unit,
+    onNavigateToBilling: (CodingAgentBackend) -> Unit,
 ) {
     Column(Modifier.verticalScroll(rememberScrollState())) {
         SettingsHeader("Backend")
@@ -1057,6 +1077,7 @@ fun CodingAgentSettingsPage(
                 label = { Text("Claude Code") },
             )
         }
+        AgentBillingNavRow(onClick = { onNavigateToBilling(backend) })
         AgentAccountsSection(
             backend = backend,
             accounts = agentAccounts,
@@ -1432,8 +1453,4 @@ fun GitHubTokenSection(
 private fun maskApiKey(key: String): String {
     if (key.length <= 8) return "••••••••"
     return "${key.take(4)}…${key.takeLast(4)}"
-}
-
-private fun Context.openExternalUrl(url: String) {
-    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
 }

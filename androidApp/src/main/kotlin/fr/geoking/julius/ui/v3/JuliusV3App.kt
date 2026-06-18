@@ -52,6 +52,7 @@ import fr.geoking.julius.repository.FeatureRepository
 import fr.geoking.julius.repository.GitHubBuildRepository
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.voice.VoiceManager
+import fr.geoking.julius.ui.AgentApiUsageTarget
 import fr.geoking.julius.ui.components.VoiceInputIcon
 import kotlinx.coroutines.launch
 
@@ -122,6 +123,7 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                                 is V3Route.ProjectFeatures -> route.sourceName
                                 is V3Route.AddFeature -> "Nouvelle feature"
                                 is V3Route.AgentDetail -> if (route.accountId == null) "Nouvel agent" else "Agent"
+                                is V3Route.AgentBilling -> AgentApiUsageTarget.decode(route.targetKey)?.displayName?.let { "$it — facturation" } ?: "Usage & billing"
                                 is V3Route.FeatureDetail -> "Détail Feature"
                                 is V3Route.Conversation -> session?.prTitle ?: session?.title?.ifBlank { session?.prompt?.take(48) } ?: "Conversation"
                                 is V3Route.GitCi -> "Git & CI"
@@ -341,8 +343,18 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                         deps = deps, sourceName = r.sourceName, onBack = { nav.pop() },
                         onDone = { msg -> nav.pop(); scope.launch { snackbar.showSnackbar(msg) } }
                     )
-                    is V3Route.Settings -> SettingsV3Screen(deps = deps, onOpenAgent = { nav.push(V3Route.AgentDetail(it)) })
-                    is V3Route.AgentDetail -> AgentDetailV3Screen(deps = deps, accountId = r.accountId, onBack = { nav.pop() })
+                    is V3Route.Settings -> SettingsV3Screen(
+                        deps = deps,
+                        onOpenAgent = { nav.push(V3Route.AgentDetail(it)) },
+                        onOpenBilling = { key -> nav.push(V3Route.AgentBilling(key)) },
+                    )
+                    is V3Route.AgentDetail -> AgentDetailV3Screen(
+                        deps = deps,
+                        accountId = r.accountId,
+                        onBack = { nav.pop() },
+                        onOpenBilling = { key -> nav.push(V3Route.AgentBilling(key)) },
+                    )
+                    is V3Route.AgentBilling -> AgentBillingV3Screen(targetKey = r.targetKey)
                     is V3Route.JsonDebug -> JsonDebugScreen(title = r.title, json = r.json, onBack = { nav.pop() })
                 }
             }

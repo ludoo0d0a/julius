@@ -1,20 +1,14 @@
 package fr.geoking.julius.api.claude
 
 import fr.geoking.julius.api.jules.JulesChatItem
-import fr.geoking.julius.shared.network.NetworkException
 import io.ktor.client.HttpClient
-import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
-import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -29,37 +23,26 @@ import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 
 /**
- * Client for Anthropic [Claude Managed Agents](https://platform.claude.com/docs/en/managed-agents/overview).
- * Remote cloud agent: mounts a GitHub repo, processes prompts, commits and pushes to branches/PRs.
+ * Client for Anthropic [Claude Managed Agents](https://platform.claude.com/docs/en/managed-agents/overview)
+ * (beta: `managed-agents-2026-04-01`).
  */
 class ClaudeCodeClient(
     private val client: HttpClient,
-    private val baseUrl: String = "https://api.anthropic.com"
+    private val baseUrl: String = ClaudeHttp.BASE_URL
 ) {
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = ClaudeHttp.json
 
     companion object {
-        private const val BETA_HEADER = "managed-agents-2026-04-01"
-        private const val API_VERSION = "2023-06-01"
         private val PR_URL_REGEX = Regex("https://github\\.com/[^/\\s]+/[^/\\s]+/pull/\\d+")
         private val BRANCH_URL_REGEX = Regex("https://github\\.com/[^/\\s]+/[^/\\s]+/tree/[^\\s]+")
     }
 
-    private fun requireApiKey(apiKey: String): String {
-        if (apiKey.isBlank()) {
-            throw NetworkException(
-                httpCode = null,
-                message = "Anthropic API key is required. Get one at platform.claude.com.",
-                provider = "Claude Code"
-            )
-        }
-        return apiKey
-    }
-
-    private fun HttpRequestBuilder.applyAnthropicHeaders(apiKey: String) {
-        header("x-api-key", requireApiKey(apiKey))
-        header("anthropic-version", API_VERSION)
-        header("anthropic-beta", BETA_HEADER)
+    /** Documented session status values. */
+    object SessionStatus {
+        const val RESCHEDULING = "rescheduling"
+        const val RUNNING = "running"
+        const val IDLE = "idle"
+        const val TERMINATED = "terminated"
     }
 
     // --- Agent & environment bootstrap ---
@@ -100,11 +83,17 @@ class ClaudeCodeClient(
         }
         val bodyStr = body.toString()
         val response = client.post(url) {
-            applyAnthropicHeaders(apiKey)
-            contentType(ContentType.Application.Json)
+            applyManagedAgentsHeaders(apiKey)
             setBody(bodyStr)
         }
-        return decodeOrThrow(response.bodyAsText(), response.status.value, url, ClaudeAgent.serializer(), requestBody = bodyStr)
+        return ClaudeHttp.decodeOrThrow(
+            response.bodyAsText(),
+            response.status.value,
+            url,
+            ClaudeAgent.serializer(),
+            "Claude Code",
+            requestBody = bodyStr
+        )
     }
 
     suspend fun createEnvironment(apiKey: String, name: String): ClaudeEnvironment {
@@ -118,11 +107,17 @@ class ClaudeCodeClient(
         }
         val bodyStr = body.toString()
         val response = client.post(url) {
-            applyAnthropicHeaders(apiKey)
-            contentType(ContentType.Application.Json)
+            applyManagedAgentsHeaders(apiKey)
             setBody(bodyStr)
         }
-        return decodeOrThrow(response.bodyAsText(), response.status.value, url, ClaudeEnvironment.serializer(), requestBody = bodyStr)
+        return ClaudeHttp.decodeOrThrow(
+            response.bodyAsText(),
+            response.status.value,
+            url,
+            ClaudeEnvironment.serializer(),
+            "Claude Code",
+            requestBody = bodyStr
+        )
     }
 
     // --- Sessions ---
@@ -132,6 +127,7 @@ class ClaudeCodeClient(
         val id: String = "",
         val title: String = "",
         val status: String = "",
+        val type: String = "",
         @SerialName("created_at") val createdAt: String = "",
         @SerialName("updated_at") val updatedAt: String = ""
     )
@@ -139,8 +135,13 @@ class ClaudeCodeClient(
     @Serializable
     data class ListSessionsResponse(
         val data: List<ClaudeSession> = emptyList(),
-        @SerialName("has_more") val hasMore: Boolean = false,
-        @SerialName("last_id") val lastId: String? = null
+        @SerialName("next_page") val nextPage: String? = null
+    )
+
+    @Serializable
+    data class DeletedSession(
+        val id: String = "",
+        val type: String = ""
     )
 
     suspend fun createSession(
@@ -185,11 +186,17 @@ class ClaudeCodeClient(
         }
         val bodyStr = body.toString()
         val response = client.post(url) {
-            applyAnthropicHeaders(apiKey)
-            contentType(ContentType.Application.Json)
+            applyManagedAgentsHeaders(apiKey)
             setBody(bodyStr)
         }
-        val session = decodeOrThrow(response.bodyAsText(), response.status.value, url, ClaudeSession.serializer(), requestBody = bodyStr)
+        val session = ClaudeHttp.decodeOrThrow(
+            response.bodyAsText(),
+            response.status.value,
+            url,
+            ClaudeSession.serializer(),
+            "Claude Code",
+            requestBody = bodyStr
+        )
         if (prompt.isNotBlank()) {
             sendMessage(apiKey, session.id, prompt)
         }
@@ -198,35 +205,61 @@ class ClaudeCodeClient(
 
     suspend fun getSession(apiKey: String, sessionId: String): ClaudeSession {
         val url = "$baseUrl/v1/sessions/$sessionId"
-        val response = client.get(url) { applyAnthropicHeaders(apiKey) }
-        return decodeOrThrow(response.bodyAsText(), response.status.value, url, ClaudeSession.serializer())
+        val response = client.get(url) { applyManagedAgentsHeaders(apiKey) }
+        return ClaudeHttp.decodeOrThrow(
+            response.bodyAsText(),
+            response.status.value,
+            url,
+            ClaudeSession.serializer(),
+            "Claude Code"
+        )
     }
 
-    suspend fun listSessions(apiKey: String, limit: Int = 50): ListSessionsResponse {
-        val url = "$baseUrl/v1/sessions?limit=$limit"
-        val response = client.get(url) { applyAnthropicHeaders(apiKey) }
-        return decodeOrThrow(response.bodyAsText(), response.status.value, url, ListSessionsResponse.serializer())
+    suspend fun listSessions(
+        apiKey: String,
+        limit: Int? = 50,
+        page: String? = null
+    ): ListSessionsResponse {
+        val url = buildString {
+            append("$baseUrl/v1/sessions")
+            val params = buildList {
+                if (limit != null) add("limit=$limit")
+                if (page != null) add("page=$page")
+            }
+            if (params.isNotEmpty()) append("?${params.joinToString("&")}")
+        }
+        val response = client.get(url) { applyManagedAgentsHeaders(apiKey) }
+        return ClaudeHttp.decodeOrThrow(
+            response.bodyAsText(),
+            response.status.value,
+            url,
+            ListSessionsResponse.serializer(),
+            "Claude Code"
+        )
     }
 
-    suspend fun deleteSession(apiKey: String, sessionId: String) {
+    suspend fun deleteSession(apiKey: String, sessionId: String): DeletedSession {
         val url = "$baseUrl/v1/sessions/$sessionId"
-        val response = client.delete(url) { applyAnthropicHeaders(apiKey) }
-        if (response.status.value !in 200..299) {
-            throw networkError(response.status.value, response.bodyAsText(), url)
-        }
+        val response = client.delete(url) { applyManagedAgentsHeaders(apiKey) }
+        return ClaudeHttp.decodeOrThrow(
+            response.bodyAsText(),
+            response.status.value,
+            url,
+            DeletedSession.serializer(),
+            "Claude Code"
+        )
     }
 
-    suspend fun archiveSession(apiKey: String, sessionId: String) {
+    suspend fun archiveSession(apiKey: String, sessionId: String): ClaudeSession {
         val url = "$baseUrl/v1/sessions/$sessionId/archive"
-        val body = "{}"
-        val response = client.post(url) {
-            applyAnthropicHeaders(apiKey)
-            contentType(ContentType.Application.Json)
-            setBody(body)
-        }
-        if (response.status.value !in 200..299) {
-            throw networkError(response.status.value, response.bodyAsText(), url, requestBody = body)
-        }
+        val response = client.post(url) { applyManagedAgentsHeaders(apiKey) }
+        return ClaudeHttp.decodeOrThrow(
+            response.bodyAsText(),
+            response.status.value,
+            url,
+            ClaudeSession.serializer(),
+            "Claude Code"
+        )
     }
 
     // --- Events ---
@@ -244,8 +277,7 @@ class ClaudeCodeClient(
     @Serializable
     data class ListEventsResponse(
         val data: List<ClaudeEvent> = emptyList(),
-        @SerialName("has_more") val hasMore: Boolean = false,
-        @SerialName("last_id") val lastId: String? = null
+        @SerialName("next_page") val nextPage: String? = null
     )
 
     suspend fun sendMessage(apiKey: String, sessionId: String, prompt: String) {
@@ -269,26 +301,49 @@ class ClaudeCodeClient(
         }
         val bodyStr = body.toString()
         val response = client.post(url) {
-            applyAnthropicHeaders(apiKey)
-            contentType(ContentType.Application.Json)
+            applyManagedAgentsHeaders(apiKey)
             setBody(bodyStr)
         }
         if (response.status.value !in 200..299) {
-            throw networkError(response.status.value, response.bodyAsText(), url, requestBody = bodyStr)
+            throw ClaudeHttp.networkError(
+                response.status.value,
+                response.bodyAsText(),
+                url,
+                "Claude Code",
+                requestBody = bodyStr
+            )
         }
     }
 
-    suspend fun listEvents(apiKey: String, sessionId: String, limit: Int = 1000): ListEventsResponse {
-        val url = "$baseUrl/v1/sessions/$sessionId/events?limit=$limit"
-        val response = client.get(url) { applyAnthropicHeaders(apiKey) }
-        return decodeOrThrow(response.bodyAsText(), response.status.value, url, ListEventsResponse.serializer())
+    suspend fun listEvents(
+        apiKey: String,
+        sessionId: String,
+        limit: Int? = 1000,
+        page: String? = null
+    ): ListEventsResponse {
+        val url = buildString {
+            append("$baseUrl/v1/sessions/$sessionId/events")
+            val params = buildList {
+                if (limit != null) add("limit=$limit")
+                if (page != null) add("page=$page")
+            }
+            if (params.isNotEmpty()) append("?${params.joinToString("&")}")
+        }
+        val response = client.get(url) { applyManagedAgentsHeaders(apiKey) }
+        return ClaudeHttp.decodeOrThrow(
+            response.bodyAsText(),
+            response.status.value,
+            url,
+            ListEventsResponse.serializer(),
+            "Claude Code"
+        )
     }
 
     fun mapSessionState(status: String?): String = when (status?.lowercase()) {
-        "running" -> "IN_PROGRESS"
-        "idle" -> "IDLE"
-        "terminated" -> "COMPLETED"
-        "rescheduled" -> "QUEUED"
+        SessionStatus.RUNNING -> "IN_PROGRESS"
+        SessionStatus.IDLE -> "IDLE"
+        SessionStatus.TERMINATED -> "COMPLETED"
+        SessionStatus.RESCHEDULING -> "QUEUED"
         else -> status?.uppercase() ?: "UNKNOWN"
     }
 
@@ -416,23 +471,4 @@ class ClaudeCodeClient(
             }
         }.joinToString("\n")
     }
-
-    private fun <T> decodeOrThrow(
-        body: String,
-        status: Int,
-        url: String,
-        serializer: kotlinx.serialization.KSerializer<T>,
-        requestBody: String? = null
-    ): T {
-        if (status !in 200..299) throw networkError(status, body, url, requestBody = requestBody)
-        return json.decodeFromString(serializer, body)
-    }
-
-    private fun networkError(httpCode: Int, body: String, url: String, requestBody: String? = null) = NetworkException(
-        httpCode = httpCode,
-        message = "Claude Code: $body",
-        url = url,
-        provider = "Claude Code",
-        requestBody = requestBody
-    )
 }

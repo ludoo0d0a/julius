@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.geoking.julius.api.codingagent.CodingAgentBackend
+import fr.geoking.julius.ui.AgentApiUsageTarget
 import fr.geoking.julius.queue.AgentAccount
 import java.util.UUID
 
@@ -20,6 +21,7 @@ fun AgentDetailV3Screen(
     deps: V3Deps,
     accountId: String?,
     onBack: () -> Unit,
+    onOpenBilling: (String) -> Unit,
 ) {
     val settings by deps.settingsManager.settings.collectAsState()
     val existing = remember(accountId, settings.agentAccounts) { settings.agentAccounts.firstOrNull { it.id == accountId } }
@@ -45,6 +47,12 @@ fun AgentDetailV3Screen(
     )
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp).padding(top = 16.dp)) {
+        AgentBillingNavV3Row(
+            title = "Usage, tokens & billing",
+            subtitle = "Rate limits and cost model for $backend",
+            onClick = { onOpenBilling(AgentApiUsageTarget.Coding(backend).encode()) },
+        )
+        Spacer(Modifier.height(12.dp))
         SectionLabel("Backend")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(CodingAgentBackend.JULES, CodingAgentBackend.CLAUDE_CODE).forEach { b ->
