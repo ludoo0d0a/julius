@@ -429,6 +429,7 @@ val appModule = module {
                         AppDatabase.MIGRATION_14_15,
                         AppDatabase.MIGRATION_15_16,
                         AppDatabase.MIGRATION_16_17,
+                        AppDatabase.MIGRATION_17_18,
                     )
             )
         } catch (e: Throwable) {

@@ -297,11 +297,15 @@ private fun GitHubResourceCard(
     }
 
     val prTitle = details?.title ?: (if (session != null && session.prUrl == url) session.prTitle else null)
+    val prDescription = details?.body?.takeIf { it.isNotBlank() }
+        ?: (if (session != null && session.prUrl == url) session.prDescription else null)
     val prRepo = details?.repository?.fullName ?: (if (session != null && session.prUrl == url) session.prRepo else null)
     val prState = details?.state?.let { if (details?.merged == true) "merged" else it } ?: (if (session != null && session.prUrl == url) session.prState else null)
     val prMergeable = details?.mergeable ?: (if (session != null && session.prUrl == url) session.prMergeable else null)
     val prBranch = details?.head?.ref ?: (if (session != null && session.prUrl == url) session.prBranch else null)
-    val prNumber = details?.number ?: (if (session != null && session.prUrl == url) session.prId?.toIntOrNull() else null)
+    val prNumber = details?.number ?: (if (session != null && session.prUrl == url) {
+        session.prId?.toIntOrNull() ?: fr.geoking.julius.api.github.parseGitHubPullRequestUrl(url)?.number
+    } else null)
 
     val isBranch = url.contains("/tree/")
     val branchRef = remember(url) { fr.geoking.julius.api.github.parseGitHubBranchUrl(url) }
@@ -348,6 +352,17 @@ private fun GitHubResourceCard(
                         text = prRepo,
                         color = Color.White.copy(alpha = 0.6f),
                         fontSize = 11.sp
+                    )
+                }
+
+                if (!prDescription.isNullOrBlank()) {
+                    Text(
+                        text = prDescription,
+                        color = Color.White.copy(alpha = 0.75f),
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 4.dp),
+                        maxLines = 3,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
 

@@ -12,6 +12,7 @@ data class JulesSessionEntity(
     val sourceName: String,
     val prUrl: String?,
     val prTitle: String?,
+    val prDescription: String? = null,
     val prId: String? = null,
     val prBranch: String? = null,
     val prRepo: String? = null,

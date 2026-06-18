@@ -6,6 +6,7 @@ import fr.geoking.julius.api.github.GitHubClient
 import fr.geoking.julius.api.github.parseGitHubPullRequestUrl
 import fr.geoking.julius.api.jules.JulesChatItem
 import fr.geoking.julius.api.jules.JulesClient
+import fr.geoking.julius.api.jules.primaryPullRequest
 import fr.geoking.julius.queue.currentDayEpochUtc
 import android.content.Context
 import androidx.work.Constraints
@@ -52,6 +53,43 @@ class JulesRepository(
     private fun backend(): CodingAgentBackend = settingsManager.settings.value.codingAgentBackend
 
     private fun isClaudeBackend(): Boolean = backend() == CodingAgentBackend.CLAUDE_CODE
+
+    private data class SessionPullRequestFields(
+        val url: String?,
+        val title: String?,
+        val description: String?,
+        val id: String?,
+        val repo: String?,
+    )
+
+    /** Maps Session.outputs[].pullRequest (getSession / listSessions) to local PR fields. */
+    private fun pullRequestFields(pr: JulesClient.JulesPullRequest?): SessionPullRequestFields {
+        if (pr == null) return SessionPullRequestFields(null, null, null, null, null)
+        val ref = pr.url?.let { parseGitHubPullRequestUrl(it) }
+        return SessionPullRequestFields(
+            url = pr.url?.takeIf { it.isNotBlank() },
+            title = pr.title?.takeIf { it.isNotBlank() },
+            description = pr.description?.takeIf { it.isNotBlank() },
+            id = ref?.number?.toString(),
+            repo = ref?.let { "${it.owner}/${it.repo}" },
+        )
+    }
+
+    /** Merges session PR output into entity; keeps existing values when the API omits outputs. */
+    private fun mergeSessionPullRequest(
+        entity: JulesSessionEntity,
+        pr: JulesClient.JulesPullRequest?,
+    ): JulesSessionEntity {
+        val fields = pullRequestFields(pr)
+        if (fields.url.isNullOrBlank()) return entity
+        return entity.copy(
+            prUrl = fields.url,
+            prTitle = fields.title ?: entity.prTitle,
+            prDescription = fields.description ?: entity.prDescription,
+            prId = fields.id ?: entity.prId,
+            prRepo = fields.repo ?: entity.prRepo,
+        )
+    }
 
     private fun parallelSyncLimit(): Int =
         settingsManager.settings.value.queuePolicyFor(backend()).parallelLimit.coerceAtLeast(1)
@@ -285,7 +323,6 @@ class JulesRepository(
                             for (session in sessions) {
                                 val sessionId = session.id.takeIf { it.isNotBlank() } ?: session.name
                                 if (sessionId.isBlank()) continue
-                                val pr = session.outputs?.firstOrNull()?.pullRequest
                                 val existing = try { julesDao.getSession(sessionId) } catch (e: Exception) { null }
                                 val apiUpdateTime = try {
                                     if (!session.updateTime.isNullOrBlank()) {
@@ -295,14 +332,16 @@ class JulesRepository(
                                 val newLastUpdated = maxOf(existing?.lastUpdated ?: 0L, apiUpdateTime).let {
                                     if (it == 0L) System.currentTimeMillis() else it
                                 }
-                                currentEntities.add(JulesSessionEntity(
+                                val baseEntity = JulesSessionEntity(
                                     id = sessionId,
                                     title = session.title,
                                     prompt = session.prompt,
                                     sourceName = sourceName,
-                                    prUrl = pr?.url,
-                                    prTitle = pr?.title,
-                                    prId = pr?.id,
+                                    prUrl = existing?.prUrl,
+                                    prTitle = existing?.prTitle,
+                                    prDescription = existing?.prDescription,
+                                    prId = existing?.prId,
+                                    prRepo = existing?.prRepo,
                                     prState = existing?.prState,
                                     prMergeable = existing?.prMergeable,
                                     sessionState = session.state,
@@ -313,7 +352,10 @@ class JulesRepository(
                                     lastUpdated = newLastUpdated,
                                     apiKey = key,
                                     featureId = existing?.featureId
-                                ))
+                                )
+                                currentEntities.add(
+                                    mergeSessionPullRequest(baseEntity, session.primaryPullRequest())
+                                )
                             }
                             val localSessionsForKey = julesDao.getSessionsBySourceAndKey(sourceName, key)
                             val currentIds = currentEntities.map { it.id }.toSet()
@@ -564,24 +606,26 @@ class JulesRepository(
                 source = resolvedSource,
                 title = finalTitle
             )
-            val entity = JulesSessionEntity(
-                id = session.id,
-                title = session.title,
-                prompt = session.prompt,
-                sourceName = source,
-                prUrl = session.outputs?.firstOrNull()?.pullRequest?.url,
-                prTitle = session.outputs?.firstOrNull()?.pullRequest?.title,
-                prId = session.outputs?.firstOrNull()?.pullRequest?.id,
-                prState = null,
-                prMergeable = null,
-                sessionState = session.state,
-                url = session.url,
-                createTime = session.createTime,
-                updateTime = session.updateTime,
-                isArchived = false,
-                lastUpdated = System.currentTimeMillis(),
-                apiKey = apiKey,
-                featureId = featureId
+            val entity = mergeSessionPullRequest(
+                JulesSessionEntity(
+                    id = session.id,
+                    title = session.title,
+                    prompt = session.prompt,
+                    sourceName = source,
+                    prUrl = null,
+                    prTitle = null,
+                    prState = null,
+                    prMergeable = null,
+                    sessionState = session.state,
+                    url = session.url,
+                    createTime = session.createTime,
+                    updateTime = session.updateTime,
+                    isArchived = false,
+                    lastUpdated = System.currentTimeMillis(),
+                    apiKey = apiKey,
+                    featureId = featureId
+                ),
+                session.primaryPullRequest(),
             )
             julesDao.insertSessions(listOf(entity))
             return session.id
@@ -769,26 +813,28 @@ class JulesRepository(
                                 source = session.sourceName,
                                 title = session.title
                             )
-                            val updatedEntity = JulesSessionEntity(
-                                id = created.id,
-                                title = created.title,
-                                prompt = created.prompt,
-                                sourceName = session.sourceName,
-                                prUrl = created.outputs?.firstOrNull()?.pullRequest?.url,
-                                prTitle = created.outputs?.firstOrNull()?.pullRequest?.title,
-                                prId = created.outputs?.firstOrNull()?.pullRequest?.id,
-                                prState = null,
-                                prMergeable = null,
-                                sessionState = created.state,
-                                url = created.url,
-                                createTime = created.createTime,
-                                updateTime = created.updateTime,
-                                isArchived = false,
-                                lastUpdated = System.currentTimeMillis(),
-                                isPendingOffline = false,
-                                queuedAt = null,
-                                apiKey = apiKey,
-                                featureId = session.featureId
+                            val updatedEntity = mergeSessionPullRequest(
+                                JulesSessionEntity(
+                                    id = created.id,
+                                    title = created.title,
+                                    prompt = created.prompt,
+                                    sourceName = session.sourceName,
+                                    prUrl = null,
+                                    prTitle = null,
+                                    prState = null,
+                                    prMergeable = null,
+                                    sessionState = created.state,
+                                    url = created.url,
+                                    createTime = created.createTime,
+                                    updateTime = created.updateTime,
+                                    isArchived = false,
+                                    lastUpdated = System.currentTimeMillis(),
+                                    isPendingOffline = false,
+                                    queuedAt = null,
+                                    apiKey = apiKey,
+                                    featureId = session.featureId
+                                ),
+                                created.primaryPullRequest(),
                             )
                             julesDao.insertSessions(listOf(updatedEntity))
                             created.id
@@ -886,35 +932,33 @@ class JulesRepository(
             }
 
             val session = julesClient.getSession(apiKey, sessionId)
-            val pr = session.outputs?.firstOrNull()?.pullRequest
             existing = julesDao.getSession(sessionId)
 
             if (existing != null) {
                 val statusChanged = existing.sessionState != session.state
-                if (statusChanged) {
-                    julesDao.updateSessionState(sessionId, session.state)
-                }
-
-                if (pr?.url != null && existing.prUrl != pr.url) {
-                    val updated = existing.copy(
-                        prUrl = pr.url,
-                        prTitle = pr.title,
-                        prId = pr.id,
+                val updated = mergeSessionPullRequest(
+                    existing.copy(
                         sessionState = session.state,
-                        url = session.url,
-                        createTime = session.createTime,
-                        updateTime = session.updateTime,
-                        lastUpdated = System.currentTimeMillis()
-                    )
+                        url = session.url ?: existing.url,
+                        createTime = session.createTime.ifBlank { existing.createTime },
+                        updateTime = session.updateTime.ifBlank { existing.updateTime },
+                        lastUpdated = System.currentTimeMillis(),
+                    ),
+                    session.primaryPullRequest(),
+                )
+                val prChanged = updated.prUrl != existing.prUrl ||
+                    updated.prTitle != existing.prTitle ||
+                    updated.prDescription != existing.prDescription ||
+                    updated.prId != existing.prId ||
+                    updated.prRepo != existing.prRepo
+
+                if (statusChanged || prChanged) {
                     julesDao.insertSessions(listOf(updated))
-                    updatePrStatus(githubToken, updated)
-                } else {
-                    if (statusChanged) {
-                        julesDao.updateSessionLastUpdated(sessionId, System.currentTimeMillis())
+                    if (updated.prUrl != null) {
+                        updatePrStatus(githubToken, updated)
                     }
-                    if (existing.prUrl != null) {
-                        updatePrStatus(githubToken, existing)
-                    }
+                } else if (existing.prUrl != null) {
+                    updatePrStatus(githubToken, existing)
                 }
             }
         } catch (e: Exception) {
@@ -1029,32 +1073,21 @@ class JulesRepository(
 
             val resp = julesClient.listActivities(apiKey, sessionId, pageSize = 50)
             for (activity in resp.activities) {
-                val pr = activity.outputs?.firstOrNull()?.pullRequest ?: activity.sessionCompleted?.outputs?.firstOrNull()?.pullRequest
+                // Per the Jules API, git patches surface via Artifact.changeSet.gitPatch.
+                // Pull requests are not part of activities; they come from Session.outputs
+                // (handled in refreshSessionsInternal / pollSessionStatus).
                 val gitPatch = activity.artifacts?.mapNotNull { it.changeSet?.gitPatch }?.firstOrNull()
 
-                if (pr?.url != null || gitPatch != null) {
+                if (gitPatch != null) {
                     val existing = julesDao.getSession(sessionId)
                     if (existing != null) {
                         val updated = existing.copy(
-                            prUrl = pr?.url ?: existing.prUrl,
-                            prTitle = pr?.title ?: existing.prTitle,
-                            prId = pr?.id ?: existing.prId,
-                            prPatch = gitPatch?.unidiffPatch ?: existing.prPatch,
-                            prBaseCommitId = gitPatch?.baseCommitId ?: existing.prBaseCommitId,
+                            prPatch = gitPatch.unidiffPatch ?: existing.prPatch,
+                            prBaseCommitId = gitPatch.baseCommitId ?: existing.prBaseCommitId,
                             lastUpdated = System.currentTimeMillis()
                         )
                         if (updated != existing) {
                             julesDao.insertSessions(listOf(updated))
-                            if (updated.prUrl != existing.prUrl && updated.prUrl != null) {
-                                val githubToken = settingsManager.settings.value.githubApiKey
-                                if (githubToken.isNotBlank()) {
-                                    try {
-                                        updatePrStatus(githubToken, updated)
-                                    } catch (e: Exception) {
-                                        // Ignore
-                                    }
-                                }
-                            }
                         }
                     }
                 }
@@ -1068,7 +1101,7 @@ class JulesRepository(
                     a.planGenerated != null -> "plan"
                     a.progressUpdated != null -> "progress"
                     a.sessionCompleted != null -> "completion"
-                    a.userMessaged != null || a.messageSent != null -> "user_message"
+                    a.userMessaged != null -> "user_message"
                     a.agentMessaged != null -> "agent_message"
                     a.sessionFailed != null -> "failure"
                     else -> "other"

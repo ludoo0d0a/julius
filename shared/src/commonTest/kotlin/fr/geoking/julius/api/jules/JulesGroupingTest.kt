@@ -16,7 +16,7 @@ class JulesGroupingTest {
                 id = "1",
                 createTime = "2024-01-01T10:00:00Z",
                 originator = "user",
-                messageSent = JulesClient.MessageSent(prompt = "Initial prompt")
+                userMessaged = JulesClient.UserMessaged(userMessage = "Initial prompt")
             ),
             JulesClient.JulesActivity(
                 id = "2",
@@ -59,18 +59,19 @@ class JulesGroupingTest {
     }
 
     @Test
-    fun testExtractPrFromSessionCompleted() {
+    fun testSuggestedCommitMessageFromArtifact() {
         val activities = listOf(
             JulesClient.JulesActivity(
                 id = "1",
                 createTime = "2024-01-01T10:00:00Z",
                 originator = "agent",
-                sessionCompleted = JulesClient.SessionCompleted(
-                    outputs = listOf(
-                        JulesClient.JulesOutput(
-                            pullRequest = JulesClient.JulesPullRequest(
-                                url = "https://github.com/owner/repo/pull/123",
-                                title = "Feature implementation"
+                sessionCompleted = JulesClient.SessionCompleted(),
+                artifacts = listOf(
+                    JulesClient.JulesArtifact(
+                        changeSet = JulesClient.ChangeSet(
+                            source = "sources/github/owner/repo",
+                            gitPatch = JulesClient.GitPatch(
+                                suggestedCommitMessage = "feat: add boba app"
                             )
                         )
                     )
@@ -81,31 +82,7 @@ class JulesGroupingTest {
         val chatItems = client.activitiesToChatItems(activities)
         assertEquals(1, chatItems.size)
         val msg = chatItems[0] as JulesChatItem.AgentMessage
-        assertEquals("Session completed.\n\nhttps://github.com/owner/repo/pull/123", msg.text)
-    }
-
-    @Test
-    fun testExtractPrFromTopLevelOutputs() {
-        val activities = listOf(
-            JulesClient.JulesActivity(
-                id = "1",
-                createTime = "2024-01-01T10:00:00Z",
-                originator = "agent",
-                description = "Task finished",
-                outputs = listOf(
-                    JulesClient.JulesOutput(
-                        pullRequest = JulesClient.JulesPullRequest(
-                            url = "https://github.com/owner/repo/pull/456"
-                        )
-                    )
-                )
-            )
-        )
-
-        val chatItems = client.activitiesToChatItems(activities)
-        assertEquals(1, chatItems.size)
-        val msg = chatItems[0] as JulesChatItem.AgentMessage
-        assertEquals("Task finished\n\nhttps://github.com/owner/repo/pull/456", msg.text)
+        assertEquals("Session completed.\n\nPatch prêt — feat: add boba app", msg.text)
     }
 
     @Test

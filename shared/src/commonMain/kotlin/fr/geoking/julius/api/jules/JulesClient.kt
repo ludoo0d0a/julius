@@ -51,6 +51,7 @@ class JulesClient(
 
     // --- Sources ---
 
+    // Source — https://developers.google.com/jules/api/reference/rest/v1alpha/sources#Source
     @Serializable
     data class JulesSource(
         val name: String = "",
@@ -58,10 +59,20 @@ class JulesClient(
         val githubRepo: JulesGitHubRepo? = null
     )
 
+    // GitHubRepo — https://developers.google.com/jules/api/reference/rest/v1alpha/sources#GitHubRepo
     @Serializable
     data class JulesGitHubRepo(
         val owner: String = "",
-        val repo: String = ""
+        val repo: String = "",
+        val isPrivate: Boolean? = null,
+        val defaultBranch: JulesGitHubBranch? = null,
+        val branches: List<JulesGitHubBranch> = emptyList()
+    )
+
+    // GitHubBranch — https://developers.google.com/jules/api/reference/rest/v1alpha/sources#GitHubBranch
+    @Serializable
+    data class JulesGitHubBranch(
+        val displayName: String = ""
     )
 
     @Serializable
@@ -93,33 +104,59 @@ class JulesClient(
 
     // --- Sessions ---
 
+    /** [AutomationMode](https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#AutomationMode). */
+    object AutomationMode {
+        const val UNSPECIFIED = "AUTOMATION_MODE_UNSPECIFIED"
+        const val AUTO_CREATE_PR = "AUTO_CREATE_PR"
+    }
+
+    /** [Session state](https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#State). */
+    object SessionState {
+        const val UNSPECIFIED = "STATE_UNSPECIFIED"
+        const val QUEUED = "QUEUED"
+        const val PLANNING = "PLANNING"
+        const val AWAITING_PLAN_APPROVAL = "AWAITING_PLAN_APPROVAL"
+        const val AWAITING_USER_FEEDBACK = "AWAITING_USER_FEEDBACK"
+        const val IN_PROGRESS = "IN_PROGRESS"
+        const val PAUSED = "PAUSED"
+        const val FAILED = "FAILED"
+        const val COMPLETED = "COMPLETED"
+    }
+
+    // SourceContext — https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#SourceContext
     @Serializable
     data class SourceContext(
         val source: String,
         val githubRepoContext: GitHubRepoContext? = null
     )
 
+    // GitHubRepoContext — https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#GitHubRepoContext
     @Serializable
     data class GitHubRepoContext(
         val startingBranch: String? = null
     )
 
+    // Request body for sessions.create — https://developers.google.com/jules/api/reference/rest/v1alpha/sessions/create
     @Serializable
     data class CreateSessionRequest(
         val prompt: String,
         val sourceContext: SourceContext,
-        val automationMode: String? = null,
         val title: String? = null,
-        val requirePlanApproval: Boolean? = null
+        val requirePlanApproval: Boolean? = null,
+        val automationMode: String? = null
     )
 
+    // Session — https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#Session
     @Serializable
     data class JulesSession(
         val name: String = "",
         val id: String = "",
-        val title: String = "",
-        val sourceContext: SourceContext? = null,
         val prompt: String = "",
+        val sourceContext: SourceContext? = null,
+        val title: String = "",
+        // Input-only fields: part of the resource definition but not returned in responses.
+        val requirePlanApproval: Boolean? = null,
+        val automationMode: String? = null,
         val state: String? = null,
         val url: String? = null,
         val createTime: String = "",
@@ -127,29 +164,18 @@ class JulesClient(
         val outputs: List<JulesOutput>? = null
     )
 
-    // SessionOutput — https://jules.google/docs/api/reference/types
-    // An output is either a pull request or a git patch.
+    // SessionOutput — https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#SessionOutput
     @Serializable
     data class JulesOutput(
-        val pullRequest: JulesPullRequest? = null,
-        val gitPatch: JulesGitPatch? = null
+        val pullRequest: JulesPullRequest? = null
     )
 
-    // PullRequest — github type (url / title / description). `id` kept for backward compat.
+    // PullRequest — https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#PullRequest
     @Serializable
     data class JulesPullRequest(
-        val id: String? = null,
         val url: String? = null,
         val title: String? = null,
         val description: String? = null
-    )
-
-    // GitPatch — https://jules.google/docs/api/reference/types#gitpatch
-    @Serializable
-    data class JulesGitPatch(
-        val baseCommitId: String? = null,
-        val unidiffPatch: String? = null,
-        val suggestedCommitMessage: String? = null
     )
 
     suspend fun createSession(
@@ -236,6 +262,9 @@ class JulesClient(
         return json.decodeFromString(ListSessionsResponse.serializer(), body)
     }
 
+    // Note: delete / pause / resume are not part of the public Jules API reference
+    // (https://developers.google.com/jules/api/reference/rest). They are kept here because
+    // the alpha service still accepts them and the app relies on them.
     suspend fun deleteSession(apiKey: String, sessionId: String) {
         val token = apiKeyHeader(apiKey)
         val url = "$baseUrl/${sessionName(sessionId)}"
@@ -352,6 +381,7 @@ class JulesClient(
         val nextPageToken: String? = null
     )
 
+    // Activity — https://developers.google.com/jules/api/reference/rest/v1alpha/sessions.activities#Activity
     @Serializable
     data class JulesActivity(
         val name: String = "",
@@ -359,16 +389,15 @@ class JulesClient(
         val description: String? = null,
         val createTime: String = "",
         @SerialName("originator") val originator: String = "",
+        val artifacts: List<JulesArtifact>? = null,
+        // Union field `activity`.
+        val agentMessaged: AgentMessaged? = null,
+        val userMessaged: UserMessaged? = null,
         val planGenerated: PlanGenerated? = null,
         val planApproved: PlanApproved? = null,
         val progressUpdated: ProgressUpdated? = null,
         val sessionCompleted: SessionCompleted? = null,
-        val sessionFailed: SessionFailed? = null,
-        val messageSent: MessageSent? = null,
-        val userMessaged: UserMessaged? = null,
-        val agentMessaged: AgentMessaged? = null,
-        val artifacts: List<JulesArtifact>? = null,
-        val outputs: List<JulesOutput>? = null
+        val sessionFailed: SessionFailed? = null
     )
 
     @Serializable
@@ -431,16 +460,13 @@ class JulesClient(
         val description: String? = null
     )
 
+    // SessionCompleted — https://developers.google.com/jules/api/reference/rest/v1alpha/sessions.activities#SessionCompleted
+    // Documented as having no fields.
     @Serializable
-    data class SessionCompleted(
-        val outputs: List<JulesOutput>? = null
-    )
+    class SessionCompleted
 
     @Serializable
     data class SessionFailed(val reason: String? = null)
-
-    @Serializable
-    data class MessageSent(val prompt: String? = null)
 
     @Serializable
     data class UserMessaged(val userMessage: String)
@@ -473,13 +499,9 @@ class JulesClient(
      * Extract display text from an activity, including special handling for "Updated" actions.
      */
     fun extractText(a: JulesActivity): String {
-        val pr = a.outputs?.firstOrNull()?.pullRequest ?: a.sessionCompleted?.outputs?.firstOrNull()?.pullRequest
-        val prUrl = pr?.url
-
         val baseText = when {
             a.userMessaged != null -> a.userMessaged.userMessage
             a.agentMessaged != null -> a.agentMessaged.agentMessage
-            a.messageSent != null -> a.messageSent.prompt ?: ""
             a.planGenerated != null -> {
                 val plan = a.planGenerated.plan
                 if (plan != null && plan.steps.isNotEmpty()) {
@@ -502,11 +524,10 @@ class JulesClient(
             else -> a.description ?: "Activity"
         }
 
-        val patch = a.outputs?.firstOrNull()?.gitPatch ?: a.sessionCompleted?.outputs?.firstOrNull()?.gitPatch
-        val commitMsg = patch?.suggestedCommitMessage
+        // Per the API, git patches surface via Artifact.changeSet.gitPatch (not session outputs).
+        val commitMsg = a.artifacts?.firstNotNullOfOrNull { it.changeSet?.gitPatch?.suggestedCommitMessage }
         return when {
-            !prUrl.isNullOrBlank() && !baseText.contains(prUrl) -> "$baseText\n\n$prUrl"
-            prUrl.isNullOrBlank() && !commitMsg.isNullOrBlank() && !baseText.contains(commitMsg) ->
+            !commitMsg.isNullOrBlank() && !baseText.contains(commitMsg) ->
                 "$baseText\n\nPatch prêt — $commitMsg"
             else -> baseText
         }
@@ -565,7 +586,6 @@ class JulesClient(
                 flush()
                 val text = when {
                     a.userMessaged != null -> a.userMessaged.userMessage
-                    a.messageSent != null -> a.messageSent.prompt ?: ""
                     else -> null
                 }
                 if (text != null) {
@@ -651,3 +671,7 @@ sealed class JulesChatItem {
         val type: String? = null
     )
 }
+
+/** First pull request from session outputs (getSession / listSessions). */
+fun JulesClient.JulesSession.primaryPullRequest(): JulesClient.JulesPullRequest? =
+    outputs?.firstNotNullOfOrNull { it.pullRequest }
