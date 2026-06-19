@@ -81,8 +81,10 @@ fun FeaturesV3Screen(
     val scope = rememberCoroutineScope()
 
     // On open: background reconcile features from DB + conversations from agents.
+    // If DB has items, we don't block the UI with a spinner, just refresh in background.
     LaunchedEffect(sourceName) {
-        isRefreshing = true
+        val hasData = deps.featureRepository.hasFeatures(sourceName)
+        if (!hasData) isRefreshing = true
         val apiKeys = deps.settingsManager.settings.value.julesApiKeys()
         val githubToken = deps.settingsManager.settings.value.githubApiKey
         try {

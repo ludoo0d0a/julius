@@ -36,7 +36,8 @@ fun ProjectsV3Screen(
 
     LaunchedEffect(apiKeys) {
         if (apiKeys.isNotEmpty()) {
-            isRefreshing = true
+            val hasData = deps.julesRepository.hasSources()
+            if (!hasData) isRefreshing = true
             try {
                 deps.featureRepository.refreshFeatures(null, apiKeys, settings.githubApiKey)
             } finally {

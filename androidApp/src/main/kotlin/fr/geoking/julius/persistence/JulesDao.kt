@@ -110,4 +110,7 @@ interface JulesDao {
         clearSources()
         insertSources(sources)
     }
+
+    @Query("SELECT COUNT(*) FROM jules_sources")
+    suspend fun getSourcesCount(): Int
 }

@@ -565,6 +565,7 @@ fun MainUIPreview() {
                     override suspend fun getSources(): List<JulesSourceEntity> = emptyList()
                     override fun getSourcesFlow(): kotlinx.coroutines.flow.Flow<List<JulesSourceEntity>> = kotlinx.coroutines.flow.flowOf(emptyList())
                     override suspend fun clearSources() {}
+                    override suspend fun getSourcesCount(): Int = 0
                 },
                 object : fr.geoking.julius.persistence.AccountDailyUsageDao {
                     override suspend fun getUsage(accountId: String, dayEpoch: Long) = null
@@ -600,6 +601,7 @@ fun MainUIPreview() {
             override suspend fun retryFailedFeatures(sourceName: String?) {}
             override suspend fun archiveCompletedFeatures(sourceName: String?) {}
             override suspend fun deleteAllFeatures(sourceName: String?) {}
+            override suspend fun getFeaturesCount(sourceName: String?): Int = 0
         }
     }
     val previewFeatureRepository = remember {

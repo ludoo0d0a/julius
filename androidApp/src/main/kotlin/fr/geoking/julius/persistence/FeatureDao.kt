@@ -79,4 +79,7 @@ interface FeatureDao {
 
     @Query("DELETE FROM features WHERE (:sourceName IS NULL OR sourceName = :sourceName)")
     suspend fun deleteAllFeatures(sourceName: String?)
+
+    @Query("SELECT COUNT(*) FROM features WHERE isArchived = 0 AND (:sourceName IS NULL OR sourceName = :sourceName)")
+    suspend fun getFeaturesCount(sourceName: String?): Int
 }

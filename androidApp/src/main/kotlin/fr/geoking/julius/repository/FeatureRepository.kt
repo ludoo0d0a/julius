@@ -14,6 +14,8 @@ import fr.geoking.julius.worker.FeatureSchedulerWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.UUID
 
 class FeatureRepository(
@@ -22,8 +24,12 @@ class FeatureRepository(
     private val julesRepository: JulesRepository
 ) {
     private val promotingSessionIds = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+    private val refreshMutex = Mutex()
 
     fun getAllFeatures(): Flow<List<FeatureEntity>> = featureDao.getAllFeaturesFlow()
+
+    suspend fun hasFeatures(sourceName: String? = null): Boolean =
+        featureDao.getFeaturesCount(sourceName) > 0
 
     suspend fun getFeature(id: String): FeatureEntity? = featureDao.getFeature(id)
 
@@ -244,17 +250,19 @@ class FeatureRepository(
     }
 
     suspend fun refreshFeatures(sourceName: String?, apiKeys: List<String>, githubToken: String) {
-        julesRepository.syncOfflineData()
-        if (sourceName != null) {
-            julesRepository.refreshSessionsInternal(apiKeys, sourceName, githubToken)
-        } else {
-            julesRepository.refreshSources(apiKeys)
-            val sources = runCatching { julesRepository.getSourcesCached() }.getOrDefault(emptyList())
-            for (src in sources) {
-                try {
-                    julesRepository.refreshSessionsInternal(apiKeys, src.name, githubToken)
-                } catch (e: Exception) {
-                    android.util.Log.e("FeatureRepository", "Global reconcile failed for ${src.name}", e)
+        refreshMutex.withLock {
+            julesRepository.syncOfflineData()
+            if (sourceName != null) {
+                julesRepository.refreshSessionsInternal(apiKeys, sourceName, githubToken)
+            } else {
+                julesRepository.refreshSources(apiKeys)
+                val sources = runCatching { julesRepository.getSourcesCached() }.getOrDefault(emptyList())
+                for (src in sources) {
+                    try {
+                        julesRepository.refreshSessionsInternal(apiKeys, src.name, githubToken)
+                    } catch (e: Exception) {
+                        android.util.Log.e("FeatureRepository", "Global reconcile failed for ${src.name}", e)
+                    }
                 }
             }
         }
