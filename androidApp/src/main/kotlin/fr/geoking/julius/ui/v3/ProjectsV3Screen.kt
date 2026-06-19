@@ -1,6 +1,7 @@
 package fr.geoking.julius.ui.v3
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -37,7 +38,7 @@ fun ProjectsV3Screen(
         if (apiKeys.isNotEmpty()) {
             isRefreshing = true
             try {
-                deps.julesRepository.refreshSources(apiKeys)
+                deps.featureRepository.refreshFeatures(null, apiKeys, settings.githubApiKey)
             } finally {
                 isRefreshing = false
             }
@@ -60,7 +61,16 @@ fun ProjectsV3Screen(
 
     PullToRefreshBox(
         isRefreshing = isRefreshing,
-        onRefresh = { scope.launch { isRefreshing = true; try { deps.julesRepository.refreshSources(apiKeys) } finally { isRefreshing = false } } },
+        onRefresh = {
+            scope.launch {
+                isRefreshing = true
+                try {
+                    deps.featureRepository.refreshFeatures(null, apiKeys, settings.githubApiKey)
+                } finally {
+                    isRefreshing = false
+                }
+            }
+        },
         modifier = Modifier.fillMaxSize(),
     ) {
         when {
@@ -71,37 +81,41 @@ fun ProjectsV3Screen(
                     EmptyHint("Aucun dépôt — vérifie la clé Jules dans Réglages.")
                 }
             else ->
-                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp)) {
+                LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
                     if (recent != null) {
-                        SectionLabel("Récent")
+                        item { SectionLabel("Récent") }
+                        item {
+                            V3Card {
+                                ProjectRow(
+                                    source = recent, isRecent = true,
+                                    count = countBySource[recent.name] ?: 0, active = activeBySource[recent.name] ?: 0,
+                                    name = displayName(recent),
+                                    onOpen = {
+                                        deps.settingsManager.saveSettings(settings.copy(lastJulesRepoName = recent.name, lastJulesRepoId = recent.name))
+                                        onOpenProject(recent.name)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    item { SectionLabel("Tous les dépôts", "${sources.size}") }
+                    item {
                         V3Card {
-                            ProjectRow(
-                                source = recent, isRecent = true,
-                                count = countBySource[recent.name] ?: 0, active = activeBySource[recent.name] ?: 0,
-                                name = displayName(recent),
-                                onOpen = {
-                                    deps.settingsManager.saveSettings(settings.copy(lastJulesRepoName = recent.name, lastJulesRepoId = recent.name))
-                                    onOpenProject(recent.name)
-                                },
-                            )
+                            sources.forEachIndexed { i, s ->
+                                if (i > 0) HorizontalDivider(color = V3.Border)
+                                ProjectRow(
+                                    source = s, isRecent = s.name == recentName,
+                                    count = countBySource[s.name] ?: 0, active = activeBySource[s.name] ?: 0,
+                                    name = displayName(s),
+                                    onOpen = {
+                                        deps.settingsManager.saveSettings(settings.copy(lastJulesRepoName = s.name, lastJulesRepoId = s.name))
+                                        onOpenProject(s.name)
+                                    },
+                                )
+                            }
                         }
                     }
-                    SectionLabel("Tous les dépôts", "${sources.size}")
-                    V3Card {
-                        sources.forEachIndexed { i, s ->
-                            if (i > 0) HorizontalDivider(color = V3.Border)
-                            ProjectRow(
-                                source = s, isRecent = s.name == recentName,
-                                count = countBySource[s.name] ?: 0, active = activeBySource[s.name] ?: 0,
-                                name = displayName(s),
-                                onOpen = {
-                                    deps.settingsManager.saveSettings(settings.copy(lastJulesRepoName = s.name, lastJulesRepoId = s.name))
-                                    onOpenProject(s.name)
-                                },
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(96.dp))
+                    item { Spacer(Modifier.height(96.dp)) }
                 }
         }
     }
