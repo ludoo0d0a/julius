@@ -192,11 +192,12 @@ class JulesClient(
             prompt = prompt,
             sourceContext = SourceContext(
                 source = sourceName(source),
-                githubRepoContext = if (startingBranch != null) GitHubRepoContext(startingBranch = startingBranch) else null
+                // startingBranch is required by the API when using a GitHub source.
+                githubRepoContext = GitHubRepoContext(startingBranch = startingBranch ?: "main"),
             ),
-            automationMode = automationMode,
             title = title,
-            requirePlanApproval = requirePlanApproval
+            requirePlanApproval = requirePlanApproval,
+            automationMode = automationMode,
         )
         val fullUrl = "$baseUrl/sessions"
         val response = client.post(fullUrl) {

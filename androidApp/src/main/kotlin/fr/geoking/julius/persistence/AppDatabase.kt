@@ -14,7 +14,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FeatureEntity::class,
         AccountDailyUsageEntity::class,
     ],
-    version = 18,
+    version = 19,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -296,6 +296,12 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_17_18: Migration = object : Migration(17, 18) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `jules_sessions` ADD COLUMN `prDescription` TEXT")
+            }
+        }
+
+        val MIGRATION_18_19: Migration = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `jules_sources` ADD COLUMN `defaultBranch` TEXT")
             }
         }
     }

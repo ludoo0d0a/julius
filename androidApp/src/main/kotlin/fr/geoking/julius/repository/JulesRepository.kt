@@ -161,7 +161,13 @@ class JulesRepository(
                 name = it.name,
                 id = it.id,
                 githubRepo = if (it.owner != null && it.repo != null) {
-                    JulesClient.JulesGitHubRepo(it.owner, it.repo)
+                    JulesClient.JulesGitHubRepo(
+                        owner = it.owner,
+                        repo = it.repo,
+                        defaultBranch = it.defaultBranch?.let { branch ->
+                            JulesClient.JulesGitHubBranch(displayName = branch)
+                        },
+                    )
                 } else null
             )
         }
@@ -173,7 +179,13 @@ class JulesRepository(
                 name = it.name,
                 id = it.id,
                 githubRepo = if (it.owner != null && it.repo != null) {
-                    JulesClient.JulesGitHubRepo(it.owner, it.repo)
+                    JulesClient.JulesGitHubRepo(
+                        owner = it.owner,
+                        repo = it.repo,
+                        defaultBranch = it.defaultBranch?.let { branch ->
+                            JulesClient.JulesGitHubBranch(displayName = branch)
+                        },
+                    )
                 } else null
             )
         }
@@ -225,6 +237,7 @@ class JulesRepository(
                         id = it.id,
                         owner = it.githubRepo?.owner,
                         repo = it.githubRepo?.repo,
+                        defaultBranch = it.githubRepo?.defaultBranch?.displayName?.takeIf { branch -> branch.isNotBlank() },
                         lastUpdated = now
                     )
                 }
@@ -597,14 +610,11 @@ class JulesRepository(
             }
 
             val apiKey = account.apiKey.takeIf { it.isNotBlank() } ?: throw Exception("No API key available")
-            // Resolve a possibly "owner/repo" sourceName to a valid Jules source resource
-            // name (avoids 400 invalid_argument when the feature was created with a raw repo).
-            val resolvedSource = resolveJulesSource(source)
-            val session = julesClient.createSession(
+            val session = createJulesApiSession(
                 apiKey = apiKey,
                 prompt = finalPrompt,
-                source = resolvedSource,
-                title = finalTitle
+                source = source,
+                title = finalTitle,
             )
             val entity = mergeSessionPullRequest(
                 JulesSessionEntity(
@@ -666,6 +676,50 @@ class JulesRepository(
             gh != null && ("${gh.owner}/${gh.repo}" == source || gh.repo == source)
         }?.let { return it.name }
         return source
+    }
+
+    /** Resolves the branch to pass in sourceContext.githubRepoContext.startingBranch (API-required). */
+    private suspend fun resolveStartingBranch(resolvedSource: String, rawSource: String): String {
+        val cached = runCatching { getSourcesCached() }.getOrDefault(emptyList())
+        val match = cached.firstOrNull { it.name == resolvedSource || it.name == rawSource }
+            ?: cached.firstOrNull { s ->
+                val gh = s.githubRepo ?: return@firstOrNull false
+                "${gh.owner}/${gh.repo}" == rawSource || gh.repo == rawSource
+            }
+        match?.githubRepo?.defaultBranch?.displayName?.takeIf { it.isNotBlank() }?.let { return it }
+        val gh = match?.githubRepo
+        if (gh != null) {
+            resolveDefaultBranchFromGitHub(gh.owner, gh.repo)?.let { return it }
+        }
+        parseRepoSource(resolvedSource)?.let { (owner, repo) ->
+            resolveDefaultBranchFromGitHub(owner, repo)?.let { return it }
+        }
+        return "main"
+    }
+
+    private suspend fun resolveDefaultBranchFromGitHub(owner: String, repo: String): String? {
+        val token = settingsManager.settings.value.githubApiKey
+        if (token.isBlank()) return null
+        return runCatching {
+            githubClient.getRepository(token, owner, repo).defaultBranch
+        }.getOrNull()?.takeIf { it.isNotBlank() }
+    }
+
+    private suspend fun createJulesApiSession(
+        apiKey: String,
+        prompt: String,
+        source: String,
+        title: String,
+    ): JulesClient.JulesSession {
+        val resolvedSource = resolveJulesSource(source)
+        return julesClient.createSession(
+            apiKey = apiKey,
+            prompt = prompt,
+            source = resolvedSource,
+            title = title,
+            startingBranch = resolveStartingBranch(resolvedSource, source),
+            automationMode = JulesClient.AutomationMode.AUTO_CREATE_PR,
+        )
     }
 
     /**
@@ -807,11 +861,11 @@ class JulesRepository(
                             julesDao.insertSessions(listOf(entity))
                             created.id
                         } else {
-                            val created = julesClient.createSession(
+                            val created = createJulesApiSession(
                                 apiKey = apiKey,
                                 prompt = session.prompt,
                                 source = session.sourceName,
-                                title = session.title
+                                title = session.title,
                             )
                             val updatedEntity = mergeSessionPullRequest(
                                 JulesSessionEntity(

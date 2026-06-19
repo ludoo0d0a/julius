@@ -9,5 +9,6 @@ data class JulesSourceEntity(
     val id: String,
     val owner: String?,
     val repo: String?,
+    val defaultBranch: String? = null,
     val lastUpdated: Long
 )
