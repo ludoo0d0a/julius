@@ -1,13 +1,17 @@
 package fr.geoking.julius.ui.v3
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.style.TextOverflow
+import fr.geoking.julius.queue.julesApiKeys
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -16,6 +20,7 @@ import fr.geoking.julius.persistence.FeatureEntity
 import fr.geoking.julius.queue.queuePolicyFor
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SchedulerV3Screen(
     deps: V3Deps,
@@ -35,68 +40,93 @@ fun SchedulerV3Screen(
     val quotaLimit = status.accounts.sumOf { it.dailyLimit }
     val latest = remember(features) { features.sortedByDescending { it.updatedAt }.take(6) }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Column(Modifier.padding(horizontal = 18.dp).padding(top = 16.dp)) {
-            // KPIs
-            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                KpiCell("${status.activeCount}/${status.parallelLimit}", "En cours", accent = true, modifier = Modifier.weight(1f))
-                KpiCell("${status.pendingCount}", "En file", modifier = Modifier.weight(1f))
-                KpiCell(if (quotaLimit > 0) "$quotaUsed/$quotaLimit" else "—", "Quota jour", modifier = Modifier.weight(1f))
-            }
+    var isRefreshing by remember { mutableStateOf(false) }
 
-            // Latest features
-            SectionLabel("Dernières features", "tous projets")
-            if (latest.isEmpty()) {
-                EmptyHint("Aucune feature.")
-            } else {
-                V3Card {
-                    latest.forEachIndexed { i, f ->
-                        if (i > 0) HorizontalDivider(color = V3.Border)
-                        FeatureRow(f, onClick = { onOpenFeature(f.id) })
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            scope.launch {
+                isRefreshing = true
+                val apiKeys = settings.julesApiKeys()
+                try {
+                    deps.featureRepository.refreshFeatures(null, apiKeys, settings.githubApiKey)
+                    deps.queueEngine.refreshStatusOnly()
+                } finally {
+                    isRefreshing = false
+                }
+            }
+        },
+        modifier = Modifier.fillMaxSize()
+    ) {
+        LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
+            item {
+                Column(Modifier.padding(top = 16.dp)) {
+                    // KPIs
+                    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        KpiCell("${status.activeCount}/${status.parallelLimit}", "En cours", accent = true, modifier = Modifier.weight(1f))
+                        KpiCell("${status.pendingCount}", "En file", modifier = Modifier.weight(1f))
+                        KpiCell(if (quotaLimit > 0) "$quotaUsed/$quotaLimit" else "—", "Quota jour", modifier = Modifier.weight(1f))
                     }
                 }
-                Spacer(Modifier.height(10.dp))
-                TextButton(onClick = onSeeAllFeatures) { Text("Voir toutes les features", color = V3.Accent) }
             }
 
-            // Accounts / quotas
-            SectionLabel("Comptes · quotas", "dailyLimitPerAccount ${policy.dailyLimitPerAccount}")
-            if (status.accounts.isEmpty()) {
-                EmptyHint("Aucun compte configuré.")
-            } else {
-                V3Card {
-                    status.accounts.forEachIndexed { i, acc ->
-                        if (i > 0) HorizontalDivider(color = V3.Border)
-                        val frac = if (acc.dailyLimit > 0) (acc.usedToday.toFloat() / acc.dailyLimit).coerceIn(0f, 1f) else 0f
-                        val tint = when {
-                            acc.dailyLimit > 0 && acc.usedToday >= acc.dailyLimit -> V3.Danger
-                            frac >= 0.7f -> V3.Warn
-                            else -> V3.Accent
+            item {
+                // Latest features
+                SectionLabel("Dernières features", "tous projets")
+                if (latest.isEmpty()) {
+                    EmptyHint("Aucune feature.")
+                } else {
+                    V3Card {
+                        latest.forEachIndexed { i, f ->
+                            if (i > 0) HorizontalDivider(color = V3.Border)
+                            FeatureRow(f, onClick = { onOpenFeature(f.id) })
                         }
-                        Column(Modifier.padding(horizontal = 15.dp, vertical = 12.dp)) {
-                            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                Text(acc.label, color = V3.Fg, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                                Text(
-                                    if (acc.dailyLimit > 0) "${acc.usedToday}/${acc.dailyLimit}" else "${acc.usedToday}",
-                                    color = tint, fontSize = 12.sp, fontFamily = FontFamily.Monospace,
-                                )
-                                if (acc.activeSessions > 0) {
-                                    Text(" · ${acc.activeSessions} act.", color = V3.Muted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-                                }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    TextButton(onClick = onSeeAllFeatures) { Text("Voir toutes les features", color = V3.Accent) }
+                }
+            }
+
+            item {
+                // Accounts / quotas
+                SectionLabel("Comptes · quotas", "dailyLimitPerAccount ${policy.dailyLimitPerAccount}")
+                if (status.accounts.isEmpty()) {
+                    EmptyHint("Aucun compte configuré.")
+                } else {
+                    V3Card {
+                        status.accounts.forEachIndexed { i, acc ->
+                            if (i > 0) HorizontalDivider(color = V3.Border)
+                            val frac = if (acc.dailyLimit > 0) (acc.usedToday.toFloat() / acc.dailyLimit).coerceIn(0f, 1f) else 0f
+                            val tint = when {
+                                acc.dailyLimit > 0 && acc.usedToday >= acc.dailyLimit -> V3.Danger
+                                frac >= 0.7f -> V3.Warn
+                                else -> V3.Accent
                             }
-                            Spacer(Modifier.height(8.dp))
-                            LinearProgressIndicator(
-                                progress = { frac },
-                                modifier = Modifier.fillMaxWidth().height(6.dp),
-                                color = tint,
-                                trackColor = V3.SurfaceHi,
-                            )
+                            Column(Modifier.padding(horizontal = 15.dp, vertical = 12.dp)) {
+                                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                    Text(acc.label, color = V3.Fg, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                                    Text(
+                                        if (acc.dailyLimit > 0) "${acc.usedToday}/${acc.dailyLimit}" else "${acc.usedToday}",
+                                        color = tint, fontSize = 12.sp, fontFamily = FontFamily.Monospace,
+                                    )
+                                    if (acc.activeSessions > 0) {
+                                        Text(" · ${acc.activeSessions} act.", color = V3.Muted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                                    }
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                LinearProgressIndicator(
+                                    progress = { frac },
+                                    modifier = Modifier.fillMaxWidth().height(6.dp),
+                                    color = tint,
+                                    trackColor = V3.SurfaceHi,
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            Spacer(Modifier.height(96.dp))
+            item { Spacer(Modifier.height(96.dp)) }
         }
     }
 }
