@@ -50,10 +50,12 @@ import fr.geoking.julius.queue.CodingAgentQueueEngine
 import fr.geoking.julius.queue.queuePolicyFor
 import fr.geoking.julius.repository.FeatureRepository
 import fr.geoking.julius.repository.GitHubBuildRepository
+import fr.geoking.julius.debug.DbCacheDebugTracker
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.ui.AgentApiUsageTarget
 import fr.geoking.julius.ui.components.VoiceInputIcon
+import fr.geoking.julius.ui.components.DbCacheDebugBar
 import kotlinx.coroutines.launch
 
 /** Dependency bundle threaded into the v3 screens (reuses existing Koin singletons). */
@@ -64,6 +66,7 @@ class V3Deps(
     val queueEngine: CodingAgentQueueEngine,
     val buildRepository: GitHubBuildRepository,
     val voiceManager: VoiceManager,
+    val dbCacheDebugTracker: DbCacheDebugTracker,
 )
 
 private sealed class V3Sheet {
@@ -357,6 +360,11 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                     is V3Route.AgentBilling -> AgentBillingV3Screen(targetKey = r.targetKey)
                     is V3Route.JsonDebug -> JsonDebugScreen(title = r.title, json = r.json, onBack = { nav.pop() })
                 }
+                DbCacheDebugBar(
+                    tracker = deps.dbCacheDebugTracker,
+                    modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter),
+                    bottomPadding = if (showBottomBar) 72.dp else 0.dp,
+                )
             }
         }
 

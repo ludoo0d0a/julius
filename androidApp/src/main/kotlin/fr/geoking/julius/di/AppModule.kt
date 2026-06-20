@@ -32,6 +32,7 @@ import fr.geoking.julius.queue.FeatureGitHubLifecycle
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.repository.FeatureRepository
 import fr.geoking.julius.repository.GitHubBuildRepository
+import fr.geoking.julius.debug.DbCacheDebugTracker
 import fr.geoking.julius.settings.ProjectWorkflowPreferences
 import fr.geoking.julius.shared.conversation.MessagePersistence
 import fr.geoking.julius.shared.network.NetworkException
@@ -453,8 +454,9 @@ val appModule = module {
     single { get<AppDatabase>().featureDao() }
     single { get<AppDatabase>().accountDailyUsageDao() }
 
-    single { JulesRepository(androidContext(), get(), get(), get(), get(), get(), get(), get()) }
-    single { FeatureRepository(androidContext(), get(), get()) }
+    single { DbCacheDebugTracker() }
+    single { JulesRepository(androidContext(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    single { FeatureRepository(androidContext(), get(), get(), get()) }
     single { AccountAllocator() }
     single { FeatureGitHubLifecycle(get(), get(), get()) }
     single {

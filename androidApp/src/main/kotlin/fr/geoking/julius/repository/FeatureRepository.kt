@@ -9,7 +9,8 @@ import androidx.work.WorkManager
 import fr.geoking.julius.persistence.FeatureDao
 import fr.geoking.julius.persistence.FeatureEntity
 import fr.geoking.julius.queue.AgentAccount
-import fr.geoking.julius.persistence.JulesSessionEntity
+import fr.geoking.julius.debug.DbCacheDebugTracker
+import fr.geoking.julius.debug.DbEntityKind
 import fr.geoking.julius.worker.FeatureSchedulerWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -19,7 +20,8 @@ import java.util.UUID
 class FeatureRepository(
     private val context: Context,
     private val featureDao: FeatureDao,
-    private val julesRepository: JulesRepository
+    private val julesRepository: JulesRepository,
+    private val dbCacheDebugTracker: DbCacheDebugTracker,
 ) {
     private val promotingSessionIds = java.util.Collections.synchronizedSet(mutableSetOf<String>())
 
@@ -52,12 +54,14 @@ class FeatureRepository(
             updatedAt = System.currentTimeMillis(),
         )
         featureDao.insertFeature(feature)
+        dbCacheDebugTracker.record(DbEntityKind.FEATURES, saved = 1)
         scheduleWorker()
         return id
     }
 
     suspend fun updateFeature(feature: FeatureEntity) {
         featureDao.updateFeature(feature.copy(updatedAt = System.currentTimeMillis()))
+        dbCacheDebugTracker.record(DbEntityKind.FEATURES, updated = 1)
     }
 
     suspend fun updateFeatureStatus(featureId: String, status: String) {
@@ -244,19 +248,27 @@ class FeatureRepository(
     }
 
     suspend fun refreshFeatures(sourceName: String?, apiKeys: List<String>, githubToken: String) {
-        julesRepository.syncOfflineData()
-        if (sourceName != null) {
-            julesRepository.refreshSessionsInternal(apiKeys, sourceName, githubToken)
-        } else {
-            julesRepository.refreshSources(apiKeys)
-            val sources = runCatching { julesRepository.getSourcesCached() }.getOrDefault(emptyList())
-            for (src in sources) {
-                try {
-                    julesRepository.refreshSessionsInternal(apiKeys, src.name, githubToken)
-                } catch (e: Exception) {
-                    android.util.Log.e("FeatureRepository", "Global reconcile failed for ${src.name}", e)
+        val op = if (sourceName != null) "refreshFeatures:$sourceName" else "refreshFeatures:all"
+        dbCacheDebugTracker.begin(op)
+        try {
+            julesRepository.syncOfflineData()
+            if (sourceName != null) {
+                julesRepository.refreshSessionsInternal(apiKeys, sourceName, githubToken)
+            } else {
+                julesRepository.refreshSources(apiKeys)
+                val sources = runCatching { julesRepository.getSourcesCached() }.getOrDefault(emptyList())
+                for (src in sources) {
+                    try {
+                        julesRepository.refreshSessionsInternal(apiKeys, src.name, githubToken)
+                    } catch (e: Exception) {
+                        android.util.Log.e("FeatureRepository", "Global reconcile failed for ${src.name}", e)
+                    }
                 }
             }
+            dbCacheDebugTracker.finish()
+        } catch (e: Exception) {
+            dbCacheDebugTracker.finish(e.message)
+            throw e
         }
     }
 

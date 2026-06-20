@@ -156,6 +156,7 @@ class MainActivity : ComponentActivity() {
             val featureRepository: fr.geoking.julius.repository.FeatureRepository = get()
             val queueEngine: CodingAgentQueueEngine = get()
             val voiceManager: VoiceManager = get()
+            val dbCacheDebugTracker: fr.geoking.julius.debug.DbCacheDebugTracker = get()
             val localTranscriber: LocalTranscriber = get()
             val conversationalAgent: ConversationalAgent = get()
             val networkService: NetworkService = get()
@@ -181,6 +182,7 @@ class MainActivity : ComponentActivity() {
                 featureRepository = featureRepository,
                 queueEngine = queueEngine,
                 voiceManager = voiceManager,
+                dbCacheDebugTracker = dbCacheDebugTracker,
                 localTranscriber = localTranscriber,
                 conversationalAgent = conversationalAgent,
                 networkService = networkService,
@@ -207,6 +209,7 @@ class MainActivity : ComponentActivity() {
         featureRepository: fr.geoking.julius.repository.FeatureRepository,
         queueEngine: CodingAgentQueueEngine,
         voiceManager: VoiceManager,
+        dbCacheDebugTracker: fr.geoking.julius.debug.DbCacheDebugTracker,
         localTranscriber: LocalTranscriber,
         conversationalAgent: ConversationalAgent,
         networkService: NetworkService,
@@ -224,6 +227,7 @@ class MainActivity : ComponentActivity() {
                     featureRepository = featureRepository,
                     queueEngine = queueEngine,
                     voiceManager = voiceManager,
+                    dbCacheDebugTracker = dbCacheDebugTracker,
                     localTranscriber = localTranscriber,
                     conversationalAgent = conversationalAgent,
                     networkService = networkService,
@@ -260,6 +264,7 @@ private fun MainActivityComposeRoot(
     featureRepository: fr.geoking.julius.repository.FeatureRepository,
     queueEngine: CodingAgentQueueEngine,
     voiceManager: VoiceManager,
+    dbCacheDebugTracker: fr.geoking.julius.debug.DbCacheDebugTracker,
     localTranscriber: LocalTranscriber,
     conversationalAgent: ConversationalAgent,
     networkService: NetworkService,
@@ -414,6 +419,7 @@ fun MainUI(
                             queueEngine = queueEngine,
                             buildRepository = buildRepository,
                             voiceManager = voiceManager,
+                            dbCacheDebugTracker = dbCacheDebugTracker,
                         ),
                         onExit = { showV3 = false },
                     )
@@ -575,7 +581,8 @@ fun MainUIPreview() {
                     override val status = MutableStateFlow(NetworkStatus())
                     override suspend fun getCurrentStatus() = status.value
                 },
-                mockSettingsManager
+                mockSettingsManager,
+                fr.geoking.julius.debug.DbCacheDebugTracker(),
             )
     }
     val previewFeatureDao = remember {
@@ -603,7 +610,7 @@ fun MainUIPreview() {
         }
     }
     val previewFeatureRepository = remember {
-        fr.geoking.julius.repository.FeatureRepository(context, previewFeatureDao, previewJulesRepository)
+        fr.geoking.julius.repository.FeatureRepository(context, previewFeatureDao, previewJulesRepository, fr.geoking.julius.debug.DbCacheDebugTracker())
     }
     val previewBuildRepository = remember {
         GitHubBuildRepository(GitHubClient(HttpClient(OkHttp) {}), ProjectWorkflowPreferences(context))

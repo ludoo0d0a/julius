@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.Flow
 interface FeatureDao {
     @Query("SELECT * FROM features WHERE isArchived = 0 ORDER BY position ASC")
     fun getAllFeaturesFlow(): Flow<List<FeatureEntity>>
-
     @Query("SELECT * FROM features WHERE id = :id")
     suspend fun getFeature(id: String): FeatureEntity?
 

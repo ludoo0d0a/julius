@@ -18,7 +18,8 @@ import fr.geoking.julius.queue.AgentAccount
 import fr.geoking.julius.queue.enabledAccountsFor
 import fr.geoking.julius.queue.julesApiKeys
 import fr.geoking.julius.queue.queuePolicyFor
-import fr.geoking.julius.persistence.JulesActivityEntity
+import fr.geoking.julius.debug.DbCacheDebugTracker
+import fr.geoking.julius.debug.DbEntityKind
 import fr.geoking.julius.persistence.AccountDailyUsageDao
 import fr.geoking.julius.persistence.JulesDao
 import fr.geoking.julius.persistence.JulesSessionEntity
@@ -48,9 +49,45 @@ class JulesRepository(
     private val julesDao: JulesDao,
     private val accountDailyUsageDao: AccountDailyUsageDao,
     private val networkService: NetworkService,
-    private val settingsManager: SettingsManager
+    private val settingsManager: SettingsManager,
+    private val dbCacheDebugTracker: DbCacheDebugTracker,
 ) {
     private fun backend(): CodingAgentBackend = settingsManager.settings.value.codingAgentBackend
+
+    private suspend fun trackProjectReplace(
+        previous: Map<String, JulesSourceEntity>,
+        entities: List<JulesSourceEntity>,
+    ) {
+        var saved = 0
+        var updated = 0
+        for (entity in entities) {
+            if (previous.containsKey(entity.name)) updated++ else saved++
+        }
+        val deleted = (previous.keys - entities.map { it.name }.toSet()).size
+        dbCacheDebugTracker.record(DbEntityKind.PROJECTS, saved = saved, updated = updated, deleted = deleted)
+    }
+
+    private suspend fun trackSessionUpserts(entities: List<JulesSessionEntity>) {
+        var saved = 0
+        var updated = 0
+        for (entity in entities) {
+            val existing = runCatching { julesDao.getSession(entity.id) }.getOrNull()
+            if (existing == null) saved++ else updated++
+        }
+        dbCacheDebugTracker.record(DbEntityKind.SESSIONS, saved = saved, updated = updated)
+    }
+
+    private suspend fun trackSessionDeletes(count: Int) {
+        if (count > 0) dbCacheDebugTracker.record(DbEntityKind.SESSIONS, deleted = count)
+    }
+
+    private suspend fun trackActivityReplace(previousCount: Int, inserted: Int) {
+        dbCacheDebugTracker.record(
+            DbEntityKind.ACTIVITIES,
+            saved = inserted,
+            deleted = previousCount,
+        )
+    }
 
     private fun isClaudeBackend(): Boolean = backend() == CodingAgentBackend.CLAUDE_CODE
 
@@ -192,6 +229,7 @@ class JulesRepository(
     }
 
     suspend fun refreshSources(apiKeys: List<String>) {
+        dbCacheDebugTracker.begin("refreshSources")
         try {
             val allSources = mutableMapOf<String, JulesClient.JulesSource>()
             if (isClaudeBackend()) {
@@ -241,10 +279,14 @@ class JulesRepository(
                         lastUpdated = now
                     )
                 }
+                val previous = runCatching { julesDao.getSources() }.getOrDefault(emptyList()).associateBy { it.name }
                 // Atomic swap so the cached source Flow never blinks empty mid-refresh.
                 julesDao.replaceSources(entities)
+                trackProjectReplace(previous, entities)
             }
+            dbCacheDebugTracker.finish()
         } catch (e: Exception) {
+            dbCacheDebugTracker.finish(e.message)
             android.util.Log.e("JulesRepository", "Failed to refresh sources", e)
         }
     }
@@ -268,6 +310,8 @@ class JulesRepository(
     }
 
     suspend fun refreshSessionsInternal(apiKeys: List<String>, sourceName: String, githubToken: String) {
+        dbCacheDebugTracker.begin("refreshSessions:$sourceName")
+        try {
         var anySuccess = false
         if (isClaudeBackend()) {
             val apiKey = activeApiKey()
@@ -311,6 +355,7 @@ class JulesRepository(
                     }
                     if (currentEntities.isNotEmpty()) {
                         julesDao.insertSessions(currentEntities)
+                        trackSessionUpserts(currentEntities)
                     }
                     anySuccess = true
                 } catch (e: Exception) {
@@ -369,8 +414,10 @@ class JulesRepository(
                             val currentIds = currentEntities.map { it.id }.toSet()
                             val toDelete = localSessionsForKey.filter { !currentIds.contains(it.id) && !it.isPendingOffline }
                             toDelete.forEach { julesDao.deleteSession(it.id) }
+                            trackSessionDeletes(toDelete.size)
                             if (currentEntities.isNotEmpty()) {
                                 julesDao.insertSessions(currentEntities)
+                                trackSessionUpserts(currentEntities)
                             }
                         } catch (e: Exception) {
                             android.util.Log.e("JulesRepository", "Failed to fetch sessions for key ${key.take(8)}...", e)
@@ -386,6 +433,11 @@ class JulesRepository(
                     async { updatePrStatus(githubToken, entity) }
                 }.awaitAll()
             }
+        }
+        dbCacheDebugTracker.finish()
+        } catch (e: Exception) {
+            dbCacheDebugTracker.finish(e.message)
+            android.util.Log.e("JulesRepository", "Failed to refresh sessions for $sourceName", e)
         }
     }
 
@@ -1067,10 +1119,15 @@ class JulesRepository(
     }
 
     suspend fun refreshActivitiesInternal(sessionId: String) {
-        val existingSession = try { julesDao.getSession(sessionId) } catch (e: Exception) { null }
-        val apiKey = existingSession?.apiKey ?: activeApiKey() ?: return
-
+        dbCacheDebugTracker.begin("refreshActivities:$sessionId")
         try {
+            val existingSession = try { julesDao.getSession(sessionId) } catch (e: Exception) { null }
+            val apiKey = existingSession?.apiKey ?: activeApiKey()
+            if (apiKey == null) {
+                dbCacheDebugTracker.finish()
+                return
+            }
+
             if (isClaudeBackend() || sessionId.startsWith(CodingAgentBackend.CLAUDE_SESSION_PREFIX)) {
                 val resp = claudeCodeClient.listEvents(apiKey, sessionId)
                 val prUrl = claudeCodeClient.findPullRequestUrl(resp.data)
@@ -1115,8 +1172,10 @@ class JulesRepository(
                         activityJson = Json.encodeToString(ClaudeCodeClient.ClaudeEvent.serializer(), event)
                     )
                 }
+                val previousCount = runCatching { julesDao.getActivitiesBySession(sessionId).size }.getOrDefault(0)
                 julesDao.clearActivitiesBySession(sessionId)
                 julesDao.insertActivities(entities)
+                trackActivityReplace(previousCount, entities.size)
                 return
             }
 
@@ -1170,11 +1229,16 @@ class JulesRepository(
                     activityJson = Json.encodeToString(JulesClient.JulesActivity.serializer(), a)
                 ))
             }
+            val previousCount = runCatching { julesDao.getActivitiesBySession(sessionId).size }.getOrDefault(0)
             julesDao.clearActivitiesBySession(sessionId)
             julesDao.insertActivities(entities)
+            trackActivityReplace(previousCount, entities.size)
         } catch (e: Exception) {
+            dbCacheDebugTracker.finish(e.message)
             android.util.Log.e("JulesRepository", "refreshActivitiesInternal failed for $sessionId", e)
+            return
         }
+        dbCacheDebugTracker.finish()
     }
 
     suspend fun mergePr(githubToken: String, sessionId: String, prUrl: String, deleteBranch: Boolean = false): Result<Unit> {
@@ -1365,6 +1429,8 @@ class JulesRepository(
     }
 
     fun getNetworkService() = networkService
+
+    val cacheDebugTracker: DbCacheDebugTracker get() = dbCacheDebugTracker
 
     suspend fun getSession(sessionId: String): JulesSessionEntity? {
         return julesDao.getSession(sessionId)
