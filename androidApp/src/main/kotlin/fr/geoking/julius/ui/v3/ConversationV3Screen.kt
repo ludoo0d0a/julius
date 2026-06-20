@@ -60,7 +60,7 @@ fun ConversationV3Screen(
     var sendTick by remember { mutableStateOf(0) }
     var session by remember(sessionId) { mutableStateOf<JulesSessionEntity?>(null) }
     LaunchedEffect(sessionId, sendTick) {
-        // cache-first then refresh from Jules/Claude + GitHub
+        // cache-first, then refresh session + activities from Jules/Claude (GitHub only on new PR refs)
         session = deps.julesRepository.getSession(sessionId)
         runCatching { deps.julesRepository.pollSessionStatus(sessionId, token) }
         session = deps.julesRepository.getSession(sessionId)

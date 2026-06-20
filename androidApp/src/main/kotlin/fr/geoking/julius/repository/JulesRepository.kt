@@ -129,6 +129,27 @@ class JulesRepository(
         )
     }
 
+    /** True when Jules/Claude session outputs newly expose a GitHub PR URL we did not have locally. */
+    private fun hasNewPullRequestReference(
+        previous: JulesSessionEntity?,
+        updated: JulesSessionEntity,
+    ): Boolean {
+        val url = updated.prUrl?.takeIf { it.isNotBlank() } ?: return false
+        parseGitHubPullRequestUrl(url) ?: return false
+        return previous?.prUrl != url
+    }
+
+    /** GitHub is queried only when session outputs first surface a pull request reference. */
+    private suspend fun maybeRefreshPullRequestFromGitHub(
+        githubToken: String,
+        previous: JulesSessionEntity?,
+        updated: JulesSessionEntity,
+    ) {
+        if (githubToken.isBlank()) return
+        if (!hasNewPullRequestReference(previous, updated)) return
+        updatePrStatus(githubToken, updated)
+    }
+
     private fun parallelSyncLimit(): Int =
         settingsManager.settings.value.queuePolicyFor(backend()).parallelLimit.coerceAtLeast(1)
 
@@ -233,23 +254,7 @@ class JulesRepository(
         dbCacheDebugTracker.begin("refreshSources")
         try {
             val allSources = mutableMapOf<String, JulesClient.JulesSource>()
-            if (isClaudeBackend()) {
-                val githubToken = settingsManager.settings.value.githubApiKey
-                if (githubToken.isNotBlank()) {
-                    val repos = githubClient.listUserRepositories(githubToken)
-                    repos.forEach { repo ->
-                        val name = repo.fullName.ifBlank { "${repo.owner.login}/${repo.name}" }
-                        allSources[name] = JulesClient.JulesSource(
-                            name = name,
-                            id = name,
-                            githubRepo = JulesClient.JulesGitHubRepo(
-                                owner = repo.owner.login,
-                                repo = repo.name
-                            )
-                        )
-                    }
-                }
-            } else {
+            if (apiKeys.isNotEmpty()) {
                 coroutineScope {
                     apiKeys.map { key ->
                         async {
@@ -265,6 +270,22 @@ class JulesRepository(
                             }
                         }
                     }.awaitAll()
+                }
+            } else if (isClaudeBackend()) {
+                val githubToken = settingsManager.settings.value.githubApiKey
+                if (githubToken.isNotBlank()) {
+                    val repos = githubClient.listUserRepositories(githubToken)
+                    repos.forEach { repo ->
+                        val name = repo.fullName.ifBlank { "${repo.owner.login}/${repo.name}" }
+                        allSources[name] = JulesClient.JulesSource(
+                            name = name,
+                            id = name,
+                            githubRepo = JulesClient.JulesGitHubRepo(
+                                owner = repo.owner.login,
+                                repo = repo.name
+                            )
+                        )
+                    }
                 }
             }
 
@@ -313,7 +334,6 @@ class JulesRepository(
     suspend fun refreshSessionsInternal(apiKeys: List<String>, sourceName: String, githubToken: String) {
         dbCacheDebugTracker.begin("refreshSessions:$sourceName")
         try {
-        var anySuccess = false
         if (isClaudeBackend()) {
             val apiKey = activeApiKey()
             if (apiKey != null) {
@@ -358,7 +378,6 @@ class JulesRepository(
                         julesDao.insertSessions(currentEntities)
                         trackSessionUpserts(currentEntities)
                     }
-                    anySuccess = true
                 } catch (e: Exception) {
                     android.util.Log.e("JulesRepository", "Failed to fetch Claude sessions", e)
                 }
@@ -372,8 +391,8 @@ class JulesRepository(
                             val sessions = resp.sessions.orEmpty().filter {
                                 it.sourceContext?.source == sourceName || it.sourceContext?.source == resolveJulesSource(sourceName)
                             }
-                            anySuccess = true
                             val currentEntities = mutableListOf<JulesSessionEntity>()
+                            val prStatusUpdates = mutableListOf<Pair<JulesSessionEntity?, JulesSessionEntity>>()
                             for (session in sessions) {
                                 val sessionId = session.id.takeIf { it.isNotBlank() } ?: session.name
                                 if (sessionId.isBlank()) continue
@@ -407,9 +426,11 @@ class JulesRepository(
                                     apiKey = key,
                                     featureId = existing?.featureId
                                 )
-                                currentEntities.add(
-                                    mergeSessionPullRequest(baseEntity, session.primaryPullRequest())
-                                )
+                                val merged = mergeSessionPullRequest(baseEntity, session.primaryPullRequest())
+                                currentEntities.add(merged)
+                                if (hasNewPullRequestReference(existing, merged)) {
+                                    prStatusUpdates.add(existing to merged)
+                                }
                             }
                             val localSessionsForKey = julesDao.getSessionsBySourceAndKey(sourceName, key)
                             val currentIds = currentEntities.map { it.id }.toSet()
@@ -420,18 +441,13 @@ class JulesRepository(
                                 julesDao.insertSessions(currentEntities)
                                 trackSessionUpserts(currentEntities)
                             }
+                            for ((previous, updated) in prStatusUpdates) {
+                                maybeRefreshPullRequestFromGitHub(githubToken, previous, updated)
+                            }
                         } catch (e: Exception) {
                             android.util.Log.e("JulesRepository", "Failed to fetch sessions for key ${key.take(8)}...", e)
                         }
                     }
-                }.awaitAll()
-            }
-        }
-        if (anySuccess) {
-            val entities = try { julesDao.getSessionsBySource(sourceName) } catch (e: Exception) { emptyList() }
-            coroutineScope {
-                entities.filter { !it.prUrl.isNullOrBlank() }.map { entity ->
-                    async { updatePrStatus(githubToken, entity) }
                 }.awaitAll()
             }
         }
@@ -686,6 +702,11 @@ class JulesRepository(
                 session.primaryPullRequest(),
             )
             julesDao.insertSessions(listOf(entity))
+            maybeRefreshPullRequestFromGitHub(
+                settingsManager.settings.value.githubApiKey,
+                null,
+                entity,
+            )
             return session.id
         } else {
             val tempId = "offline_${java.util.UUID.randomUUID()}"
@@ -735,22 +756,7 @@ class JulesRepository(
                 "${gh.owner}/${gh.repo}" == rawSource || gh.repo == rawSource
             }
         match?.githubRepo?.defaultBranch?.displayName?.takeIf { it.isNotBlank() }?.let { return it }
-        val gh = match?.githubRepo
-        if (gh != null) {
-            resolveDefaultBranchFromGitHub(gh.owner, gh.repo)?.let { return it }
-        }
-        parseRepoSource(resolvedSource)?.let { (owner, repo) ->
-            resolveDefaultBranchFromGitHub(owner, repo)?.let { return it }
-        }
         return "main"
-    }
-
-    private suspend fun resolveDefaultBranchFromGitHub(owner: String, repo: String): String? {
-        val token = settingsManager.settings.value.githubApiKey
-        if (token.isBlank()) return null
-        return runCatching {
-            githubClient.getRepository(token, owner, repo).defaultBranch
-        }.getOrNull()?.takeIf { it.isNotBlank() }
     }
 
     private suspend fun createJulesApiSession(
@@ -939,6 +945,11 @@ class JulesRepository(
                                 created.primaryPullRequest(),
                             )
                             julesDao.insertSessions(listOf(updatedEntity))
+                            maybeRefreshPullRequestFromGitHub(
+                                settingsManager.settings.value.githubApiKey,
+                                null,
+                                updatedEntity,
+                            )
                             created.id
                         }
                         julesDao.updateActivitiesSessionId(session.id, newSessionId)
@@ -1020,14 +1031,9 @@ class JulesRepository(
                             lastUpdated = System.currentTimeMillis()
                         )
                         julesDao.insertSessions(listOf(updated))
-                        updatePrStatus(githubToken, updated)
-                    } else {
-                        if (statusChanged) {
-                            julesDao.updateSessionLastUpdated(sessionId, System.currentTimeMillis())
-                        }
-                        if (existing.prUrl != null) {
-                            updatePrStatus(githubToken, existing)
-                        }
+                        maybeRefreshPullRequestFromGitHub(githubToken, existing, updated)
+                    } else if (statusChanged) {
+                        julesDao.updateSessionLastUpdated(sessionId, System.currentTimeMillis())
                     }
                 }
                 return
@@ -1056,11 +1062,7 @@ class JulesRepository(
 
                 if (statusChanged || prChanged) {
                     julesDao.insertSessions(listOf(updated))
-                    if (updated.prUrl != null) {
-                        updatePrStatus(githubToken, updated)
-                    }
-                } else if (existing.prUrl != null) {
-                    updatePrStatus(githubToken, existing)
+                    maybeRefreshPullRequestFromGitHub(githubToken, existing, updated)
                 }
             }
         } catch (e: Exception) {
@@ -1137,14 +1139,11 @@ class JulesRepository(
                     if (existing != null && existing.prUrl != prUrl) {
                         val updated = existing.copy(prUrl = prUrl, lastUpdated = System.currentTimeMillis())
                         julesDao.insertSessions(listOf(updated))
-                        val githubToken = settingsManager.settings.value.githubApiKey
-                        if (githubToken.isNotBlank()) {
-                            try {
-                                updatePrStatus(githubToken, updated)
-                            } catch (e: Exception) {
-                                // Ignore
-                            }
-                        }
+                        maybeRefreshPullRequestFromGitHub(
+                            settingsManager.settings.value.githubApiKey,
+                            existing,
+                            updated,
+                        )
                     }
                 }
 
