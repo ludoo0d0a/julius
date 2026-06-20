@@ -202,28 +202,31 @@ class FeatureRepository(
         return sessionId
     }
 
-    fun autoPromoteOrphans(scope: CoroutineScope, sourceName: String, incoming: List<JulesSessionEntity>) {
-        val orphans = incoming.filter { it.featureId.isNullOrBlank() }
-        for (session in orphans) {
+    suspend fun promoteOrphanSessions(sourceName: String, incoming: List<JulesSessionEntity>) {
+        for (session in incoming.filter { it.featureId.isNullOrBlank() }) {
             if (!promotingSessionIds.add(session.id)) continue
-            scope.launch {
-                try {
-                    val initialStatus = calculateFeatureStatus(listOf(session))
-                    val featureId = addFeature(
-                        title = session.title.ifBlank { "Conversation" },
-                        description = session.prompt,
-                        priority = 0,
-                        sourceName = sourceName,
-                        status = initialStatus,
-                        sessionId = session.id,
-                    )
-                    julesRepository.linkSessionToFeature(session.id, featureId)
-                } catch (e: Exception) {
-                    android.util.Log.e("FeatureRepository", "Auto promotion failed for ${session.id}", e)
-                } finally {
-                    promotingSessionIds.remove(session.id)
-                }
+            try {
+                val initialStatus = calculateFeatureStatus(listOf(session))
+                val featureId = addFeature(
+                    title = session.title.ifBlank { "Conversation" },
+                    description = session.prompt,
+                    priority = 0,
+                    sourceName = sourceName,
+                    status = initialStatus,
+                    sessionId = session.id,
+                )
+                julesRepository.linkSessionToFeature(session.id, featureId)
+            } catch (e: Exception) {
+                android.util.Log.e("FeatureRepository", "Auto promotion failed for ${session.id}", e)
+            } finally {
+                promotingSessionIds.remove(session.id)
             }
+        }
+    }
+
+    fun autoPromoteOrphans(scope: CoroutineScope, sourceName: String, incoming: List<JulesSessionEntity>) {
+        scope.launch {
+            promoteOrphanSessions(sourceName, incoming)
         }
     }
 
@@ -254,13 +257,13 @@ class FeatureRepository(
         try {
             julesRepository.syncOfflineData()
             if (sourceName != null) {
-                julesRepository.refreshSessionsInternal(apiKeys, sourceName)
+                reconcileSourceFeatures(sourceName, apiKeys)
             } else {
                 julesRepository.refreshSources(apiKeys)
                 val sources = runCatching { julesRepository.getSourcesCached() }.getOrDefault(emptyList())
                 for (src in sources) {
                     try {
-                        julesRepository.refreshSessionsInternal(apiKeys, src.name)
+                        reconcileSourceFeatures(src.name, apiKeys)
                     } catch (e: Exception) {
                         android.util.Log.e("FeatureRepository", "Global reconcile failed for ${src.name}", e)
                     }
@@ -271,6 +274,18 @@ class FeatureRepository(
             dbCacheDebugTracker.finish(e.message)
             throw e
         }
+    }
+
+    /** Lists recent Jules sessions for a repo and materializes orphan sessions as features. */
+    private suspend fun reconcileSourceFeatures(sourceName: String, apiKeys: List<String>) {
+        julesRepository.refreshSessionsInternal(
+            apiKeys = apiKeys,
+            sourceName = sourceName,
+            pageSize = 10,
+            refreshActivities = false,
+        )
+        val sessions = julesRepository.getSessionsBySource(sourceName)
+        promoteOrphanSessions(sourceName, sessions)
     }
 
     fun scheduleWorker() {

@@ -310,12 +310,20 @@ class JulesRepository(
         }
     }
 
-    fun getSessions(apiKeys: List<String>, sourceName: String): Flow<List<JulesSessionEntity>> = flow {
+    /** Room-backed sessions: emits cached rows first, optionally refreshes from the API in the background. */
+    fun getSessions(
+        apiKeys: List<String>,
+        sourceName: String,
+        refresh: Boolean = true,
+        pageSize: Int = 10,
+        refreshActivities: Boolean = true,
+    ): Flow<List<JulesSessionEntity>> = flow {
         emitAll(getSessionsFlow(sourceName))
     }.onStart {
-        // Fire-and-forget refresh in background scope to avoid blocking onStart
-        kotlinx.coroutines.GlobalScope.launch {
-            refreshSessionsInternal(apiKeys, sourceName)
+        if (refresh) {
+            kotlinx.coroutines.GlobalScope.launch {
+                refreshSessionsInternal(apiKeys, sourceName, pageSize, refreshActivities)
+            }
         }
     }
 
@@ -342,7 +350,15 @@ class JulesRepository(
         }
     }
 
-    suspend fun refreshSessionsInternal(apiKeys: List<String>, sourceName: String) {
+    suspend fun getSessionsBySource(sourceName: String): List<JulesSessionEntity> =
+        filterSessionsForBackend(julesDao.getSessionsBySource(sourceName))
+
+    suspend fun refreshSessionsInternal(
+        apiKeys: List<String>,
+        sourceName: String,
+        pageSize: Int = 10,
+        refreshActivities: Boolean = true,
+    ) {
         dbCacheDebugTracker.begin("refreshSessions:$sourceName")
         val refreshedSessionIds = mutableSetOf<String>()
         try {
@@ -396,71 +412,68 @@ class JulesRepository(
                 }
             }
         } else {
-            coroutineScope {
-                apiKeys.map { key ->
-                    async {
-                        try {
-                            val resp = julesClient.listSessions(key, pageSize = 50)
-                            val sessions = resp.sessions.orEmpty().filter {
-                                it.sourceContext?.source == sourceName || it.sourceContext?.source == resolveJulesSource(sourceName)
-                            }
-                            val currentEntities = mutableListOf<JulesSessionEntity>()
-                            for (session in sessions) {
-                                val sessionId = session.id.takeIf { it.isNotBlank() } ?: session.name
-                                if (sessionId.isBlank()) continue
-                                val existing = try { julesDao.getSession(sessionId) } catch (e: Exception) { null }
-                                val apiUpdateTime = try {
-                                    if (!session.updateTime.isNullOrBlank()) {
-                                        OffsetDateTime.parse(session.updateTime).toInstant().toEpochMilli()
-                                    } else 0L
-                                } catch (e: Exception) { 0L }
-                                val newLastUpdated = maxOf(existing?.lastUpdated ?: 0L, apiUpdateTime).let {
-                                    if (it == 0L) System.currentTimeMillis() else it
-                                }
-                                val baseEntity = JulesSessionEntity(
-                                    id = sessionId,
-                                    title = session.title,
-                                    prompt = session.prompt,
-                                    sourceName = sourceName,
-                                    prUrl = existing?.prUrl,
-                                    prTitle = existing?.prTitle,
-                                    prDescription = existing?.prDescription,
-                                    prId = existing?.prId,
-                                    prRepo = existing?.prRepo,
-                                    prState = existing?.prState,
-                                    prMergeable = existing?.prMergeable,
-                                    sessionState = session.state,
-                                    url = session.url,
-                                    createTime = session.createTime,
-                                    updateTime = session.updateTime,
-                                    isArchived = existing?.isArchived ?: false,
-                                    lastUpdated = newLastUpdated,
-                                    apiKey = key,
-                                    featureId = existing?.featureId
-                                )
-                                val merged = mergeSessionPullRequest(baseEntity, session.primaryPullRequest())
-                                currentEntities.add(merged)
-                            }
-                            val localSessionsForKey = julesDao.getSessionsBySourceAndKey(sourceName, key)
-                            val currentIds = currentEntities.map { it.id }.toSet()
-                            val toDelete = localSessionsForKey.filter { !currentIds.contains(it.id) && !it.isPendingOffline }
-                            toDelete.forEach { julesDao.deleteSession(it.id) }
-                            trackSessionDeletes(toDelete.size)
-                            if (currentEntities.isNotEmpty()) {
-                                julesDao.insertSessions(currentEntities)
-                                trackSessionUpserts(currentEntities)
-                                synchronized(refreshedSessionIds) {
-                                    refreshedSessionIds.addAll(currentEntities.map { it.id })
-                                }
-                            }
-                        } catch (e: Exception) {
-                            android.util.Log.e("JulesRepository", "Failed to fetch sessions for key ${key.take(8)}...", e)
-                        }
+            val key = primarySourceApiKey(apiKeys)
+            if (key != null) {
+                try {
+                    val resp = julesClient.listSessions(key, pageSize = pageSize)
+                    val sessions = resp.sessions.orEmpty().filter {
+                        it.sourceContext?.source == sourceName || it.sourceContext?.source == resolveJulesSource(sourceName)
                     }
-                }.awaitAll()
+                    val currentEntities = mutableListOf<JulesSessionEntity>()
+                    for (session in sessions) {
+                        val sessionId = session.id.takeIf { it.isNotBlank() } ?: session.name
+                        if (sessionId.isBlank()) continue
+                        val existing = try { julesDao.getSession(sessionId) } catch (e: Exception) { null }
+                        val apiUpdateTime = try {
+                            if (!session.updateTime.isNullOrBlank()) {
+                                OffsetDateTime.parse(session.updateTime).toInstant().toEpochMilli()
+                            } else 0L
+                        } catch (e: Exception) { 0L }
+                        val newLastUpdated = maxOf(existing?.lastUpdated ?: 0L, apiUpdateTime).let {
+                            if (it == 0L) System.currentTimeMillis() else it
+                        }
+                        val baseEntity = JulesSessionEntity(
+                            id = sessionId,
+                            title = session.title,
+                            prompt = session.prompt,
+                            sourceName = sourceName,
+                            prUrl = existing?.prUrl,
+                            prTitle = existing?.prTitle,
+                            prDescription = existing?.prDescription,
+                            prId = existing?.prId,
+                            prRepo = existing?.prRepo,
+                            prState = existing?.prState,
+                            prMergeable = existing?.prMergeable,
+                            sessionState = session.state,
+                            url = session.url,
+                            createTime = session.createTime,
+                            updateTime = session.updateTime,
+                            isArchived = existing?.isArchived ?: false,
+                            lastUpdated = newLastUpdated,
+                            apiKey = key,
+                            featureId = existing?.featureId
+                        )
+                        val merged = mergeSessionPullRequest(baseEntity, session.primaryPullRequest())
+                        currentEntities.add(merged)
+                    }
+                    val localSessionsForKey = julesDao.getSessionsBySourceAndKey(sourceName, key)
+                    val currentIds = currentEntities.map { it.id }.toSet()
+                    val toDelete = localSessionsForKey.filter { !currentIds.contains(it.id) && !it.isPendingOffline }
+                    toDelete.forEach { julesDao.deleteSession(it.id) }
+                    trackSessionDeletes(toDelete.size)
+                    if (currentEntities.isNotEmpty()) {
+                        julesDao.insertSessions(currentEntities)
+                        trackSessionUpserts(currentEntities)
+                        refreshedSessionIds.addAll(currentEntities.map { it.id })
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("JulesRepository", "Failed to fetch sessions for key ${key.take(8)}...", e)
+                }
             }
         }
-        refreshActivitiesForSessions(refreshedSessionIds)
+        if (refreshActivities) {
+            refreshActivitiesForSessions(refreshedSessionIds)
+        }
         dbCacheDebugTracker.finish()
         } catch (e: Exception) {
             dbCacheDebugTracker.finish(e.message)

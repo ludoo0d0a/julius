@@ -77,16 +77,16 @@ fun FeaturesV3Screen(
     onOpenFeature: (String) -> Unit,
 ) {
     val settings by deps.settingsManager.settings.collectAsState()
+    val apiKeys = remember(settings) { settings.julesApiKeys() }
     var isRefreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    // On open: background reconcile features from DB + conversations from agents.
-    LaunchedEffect(sourceName) {
+    // List recent sessions, promote orphans to features, then show from Room.
+    LaunchedEffect(sourceName, apiKeys) {
+        if (sourceName == null) return@LaunchedEffect
         isRefreshing = true
-        val apiKeys = deps.settingsManager.settings.value.julesApiKeys()
-        val githubToken = deps.settingsManager.settings.value.githubApiKey
         try {
-            deps.featureRepository.refreshFeatures(sourceName, apiKeys, githubToken)
+            deps.featureRepository.refreshFeatures(sourceName, apiKeys, settings.githubApiKey)
         } finally {
             isRefreshing = false
         }
@@ -113,11 +113,10 @@ fun FeaturesV3Screen(
         isRefreshing = isRefreshing,
         onRefresh = {
             scope.launch {
+                if (sourceName == null) return@launch
                 isRefreshing = true
-                val apiKeys = deps.settingsManager.settings.value.julesApiKeys()
-                val githubToken = deps.settingsManager.settings.value.githubApiKey
                 try {
-                    deps.featureRepository.refreshFeatures(sourceName, apiKeys, githubToken)
+                    deps.featureRepository.refreshFeatures(sourceName, apiKeys, settings.githubApiKey)
                 } finally {
                     isRefreshing = false
                 }

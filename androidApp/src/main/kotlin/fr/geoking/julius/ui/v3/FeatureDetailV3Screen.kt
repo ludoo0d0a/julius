@@ -40,7 +40,12 @@ fun FeatureDetailV3Screen(
     // orphan conversations, and re-read this feature's sessions from the refreshed cache.
     LaunchedEffect(feature?.sourceName, settings.julesKeys, settings.githubApiKey) {
         val sourceName = feature?.sourceName ?: return@LaunchedEffect
-        deps.julesRepository.getSessions(settings.julesKeys, sourceName).collect { list ->
+        deps.julesRepository.getSessions(
+            settings.julesKeys,
+            sourceName,
+            pageSize = 50,
+            refreshActivities = true,
+        ).collect { list ->
             deps.featureRepository.autoPromoteOrphans(scope, sourceName, list)
         }
     }
