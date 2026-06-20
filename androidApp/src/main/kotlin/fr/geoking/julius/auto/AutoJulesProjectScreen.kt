@@ -5,12 +5,11 @@ import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.*
 import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import fr.geoking.julius.SettingsManager
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.conversation.ConversationStore
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /**
@@ -43,28 +42,21 @@ class AutoJulesProjectScreen(
 
         lifecycleScope.launch {
             try {
-                val allSources = mutableMapOf<String, JulesClient.JulesSource>()
-                kotlinx.coroutines.coroutineScope {
-                    apiKeys.map { key ->
-                        async {
-                            try {
-                                val resp = julesClient.listSources(key)
-                                synchronized(allSources) {
-                                    resp.sources.forEach { src ->
-                                        allSources[src.name] = src
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Failed to load sources for key ${key.take(8)}...", e)
-                            }
-                        }
-                    }.awaitAll()
+                val cached = julesRepository.getSourcesCached()
+                if (cached.isNotEmpty()) {
+                    sources = cached
+                    loading = false
+                    invalidate()
                 }
-                sources = allSources.values.toList()
+                julesRepository.getSources(apiKeys).collectLatest { list ->
+                    sources = list
+                    if (list.isNotEmpty()) error = null
+                    loading = false
+                    invalidate()
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load sources", e)
                 error = e.message ?: "Failed to load repositories"
-            } finally {
                 loading = false
                 invalidate()
             }
@@ -72,7 +64,7 @@ class AutoJulesProjectScreen(
     }
 
     override fun onGetTemplate(): Template {
-        if (loading) {
+        if (loading && sources.isEmpty()) {
             return MessageTemplate.Builder("Chargement des projets…")
                 .setLoading(true)
                 .setHeader(Header.Builder().setTitle("Jules - Projets").setStartHeaderAction(Action.BACK).build())
@@ -80,7 +72,7 @@ class AutoJulesProjectScreen(
         }
 
         val error = error
-        if (error != null) {
+        if (error != null && sources.isEmpty()) {
             return MessageTemplate.Builder(error.take(250))
                 .setHeader(Header.Builder().setTitle("Jules - Erreur").setStartHeaderAction(Action.BACK).build())
                 .addAction(Action.Builder().setTitle("Retry").setOnClickListener {

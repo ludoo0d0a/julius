@@ -249,17 +249,12 @@ class JulesRepository(
         }
     }
 
+    /** Room-backed sources: emits cached rows first, then refreshes from the API in the background. */
     fun getSources(apiKeys: List<String>): Flow<List<JulesClient.JulesSource>> = flow {
-        // 1. Emit from cache immediately
-        val cached = getSourcesCached()
-        emit(cached)
-
-        // 2. Refresh if needed (e.g. once a day)
-        val lastUpdated = julesDao.getSources().firstOrNull()?.lastUpdated ?: 0L
-        val ttlMs = 24 * 60 * 60 * 1000L
-        if (System.currentTimeMillis() - lastUpdated > ttlMs || cached.isEmpty()) {
+        emitAll(getSourcesFlow())
+    }.onStart {
+        kotlinx.coroutines.GlobalScope.launch {
             refreshSources(apiKeys)
-            emit(getSourcesCached())
         }
     }
 

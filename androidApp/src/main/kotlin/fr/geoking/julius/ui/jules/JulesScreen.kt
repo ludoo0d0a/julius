@@ -383,23 +383,24 @@ fun JulesScreen(
                                 }
                             }
                             val jsonOut = Json { prettyPrint = true; ignoreUnknownKeys = true }
-                            activitiesJson = if (activities.isNotEmpty()) {
-                                jsonOut.encodeToString(
-                                    ListSerializer(JulesClient.JulesActivity.serializer()),
-                                    activities,
-                                )
+                            val resolvedActivities = if (activities.isNotEmpty()) {
+                                activities
                             } else {
-                                val key = session.apiKey ?: apiKeys.firstOrNull()
-                                if (key != null) {
-                                    val listed = julesClient.listActivities(key, session.id).activities
-                                    jsonOut.encodeToString(
-                                        ListSerializer(JulesClient.JulesActivity.serializer()),
-                                        listed,
-                                    )
-                                } else {
-                                    "[]"
+                                julesRepository.refreshActivitiesInternal(session.id)
+                                julesRepository.getActivitiesBySession(session.id).mapNotNull { entity ->
+                                    entity.activityJson?.let { aj ->
+                                        try {
+                                            json.decodeFromString(JulesClient.JulesActivity.serializer(), aj)
+                                        } catch (_: Exception) {
+                                            null
+                                        }
+                                    }
                                 }
                             }
+                            activitiesJson = jsonOut.encodeToString(
+                                ListSerializer(JulesClient.JulesActivity.serializer()),
+                                resolvedActivities,
+                            )
                             nav.push(HarnessRoute.ActivitiesDebug(session.id, activitiesJson))
                         } catch (e: Exception) {
                             error = "Could not load activities: ${e.message ?: "Unknown error"}"

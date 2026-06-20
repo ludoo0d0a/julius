@@ -27,21 +27,24 @@ fun ProjectsV3Screen(
     val settings by deps.settingsManager.settings.collectAsState()
     val apiKeys = remember(settings) { settings.julesApiKeys() }
 
-    // Cached sources from Room (jules_sources), refreshed from Jules in the background.
-    val sourcesFlow = remember { deps.julesRepository.getSourcesFlow() }
-    val sources by sourcesFlow.collectAsState(initial = emptyList())
-
+    // Room-backed sources: cached rows first, API refresh in the background.
     var isRefreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    var sources by remember { mutableStateOf<List<JulesClient.JulesSource>>(emptyList()) }
 
-    LaunchedEffect(apiKeys) {
-        if (apiKeys.isNotEmpty()) {
-            isRefreshing = true
-            try {
+    LaunchedEffect(apiKeys, settings.githubApiKey) {
+        if (apiKeys.isEmpty()) {
+            sources = emptyList()
+            return@LaunchedEffect
+        }
+        launch {
+            runCatching {
                 deps.featureRepository.refreshFeatures(null, apiKeys, settings.githubApiKey)
-            } finally {
-                isRefreshing = false
             }
+        }
+        deps.julesRepository.getSources(apiKeys).collect { list ->
+            sources = list
+            isRefreshing = false
         }
     }
 
