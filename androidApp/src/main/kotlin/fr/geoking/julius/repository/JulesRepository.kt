@@ -37,6 +37,8 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.awaitAll
 import java.time.OffsetDateTime
@@ -53,6 +55,8 @@ class JulesRepository(
     private val settingsManager: SettingsManager,
     private val dbCacheDebugTracker: DbCacheDebugTracker,
 ) {
+    private val sourcesRefreshMutex = Mutex()
+
     private fun backend(): CodingAgentBackend = settingsManager.settings.value.codingAgentBackend
 
     private suspend fun trackProjectReplace(
@@ -144,6 +148,11 @@ class JulesRepository(
         }
     }
 
+    /** One Jules key for listSources — avoids N parallel /sources calls for N accounts. */
+    private fun primarySourceApiKey(apiKeys: List<String>): String? =
+        activeApiKey()?.takeIf { it.isNotBlank() && (apiKeys.isEmpty() || it in apiKeys) }
+            ?: apiKeys.firstOrNull { it.isNotBlank() }
+
     suspend fun getAllActiveSessions(): List<JulesSessionEntity> = julesDao.getActiveSessions()
 
     fun getSessionsFlow(sourceName: String): Flow<List<JulesSessionEntity>> =
@@ -231,25 +240,22 @@ class JulesRepository(
     }
 
     suspend fun refreshSources(apiKeys: List<String>) {
+        sourcesRefreshMutex.withLock {
+            refreshSourcesUnlocked(apiKeys)
+        }
+    }
+
+    private suspend fun refreshSourcesUnlocked(apiKeys: List<String>) {
         dbCacheDebugTracker.begin("refreshSources")
         try {
             val allSources = mutableMapOf<String, JulesClient.JulesSource>()
-            if (apiKeys.isNotEmpty()) {
-                coroutineScope {
-                    apiKeys.map { key ->
-                        async {
-                            try {
-                                val resp = julesClient.listSources(key)
-                                synchronized(allSources) {
-                                    resp.sources.forEach { src ->
-                                        allSources[src.name] = src
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                android.util.Log.e("JulesRepository", "Failed to load sources for a key", e)
-                            }
-                        }
-                    }.awaitAll()
+            val julesKey = primarySourceApiKey(apiKeys)
+            if (julesKey != null) {
+                try {
+                    val resp = julesClient.listSources(julesKey)
+                    resp.sources.forEach { src -> allSources[src.name] = src }
+                } catch (e: Exception) {
+                    android.util.Log.e("JulesRepository", "Failed to load sources", e)
                 }
             } else if (isClaudeBackend()) {
                 val githubToken = settingsManager.settings.value.githubApiKey
@@ -293,12 +299,14 @@ class JulesRepository(
         }
     }
 
-    /** Room-backed sources: emits cached rows first, then refreshes from the API in the background. */
-    fun getSources(apiKeys: List<String>): Flow<List<JulesClient.JulesSource>> = flow {
+    /** Room-backed sources: emits cached rows first, optionally refreshes from the API in the background. */
+    fun getSources(apiKeys: List<String>, refresh: Boolean = true): Flow<List<JulesClient.JulesSource>> = flow {
         emitAll(getSourcesFlow())
     }.onStart {
-        kotlinx.coroutines.GlobalScope.launch {
-            refreshSources(apiKeys)
+        if (refresh) {
+            kotlinx.coroutines.GlobalScope.launch {
+                refreshSources(apiKeys)
+            }
         }
     }
 

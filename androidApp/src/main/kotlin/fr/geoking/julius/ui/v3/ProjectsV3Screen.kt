@@ -32,7 +32,7 @@ fun ProjectsV3Screen(
     val scope = rememberCoroutineScope()
     var sources by remember { mutableStateOf<List<JulesClient.JulesSource>>(emptyList()) }
 
-    LaunchedEffect(apiKeys, settings.githubApiKey) {
+    LaunchedEffect(apiKeys) {
         if (apiKeys.isEmpty()) {
             sources = emptyList()
             isRefreshing = false
@@ -40,11 +40,9 @@ fun ProjectsV3Screen(
         }
         isRefreshing = true
         launch {
-            runCatching {
-                deps.featureRepository.refreshFeatures(null, apiKeys, settings.githubApiKey)
-            }
+            runCatching { deps.julesRepository.refreshSources(apiKeys) }
         }
-        deps.julesRepository.getSources(apiKeys).collect { list ->
+        deps.julesRepository.getSourcesFlow().collect { list ->
             sources = list
             isRefreshing = false
         }
@@ -70,7 +68,7 @@ fun ProjectsV3Screen(
             scope.launch {
                 isRefreshing = true
                 try {
-                    deps.featureRepository.refreshFeatures(null, apiKeys, settings.githubApiKey)
+                    runCatching { deps.julesRepository.refreshSources(apiKeys) }
                 } finally {
                     isRefreshing = false
                 }
