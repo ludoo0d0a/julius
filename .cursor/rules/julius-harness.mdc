@@ -1,8 +1,28 @@
 ---
-description: Julius dual role — voice agent vs coding harness
+description: Julius coding harness — queue, GitHub, harness UI routes
 globs:
-  - androidApp/**/*
-  - shared/**/*
+  - androidApp/**/harness/**/*
+  - androidApp/**/ui/**/Harness*
+  - shared/**/queue/**/*
+  - shared/**/api/codingagent/**/*
 ---
 
-Julius has two subsystems: (1) voice `ConversationStore` + `AgentType` for hands-free chat; (2) coding harness with `CodingAgentBackend`, `CodingAgentQueueEngine`, and `HarnessRoute` navigation for feature → PR workflows. Do not conflate voice agents with Jules/Claude coding backends.
+# Coding harness (not voice agents)
+
+Orchestrates Jules / Claude Code: backlog → queued sessions → branch/PR → CI → merge.
+
+## Entry points
+- `CodingAgentQueueEngine.tick()` — single orchestration loop (also WorkManager ~2 min)
+- Voice: `CREATE_FEATURE`, `REPLAY_FEATURE`, `MERGE_PR`
+- UI: Harness button → `HarnessRoute` (QueueDashboard, Projects, Features, …)
+
+## Defaults (Jules)
+- `parallelLimit`: 3 · `dailyLimitPerAccount`: 15 · `autoMergeOnCiSuccess`: true
+
+## Key paths
+- `shared/.../queue/CodingAgentQueueEngine.kt`
+- `shared/.../api/codingagent/` — backend adapters
+- `androidApp/.../SettingsManager.kt` — `AgentAccount`, queue policies
+
+## Docs
+- `docs/HARNESS.md` · env keys: `docs/ENV_VARS.md` (`JULES_KEY`, `ANTHROPIC_API_KEY`, `GITHUB_TOKEN`)

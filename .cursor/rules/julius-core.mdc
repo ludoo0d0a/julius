@@ -1,0 +1,36 @@
+---
+description: Julius core architecture, paths, build, and pitfalls
+alwaysApply: true
+---
+
+# Julius core (voice + platform)
+
+## Subsystems
+- **Voice:** `ConversationStore` + `AgentType` + `ConversationalAgent` — not the coding harness.
+- **Harness:** `CodingAgentQueueEngine`, `CodingAgentBackend`, `HarnessRoute` — see `julius-harness.mdc`.
+
+## Key paths
+- `shared/.../shared/conversation/ConversationStore.kt` — orchestration
+- `shared/.../shared/voice/VoiceManager.kt` — voice interface
+- `androidApp/.../AndroidVoiceManager.kt` — Android STT/TTS
+- `androidApp/.../SettingsManager.kt` — `AgentType`, settings
+- `androidApp/.../di/AppModule.kt` — `DynamicAgentWrapper`, Koin
+- `shared/.../agents/` — agent implementations
+- `androidApp/.../auto/` — Car App Library screens + `VoiceAppService`
+
+## Patterns
+- Agent switch: `SettingsManager.settings.selectedAgent` → `DynamicAgentWrapper` (no Koin reload).
+- Audio: `AgentResponse.audio` → `playAudio()`; else `speak()` (system TTS).
+- Keys: `local.properties`/env → `BuildConfig`; runtime Settings override.
+
+## Build
+- minSdk 26, compile/target 36, app id `fr.geoking.julius`
+- Versions: `gradle/libs.versions.toml`
+- Verify: `./gradlew :androidApp:compileFullDebugKotlin` before finishing tasks
+
+## Android Auto
+- No click listeners on `Pane` rows; use `ListTemplate` or actions.
+- Car mic + Vosk: assets under `androidApp/src/main/assets/models/vosk/`
+
+## Docs
+- Index: `agents.md` · Agents: `docs/VOICE_AGENTS.md` · Voice pipeline: `docs/VOICE_PROCESSING.md`

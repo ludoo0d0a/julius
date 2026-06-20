@@ -14,7 +14,7 @@ This guide explains how to debug Julius on Android Auto using the **Android Auto
 - **Device (physical only)**
   - **Physical Android phone** with **Android Auto** installed.
     DHU connects only to real devices; Android emulators are **not** supported for Android Auto with DHU.
-  - Developer mode + unknown sources enabled for Android Auto (same steps as in `agents.md` under **Running on a physical car**).
+  - Developer mode + unknown sources enabled for Android Auto (see [ANDROID_AUTO.md](ANDROID_AUTO.md)).
 - **Environment**
   - `ANDROID_HOME` or `ANDROID_SDK_ROOT` set, or SDK installed in the default macOS path `~/Library/Android/sdk`.
   - `adb` available in your `PATH` (for ADB tunneling mode).

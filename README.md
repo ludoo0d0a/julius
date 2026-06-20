@@ -58,12 +58,20 @@ OPENAI_KEY=your_openai_api_key
 GEMINI_KEY=your_gemini_api_key
 ```
 
+## Documentation
+
+| Doc | Content |
+|-----|---------|
+| [agents.md](agents.md) | LLM index — architecture, key files, patterns |
+| [docs/VOICE_AGENTS.md](docs/VOICE_AGENTS.md) | All voice `AgentType` providers and keys |
+| [docs/VOICE_PROCESSING.md](docs/VOICE_PROCESSING.md) | STT/TTS pipeline, barge-in, car mic |
+| [docs/HARNESS.md](docs/HARNESS.md) | Coding harness queue and voice commands |
+| [docs/ANDROID_AUTO.md](docs/ANDROID_AUTO.md) | Car setup, template constraints |
+| [docs/ENV_VARS.md](docs/ENV_VARS.md) | API keys and CI env vars |
+
 ## Technologies
 
-- **Kotlin / Kotlin Multiplatform** (v2.3.0)
-- **Jetpack Compose** (v1.10.0) - Modern UI toolkit.
-- **Android Car App Library** (v1.7.0) - For Android Auto integration.
-- **Ktor** (v3.3.3) - Asynchronous client for network requests.
-- **Koin** (v4.1.1) - Dependency injection framework.
-- **Coroutines** (v1.10.2) - For asynchronous programming.
-- **Gradle** (v8.13.2) - Build system.
+Versions from `gradle/libs.versions.toml`:
+
+- **Kotlin** 2.3.20 · **Compose** 1.10.6 · **Car App Library** 1.7.0
+- **Ktor** 3.4.2 · **Koin** 4.2.0 · **Coroutines** 1.10.2 · **AGP** 8.13.2

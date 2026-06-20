@@ -1,5 +1,7 @@
 # Vosk offline STT integration – consolidated plan
 
+> **Status:** Implemented. For current behavior see [VOICE_PROCESSING.md](VOICE_PROCESSING.md) and [ANDROID_AUTO.md](ANDROID_AUTO.md).
+
 ## Goal
 
 Add Vosk as an optional local speech-to-text engine so the **car mic path** can transcribe offline. Control behavior with a single **STT engine** setting: "Local only", "Local first", or "Native only". The **phone path** stays unchanged (Android `SpeechRecognizer`); the transcriber callback is only used in the car path (`processCarAudio` in [AndroidVoiceManager.kt](androidApp/src/main/kotlin/fr/geoking/julius/AndroidVoiceManager.kt)).
