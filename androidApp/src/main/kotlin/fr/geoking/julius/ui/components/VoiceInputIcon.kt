@@ -5,11 +5,18 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import fr.geoking.julius.shared.voice.VoiceEvent
 import fr.geoking.julius.shared.voice.VoiceManager
+import kotlinx.coroutines.delay
 
 @Composable
 fun VoiceInputIcon(
@@ -22,41 +29,42 @@ fun VoiceInputIcon(
     val transcribedText by voiceManager.transcribedText.collectAsState(initial = "")
 
     val isListening = events == VoiceEvent.Listening || events == VoiceEvent.Processing
-    var isActiveByMe by remember { mutableStateOf(false) }
+    var sessionActive by remember { mutableStateOf(false) }
 
-    LaunchedEffect(transcribedText) {
-        if (isActiveByMe && transcribedText.isNotBlank()) {
+    LaunchedEffect(transcribedText, sessionActive) {
+        if (sessionActive && transcribedText.isNotBlank()) {
             onTranscriptionReceived(transcribedText)
-            isActiveByMe = false
-            // We don't necessarily want to clear it globally if other things are watching,
-            // but for this app it's probably fine.
             voiceManager.clearTranscriptionText()
+            sessionActive = false
         }
     }
 
-    LaunchedEffect(isListening) {
-        if (!isListening) {
-            isActiveByMe = false
+    LaunchedEffect(events, sessionActive) {
+        if (sessionActive && events == VoiceEvent.Silence) {
+            delay(200)
+            if (sessionActive && transcribedText.isBlank()) {
+                sessionActive = false
+            }
         }
     }
 
     IconButton(
         onClick = {
-            if (isListening && isActiveByMe) {
-                voiceManager.stopListening()
-                isActiveByMe = false
-            } else if (!isListening) {
-                voiceManager.clearTranscriptionText()
-                isActiveByMe = true
-                voiceManager.startListening(isManualStop = false)
+            when {
+                sessionActive && isListening -> voiceManager.stopListening()
+                !sessionActive -> {
+                    voiceManager.clearTranscriptionText()
+                    sessionActive = true
+                    voiceManager.startListening(isManualStop = true)
+                }
             }
         },
         modifier = modifier
     ) {
         Icon(
-            imageVector = if (isListening && isActiveByMe) Icons.Default.Stop else Icons.Default.Mic,
-            contentDescription = "Voice Input",
-            tint = if (isListening && isActiveByMe) Color.Red else tint
+            imageVector = if (sessionActive && isListening) Icons.Default.Stop else Icons.Default.Mic,
+            contentDescription = if (sessionActive && isListening) "Stop dictation" else "Start dictation",
+            tint = if (sessionActive && isListening) Color.Red else tint
         )
     }
 }

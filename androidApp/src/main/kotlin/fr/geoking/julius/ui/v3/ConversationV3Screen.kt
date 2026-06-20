@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.sp
 import fr.geoking.julius.api.github.parseGitHubPullRequestUrl
 import fr.geoking.julius.api.jules.JulesChatItem
 import fr.geoking.julius.persistence.JulesSessionEntity
-import fr.geoking.julius.ui.components.VoiceInputIcon
+import fr.geoking.julius.ui.components.VoiceTextField
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -167,22 +167,19 @@ fun ConversationV3Screen(
                     Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    OutlinedTextField(
-                        value = prompt, onValueChange = { prompt = it },
+                    VoiceTextField(
+                        value = prompt,
+                        onValueChange = { prompt = it },
+                        voiceManager = deps.voiceManager,
                         placeholder = { Text("Message à l'agent…") },
                         modifier = Modifier.weight(1f),
                         maxLines = 4,
                         shape = RoundedCornerShape(22.dp),
-                        trailingIcon = {
-                            VoiceInputIcon(
-                                voiceManager = deps.voiceManager,
-                                onTranscriptionReceived = { prompt = (prompt + " " + it).trim() },
-                                tint = V3.Accent,
-                            )
-                        },
+                        micTint = V3.Accent,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = V3.Fg, unfocusedTextColor = V3.Fg,
                             focusedBorderColor = V3.Accent, unfocusedBorderColor = V3.Border,
+                            cursorColor = V3.Accent,
                         ),
                     )
                     Spacer(Modifier.width(8.dp))

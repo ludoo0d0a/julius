@@ -1,6 +1,8 @@
 package fr.geoking.julius.ui.v3
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -48,3 +50,14 @@ private val V3ColorScheme = darkColorScheme(
 fun JuliusV3Theme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = V3ColorScheme, content = content)
 }
+
+@Composable
+fun v3TextFieldColors(): TextFieldColors = OutlinedTextFieldDefaults.colors(
+    focusedTextColor = V3.Fg,
+    unfocusedTextColor = V3.Fg,
+    focusedBorderColor = V3.Accent,
+    unfocusedBorderColor = V3.Border,
+    focusedLabelColor = V3.Accent,
+    unfocusedLabelColor = V3.Muted,
+    cursorColor = V3.Accent,
+)

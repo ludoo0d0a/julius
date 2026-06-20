@@ -396,6 +396,7 @@ fun MainUI(
                             queueEngine = queueEngine,
                             buildRepository = buildRepository,
                             voiceManager = voiceManager,
+                            conversationStore = store,
                             dbCacheDebugTracker = dbCacheDebugTracker,
                         ),
                         onExit = { showHarness = false },

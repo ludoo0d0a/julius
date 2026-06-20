@@ -52,9 +52,10 @@ import fr.geoking.julius.repository.FeatureRepository
 import fr.geoking.julius.repository.GitHubBuildRepository
 import fr.geoking.julius.debug.DbCacheDebugTracker
 import fr.geoking.julius.repository.JulesRepository
+import fr.geoking.julius.shared.conversation.ConversationStore
 import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.ui.AgentApiUsageTarget
-import fr.geoking.julius.ui.components.VoiceInputIcon
+import fr.geoking.julius.ui.components.VoiceTextField
 import fr.geoking.julius.ui.components.HarnessDebugBar
 import kotlinx.coroutines.launch
 
@@ -66,6 +67,7 @@ class V3Deps(
     val queueEngine: CodingAgentQueueEngine,
     val buildRepository: GitHubBuildRepository,
     val voiceManager: VoiceManager,
+    val conversationStore: ConversationStore,
     val dbCacheDebugTracker: DbCacheDebugTracker,
 )
 
@@ -78,6 +80,12 @@ private sealed class V3Sheet {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
+    DisposableEffect(deps.conversationStore) {
+        val previous = deps.conversationStore.autoSendFinalTranscripts
+        deps.conversationStore.autoSendFinalTranscripts = false
+        onDispose { deps.conversationStore.autoSendFinalTranscripts = previous }
+    }
+
     JuliusV3Theme {
         val nav = rememberV3NavController()
         val scope = rememberCoroutineScope()
@@ -598,9 +606,26 @@ private fun EditFeatureSheet(deps: V3Deps, featureId: String, onClose: () -> Uni
         Column(Modifier.padding(horizontal = 18.dp).padding(bottom = 24.dp)) {
             Text("Éditer la feature", color = V3.Fg, style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(12.dp))
-            OutlinedTextField(title, { title = it }, label = { Text("Titre") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            VoiceTextField(
+                value = title,
+                onValueChange = { title = it },
+                voiceManager = deps.voiceManager,
+                label = { Text("Titre") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                micTint = V3.Accent,
+                colors = v3TextFieldColors(),
+            )
             Spacer(Modifier.height(10.dp))
-            OutlinedTextField(desc, { desc = it }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth().height(110.dp))
+            VoiceTextField(
+                value = desc,
+                onValueChange = { desc = it },
+                voiceManager = deps.voiceManager,
+                label = { Text("Description") },
+                modifier = Modifier.fillMaxWidth().height(110.dp),
+                micTint = V3.Accent,
+                colors = v3TextFieldColors(),
+            )
             Spacer(Modifier.height(14.dp))
             Button(
                 onClick = {
@@ -633,47 +658,25 @@ private fun AddFeatureV3Screen(
     var saving by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 18.dp).padding(top = 8.dp)) {
-        OutlinedTextField(
-            title, { title = it },
+        VoiceTextField(
+            value = title,
+            onValueChange = { title = it },
+            voiceManager = deps.voiceManager,
             label = { Text("Titre") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            trailingIcon = {
-                VoiceInputIcon(
-                    voiceManager = deps.voiceManager,
-                    onTranscriptionReceived = { title = (title + " " + it).trim() },
-                    tint = V3.Accent
-                )
-            },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = V3.Fg,
-                unfocusedTextColor = V3.Fg,
-                focusedBorderColor = V3.Accent,
-                unfocusedBorderColor = V3.Border,
-                focusedLabelColor = V3.Accent,
-                unfocusedLabelColor = V3.Muted,
-            )
+            micTint = V3.Accent,
+            colors = v3TextFieldColors(),
         )
         Spacer(Modifier.height(14.dp))
-        OutlinedTextField(
-            desc, { desc = it },
+        VoiceTextField(
+            value = desc,
+            onValueChange = { desc = it },
+            voiceManager = deps.voiceManager,
             label = { Text("Description / contexte") },
             modifier = Modifier.fillMaxWidth().height(150.dp),
-            trailingIcon = {
-                VoiceInputIcon(
-                    voiceManager = deps.voiceManager,
-                    onTranscriptionReceived = { desc = (desc + " " + it).trim() },
-                    tint = V3.Accent
-                )
-            },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = V3.Fg,
-                unfocusedTextColor = V3.Fg,
-                focusedBorderColor = V3.Accent,
-                unfocusedBorderColor = V3.Border,
-                focusedLabelColor = V3.Accent,
-                unfocusedLabelColor = V3.Muted,
-            )
+            micTint = V3.Accent,
+            colors = v3TextFieldColors(),
         )
         Spacer(Modifier.height(14.dp))
         OutlinedTextField(
