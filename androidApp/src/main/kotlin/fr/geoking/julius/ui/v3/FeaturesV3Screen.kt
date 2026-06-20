@@ -148,11 +148,7 @@ fun FeaturesV3Screen(
 
         Spacer(Modifier.height(10.dp))
         if (filtered.isEmpty()) {
-            if (isRefreshing) {
-                Box(Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = V3.Accent)
-                }
-            } else {
+            if (!isRefreshing) {
                 EmptyHint(if (query.isEmpty()) "Aucune feature." else "Aucun résultat pour « $query »")
             }
         } else {

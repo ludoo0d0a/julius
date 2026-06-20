@@ -454,7 +454,12 @@ fun JulesScreen(
                 }
             )
 
-            if (loading || loadingSessions || refreshing || refreshingSessions) {
+            val routeHasOwnLoader = when (nav.current) {
+                is HarnessRoute.Projects -> loading || refreshing
+                is HarnessRoute.Features -> loadingSessions || refreshingSessions
+                else -> false
+            }
+            if (!routeHasOwnLoader && (loading || loadingSessions || refreshing || refreshingSessions)) {
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth().height(2.dp),
                     color = ColorHelper.JulesAccent,

@@ -35,8 +35,10 @@ fun ProjectsV3Screen(
     LaunchedEffect(apiKeys, settings.githubApiKey) {
         if (apiKeys.isEmpty()) {
             sources = emptyList()
+            isRefreshing = false
             return@LaunchedEffect
         }
+        isRefreshing = true
         launch {
             runCatching {
                 deps.featureRepository.refreshFeatures(null, apiKeys, settings.githubApiKey)
@@ -78,7 +80,7 @@ fun ProjectsV3Screen(
     ) {
         when {
             sources.isEmpty() && isRefreshing ->
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = V3.Accent) }
+                Box(Modifier.fillMaxSize())
             sources.isEmpty() && !isRefreshing ->
                 Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp)) {
                     EmptyHint("Aucun dépôt — vérifie la clé Jules dans Réglages.")

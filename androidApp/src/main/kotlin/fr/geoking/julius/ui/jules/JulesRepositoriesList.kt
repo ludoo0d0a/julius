@@ -39,7 +39,7 @@ internal fun JulesRepositoriesList(
         modifier = Modifier.fillMaxSize(),
     ) {
         when {
-            loading && sources.isEmpty() -> {
+            loading && sources.isEmpty() && !refreshing -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = ColorHelper.JulesAccent)
                 }
