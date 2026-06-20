@@ -92,7 +92,7 @@ class AutoJulesConversationScreen(
     private suspend fun pollStatus() {
         val githubToken = settingsManager.settings.value.githubApiKey
         try {
-            julesRepository.pollSessionStatus(session.id, githubToken)
+            julesRepository.pollSessionStatus(session.id)
             val updated = julesRepository.getSession(session.id)
             if (updated != null && (updated.sessionState != currentSessionState?.sessionState || updated.prState != currentSessionState?.prState)) {
                 currentSessionState = updated

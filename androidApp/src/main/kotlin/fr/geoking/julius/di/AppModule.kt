@@ -482,7 +482,6 @@ val appModule = module {
             get(),
             get(),
             get(),
-            get(),
         )
     }
     single { ProjectWorkflowPreferences(androidContext()) }

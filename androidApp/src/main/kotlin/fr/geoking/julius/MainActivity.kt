@@ -657,7 +657,6 @@ private fun rememberPreviewQueueEngine(
         featureRepository,
         julesRepository,
         fr.geoking.julius.queue.AccountAllocator(),
-        fr.geoking.julius.queue.FeatureGitHubLifecycle(julesRepository, buildRepository, ghClient),
     )
 }
 

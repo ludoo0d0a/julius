@@ -126,28 +126,8 @@ class JulesRepository(
             prDescription = fields.description ?: entity.prDescription,
             prId = fields.id ?: entity.prId,
             prRepo = fields.repo ?: entity.prRepo,
+            prState = entity.prState ?: "open",
         )
-    }
-
-    /** True when Jules/Claude session outputs newly expose a GitHub PR URL we did not have locally. */
-    private fun hasNewPullRequestReference(
-        previous: JulesSessionEntity?,
-        updated: JulesSessionEntity,
-    ): Boolean {
-        val url = updated.prUrl?.takeIf { it.isNotBlank() } ?: return false
-        parseGitHubPullRequestUrl(url) ?: return false
-        return previous?.prUrl != url
-    }
-
-    /** GitHub is queried only when session outputs first surface a pull request reference. */
-    private suspend fun maybeRefreshPullRequestFromGitHub(
-        githubToken: String,
-        previous: JulesSessionEntity?,
-        updated: JulesSessionEntity,
-    ) {
-        if (githubToken.isBlank()) return
-        if (!hasNewPullRequestReference(previous, updated)) return
-        updatePrStatus(githubToken, updated)
     }
 
     private fun parallelSyncLimit(): Int =
@@ -322,17 +302,41 @@ class JulesRepository(
         }
     }
 
-    fun getSessions(apiKeys: List<String>, sourceName: String, githubToken: String): Flow<List<JulesSessionEntity>> = flow {
+    fun getSessions(apiKeys: List<String>, sourceName: String): Flow<List<JulesSessionEntity>> = flow {
         emitAll(getSessionsFlow(sourceName))
     }.onStart {
         // Fire-and-forget refresh in background scope to avoid blocking onStart
         kotlinx.coroutines.GlobalScope.launch {
-            refreshSessionsInternal(apiKeys, sourceName, githubToken)
+            refreshSessionsInternal(apiKeys, sourceName)
         }
     }
 
-    suspend fun refreshSessionsInternal(apiKeys: List<String>, sourceName: String, githubToken: String) {
+    private suspend fun refreshActivitiesForSessions(sessionIds: Collection<String>) {
+        val ids = sessionIds.distinct().filter { it.isNotBlank() && !it.startsWith("offline_") }
+        if (ids.isEmpty()) return
+        val semaphore = kotlinx.coroutines.sync.Semaphore(parallelSyncLimit())
+        coroutineScope {
+            ids.map { sessionId ->
+                async {
+                    semaphore.withPermit {
+                        try {
+                            refreshActivitiesInternal(sessionId)
+                        } catch (e: Exception) {
+                            android.util.Log.e(
+                                "JulesRepository",
+                                "Failed to refresh activities for $sessionId",
+                                e,
+                            )
+                        }
+                    }
+                }
+            }.awaitAll()
+        }
+    }
+
+    suspend fun refreshSessionsInternal(apiKeys: List<String>, sourceName: String) {
         dbCacheDebugTracker.begin("refreshSessions:$sourceName")
+        val refreshedSessionIds = mutableSetOf<String>()
         try {
         if (isClaudeBackend()) {
             val apiKey = activeApiKey()
@@ -377,6 +381,7 @@ class JulesRepository(
                     if (currentEntities.isNotEmpty()) {
                         julesDao.insertSessions(currentEntities)
                         trackSessionUpserts(currentEntities)
+                        refreshedSessionIds.addAll(currentEntities.map { it.id })
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("JulesRepository", "Failed to fetch Claude sessions", e)
@@ -392,7 +397,6 @@ class JulesRepository(
                                 it.sourceContext?.source == sourceName || it.sourceContext?.source == resolveJulesSource(sourceName)
                             }
                             val currentEntities = mutableListOf<JulesSessionEntity>()
-                            val prStatusUpdates = mutableListOf<Pair<JulesSessionEntity?, JulesSessionEntity>>()
                             for (session in sessions) {
                                 val sessionId = session.id.takeIf { it.isNotBlank() } ?: session.name
                                 if (sessionId.isBlank()) continue
@@ -428,9 +432,6 @@ class JulesRepository(
                                 )
                                 val merged = mergeSessionPullRequest(baseEntity, session.primaryPullRequest())
                                 currentEntities.add(merged)
-                                if (hasNewPullRequestReference(existing, merged)) {
-                                    prStatusUpdates.add(existing to merged)
-                                }
                             }
                             val localSessionsForKey = julesDao.getSessionsBySourceAndKey(sourceName, key)
                             val currentIds = currentEntities.map { it.id }.toSet()
@@ -440,9 +441,9 @@ class JulesRepository(
                             if (currentEntities.isNotEmpty()) {
                                 julesDao.insertSessions(currentEntities)
                                 trackSessionUpserts(currentEntities)
-                            }
-                            for ((previous, updated) in prStatusUpdates) {
-                                maybeRefreshPullRequestFromGitHub(githubToken, previous, updated)
+                                synchronized(refreshedSessionIds) {
+                                    refreshedSessionIds.addAll(currentEntities.map { it.id })
+                                }
                             }
                         } catch (e: Exception) {
                             android.util.Log.e("JulesRepository", "Failed to fetch sessions for key ${key.take(8)}...", e)
@@ -451,6 +452,7 @@ class JulesRepository(
                 }.awaitAll()
             }
         }
+        refreshActivitiesForSessions(refreshedSessionIds)
         dbCacheDebugTracker.finish()
         } catch (e: Exception) {
             dbCacheDebugTracker.finish(e.message)
@@ -702,11 +704,7 @@ class JulesRepository(
                 session.primaryPullRequest(),
             )
             julesDao.insertSessions(listOf(entity))
-            maybeRefreshPullRequestFromGitHub(
-                settingsManager.settings.value.githubApiKey,
-                null,
-                entity,
-            )
+            refreshActivitiesInternal(session.id)
             return session.id
         } else {
             val tempId = "offline_${java.util.UUID.randomUUID()}"
@@ -945,11 +943,7 @@ class JulesRepository(
                                 created.primaryPullRequest(),
                             )
                             julesDao.insertSessions(listOf(updatedEntity))
-                            maybeRefreshPullRequestFromGitHub(
-                                settingsManager.settings.value.githubApiKey,
-                                null,
-                                updatedEntity,
-                            )
+                            refreshActivitiesInternal(created.id)
                             created.id
                         }
                         julesDao.updateActivitiesSessionId(session.id, newSessionId)
@@ -1001,10 +995,10 @@ class JulesRepository(
     }
 
     /**
-     * Polls the status of a specific session and its associated PR.
-     * Refreshes PR details from GitHub and session details (for new PR URLs) from Jules.
+     * Polls session state from Jules/Claude and refreshes cached activities.
+     * PR metadata comes from session outputs only; GitHub is not queried here.
      */
-    suspend fun pollSessionStatus(sessionId: String, githubToken: String) {
+    suspend fun pollSessionStatus(sessionId: String) {
         try {
             var existing = julesDao.getSession(sessionId)
             val apiKey = existing?.apiKey ?: activeApiKey() ?: return
@@ -1031,11 +1025,11 @@ class JulesRepository(
                             lastUpdated = System.currentTimeMillis()
                         )
                         julesDao.insertSessions(listOf(updated))
-                        maybeRefreshPullRequestFromGitHub(githubToken, existing, updated)
                     } else if (statusChanged) {
                         julesDao.updateSessionLastUpdated(sessionId, System.currentTimeMillis())
                     }
                 }
+                refreshActivitiesInternal(sessionId)
                 return
             }
 
@@ -1062,9 +1056,9 @@ class JulesRepository(
 
                 if (statusChanged || prChanged) {
                     julesDao.insertSessions(listOf(updated))
-                    maybeRefreshPullRequestFromGitHub(githubToken, existing, updated)
                 }
             }
+            refreshActivitiesInternal(sessionId)
         } catch (e: Exception) {
             android.util.Log.e("JulesRepository", "pollSessionStatus failed for $sessionId", e)
         }
@@ -1137,13 +1131,12 @@ class JulesRepository(
                 if (prUrl != null) {
                     val existing = julesDao.getSession(sessionId)
                     if (existing != null && existing.prUrl != prUrl) {
-                        val updated = existing.copy(prUrl = prUrl, lastUpdated = System.currentTimeMillis())
-                        julesDao.insertSessions(listOf(updated))
-                        maybeRefreshPullRequestFromGitHub(
-                            settingsManager.settings.value.githubApiKey,
-                            existing,
-                            updated,
+                        val updated = existing.copy(
+                            prUrl = prUrl,
+                            prState = existing.prState ?: "open",
+                            lastUpdated = System.currentTimeMillis(),
                         )
+                        julesDao.insertSessions(listOf(updated))
                     }
                 }
 
@@ -1472,7 +1465,7 @@ class JulesRepository(
             val session = julesDao.getSession(sessionId) ?: return
             val apiKey = session.apiKey ?: activeApiKey() ?: return
             julesClient.pauseSession(apiKey, sessionId)
-            pollSessionStatus(sessionId, settingsManager.settings.value.githubApiKey)
+            pollSessionStatus(sessionId)
         } catch (e: Exception) {
             android.util.Log.e("JulesRepository", "Failed to pause session $sessionId", e)
             throw e
@@ -1485,7 +1478,7 @@ class JulesRepository(
             val session = julesDao.getSession(sessionId) ?: return
             val apiKey = session.apiKey ?: activeApiKey() ?: return
             julesClient.resumeSession(apiKey, sessionId)
-            pollSessionStatus(sessionId, settingsManager.settings.value.githubApiKey)
+            pollSessionStatus(sessionId)
         } catch (e: Exception) {
             android.util.Log.e("JulesRepository", "Failed to resume session $sessionId", e)
             throw e

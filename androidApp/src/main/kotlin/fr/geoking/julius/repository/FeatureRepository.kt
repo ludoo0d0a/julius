@@ -254,13 +254,13 @@ class FeatureRepository(
         try {
             julesRepository.syncOfflineData()
             if (sourceName != null) {
-                julesRepository.refreshSessionsInternal(apiKeys, sourceName, githubToken)
+                julesRepository.refreshSessionsInternal(apiKeys, sourceName)
             } else {
                 julesRepository.refreshSources(apiKeys)
                 val sources = runCatching { julesRepository.getSourcesCached() }.getOrDefault(emptyList())
                 for (src in sources) {
                     try {
-                        julesRepository.refreshSessionsInternal(apiKeys, src.name, githubToken)
+                        julesRepository.refreshSessionsInternal(apiKeys, src.name)
                     } catch (e: Exception) {
                         android.util.Log.e("FeatureRepository", "Global reconcile failed for ${src.name}", e)
                     }

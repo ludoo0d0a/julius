@@ -47,7 +47,7 @@ class AutoJulesSessionScreen(
 
         lifecycleScope.launch {
             try {
-                julesRepository.getSessions(apiKeys, sourceId, githubToken).collectLatest { list ->
+                julesRepository.getSessions(apiKeys, sourceId).collectLatest { list ->
                     sessions = list.filter {
                         when {
                             featureId == null -> true

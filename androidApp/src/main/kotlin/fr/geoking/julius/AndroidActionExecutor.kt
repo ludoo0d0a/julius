@@ -292,7 +292,7 @@ class AndroidActionExecutor(
 
         val sources = julesRepository.getSourcesCached()
         for (source in sources) {
-            val sessions = julesRepository.getSessions(emptyList(), source.name, githubToken).first()
+            val sessions = julesRepository.getSessions(emptyList(), source.name).first()
             val sessionWithPr = sessions.find { it.prUrl != null && it.prState == "open" }
             if (sessionWithPr != null) {
                 val res = julesRepository.mergePr(githubToken, sessionWithPr.id, sessionWithPr.prUrl!!, deleteBranch = true)

@@ -19,7 +19,6 @@ class CodingAgentQueueEngine(
     private val featureRepository: FeatureRepository,
     private val julesRepository: JulesRepository,
     private val accountAllocator: AccountAllocator,
-    private val gitHubLifecycle: FeatureGitHubLifecycle,
 ) {
     private val _status = MutableStateFlow(QueueStatus())
     val status: StateFlow<QueueStatus> = _status.asStateFlow()
@@ -29,9 +28,8 @@ class CodingAgentQueueEngine(
         val backend = settings.codingAgentBackend
         val policy = settings.queuePolicyFor(backend)
         val dayEpoch = currentDayEpochUtc()
-        val githubToken = settings.githubApiKey
 
-        pollActiveFeatures(githubToken, policy)
+        pollActiveFeatures()
         if (!policy.queuePaused) {
             dequeuePending(backend, policy, dayEpoch)
         }
@@ -54,32 +52,21 @@ class CodingAgentQueueEngine(
         refreshStatus(backend, policy, currentDayEpochUtc())
     }
 
-    private suspend fun pollActiveFeatures(githubToken: String, policy: QueuePolicy) {
+    private suspend fun pollActiveFeatures() {
         val activeFeatures = featureDao.getActiveFeatures()
         for (feature in activeFeatures) {
             try {
-                // 1. Poll status for all sessions associated with this feature
                 val sessions = julesRepository.getSessionsByFeature(feature.id)
                 for (session in sessions) {
-                    julesRepository.pollSessionStatus(session.id, githubToken)
+                    julesRepository.pollSessionStatus(session.id)
                 }
 
-                // 2. Re-fetch updated sessions and process open PRs
-                val updatedSessions = julesRepository.getSessionsByFeature(feature.id)
-                var updatedFeature = feature
-                for (session in updatedSessions) {
-                    if (session.prUrl != null && session.prState == "open" && githubToken.isNotBlank()) {
-                        updatedFeature = gitHubLifecycle.processOpenPr(updatedFeature, session, githubToken, policy.autoMergeOnCiSuccess)
-                    }
-                }
-
-                // 3. Re-fetch sessions again (status might have changed after PR processing) and calculate final status
                 val finalSessions = julesRepository.getSessionsByFeature(feature.id)
                 val newStatus = featureRepository.calculateFeatureStatus(finalSessions)
 
                 if (newStatus != feature.status) {
                     featureDao.updateFeature(
-                        updatedFeature.copy(
+                        feature.copy(
                             status = newStatus,
                             updatedAt = System.currentTimeMillis(),
                         ),
