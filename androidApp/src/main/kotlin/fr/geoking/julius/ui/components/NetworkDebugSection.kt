@@ -6,12 +6,12 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,12 +39,71 @@ fun NetworkDebugSection(
         return
     }
 
-    LazyColumn(
-        modifier = modifier.heightIn(max = maxListHeight),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        items(logs, key = { it.id }) { log ->
-            NetworkLogRow(log)
+    var selectedHost by remember { mutableStateOf<String?>(null) }
+    val hosts = remember(logs) { logs.map { it.host }.distinct().sorted() }
+
+    val filteredLogs = remember(logs, selectedHost) {
+        if (selectedHost == null) logs else logs.filter { it.host == selectedHost }
+    }
+
+    Column(modifier = modifier) {
+        if (hosts.size > 1) {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            ) {
+                item {
+                    FilterChip(
+                        selected = selectedHost == null,
+                        onClick = { selectedHost = null },
+                        label = { Text("All", fontSize = 10.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = Color.Transparent,
+                            labelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = selectedHost == null,
+                            borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                            selectedBorderColor = MaterialTheme.colorScheme.primary,
+                            borderWidth = 1.dp,
+                            selectedBorderWidth = 1.dp,
+                        )
+                    )
+                }
+                items(hosts) { host ->
+                    FilterChip(
+                        selected = selectedHost == host,
+                        onClick = { selectedHost = if (selectedHost == host) null else host },
+                        label = { Text(host, fontSize = 10.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = Color.Transparent,
+                            labelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = selectedHost == host,
+                            borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                            selectedBorderColor = MaterialTheme.colorScheme.primary,
+                            borderWidth = 1.dp,
+                            selectedBorderWidth = 1.dp,
+                        )
+                    )
+                }
+            }
+        }
+
+        LazyColumn(
+            modifier = Modifier.heightIn(max = maxListHeight),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            items(filteredLogs, key = { it.id }) { log ->
+                NetworkLogRow(log)
+            }
         }
     }
 }

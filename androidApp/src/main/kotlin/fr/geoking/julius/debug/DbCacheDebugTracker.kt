@@ -107,4 +107,11 @@ class DbCacheDebugTracker {
             _state.value = _state.value.copy(lifetime = emptyMap())
         }
     }
+
+    suspend fun clear() {
+        mutex.withLock {
+            depth = 0
+            _state.value = DbCacheDebugState()
+        }
+    }
 }
