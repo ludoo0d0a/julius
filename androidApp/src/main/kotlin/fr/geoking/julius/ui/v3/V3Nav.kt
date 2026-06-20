@@ -36,7 +36,7 @@ sealed class V3Route {
 
 val V3_TABS: List<V3Route> = listOf(V3Route.Scheduler, V3Route.Features, V3Route.Projects, V3Route.Settings)
 
-/** Tiny in-memory navigation stack mirroring the app's HarnessNavController pattern. */
+/** Tiny in-memory navigation stack for v3 routes. */
 class V3NavController {
     private val _stack = mutableStateListOf<V3Route>(V3Route.Scheduler)
     val current: V3Route get() = _stack.last()

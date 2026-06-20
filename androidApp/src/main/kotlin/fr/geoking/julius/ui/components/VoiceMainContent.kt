@@ -44,8 +44,7 @@ fun VoiceMainContent(
     networkStatus: NetworkStatus,
     onSettingsClick: () -> Unit,
     onHistoryClick: () -> Unit = {},
-    onJulesClick: () -> Unit = {},
-    onFeaturesClick: () -> Unit = {},
+    onHarnessClick: () -> Unit = {},
     onVoskTestClick: (() -> Unit)? = null,
     onAgentClick: (() -> Unit)? = null,
     onToggleAgentType: (() -> Unit)? = null,
@@ -129,9 +128,7 @@ fun VoiceMainContent(
                 .padding(end = 24.dp, bottom = 48.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            FeaturesButton(onClick = onFeaturesClick)
-            Spacer(modifier = Modifier.width(8.dp))
-            JulesButton(onClick = onJulesClick)
+            JulesButton(onClick = onHarnessClick)
         }
 
         if (onVoskTestClick != null) {

@@ -21,6 +21,7 @@ import fr.geoking.julius.queue.queuePolicyFor
 import fr.geoking.julius.debug.DbCacheDebugTracker
 import fr.geoking.julius.debug.DbEntityKind
 import fr.geoking.julius.persistence.AccountDailyUsageDao
+import fr.geoking.julius.persistence.JulesActivityEntity
 import fr.geoking.julius.persistence.JulesDao
 import fr.geoking.julius.persistence.JulesSessionEntity
 import fr.geoking.julius.persistence.JulesSourceEntity
@@ -1493,5 +1494,5 @@ class JulesRepository(
     }
 }
 
-/** Used/limit for optional daily session display in [JulesScreen]. */
+/** Used/limit for optional daily session display in the harness UI. */
 data class JulesQuota(val used: Int, val limit: Int)

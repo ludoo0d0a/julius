@@ -41,8 +41,10 @@ import fr.geoking.julius.shared.voice.LocalTranscriber
 import fr.geoking.julius.shared.voice.NoLocalTranscriber
 import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.queue.CodingAgentQueueEngine
-import fr.geoking.julius.ui.jules.JulesScreen
 import fr.geoking.julius.ui.HistoryScreen
+import fr.geoking.julius.ui.v3.JuliusV3App
+import fr.geoking.julius.ui.v3.V3Deps
+import fr.geoking.julius.debug.DbCacheDebugTracker
 import fr.geoking.julius.ui.SettingsScreen
 import fr.geoking.julius.ui.SettingsScreenPage
 import fr.geoking.julius.ui.DashboardVoiceScreen
@@ -150,7 +152,6 @@ class MainActivity : ComponentActivity() {
             val settingsManager: SettingsManager = get()
             val authManager: GoogleAuthManager = get()
             val permissionManager: PermissionManager = get()
-            val julesClient: JulesClient = get()
             val julesRepository: JulesRepository = get()
             val buildRepository: GitHubBuildRepository = get()
             val featureRepository: fr.geoking.julius.repository.FeatureRepository = get()
@@ -176,7 +177,6 @@ class MainActivity : ComponentActivity() {
                 store = store,
                 settingsManager = settingsManager,
                 authManager = authManager,
-                julesClient = julesClient,
                 julesRepository = julesRepository,
                 buildRepository = buildRepository,
                 featureRepository = featureRepository,
@@ -203,7 +203,6 @@ class MainActivity : ComponentActivity() {
         store: ConversationStore,
         settingsManager: SettingsManager,
         authManager: GoogleAuthManager,
-        julesClient: JulesClient,
         julesRepository: JulesRepository,
         buildRepository: GitHubBuildRepository,
         featureRepository: fr.geoking.julius.repository.FeatureRepository,
@@ -221,7 +220,6 @@ class MainActivity : ComponentActivity() {
                     store = store,
                     settingsManager = settingsManager,
                     authManager = authManager,
-                    julesClient = julesClient,
                     julesRepository = julesRepository,
                     buildRepository = buildRepository,
                     featureRepository = featureRepository,
@@ -258,7 +256,6 @@ private fun MainActivityComposeRoot(
     store: ConversationStore,
     settingsManager: SettingsManager,
     authManager: GoogleAuthManager,
-    julesClient: JulesClient,
     julesRepository: JulesRepository,
     buildRepository: GitHubBuildRepository,
     featureRepository: fr.geoking.julius.repository.FeatureRepository,
@@ -296,12 +293,12 @@ private fun MainActivityComposeRoot(
         store = store,
         settingsManager = settingsManager,
         authManager = authManager,
-        julesClient = julesClient,
         julesRepository = julesRepository,
         buildRepository = buildRepository,
         featureRepository = featureRepository,
         queueEngine = queueEngine,
         voiceManager = voiceManager,
+        dbCacheDebugTracker = dbCacheDebugTracker,
         localTranscriber = localTranscriber,
         conversationalAgent = conversationalAgent,
         networkService = networkService,
@@ -319,12 +316,12 @@ fun MainUI(
     store: ConversationStore,
     settingsManager: SettingsManager,
     authManager: GoogleAuthManager,
-    julesClient: JulesClient,
     julesRepository: JulesRepository,
     buildRepository: GitHubBuildRepository,
     featureRepository: fr.geoking.julius.repository.FeatureRepository,
     queueEngine: CodingAgentQueueEngine,
     voiceManager: VoiceManager,
+    dbCacheDebugTracker: DbCacheDebugTracker,
     localTranscriber: LocalTranscriber,
     conversationalAgent: ConversationalAgent,
     networkService: NetworkService,
@@ -351,9 +348,6 @@ fun MainUI(
     }
 
     var showHarness by remember { mutableStateOf(false) }
-    var showV3 by remember { mutableStateOf(false) }
-    var harnessInitialSession by remember { mutableStateOf<JulesSessionEntity?>(null) }
-    var showFavorites by remember { mutableStateOf(false) }
     val settings by settingsManager.settings.collectAsState()
     val llamatikModelHelper = remember(context) { LlamatikModelHelper(context.applicationContext) }
     val setupIssue = remember(settings, llamatikModelHelper, conversationalAgent) {
@@ -394,25 +388,8 @@ fun MainUI(
                     )
                 }
                 showHarness -> {
-                    JulesScreen(
-                        onBack = {
-                            showHarness = false
-                            harnessInitialSession = null
-                        },
-                        julesClient = julesClient,
-                        julesRepository = julesRepository,
-                        featureRepository = featureRepository,
-                        settingsManager = settingsManager,
-                        voiceManager = voiceManager,
-                        buildRepository = buildRepository,
-                        queueEngine = queueEngine,
-                        initialSession = harnessInitialSession,
-                        startAtQueueDashboard = harnessInitialSession == null,
-                    )
-                }
-                showV3 -> {
-                    fr.geoking.julius.ui.v3.JuliusV3App(
-                        deps = fr.geoking.julius.ui.v3.V3Deps(
+                    JuliusV3App(
+                        deps = V3Deps(
                             settingsManager = settingsManager,
                             julesRepository = julesRepository,
                             featureRepository = featureRepository,
@@ -421,7 +398,7 @@ fun MainUI(
                             voiceManager = voiceManager,
                             dbCacheDebugTracker = dbCacheDebugTracker,
                         ),
-                        onExit = { showV3 = false },
+                        onExit = { showHarness = false },
                     )
                 }
                 showHistory -> {
@@ -448,8 +425,7 @@ fun MainUI(
                             showSettings = true
                         },
                         onHistoryClick = { showHistory = true },
-                        onJulesClick = { showHarness = true },
-                        onFeaturesClick = { showV3 = true },
+                        onHarnessClick = { showHarness = true },
                         onVoskTestClick = { showVoskTest = true },
                         setupIssue = setupIssue,
                         onOpenAgentSettings = {
@@ -629,11 +605,11 @@ fun MainUIPreview() {
         store = mockStore,
         settingsManager = mockSettingsManager,
         authManager = mockAuthManager,
-        julesClient = remember { JulesClient(HttpClient(OkHttp) {}) },
         julesRepository = previewJulesRepository,
         featureRepository = previewFeatureRepository,
         buildRepository = previewBuildRepository,
         voiceManager = mockStore.voiceManager,
+        dbCacheDebugTracker = fr.geoking.julius.debug.DbCacheDebugTracker(),
         localTranscriber = NoLocalTranscriber,
         conversationalAgent = remember {
             object : ConversationalAgent {

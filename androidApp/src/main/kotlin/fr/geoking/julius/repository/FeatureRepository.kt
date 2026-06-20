@@ -8,6 +8,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import fr.geoking.julius.persistence.FeatureDao
 import fr.geoking.julius.persistence.FeatureEntity
+import fr.geoking.julius.persistence.JulesSessionEntity
 import fr.geoking.julius.queue.AgentAccount
 import fr.geoking.julius.debug.DbCacheDebugTracker
 import fr.geoking.julius.debug.DbEntityKind
