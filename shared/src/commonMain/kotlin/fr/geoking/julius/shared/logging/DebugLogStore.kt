@@ -15,6 +15,7 @@ data class NetworkLog(
     val responseHeaders: Map<String, List<String>>?,
     val responseBody: String?,
     val statusCode: Int?,
+    val errorMessage: String? = null,
     val metadata: Map<String, String> = emptyMap(),
     val durationMs: Long,
     val timestamp: Long
@@ -95,6 +96,14 @@ object DebugLogStore {
                 } else {
                     log
                 }
+            }
+        }
+    }
+
+    fun markLogFailed(id: String, errorMessage: String) {
+        _logs.update { current ->
+            current.map { log ->
+                if (log.id == id) log.copy(errorMessage = errorMessage) else log
             }
         }
     }

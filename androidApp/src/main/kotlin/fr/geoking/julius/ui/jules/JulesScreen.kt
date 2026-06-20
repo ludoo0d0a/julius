@@ -1,6 +1,7 @@
 package fr.geoking.julius.ui.jules
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
@@ -46,6 +48,7 @@ import fr.geoking.julius.ui.harness.QueueDashboardScreen
 import fr.geoking.julius.ui.harness.QueueStatusBanner
 import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.ui.ColorHelper
+import fr.geoking.julius.ui.components.HarnessDebugBar
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -347,7 +350,8 @@ fun JulesScreen(
     val githubRepo = selectedSource?.githubRepo?.repo?.takeIf { it.isNotBlank() }
 
     Surface(modifier = Modifier.fillMaxSize(), color = ColorHelper.JulesBg) {
-        Column {
+        Box(Modifier.fillMaxSize()) {
+            Column {
             JulesScreenHeader(
                 title = headerTitle,
                 subtitle = headerSubtitle,
@@ -765,7 +769,11 @@ fun JulesScreen(
                     }
                 }
             }
+            }
+            HarnessDebugBar(
+                dbTracker = julesRepository.cacheDebugTracker,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
-
     }
 }

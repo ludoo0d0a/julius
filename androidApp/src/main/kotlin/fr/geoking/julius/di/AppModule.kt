@@ -244,6 +244,11 @@ val appModule = module {
                             } catch (e: Exception) {
                                 "[Unreadable body: ${e.message}]"
                             }
+                            val status = response.status.value
+                            val errorMessage = when {
+                                status >= 400 -> respBody.take(500).ifBlank { response.status.description }
+                                else -> null
+                            }
 
                             DebugLogStore.addOrUpdateLog(
                                 NetworkLog(
@@ -255,7 +260,8 @@ val appModule = module {
                                     requestBody = reqBody,
                                     responseHeaders = response.headers.toMap(),
                                     responseBody = respBody,
-                                    statusCode = response.status.value,
+                                    statusCode = status,
+                                    errorMessage = errorMessage,
                                     durationMs = response.responseTime.timestamp - response.requestTime.timestamp,
                                     timestamp = startTime
                                 )
@@ -298,7 +304,16 @@ val appModule = module {
                             )
                         )
                     }
-                    proceed(request)
+                    try {
+                        proceed(request)
+                    } catch (e: Exception) {
+                        if (settingsManager.settings.value.debugLoggingEnabled) {
+                            request.attributes.getOrNull(logIdKey)?.let { id ->
+                                DebugLogStore.markLogFailed(id, e.message ?: e.toString())
+                            }
+                        }
+                        throw e
+                    }
                 }
             })
 

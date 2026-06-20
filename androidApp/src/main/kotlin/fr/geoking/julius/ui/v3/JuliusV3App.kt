@@ -55,7 +55,7 @@ import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.ui.AgentApiUsageTarget
 import fr.geoking.julius.ui.components.VoiceInputIcon
-import fr.geoking.julius.ui.components.DbCacheDebugBar
+import fr.geoking.julius.ui.components.HarnessDebugBar
 import kotlinx.coroutines.launch
 
 /** Dependency bundle threaded into the v3 screens (reuses existing Koin singletons). */
@@ -360,8 +360,8 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                     is V3Route.AgentBilling -> AgentBillingV3Screen(targetKey = r.targetKey)
                     is V3Route.JsonDebug -> JsonDebugScreen(title = r.title, json = r.json, onBack = { nav.pop() })
                 }
-                DbCacheDebugBar(
-                    tracker = deps.dbCacheDebugTracker,
+                HarnessDebugBar(
+                    dbTracker = deps.dbCacheDebugTracker,
                     modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter),
                     bottomPadding = if (showBottomBar) 72.dp else 0.dp,
                 )
