@@ -8,11 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Http
-import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.UnfoldLess
-import androidx.compose.material.icons.filled.UnfoldMore
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +26,7 @@ import fr.geoking.julius.debug.DbEntityKind
 import fr.geoking.julius.shared.logging.DebugLogStore
 import fr.geoking.julius.shared.logging.NetworkLog
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 private enum class DebugPanelTab { Database, Network }
 
@@ -46,6 +43,7 @@ fun HarnessDebugBar(
 ) {
     val dbState by dbTracker.state.collectAsState()
     val netLogs by networkLogs.collectAsState()
+    val scope = rememberCoroutineScope()
     var dismissed by remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf(false) }
     var tab by remember { mutableStateOf(DebugPanelTab.Database) }
@@ -120,6 +118,22 @@ fun HarnessDebugBar(
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace,
                             maxLines = 2,
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            scope.launch {
+                                dbTracker.clear()
+                                DebugLogStore.clearLogs()
+                            }
+                        },
+                        modifier = Modifier.size(28.dp),
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Clear logs",
+                            tint = Color.White.copy(alpha = 0.7f),
+                            modifier = Modifier.size(16.dp),
                         )
                     }
                     IconButton(onClick = { expanded = !expanded }, modifier = Modifier.size(28.dp)) {
