@@ -39,8 +39,8 @@ interface JulesDao {
     @Query("SELECT * FROM jules_sessions WHERE featureId = :featureId")
     suspend fun getSessionsByFeature(featureId: String): List<JulesSessionEntity>
 
-    @Query("UPDATE jules_sessions SET prState = :state, prMergeable = :mergeable WHERE id = :sessionId")
-    suspend fun updateSessionPrStatus(sessionId: String, state: String, mergeable: Boolean?)
+    @Query("UPDATE jules_sessions SET prState = :state, prMergeable = :mergeable, prMergeableState = :mergeableState WHERE id = :sessionId")
+    suspend fun updateSessionPrStatus(sessionId: String, state: String, mergeable: Boolean?, mergeableState: String?)
 
     @Query("UPDATE jules_sessions SET prBranch = :branch, prRepo = :repo WHERE id = :sessionId")
     suspend fun updateSessionGitHubDetails(sessionId: String, branch: String?, repo: String?)
@@ -59,7 +59,7 @@ interface JulesDao {
         SELECT * FROM jules_sessions
         WHERE isArchived = 0
         AND (sessionState IS NULL OR sessionState NOT IN ('COMPLETED', 'FAILED', 'QUEUED_OFFLINE'))
-        AND (prState IS NULL OR prState = 'open')
+        AND (prState IS NULL OR prState IN ('open', 'draft'))
         """
     )
     suspend fun getActiveSessions(): List<JulesSessionEntity>

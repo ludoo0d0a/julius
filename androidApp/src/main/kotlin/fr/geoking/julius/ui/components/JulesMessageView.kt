@@ -298,8 +298,9 @@ private fun GitHubResourceCard(
     val prDescription = details?.body?.takeIf { it.isNotBlank() }
         ?: (if (session != null && session.prUrl == url) session.prDescription else null)
     val prRepo = details?.repository?.fullName ?: (if (session != null && session.prUrl == url) session.prRepo else null)
-    val prState = details?.state?.let { if (details?.merged == true) "merged" else it } ?: (if (session != null && session.prUrl == url) session.prState else null)
+    val prState = details?.toPrState() ?: (if (session != null && session.prUrl == url) session.prState else null)
     val prMergeable = details?.mergeable ?: (if (session != null && session.prUrl == url) session.prMergeable else null)
+    val prMergeableState = details?.mergeableState ?: (if (session != null && session.prUrl == url) session.prMergeableState else null)
     val prBranch = details?.head?.ref ?: (if (session != null && session.prUrl == url) session.prBranch else null)
     val prNumber = details?.number ?: (if (session != null && session.prUrl == url) {
         session.prId?.toIntOrNull() ?: fr.geoking.julius.api.github.parseGitHubPullRequestUrl(url)?.number
@@ -371,10 +372,19 @@ private fun GitHubResourceCard(
                     val (statusText, statusColor) = when (prState) {
                         "merged" -> "Merged" to Color.Green
                         "closed" -> "Closed" to Color.Red
+                        "draft" -> "Draft" to Color.Gray
                         "open" -> {
-                            val suffix = if (prMergeable == true) " • OK" else if (prMergeable == false) " • Conflit" else ""
-                            val color = if (prMergeable == true) Color.Green else if (prMergeable == false) Color.Red else Color.Cyan
-                            "Open$suffix" to color
+                            when (prMergeableState) {
+                                "blocked" -> "Blocked" to Color.Red
+                                "dirty" -> "Conflict" to Color.Red
+                                "behind" -> "Behind" to Color.Yellow
+                                "unstable" -> "CI Failing" to Color.Yellow
+                                else -> {
+                                    val suffix = if (prMergeable == true) " • OK" else if (prMergeable == false) " • Conflit" else ""
+                                    val color = if (prMergeable == true) Color.Green else if (prMergeable == false) Color.Red else Color.Cyan
+                                    "Open$suffix" to color
+                                }
+                            }
                         }
                         else -> "Unknown" to Color.Gray
                     }

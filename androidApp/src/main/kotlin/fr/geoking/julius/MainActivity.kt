@@ -529,7 +529,7 @@ fun MainUIPreview() {
                     override suspend fun getSession(sessionId: String): JulesSessionEntity? = null
                     override suspend fun archiveSession(sessionId: String) {}
                     override suspend fun archiveSessions(sessionIds: List<String>) {}
-                    override suspend fun updateSessionPrStatus(sessionId: String, state: String, mergeable: Boolean?) {}
+                    override suspend fun updateSessionPrStatus(sessionId: String, state: String, mergeable: Boolean?, mergeableState: String?) {}
                     override suspend fun updateSessionGitHubDetails(sessionId: String, branch: String?, repo: String?) {}
                     override suspend fun updateSessionState(sessionId: String, state: String?) {}
                     override suspend fun updateSessionLastUpdated(sessionId: String, lastUpdated: Long) {}
