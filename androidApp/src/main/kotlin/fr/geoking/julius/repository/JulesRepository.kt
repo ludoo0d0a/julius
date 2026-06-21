@@ -158,8 +158,8 @@ class JulesRepository(
     fun getSessionsFlow(sourceName: String): Flow<List<JulesSessionEntity>> =
         julesDao.getSessionsFlowBySource(sourceName).map { filterSessionsForBackend(it) }
 
-    suspend fun updateSessionPrMergeable(sessionId: String, state: String?, mergeable: Boolean?) {
-        julesDao.updateSessionPrStatus(sessionId, state ?: "open", mergeable)
+    suspend fun updateSessionPrStatus(sessionId: String, state: String?, mergeable: Boolean?, mergeableState: String? = null) {
+        julesDao.updateSessionPrStatus(sessionId, state ?: "open", mergeable, mergeableState)
     }
 
     fun isCodingAgentConfigured(apiKeys: List<String>): Boolean = if (isClaudeBackend()) {
@@ -486,17 +486,18 @@ class JulesRepository(
         val prRef = parseGitHubPullRequestUrl(url) ?: return
         try {
             val detail = githubClient.getPullRequest(githubToken, prRef.owner, prRef.repo, prRef.number)
-            val state = when {
-                detail.merged -> "merged"
-                detail.state == "closed" -> "closed"
-                else -> "open"
-            }
+            val state = detail.toPrState()
+            val mergeableState = detail.mergeableState
             try {
                 // If status changed, update lastUpdated too
                 val existing = julesDao.getSession(session.id)
-                val statusChanged = existing != null && (existing.prState != state || existing.prMergeable != detail.mergeable)
+                val statusChanged = existing != null && (
+                    existing.prState != state ||
+                        existing.prMergeable != detail.mergeable ||
+                        existing.prMergeableState != mergeableState
+                    )
 
-                julesDao.updateSessionPrStatus(session.id, state, detail.mergeable)
+                julesDao.updateSessionPrStatus(session.id, state, detail.mergeable, mergeableState)
 
                 val branch = detail.head?.ref
                 val repo = detail.repository?.fullName ?: detail.head?.repo?.fullName

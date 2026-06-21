@@ -102,7 +102,17 @@ class GitHubClient(
         val head: GitHubRef? = null,
         val base: GitHubRef? = null,
         val repository: GitHubRepoSummary? = null
-    )
+    ) {
+        /**
+         * Returns a refined state: "merged", "closed", "draft", or "open".
+         */
+        fun toPrState(): String = when {
+            merged -> "merged"
+            state == "closed" -> "closed"
+            draft -> "draft"
+            else -> "open"
+        }
+    }
 
     @Serializable
     data class GitHubRepoSummary(

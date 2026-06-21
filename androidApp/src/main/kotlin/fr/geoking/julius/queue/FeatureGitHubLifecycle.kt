@@ -20,7 +20,7 @@ class FeatureGitHubLifecycle(
         autoMergeOnCiSuccess: Boolean,
     ): FeatureEntity {
         val prUrl = session.prUrl ?: return feature
-        if (session.prState != "open") return feature
+        if (session.prState != "open" && session.prState != "draft") return feature
 
         val prRef = parseGitHubPullRequestUrl(prUrl) ?: return feature
         val prDetail = try {
@@ -29,10 +29,12 @@ class FeatureGitHubLifecycle(
             return feature
         }
 
+        val state = prDetail.toPrState()
         val mergeable = prDetail.mergeable
-        julesRepository.updateSessionPrMergeable(session.id, prDetail.state, mergeable)
+        val mergeableState = prDetail.mergeableState
+        julesRepository.updateSessionPrStatus(session.id, state, mergeable, mergeableState)
 
-        if (!autoMergeOnCiSuccess || mergeable != true) return feature
+        if (!autoMergeOnCiSuccess || mergeable != true || state != "open") return feature
 
         val resolved = buildRepository.resolveWorkflowId(githubToken, prRef.owner, prRef.repo)
             ?: return feature
