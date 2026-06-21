@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Autorenew
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.HourglassEmpty
@@ -51,6 +52,7 @@ fun featureStatusVisual(status: String): StatusVisual = when (status.uppercase()
     "PENDING" -> StatusVisual("En attente", "PENDING", V3.Muted)
     "COMPLETED" -> StatusVisual("Terminé", "COMPLETED", V3.Success)
     "FAILED" -> StatusVisual("Échec", "FAILED", V3.Danger)
+    "CANCELLED" -> StatusVisual("Annulé", "CANCELLED", V3.Muted)
     else -> StatusVisual(status, status, V3.Muted)
 }
 
@@ -81,6 +83,7 @@ fun featureStatusIcon(status: String): androidx.compose.ui.graphics.vector.Image
     "PENDING" -> Icons.Filled.HourglassEmpty
     "COMPLETED" -> Icons.Filled.CheckCircle
     "FAILED" -> Icons.Filled.ErrorOutline
+    "CANCELLED" -> Icons.Filled.Block
     else -> Icons.Filled.Schedule
 }
 
