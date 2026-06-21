@@ -34,7 +34,7 @@ class FeatureRepository(
 
     suspend fun addFeature(
         title: String,
-        description: String,
+        prompt: String,
         priority: Int,
         sourceName: String,
         status: String = "PENDING",
@@ -45,7 +45,7 @@ class FeatureRepository(
         val feature = FeatureEntity(
             id = id,
             title = title,
-            description = description,
+            description = prompt,
             priority = priority,
             position = maxPos + 1,
             sourceName = sourceName,
@@ -100,18 +100,31 @@ class FeatureRepository(
         featureDao.updateFeatures(updated)
     }
 
-    suspend fun startFeature(featureId: String, account: AgentAccount): String {
+    suspend fun startFeature(
+        featureId: String,
+        account: AgentAccount,
+        requirePlanApproval: Boolean? = null
+    ): String {
         val feature = featureDao.getFeature(featureId) ?: throw Exception("Feature not found")
         val prompt = feature.description.ifBlank { feature.title }
-        return startFeatureInternal(feature, account, prompt)
+        return startFeatureInternal(feature, account, prompt, requirePlanApproval)
     }
 
-    suspend fun startFeatureWithTitle(featureId: String, account: AgentAccount): String {
+    suspend fun startFeatureWithTitle(
+        featureId: String,
+        account: AgentAccount,
+        requirePlanApproval: Boolean? = null
+    ): String {
         val feature = featureDao.getFeature(featureId) ?: throw Exception("Feature not found")
-        return startFeatureInternal(feature, account, feature.title)
+        return startFeatureInternal(feature, account, feature.title, requirePlanApproval)
     }
 
-    private suspend fun startFeatureInternal(feature: FeatureEntity, account: AgentAccount, prompt: String): String {
+    private suspend fun startFeatureInternal(
+        feature: FeatureEntity,
+        account: AgentAccount,
+        prompt: String,
+        requirePlanApproval: Boolean? = null
+    ): String {
         val now = System.currentTimeMillis()
 
         // 1. Mark feature as QUEUED immediately to avoid race conditions in the queue engine
@@ -135,6 +148,7 @@ class FeatureRepository(
                 source = feature.sourceName,
                 title = feature.title,
                 featureId = feature.id,
+                requirePlanApproval = requirePlanApproval,
             )
         } catch (e: Exception) {
             android.util.Log.e("FeatureRepository", "createSession failed for ${feature.id}", e)
@@ -209,7 +223,7 @@ class FeatureRepository(
                 val initialStatus = calculateFeatureStatus(listOf(session))
                 val featureId = addFeature(
                     title = session.title.ifBlank { "Conversation" },
-                    description = session.prompt,
+                    prompt = session.prompt,
                     priority = 0,
                     sourceName = sourceName,
                     status = initialStatus,

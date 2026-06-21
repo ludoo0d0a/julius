@@ -624,8 +624,9 @@ class JulesRepository(
         apiKeys: List<String>,
         prompt: String,
         source: String,
-        title: String,
+        title: String?,
         featureId: String? = null,
+        requirePlanApproval: Boolean? = null,
     ): String {
         val settings = settingsManager.settings.value
         val account = settings.enabledAccountsFor(backend()).firstOrNull { it.apiKey in apiKeys }
@@ -638,18 +639,19 @@ class JulesRepository(
                 )
             }
             ?: throw Exception("No API key available")
-        return createSession(account, prompt, source, title, featureId)
+        return createSession(account, prompt, source, title, featureId, requirePlanApproval)
     }
 
     suspend fun createSession(
         account: AgentAccount,
         prompt: String,
         source: String,
-        title: String,
+        title: String?,
         featureId: String? = null,
+        requirePlanApproval: Boolean? = null,
     ): String {
-        val finalPrompt = prompt.ifBlank { title }.ifBlank { "New session" }
-        val finalTitle = title.ifBlank { prompt }.take(80).ifBlank { "New session" }
+        val finalPrompt = prompt.ifBlank { title ?: "New session" }
+        val finalTitle = title?.takeIf { it.isNotBlank() }
 
         val isOnline = networkService.status.value.isConnected
         if (isOnline) {
@@ -671,11 +673,11 @@ class JulesRepository(
                     owner = owner,
                     repo = repo,
                     githubToken = githubToken,
-                    title = finalTitle
+                    title = finalTitle ?: prompt.take(80)
                 )
                 val entity = JulesSessionEntity(
                     id = session.id,
-                    title = session.title.ifBlank { title },
+                    title = session.title.ifBlank { title ?: "" },
                     prompt = prompt,
                     sourceName = source,
                     prUrl = null,
@@ -702,6 +704,7 @@ class JulesRepository(
                 prompt = finalPrompt,
                 source = source,
                 title = finalTitle,
+                requirePlanApproval = requirePlanApproval,
             )
             val entity = mergeSessionPullRequest(
                 JulesSessionEntity(
@@ -731,7 +734,7 @@ class JulesRepository(
             val tempId = "offline_${java.util.UUID.randomUUID()}"
             val entity = JulesSessionEntity(
                 id = tempId,
-                title = finalTitle,
+                title = finalTitle ?: prompt.take(80),
                 prompt = finalPrompt,
                 sourceName = source,
                 prUrl = null,
@@ -782,7 +785,8 @@ class JulesRepository(
         apiKey: String,
         prompt: String,
         source: String,
-        title: String,
+        title: String?,
+        requirePlanApproval: Boolean? = null,
     ): JulesClient.JulesSession {
         val resolvedSource = resolveJulesSource(source)
         return julesClient.createSession(
@@ -792,6 +796,7 @@ class JulesRepository(
             title = title,
             startingBranch = resolveStartingBranch(resolvedSource, source),
             automationMode = JulesClient.AutomationMode.AUTO_CREATE_PR,
+            requirePlanApproval = requirePlanApproval,
         )
     }
 
@@ -799,12 +804,12 @@ class JulesRepository(
      * Records a local FAILED session so a start error is surfaced on the conversation
      * (with the error as a system activity) rather than on the feature.
      */
-    suspend fun createFailedSession(source: String, title: String, prompt: String, featureId: String?, error: String?): String {
+    suspend fun createFailedSession(source: String, title: String?, prompt: String, featureId: String?, error: String?): String {
         val id = "error_${java.util.UUID.randomUUID()}"
         val now = System.currentTimeMillis()
         val entity = JulesSessionEntity(
             id = id,
-            title = title.ifBlank { "Conversation" },
+            title = title?.takeIf { it.isNotBlank() } ?: prompt.take(80).ifBlank { "Conversation" },
             prompt = prompt,
             sourceName = source,
             prUrl = null,
