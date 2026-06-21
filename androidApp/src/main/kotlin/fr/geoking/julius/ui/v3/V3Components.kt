@@ -58,6 +58,7 @@ fun sessionStatusVisual(session: JulesSessionEntity): StatusVisual = when {
     session.prState == "merged" -> StatusVisual("Mergé", "merged", V3.Success)
     session.prState == "closed" -> StatusVisual("Fermée", "closed", V3.Muted)
     session.prMergeable == false -> StatusVisual("Conflit", "mergeable=false", V3.Danger)
+    session.prMergeable == true && session.prState == "open" -> StatusVisual("Prêt à merger", "mergeable=true", V3.Success)
     session.prState == "open" -> StatusVisual("PR ouverte", "open", V3.Accent)
     session.sessionState == "FAILED" -> StatusVisual("Échec", "FAILED", V3.Danger)
     session.sessionState == "COMPLETED" -> StatusVisual("Terminé", "COMPLETED", V3.Success)

@@ -285,14 +285,12 @@ private fun GitHubResourceCard(
     var details by remember { mutableStateOf<fr.geoking.julius.api.github.GitHubClient.GitHubPullRequestDetail?>(null) }
     var loading by remember { mutableStateOf(false) }
 
-    LaunchedEffect(url, session, githubToken) {
+    LaunchedEffect(url, githubToken) {
         if (githubToken != null && julesRepository != null) {
-            if (session == null || session.prUrl != url) {
-                loading = true
-                val res = julesRepository.getGitHubResourceDetails(githubToken, url)
-                details = res.getOrNull()
-                loading = false
-            }
+            loading = true
+            val res = julesRepository.getGitHubResourceDetails(githubToken, url)
+            details = res.getOrNull()
+            loading = false
         }
     }
 
@@ -373,7 +371,11 @@ private fun GitHubResourceCard(
                     val (statusText, statusColor) = when (prState) {
                         "merged" -> "Merged" to Color.Green
                         "closed" -> "Closed" to Color.Red
-                        "open" -> "Open" to Color.Cyan
+                        "open" -> {
+                            val suffix = if (prMergeable == true) " • OK" else if (prMergeable == false) " • Conflit" else ""
+                            val color = if (prMergeable == true) Color.Green else if (prMergeable == false) Color.Red else Color.Cyan
+                            "Open$suffix" to color
+                        }
                         else -> "Unknown" to Color.Gray
                     }
 
