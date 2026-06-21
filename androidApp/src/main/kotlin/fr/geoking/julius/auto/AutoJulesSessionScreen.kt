@@ -106,18 +106,22 @@ class AutoJulesSessionScreen(
 
         sessions.filter { !it.isArchived }.take(10).forEach { session ->
             val backend = if (session.id.startsWith("sesn_")) "CLAUDE_CODE" else "JULES"
-            val status = when {
-                session.prState == "merged" -> "Merged"
-                session.prState == "closed" -> "Closed"
-                session.prState == "open" -> "Open PR"
-                session.sessionState == "COMPLETED" -> "Completed"
-                session.sessionState == "FAILED" -> "Failed"
-                session.sessionState == "AWAITING_PLAN_APPROVAL" -> "Waiting for approval"
-                session.sessionState == "AWAITING_USER_FEEDBACK" -> "Waiting for you"
-                session.sessionState == "PLANNING" -> "Planning…"
-                session.sessionState == "QUEUED" -> "Queued…"
-                session.sessionState == "PAUSED" -> "Paused"
-                else -> if (!session.prUrl.isNullOrBlank()) "Output available" else "In progress"
+            val status = when (session.sessionState) {
+                "COMPLETED" -> "Terminé"
+                "FAILED" -> "Échec"
+                "AWAITING_PLAN_APPROVAL" -> "Approbation"
+                "AWAITING_USER_FEEDBACK" -> "Feedback requis"
+                "PLANNING" -> "Planning…"
+                "QUEUED" -> "En file…"
+                "PAUSED" -> "En pause"
+                "IN_PROGRESS" -> "En cours…"
+                else -> when {
+                    session.prState == "merged" -> "Mergé"
+                    session.prState == "closed" -> "Fermée"
+                    session.prState == "open" -> "PR ouverte"
+                    !session.prUrl.isNullOrBlank() -> "Output available"
+                    else -> "Initialisation…"
+                }
             }
 
             listBuilder.addItem(

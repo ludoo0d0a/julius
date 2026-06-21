@@ -618,7 +618,7 @@ private fun EditFeatureSheet(deps: V3Deps, featureId: String, onClose: () -> Uni
                 value = title,
                 onValueChange = { title = it },
                 voiceManager = deps.voiceManager,
-                label = { Text("Titre") },
+                label = { Text("Titre (optionnel)") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 micTint = V3.Accent,
@@ -629,7 +629,7 @@ private fun EditFeatureSheet(deps: V3Deps, featureId: String, onClose: () -> Uni
                 value = desc,
                 onValueChange = { desc = it },
                 voiceManager = deps.voiceManager,
-                label = { Text("Description") },
+                label = { Text("Prompt *") },
                 modifier = Modifier.fillMaxWidth().height(110.dp),
                 micTint = V3.Accent,
                 colors = v3TextFieldColors(),
@@ -638,12 +638,12 @@ private fun EditFeatureSheet(deps: V3Deps, featureId: String, onClose: () -> Uni
             Button(
                 onClick = {
                     val cur = f ?: return@Button
-                    if (title.isNotBlank()) scope.launch {
+                    if (desc.isNotBlank()) scope.launch {
                         deps.featureRepository.updateFeature(cur.copy(title = title.trim(), description = desc.trim()))
                         onDone("Feature mise à jour")
                     }
                 },
-                enabled = f != null && title.isNotBlank(),
+                enabled = f != null && desc.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = V3.Accent, contentColor = V3.AccentInk),
             ) { Text("Enregistrer") }
@@ -670,7 +670,7 @@ private fun AddFeatureV3Screen(
             value = title,
             onValueChange = { title = it },
             voiceManager = deps.voiceManager,
-            label = { Text("Titre") },
+            label = { Text("Titre (optionnel)") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             micTint = V3.Accent,
@@ -681,7 +681,7 @@ private fun AddFeatureV3Screen(
             value = desc,
             onValueChange = { desc = it },
             voiceManager = deps.voiceManager,
-            label = { Text("Description / contexte") },
+            label = { Text("Prompt *") },
             modifier = Modifier.fillMaxWidth().height(150.dp),
             micTint = V3.Accent,
             colors = v3TextFieldColors(),
@@ -704,7 +704,7 @@ private fun AddFeatureV3Screen(
         Spacer(Modifier.height(24.dp))
         Button(
             onClick = {
-                if (title.isNotBlank() && source.isNotBlank()) {
+                if (desc.isNotBlank() && source.isNotBlank()) {
                     saving = true
                     scope.launch {
                         try {
@@ -718,7 +718,7 @@ private fun AddFeatureV3Screen(
                     }
                 }
             },
-            enabled = title.isNotBlank() && source.isNotBlank() && !saving,
+            enabled = desc.isNotBlank() && source.isNotBlank() && !saving,
             modifier = Modifier.fillMaxWidth().height(56.dp),
             colors = ButtonDefaults.buttonColors(containerColor = V3.Accent, contentColor = V3.AccentInk),
         ) {
@@ -785,6 +785,7 @@ private fun LaunchConversationSheet(
     }
     var selected by remember(recommended) { mutableStateOf(recommended ?: accounts.firstOrNull { !atLimit(it.id) } ?: accounts.firstOrNull()) }
     var starting by remember { mutableStateOf(false) }
+    var requirePlanApproval by remember { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onClose, containerColor = V3.Surface) {
         Column(Modifier.padding(horizontal = 18.dp).padding(bottom = 24.dp)) {
@@ -826,13 +827,20 @@ private fun LaunchConversationSheet(
                     )
                 }
                 Spacer(Modifier.height(14.dp))
+                ListItem(
+                    headlineContent = { Text("Approbation du plan", color = V3.Fg) },
+                    supportingContent = { Text("Jules attendra votre validation avant d'appliquer les changements.", color = V3.Muted, fontSize = 11.5.sp) },
+                    trailingContent = { Switch(checked = requirePlanApproval, onCheckedChange = { requirePlanApproval = it }, colors = SwitchDefaults.colors(checkedThumbColor = V3.Accent, checkedTrackColor = V3.Accent.copy(alpha = 0.5f))) },
+                    colors = ListItemDefaults.colors(containerColor = V3.Surface),
+                )
+                Spacer(Modifier.height(14.dp))
                 Button(
                     onClick = {
                         val acc = selected ?: return@Button
                         starting = true
                         scope.launch {
                             try {
-                                val sessionId = deps.featureRepository.startFeature(featureId, acc)
+                                val sessionId = deps.featureRepository.startFeature(featureId, acc, requirePlanApproval)
                                 onStarted(sessionId)
                             } catch (_: Exception) {
                                 starting = false
