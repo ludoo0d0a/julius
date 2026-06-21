@@ -1,8 +1,10 @@
 package fr.geoking.julius.ui.v3
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -28,6 +30,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -301,6 +305,10 @@ private fun CompactBubble(
     container: androidx.compose.ui.graphics.Color,
     alignEnd: Boolean,
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val clipboard = LocalClipboard.current
+
     Row(
         Modifier.fillMaxWidth().padding(top = 8.dp),
         horizontalArrangement = if (alignEnd) Arrangement.End else Arrangement.Start,
@@ -315,6 +323,19 @@ private fun CompactBubble(
         Box(
             Modifier.weight(1f, fill = false)
                 .clip(RoundedCornerShape(14.dp)).background(container)
+                .combinedClickable(
+                    onClick = {},
+                    onLongClick = {
+                        scope.launch {
+                            clipboard.setClipEntry(
+                                androidx.compose.ui.platform.ClipEntry(
+                                    android.content.ClipData.newPlainText("jules_message", text)
+                                )
+                            )
+                            Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                )
                 .padding(horizontal = 12.dp, vertical = 9.dp),
         ) {
             Text(text, color = V3.Fg, fontSize = 14.sp, lineHeight = 20.sp)

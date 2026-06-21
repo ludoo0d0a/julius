@@ -75,7 +75,8 @@ fun JulesMessageContent(
         modifier = Modifier
             .padding(12.dp)
             .combinedClickable(
-                onClick = {
+                onClick = onSpeak,
+                onLongClick = {
                     val textToCopy = if (item is JulesChatItem.UserMessage) item.text else (item as JulesChatItem.AgentMessage).text
                     scope.launch {
                         clipboard.setClipEntry(
@@ -85,8 +86,7 @@ fun JulesMessageContent(
                         )
                         Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
                     }
-                },
-                onLongClick = onSpeak
+                }
             )
     ) {
         blocks.forEach { block ->
