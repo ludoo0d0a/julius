@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -277,6 +278,12 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                                     deps.featureRepository.updateFeatureStatus(r.featureId, "PENDING")
                                     deps.featureRepository.scheduleWorker()
                                     snackbar.showSnackbar("Feature relancée")
+                                }
+                            },
+                            onCancel = {
+                                scope.launch {
+                                    deps.featureRepository.updateFeatureStatus(r.featureId, "CANCELLED")
+                                    snackbar.showSnackbar("Feature annulée")
                                 }
                             },
                             onClose = {
@@ -558,11 +565,12 @@ private fun ConversationTopBarActions(
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun FeatureDetailSpeedDial(onLaunch: () -> Unit, onRetry: () -> Unit, onClose: () -> Unit) {
+private fun FeatureDetailSpeedDial(onLaunch: () -> Unit, onRetry: () -> Unit, onCancel: () -> Unit, onClose: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
         if (open) {
             MiniAction("Fermer", Icons.Filled.Done) { open = false; onClose() }
+            MiniAction("Annuler", Icons.Filled.Block) { open = false; onCancel() }
             MiniAction("Relancer", Icons.Filled.Replay) { open = false; onRetry() }
             MiniAction("Conversation", Icons.AutoMirrored.Filled.Chat) { open = false; onLaunch() }
         }
