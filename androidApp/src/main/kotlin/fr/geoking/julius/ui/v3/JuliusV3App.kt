@@ -56,7 +56,8 @@ import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.conversation.ConversationStore
 import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.ui.AgentApiUsageTarget
-import fr.geoking.julius.ui.components.VoiceTextField
+import fr.geoking.julius.ui.components.SpeechMicPlacement
+import fr.geoking.julius.ui.components.SpeechTextInput
 import fr.geoking.julius.ui.components.HarnessDebugBar
 import kotlinx.coroutines.launch
 
@@ -622,23 +623,25 @@ private fun EditFeatureSheet(deps: V3Deps, featureId: String, onClose: () -> Uni
         Column(Modifier.padding(horizontal = 18.dp).padding(bottom = 24.dp)) {
             Text("Éditer la feature", color = V3.Fg, style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(12.dp))
-            VoiceTextField(
+            SpeechTextInput(
                 value = title,
                 onValueChange = { title = it },
-                voiceManager = deps.voiceManager,
                 label = { Text("Titre (optionnel)") },
                 singleLine = true,
+                micPlacement = SpeechMicPlacement.Inline,
+                showWaveform = false,
                 modifier = Modifier.fillMaxWidth(),
                 micTint = V3.Accent,
                 colors = v3TextFieldColors(),
             )
             Spacer(Modifier.height(10.dp))
-            VoiceTextField(
+            SpeechTextInput(
                 value = desc,
                 onValueChange = { desc = it },
-                voiceManager = deps.voiceManager,
                 label = { Text("Prompt *") },
-                modifier = Modifier.fillMaxWidth().height(110.dp),
+                micPlacement = SpeechMicPlacement.External,
+                showWaveform = true,
+                modifier = Modifier.fillMaxWidth(),
                 micTint = V3.Accent,
                 colors = v3TextFieldColors(),
             )
@@ -674,23 +677,25 @@ private fun AddFeatureV3Screen(
     var saving by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 18.dp).padding(top = 8.dp)) {
-        VoiceTextField(
+        SpeechTextInput(
             value = title,
             onValueChange = { title = it },
-            voiceManager = deps.voiceManager,
             label = { Text("Titre (optionnel)") },
             singleLine = true,
+            micPlacement = SpeechMicPlacement.Inline,
+            showWaveform = false,
             modifier = Modifier.fillMaxWidth(),
             micTint = V3.Accent,
             colors = v3TextFieldColors(),
         )
         Spacer(Modifier.height(14.dp))
-        VoiceTextField(
+        SpeechTextInput(
             value = desc,
             onValueChange = { desc = it },
-            voiceManager = deps.voiceManager,
             label = { Text("Prompt *") },
-            modifier = Modifier.fillMaxWidth().height(150.dp),
+            micPlacement = SpeechMicPlacement.External,
+            showWaveform = true,
+            modifier = Modifier.fillMaxWidth(),
             micTint = V3.Accent,
             colors = v3TextFieldColors(),
         )
