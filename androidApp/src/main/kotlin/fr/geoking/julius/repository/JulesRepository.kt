@@ -158,6 +158,9 @@ class JulesRepository(
     fun getSessionsFlow(sourceName: String): Flow<List<JulesSessionEntity>> =
         julesDao.getSessionsFlowBySource(sourceName).map { filterSessionsForBackend(it) }
 
+    fun getAllSessionsFlow(): Flow<List<JulesSessionEntity>> =
+        julesDao.getAllSessionsFlow().map { filterSessionsForBackend(it) }
+
     suspend fun updateSessionPrStatus(sessionId: String, state: String?, mergeable: Boolean?, mergeableState: String? = null) {
         julesDao.updateSessionPrStatus(sessionId, state ?: "open", mergeable, mergeableState)
     }

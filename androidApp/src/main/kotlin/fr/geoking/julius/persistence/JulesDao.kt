@@ -18,6 +18,9 @@ interface JulesDao {
     @Query("SELECT * FROM jules_sessions WHERE sourceName = :sourceName AND isArchived = 0 ORDER BY lastUpdated DESC")
     fun getSessionsFlowBySource(sourceName: String): Flow<List<JulesSessionEntity>>
 
+    @Query("SELECT * FROM jules_sessions WHERE isArchived = 0")
+    fun getAllSessionsFlow(): Flow<List<JulesSessionEntity>>
+
     @Query("SELECT * FROM jules_sessions WHERE sourceName = :sourceName AND isArchived = 0 AND (prState IN ('merged', 'closed') OR (prUrl IS NULL AND sessionState IN ('COMPLETED', 'FAILED')))")
     suspend fun getCompletedSessions(sourceName: String): List<JulesSessionEntity>
 

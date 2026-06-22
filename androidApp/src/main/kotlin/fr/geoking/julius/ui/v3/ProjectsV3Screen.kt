@@ -56,6 +56,13 @@ fun ProjectsV3Screen(
             .groupingBy { it.sourceName }.eachCount()
     }
 
+    val sessionsFlow = remember(deps.julesRepository) { deps.julesRepository.getAllSessionsFlow() }
+    val sessions by sessionsFlow.collectAsState(initial = emptyList())
+    val prsBySource = remember(sessions) {
+        sessions.filter { it.prUrl != null && !it.isFinished }
+            .groupingBy { it.sourceName }.eachCount()
+    }
+
     fun displayName(s: JulesClient.JulesSource): String =
         s.githubRepo?.let { "${it.owner}/${it.repo}" }?.takeIf { it != "/" } ?: s.name
 
@@ -92,6 +99,7 @@ fun ProjectsV3Screen(
                                 ProjectRow(
                                     source = recent, isRecent = true,
                                     count = countBySource[recent.name] ?: 0, active = activeBySource[recent.name] ?: 0,
+                                    prs = prsBySource[recent.name] ?: 0,
                                     name = displayName(recent),
                                     onOpen = {
                                         deps.settingsManager.saveSettings(settings.copy(lastJulesRepoName = recent.name, lastJulesRepoId = recent.name))
@@ -109,6 +117,7 @@ fun ProjectsV3Screen(
                                 ProjectRow(
                                     source = s, isRecent = s.name == recentName,
                                     count = countBySource[s.name] ?: 0, active = activeBySource[s.name] ?: 0,
+                                    prs = prsBySource[s.name] ?: 0,
                                     name = displayName(s),
                                     onOpen = {
                                         deps.settingsManager.saveSettings(settings.copy(lastJulesRepoName = s.name, lastJulesRepoId = s.name))
@@ -130,12 +139,17 @@ private fun ProjectRow(
     isRecent: Boolean,
     count: Int,
     active: Int,
+    prs: Int,
     name: String,
     onOpen: () -> Unit,
 ) {
     V3Row(
         title = name,
-        subtitle = if (count > 0) "$count feature(s)" + if (active > 0) " · $active en cours" else "" else "—",
+        subtitle = if (count > 0) {
+            "$count feature(s)" +
+                (if (active > 0) " · $active en cours" else "") +
+                (if (prs > 0) " · $prs PR(s)" else "")
+        } else "—",
         leadingIcon = if (isRecent) Icons.Filled.CheckCircle else Icons.Filled.FolderOpen,
         leadingTint = if (isRecent || active > 0) V3.Accent else V3.Muted,
         onClick = onOpen,
