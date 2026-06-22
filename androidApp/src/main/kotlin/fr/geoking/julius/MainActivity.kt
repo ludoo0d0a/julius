@@ -523,6 +523,7 @@ fun MainUIPreview() {
                     override suspend fun insertSessions(sessions: List<JulesSessionEntity>) {}
                     override suspend fun getSessionsBySource(sourceName: String): List<JulesSessionEntity> = emptyList()
                     override fun getSessionsFlowBySource(sourceName: String): kotlinx.coroutines.flow.Flow<List<JulesSessionEntity>> = kotlinx.coroutines.flow.flowOf(emptyList())
+                    override fun getAllSessionsFlow(): kotlinx.coroutines.flow.Flow<List<JulesSessionEntity>> = kotlinx.coroutines.flow.flowOf(emptyList())
                     override suspend fun getCompletedSessions(sourceName: String): List<JulesSessionEntity> = emptyList()
                     override suspend fun getAllCompletedSessions(): List<JulesSessionEntity> = emptyList()
                     override suspend fun getSessionsBySourceAndKey(sourceName: String, apiKey: String): List<JulesSessionEntity> = emptyList()
