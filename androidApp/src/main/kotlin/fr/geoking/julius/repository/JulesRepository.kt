@@ -826,17 +826,53 @@ class JulesRepository(
             featureId = featureId,
         )
         julesDao.insertSessions(listOf(entity))
+
+        val text = if (error != null) {
+            Json.encodeToString(
+                fr.geoking.julius.api.jules.JulesErrorDetails.serializer(),
+                fr.geoking.julius.api.jules.JulesErrorDetails(error = "Échec du démarrage de la session : $error")
+            )
+        } else {
+            "Échec du démarrage de la session : erreur inconnue"
+        }
+
         val act = JulesActivityEntity(
             id = "err_${java.util.UUID.randomUUID()}",
             sessionId = id,
             originator = "system",
-            text = "Échec du démarrage de la session : ${error ?: "erreur inconnue"}",
+            text = text,
             timestamp = OffsetDateTime.now().toString(),
             sortTimestamp = now,
             type = "error",
         )
         julesDao.insertActivities(listOf(act))
         return id
+    }
+
+    private suspend fun addErrorActivity(sessionId: String, e: Throwable) {
+        val now = System.currentTimeMillis()
+        val details = if (e is NetworkException) {
+            fr.geoking.julius.api.jules.JulesErrorDetails(
+                error = e.message ?: "Unknown network error",
+                url = e.url,
+                httpCode = e.httpCode,
+                requestBody = e.requestBody
+            )
+        } else {
+            fr.geoking.julius.api.jules.JulesErrorDetails(error = e.message ?: e.toString())
+        }
+
+        val act = JulesActivityEntity(
+            id = "err_${java.util.UUID.randomUUID()}",
+            sessionId = sessionId,
+            originator = "system",
+            text = Json.encodeToString(fr.geoking.julius.api.jules.JulesErrorDetails.serializer(), details),
+            timestamp = OffsetDateTime.now().toString(),
+            sortTimestamp = now,
+            type = "error",
+        )
+        julesDao.insertActivities(listOf(act))
+        julesDao.updateSessionLastUpdated(sessionId, now)
     }
 
     suspend fun sendMessage(sessionId: String, prompt: String, apiKey: String? = null) {
@@ -869,6 +905,7 @@ class JulesRepository(
                     julesClient.sendMessage(key, sessionId, prompt)
                 }
             } catch (e: Exception) {
+                addErrorActivity(sessionId, e)
                 throw e
             }
         } else {
@@ -1180,6 +1217,7 @@ class JulesRepository(
                     val type = when {
                         event.type in setOf("agent.tool_use", "agent.mcp_tool_use", "session.status_running") -> "progress"
                         event.type == "session.status_terminated" -> "completion"
+                        event.type == "session.error" -> "failure"
                         event.type == "user.message" -> "user_message"
                         else -> "agent_message"
                     }
@@ -1489,7 +1527,12 @@ class JulesRepository(
 
     suspend fun approvePlan(apiKey: String, sessionId: String) {
         if (isClaudeBackend() || sessionId.startsWith(CodingAgentBackend.CLAUDE_SESSION_PREFIX)) return
-        julesClient.approvePlan(apiKey, sessionId)
+        try {
+            julesClient.approvePlan(apiKey, sessionId)
+        } catch (e: Exception) {
+            addErrorActivity(sessionId, e)
+            throw e
+        }
     }
 
     suspend fun pauseSession(sessionId: String) {
@@ -1500,6 +1543,7 @@ class JulesRepository(
             julesClient.pauseSession(apiKey, sessionId)
             pollSessionStatus(sessionId)
         } catch (e: Exception) {
+            addErrorActivity(sessionId, e)
             android.util.Log.e("JulesRepository", "Failed to pause session $sessionId", e)
             throw e
         }
@@ -1513,6 +1557,7 @@ class JulesRepository(
             julesClient.resumeSession(apiKey, sessionId)
             pollSessionStatus(sessionId)
         } catch (e: Exception) {
+            addErrorActivity(sessionId, e)
             android.util.Log.e("JulesRepository", "Failed to resume session $sessionId", e)
             throw e
         }
