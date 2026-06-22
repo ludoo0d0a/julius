@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -16,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import fr.geoking.julius.api.jules.JulesClient
 import fr.geoking.julius.queue.julesApiKeys
+import fr.geoking.julius.repository.BuildStatusSummary
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -79,6 +81,31 @@ fun ProjectsV3Screen(
             .groupingBy { it.sourceName }.eachCount()
     }
 
+    val buildStatuses = remember(sources, apiKeys) {
+        mutableStateMapOf<String, BuildStatusSummary?>()
+    }
+
+    LaunchedEffect(sources, apiKeys) {
+        val githubToken = settings.githubApiKey
+        if (githubToken.isNotBlank()) {
+            sources.forEach { source ->
+                val owner = source.githubRepo?.owner
+                val repo = source.githubRepo?.repo
+                if (owner != null && repo != null) {
+                    launch {
+                        try {
+                            val wf = deps.buildRepository.resolveWorkflowId(githubToken, owner, repo)
+                            if (wf != null) {
+                                val summary = deps.buildRepository.loadSummary(githubToken, owner, repo, wf.first, wf.second)
+                                buildStatuses[source.name] = summary
+                            }
+                        } catch (_: Exception) {}
+                    }
+                }
+            }
+        }
+    }
+
     fun displayName(s: JulesClient.JulesSource): String =
         s.githubRepo?.let { "${it.owner}/${it.repo}" }?.takeIf { it != "/" } ?: s.name
 
@@ -117,6 +144,7 @@ fun ProjectsV3Screen(
                                     source = recent, isRecent = true,
                                     count = countBySource[recent.name] ?: 0, active = activeBySource[recent.name] ?: 0,
                                     prs = prsBySource[recent.name] ?: 0,
+                                    buildStatus = buildStatuses[recent.name],
                                     name = displayName(recent),
                                     onOpen = {
                                         deps.settingsManager.saveSettings(settings.copy(lastJulesRepoName = recent.name, lastJulesRepoId = recent.name))
@@ -135,6 +163,7 @@ fun ProjectsV3Screen(
                                     source = s, isRecent = s.name == recentName,
                                     count = countBySource[s.name] ?: 0, active = activeBySource[s.name] ?: 0,
                                     prs = prsBySource[s.name] ?: 0,
+                                    buildStatus = buildStatuses[s.name],
                                     name = displayName(s),
                                     onOpen = {
                                         deps.settingsManager.saveSettings(settings.copy(lastJulesRepoName = s.name, lastJulesRepoId = s.name))
@@ -157,21 +186,37 @@ private fun ProjectRow(
     count: Int,
     active: Int,
     prs: Int,
+    buildStatus: BuildStatusSummary?,
     name: String,
     onOpen: () -> Unit,
 ) {
+    val subtitleParts = remember(count, active, prs) {
+        mutableListOf<String>().apply {
+            if (count > 0) add("$count feature(s)")
+            if (active > 0) add("$active en cours")
+            if (prs > 0) add("$prs PR(s)")
+        }
+    }
+
     V3Row(
         title = name,
-        subtitle = if (count > 0) {
-            "$count feature(s)" +
-                (if (active > 0) " · $active en cours" else "") +
-                (if (prs > 0) " · $prs PR(s)" else "")
+        subtitle = if (subtitleParts.isNotEmpty()) {
+            subtitleParts.joinToString(" · ")
         } else "—",
         leadingIcon = if (isRecent) Icons.Filled.CheckCircle else Icons.Filled.FolderOpen,
         leadingTint = if (isRecent || active > 0) V3.Accent else V3.Muted,
         onClick = onOpen,
         trailing = {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (buildStatus != null) {
+                    val visual = workflowStatusVisual(if (buildStatus.isInProgress) "in_progress" else "completed", buildStatus.latestConclusion)
+                    Icon(
+                        Icons.Filled.Build, null,
+                        tint = visual.color,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
                 if (isRecent) StatusPill(StatusVisual("Actif", "", V3.Accent), showEnum = false)
                 else if (active > 0) StatusPill(StatusVisual("$active actives", "", V3.Accent, pulse = true), showEnum = false)
                 Spacer(Modifier.width(6.dp))

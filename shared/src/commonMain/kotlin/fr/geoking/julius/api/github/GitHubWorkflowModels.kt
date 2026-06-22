@@ -73,10 +73,10 @@ fun GitHubWorkflowRun.displayConclusion(): String = when {
     else -> "unknown"
 }
 
-/** Prefer deploy / Play Store style workflow names when auto-selecting. */
+/** Prefer deploy / store style workflow names when auto-selecting. */
 fun pickDefaultWorkflow(workflows: List<GitHubWorkflow>): GitHubWorkflow? {
     if (workflows.isEmpty()) return null
-    val deployPattern = Regex("deploy|play\\s*store", RegexOption.IGNORE_CASE)
+    val deployPattern = Regex("deploy|store", RegexOption.IGNORE_CASE)
     return workflows.firstOrNull { deployPattern.containsMatchIn(it.name) }
         ?: workflows.firstOrNull { deployPattern.containsMatchIn(it.path) }
         ?: workflows.first()
