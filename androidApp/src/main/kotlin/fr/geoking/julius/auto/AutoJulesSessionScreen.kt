@@ -47,7 +47,7 @@ class AutoJulesSessionScreen(
 
         lifecycleScope.launch {
             try {
-                julesRepository.getSessions(apiKeys, sourceId).collectLatest { list ->
+                julesRepository.getSessions(this, apiKeys, sourceId).collectLatest { list ->
                     sessions = list.filter {
                         when {
                             featureId == null -> true
@@ -57,7 +57,7 @@ class AutoJulesSessionScreen(
                     }
                     loading = false
                     invalidate()
-                    featureRepository.autoPromoteOrphans(lifecycleScope, sourceId, list)
+                    featureRepository.autoPromoteOrphans(this, sourceId, list)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load sessions", e)

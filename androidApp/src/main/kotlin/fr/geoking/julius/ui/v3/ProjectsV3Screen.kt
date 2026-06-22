@@ -39,28 +39,14 @@ fun ProjectsV3Screen(
             return@LaunchedEffect
         }
 
-        sources = deps.julesRepository.getSourcesCached()
-        isRefreshing = sources.isEmpty()
-
-        val refreshJob = if (deps.julesRepository.shouldRefreshSources()) {
-            launch {
-                try {
-                    deps.julesRepository.refreshSources(apiKeys)
-                } finally {
-                    isRefreshing = false
-                }
-            }
-        } else {
-            isRefreshing = false
-            null
-        }
-
         try {
-            deps.julesRepository.getSourcesFlow().collect { list ->
+            deps.julesRepository.getSources(this, apiKeys).collect { list ->
                 sources = list
+                if (list.isNotEmpty()) isRefreshing = false
             }
-        } finally {
-            refreshJob?.cancel()
+        } catch (e: Exception) {
+            android.util.Log.e("ProjectsV3Screen", "Failed to load sources", e)
+            isRefreshing = false
         }
     }
 

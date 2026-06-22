@@ -50,10 +50,36 @@ class AutoJulesFeatureScreen(
 
     private fun loadFeatures() {
         lifecycleScope.launch {
-            featureRepository.getAllFeatures().collectLatest { all ->
-                features = all.filter { it.sourceName == sourceId }.sortedBy { it.position }
+            val apiKeys = settingsManager.settings.value.julesKeys
+
+            // 1. Initial quick load from cache
+            val cached = featureRepository.getFeaturesCached(sourceId)
+            if (cached.isNotEmpty()) {
+                features = cached.sortedBy { it.position }
                 loading = false
                 invalidate()
+            }
+
+            // 2. Background refresh if needed
+            val refreshJob = if (apiKeys.isNotEmpty() && featureRepository.shouldRefreshFeatures(sourceId)) {
+                launch {
+                    try {
+                        featureRepository.refreshFeatures(sourceId, apiKeys, settingsManager.settings.value.githubApiKey)
+                    } catch (e: Exception) {
+                        android.util.Log.e("AutoJulesFeatureScreen", "Failed to refresh features", e)
+                    }
+                }
+            } else null
+
+            // 3. Observe the flow
+            try {
+                featureRepository.getFeaturesFlow(sourceId).collectLatest { list ->
+                    features = list.sortedBy { it.position }
+                    loading = false
+                    invalidate()
+                }
+            } finally {
+                refreshJob?.cancel()
             }
         }
     }

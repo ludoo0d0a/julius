@@ -41,6 +41,7 @@ fun FeatureDetailV3Screen(
     LaunchedEffect(feature?.sourceName, settings.julesKeys, settings.githubApiKey) {
         val sourceName = feature?.sourceName ?: return@LaunchedEffect
         deps.julesRepository.getSessions(
+            this,
             settings.julesKeys,
             sourceName,
             pageSize = 50,
