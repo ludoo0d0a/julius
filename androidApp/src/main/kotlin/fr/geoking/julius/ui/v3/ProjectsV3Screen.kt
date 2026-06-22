@@ -26,14 +26,15 @@ fun ProjectsV3Screen(
 ) {
     val settings by deps.settingsManager.settings.collectAsState()
     val apiKeys = remember(settings) { settings.julesApiKeys() }
+    val isConfigured = remember(apiKeys) { deps.julesRepository.isCodingAgentConfigured(apiKeys) }
 
-    var isRefreshing by remember(apiKeys) { mutableStateOf(apiKeys.isNotEmpty()) }
+    var isRefreshing by remember(apiKeys) { mutableStateOf(isConfigured) }
     val scope = rememberCoroutineScope()
     var sources by remember { mutableStateOf<List<JulesClient.JulesSource>>(emptyList()) }
 
     // DB first; API refresh only when cache is empty or stale (not on every tab visit).
     LaunchedEffect(apiKeys) {
-        if (apiKeys.isEmpty()) {
+        if (!isConfigured) {
             sources = emptyList()
             isRefreshing = false
             return@LaunchedEffect
@@ -88,7 +89,7 @@ fun ProjectsV3Screen(
     PullToRefreshBox(
         isRefreshing = isRefreshing,
         onRefresh = {
-            if (apiKeys.isEmpty()) return@PullToRefreshBox
+            if (!isConfigured) return@PullToRefreshBox
             scope.launch {
                 isRefreshing = true
                 try {
@@ -102,7 +103,9 @@ fun ProjectsV3Screen(
     ) {
         when {
             sources.isEmpty() && isRefreshing ->
-                Box(Modifier.fillMaxSize())
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = V3.Accent)
+                }
             sources.isEmpty() && !isRefreshing ->
                 Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp)) {
                     EmptyHint("Aucun dépôt — vérifie la clé Jules dans Réglages.")
