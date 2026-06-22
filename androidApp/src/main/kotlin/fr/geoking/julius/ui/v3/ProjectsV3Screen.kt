@@ -27,40 +27,28 @@ fun ProjectsV3Screen(
     val settings by deps.settingsManager.settings.collectAsState()
     val apiKeys = remember(settings) { settings.julesApiKeys() }
 
+    val sourcesFlow = remember(deps.julesRepository) { deps.julesRepository.getSourcesFlow() }
+    val sources by sourcesFlow.collectAsState(initial = emptyList())
+
     var isRefreshing by remember(apiKeys) { mutableStateOf(apiKeys.isNotEmpty()) }
     val scope = rememberCoroutineScope()
-    var sources by remember { mutableStateOf<List<JulesClient.JulesSource>>(emptyList()) }
 
-    // DB first; API refresh only when cache is empty or stale (not on every tab visit).
+    // Background API refresh only when cache is empty or stale.
     LaunchedEffect(apiKeys) {
         if (apiKeys.isEmpty()) {
-            sources = emptyList()
             isRefreshing = false
             return@LaunchedEffect
         }
 
-        sources = deps.julesRepository.getSourcesCached()
-        isRefreshing = sources.isEmpty()
-
-        val refreshJob = if (deps.julesRepository.shouldRefreshSources()) {
-            launch {
-                try {
-                    deps.julesRepository.refreshSources(apiKeys)
-                } finally {
-                    isRefreshing = false
-                }
+        if (deps.julesRepository.shouldRefreshSources()) {
+            isRefreshing = true
+            try {
+                deps.julesRepository.refreshSources(apiKeys)
+            } finally {
+                isRefreshing = false
             }
         } else {
             isRefreshing = false
-            null
-        }
-
-        try {
-            deps.julesRepository.getSourcesFlow().collect { list ->
-                sources = list
-            }
-        } finally {
-            refreshJob?.cancel()
         }
     }
 
@@ -102,7 +90,9 @@ fun ProjectsV3Screen(
     ) {
         when {
             sources.isEmpty() && isRefreshing ->
-                Box(Modifier.fillMaxSize())
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = V3.Accent)
+                }
             sources.isEmpty() && !isRefreshing ->
                 Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp)) {
                     EmptyHint("Aucun dépôt — vérifie la clé Jules dans Réglages.")
