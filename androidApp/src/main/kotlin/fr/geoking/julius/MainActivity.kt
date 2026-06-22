@@ -599,7 +599,7 @@ fun MainUIPreview() {
         }
     }
     val previewFeatureRepository = remember {
-        fr.geoking.julius.repository.FeatureRepository(context, previewFeatureDao, previewJulesRepository, fr.geoking.julius.debug.DbCacheDebugTracker())
+        fr.geoking.julius.repository.FeatureRepository(context, previewFeatureDao, previewJulesRepository, mockSettingsManager, fr.geoking.julius.debug.DbCacheDebugTracker())
     }
     val previewBuildRepository = remember {
         GitHubBuildRepository(GitHubClient(HttpClient(OkHttp) {}), ProjectWorkflowPreferences(context))

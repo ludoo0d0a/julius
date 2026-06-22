@@ -215,6 +215,8 @@ fun SettingsScreen(
                 SettingsScreenPage.Jules -> {
                     val context = LocalContext.current
                     CodingAgentSettingsPage(
+                        settings = settings,
+                        onSettingsChange = { settingsManager.saveSettings(it) },
                         backend = settings.codingAgentBackend,
                         onBackendChange = { backend ->
                             settingsManager.saveSettings(settings.copy(codingAgentBackend = backend))
@@ -1041,6 +1043,8 @@ private fun ApiKeyTextField(
 
 @Composable
 fun CodingAgentSettingsPage(
+    settings: AppSettings,
+    onSettingsChange: (AppSettings) -> Unit,
     backend: CodingAgentBackend,
     onBackendChange: (CodingAgentBackend) -> Unit,
     agentAccounts: List<AgentAccount>,
@@ -1075,6 +1079,16 @@ fun CodingAgentSettingsPage(
                 selected = backend == CodingAgentBackend.CLAUDE_CODE,
                 onClick = { onBackendChange(CodingAgentBackend.CLAUDE_CODE) },
                 label = { Text("Claude Code") },
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Auto-create features from sessions", modifier = Modifier.weight(1f))
+            Switch(
+                checked = settings.autoCreateFeaturesFromSessions,
+                onCheckedChange = { onSettingsChange(settings.copy(autoCreateFeaturesFromSessions = it)) },
             )
         }
         AgentBillingNavRow(onClick = { onNavigateToBilling(backend) })

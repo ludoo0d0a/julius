@@ -18,10 +18,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import java.util.UUID
 
+import fr.geoking.julius.SettingsManager
+
 class FeatureRepository(
     private val context: Context,
     private val featureDao: FeatureDao,
     private val julesRepository: JulesRepository,
+    private val settingsManager: SettingsManager,
     private val dbCacheDebugTracker: DbCacheDebugTracker,
 ) {
     private val promotingSessionIds = java.util.Collections.synchronizedSet(mutableSetOf<String>())
@@ -250,13 +253,14 @@ class FeatureRepository(
     }
 
     suspend fun promoteOrphanSessions(sourceName: String, incoming: List<JulesSessionEntity>) {
+        if (!settingsManager.settings.value.autoCreateFeaturesFromSessions) return
         for (session in incoming.filter { it.featureId.isNullOrBlank() }) {
             if (!promotingSessionIds.add(session.id)) continue
             try {
                 val initialStatus = calculateFeatureStatus(listOf(session))
                 val featureId = addFeature(
                     title = session.title.ifBlank { "Conversation" },
-                    prompt = session.prompt,
+                    prompt = session.prompt.ifBlank { session.title }.ifBlank { "Conversation" },
                     priority = 0,
                     sourceName = sourceName,
                     status = initialStatus,

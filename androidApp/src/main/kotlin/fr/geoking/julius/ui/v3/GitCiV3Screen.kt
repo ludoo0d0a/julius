@@ -8,8 +8,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,19 +30,6 @@ private data class CiState(
     val error: String?,
 )
 
-private fun runVisual(run: GitHubWorkflowRun): StatusVisual {
-    val concl = run.conclusion?.lowercase()
-    val st = run.status?.lowercase()
-    return when {
-        concl == "success" -> StatusVisual("Succès", "success", V3.Success)
-        concl in listOf("failure", "timed_out", "startup_failure") -> StatusVisual("Échec", concl ?: "failure", V3.Danger)
-        concl == "cancelled" -> StatusVisual("Annulé", "cancelled", V3.Muted)
-        st in listOf("in_progress", "queued", "pending", "waiting", "requested") || concl == null ->
-            StatusVisual("En cours", st ?: "in_progress", V3.Warn, pulse = true)
-        else -> StatusVisual(concl ?: st ?: "—", concl ?: "", V3.Muted)
-    }
-}
-
 @Composable
 fun GitCiV3Screen(
     deps: V3Deps,
@@ -52,7 +41,8 @@ fun GitCiV3Screen(
     val settings by deps.settingsManager.settings.collectAsState()
     val token = settings.githubApiKey
 
-    val state by produceState<CiState?>(initialValue = null, owner, repo, token) {
+    var refreshTick by remember { mutableStateOf(0) }
+    val state by produceState<CiState?>(initialValue = null, owner, repo, token, refreshTick) {
         value = runCatching {
             val wf = deps.buildRepository.resolveWorkflowId(token, owner, repo)
                 ?: return@runCatching CiState(null, null, false, 0, emptyList(), "Aucun workflow")
@@ -61,6 +51,10 @@ fun GitCiV3Screen(
             CiState(summary.workflowName, summary.latestConclusion, summary.isInProgress, summary.runsSinceLastSuccess, runs, null)
         }.getOrElse { CiState(null, null, false, 0, emptyList(), "Erreur GitHub (token / accès)") }
     }
+
+    var showWorkflowPicker by remember { mutableStateOf(false) }
+    var workflows by remember { mutableStateOf<List<fr.geoking.julius.api.github.GitHubWorkflow>>(emptyList()) }
+    val scope = rememberCoroutineScope()
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Column(Modifier.padding(horizontal = 18.dp).padding(top = 16.dp)) {
@@ -76,7 +70,32 @@ fun GitCiV3Screen(
             }
 
             // headline
-            SectionLabel("Workflow", s.workflowName ?: "—")
+            Row(
+                Modifier.fillMaxWidth().padding(top = 22.dp, bottom = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Workflow".uppercase(),
+                    color = V3.Muted,
+                    fontSize = 12.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                    letterSpacing = 1.4.sp,
+                )
+                AssistChip(
+                    onClick = {
+                        scope.launch {
+                            workflows = deps.buildRepository.listWorkflows(token, owner, repo)
+                            showWorkflowPicker = true
+                        }
+                    },
+                    label = { Text("Changer", fontSize = 11.sp) },
+                    trailingIcon = { Icon(Icons.Filled.KeyboardArrowDown, null, Modifier.size(14.dp)) },
+                    colors = AssistChipDefaults.assistChipColors(labelColor = V3.Accent),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, V3.Accent.copy(alpha = 0.2f))
+                )
+            }
+
             V3Card {
                 Row(Modifier.fillMaxWidth().padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -86,12 +105,7 @@ fun GitCiV3Screen(
                             color = V3.Muted, fontSize = 12.sp, fontFamily = FontFamily.Monospace,
                         )
                     }
-                    val v = when {
-                        s.inProgress -> StatusVisual("En cours", "", V3.Warn, pulse = true)
-                        s.latestConclusion?.lowercase() == "success" -> StatusVisual("Succès", "", V3.Success)
-                        s.latestConclusion == null -> StatusVisual("—", "", V3.Muted)
-                        else -> StatusVisual("Échec", "", V3.Danger)
-                    }
+                    val v = workflowStatusVisual(if (s.inProgress) "in_progress" else "completed", s.latestConclusion)
                     StatusPill(v)
                 }
             }
@@ -103,7 +117,7 @@ fun GitCiV3Screen(
                 V3Card {
                     s.runs.forEachIndexed { i, run ->
                         if (i > 0) HorizontalDivider(color = V3.Border)
-                        val v = runVisual(run)
+                        val v = workflowStatusVisual(run.status, run.conclusion)
                         Row(
                             Modifier.fillMaxWidth()
                                 .clickable { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(run.htmlUrl))) } }
@@ -121,5 +135,40 @@ fun GitCiV3Screen(
             }
             Spacer(Modifier.height(96.dp))
         }
+    }
+
+    if (showWorkflowPicker) {
+        val savedId = deps.buildRepository.getSavedWorkflowId(owner, repo)
+        AlertDialog(
+            onDismissRequest = { showWorkflowPicker = false },
+            title = { Text("Sélectionner un workflow") },
+            text = {
+                Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+                    workflows.forEach { wf ->
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .clickable {
+                                    deps.buildRepository.saveWorkflowId(owner, repo, wf.id)
+                                    showWorkflowPicker = false
+                                    refreshTick++
+                                }
+                                .padding(vertical = 12.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = wf.id == savedId, onClick = null)
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(wf.name, color = V3.Fg, fontSize = 14.sp)
+                                Text(wf.path, color = V3.Muted, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showWorkflowPicker = false }) { Text("Fermer") } },
+            containerColor = V3.Surface,
+            titleContentColor = V3.Fg,
+            textContentColor = V3.Muted,
+        )
     }
 }
