@@ -61,10 +61,10 @@ fun JulesMessageContent(
         } else {
             val agent = item as JulesChatItem.AgentMessage
             agent.subItems.flatMap { sub ->
-                if (sub.type == "github_log") {
-                    listOf(MessageBlock.GitHubLog(sub.text))
-                } else {
-                    parseJulesMessage(sub.text)
+                when (sub.type) {
+                    "github_log" -> listOf(MessageBlock.GitHubLog(sub.text))
+                    "error", "failure" -> listOf(MessageBlock.Error(sub.text))
+                    else -> parseJulesMessage(sub.text)
                 }
             }
         }
@@ -186,6 +186,26 @@ fun RenderMessageBlock(
         }
         is MessageBlock.GitHubLog -> {
             GitHubLogBlock(block.text)
+        }
+        is MessageBlock.Error -> {
+            val details = remember(block.text) {
+                runCatching {
+                    kotlinx.serialization.json.Json.decodeFromString(
+                        fr.geoking.julius.api.jules.JulesErrorDetails.serializer(),
+                        block.text
+                    )
+                }.getOrNull()
+            }
+            if (details != null) {
+                JulesErrorCard(
+                    error = details.error,
+                    url = details.url,
+                    httpCode = details.httpCode,
+                    requestBody = details.requestBody
+                )
+            } else {
+                JulesErrorCard(error = block.text)
+            }
         }
     }
 }

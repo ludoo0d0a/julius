@@ -9,9 +9,18 @@ sealed class MessageBlock {
     data class GitHubPR(val url: String) : MessageBlock()
     data class GitHubBranch(val url: String) : MessageBlock()
     data class GitHubLog(val text: String) : MessageBlock()
+    data class Error(val text: String) : MessageBlock()
     data class Instruction(val text: String, val keyword: String) : MessageBlock()
     data class SectionHeader(val title: String) : MessageBlock()
 }
+
+@kotlinx.serialization.Serializable
+data class JulesErrorDetails(
+    val error: String,
+    val url: String? = null,
+    val httpCode: Int? = null,
+    val requestBody: String? = null
+)
 
 fun parseJulesMessage(text: String): List<MessageBlock> {
     val blocks = mutableListOf<MessageBlock>()

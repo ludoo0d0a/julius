@@ -88,7 +88,7 @@ interface JulesDao {
     @Query("SELECT * FROM jules_activities WHERE sessionId = :sessionId ORDER BY sortTimestamp ASC")
     fun getActivitiesFlowBySession(sessionId: String): Flow<List<JulesActivityEntity>>
 
-    @Query("DELETE FROM jules_activities WHERE sessionId = :sessionId AND isPendingOffline = 0 AND type != 'github_log'")
+    @Query("DELETE FROM jules_activities WHERE sessionId = :sessionId AND isPendingOffline = 0 AND type NOT IN ('github_log', 'error', 'failure')")
     suspend fun clearActivitiesBySession(sessionId: String)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
