@@ -42,16 +42,12 @@ class AutoJulesProjectScreen(
 
         lifecycleScope.launch {
             try {
-                val cached = julesRepository.getSourcesCached()
-                if (cached.isNotEmpty()) {
-                    sources = cached
-                    loading = false
-                    invalidate()
-                }
-                julesRepository.getSources(apiKeys).collectLatest { list ->
+                julesRepository.getSources(this, apiKeys).collectLatest { list ->
                     sources = list
-                    if (list.isNotEmpty()) error = null
-                    loading = false
+                    if (list.isNotEmpty()) {
+                        error = null
+                        loading = false
+                    }
                     invalidate()
                 }
             } catch (e: Exception) {

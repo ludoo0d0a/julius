@@ -31,6 +31,10 @@ class FeatureRepository(
 
     fun getAllFeatures(): Flow<List<FeatureEntity>> = featureDao.getAllFeaturesFlow()
 
+    fun getFeaturesFlow(sourceName: String?): Flow<List<FeatureEntity>> = featureDao.getFeaturesFlow(sourceName)
+
+    suspend fun getFeaturesCached(sourceName: String?): List<FeatureEntity> = featureDao.getFeatures(sourceName)
+
     suspend fun getFeature(id: String): FeatureEntity? = featureDao.getFeature(id)
 
     fun getFeatureFlow(id: String): Flow<FeatureEntity?> = featureDao.getFeatureFlow(id)
@@ -277,6 +281,14 @@ class FeatureRepository(
         }
     }
 
+    /** True when the Room cache for features is empty or older than [ttlMs] (default 5 min). */
+    suspend fun shouldRefreshFeatures(sourceName: String?, ttlMs: Long = 5 * 60 * 1000L): Boolean {
+        val count = featureDao.getFeaturesCount(sourceName)
+        if (count == 0) return true
+        val lastUpdated = featureDao.getFeaturesLastUpdated(sourceName) ?: 0L
+        return System.currentTimeMillis() - lastUpdated > ttlMs
+    }
+
     /**
      * Derives feature status from its associated sessions.
      * Terminated if all sessions are finished.
@@ -306,7 +318,9 @@ class FeatureRepository(
             if (sourceName != null) {
                 reconcileSourceFeatures(sourceName, apiKeys)
             } else {
-                julesRepository.refreshSources(apiKeys)
+                if (julesRepository.shouldRefreshSources()) {
+                    julesRepository.refreshSources(apiKeys)
+                }
                 val sources = runCatching { julesRepository.getSourcesCached() }.getOrDefault(emptyList())
                 for (src in sources) {
                     try {

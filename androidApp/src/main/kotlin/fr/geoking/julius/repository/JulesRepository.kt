@@ -313,18 +313,25 @@ class JulesRepository(
     }
 
     /** Room-backed sources: emits cached rows first, optionally refreshes from the API in the background. */
-    fun getSources(apiKeys: List<String>, refresh: Boolean = true): Flow<List<JulesClient.JulesSource>> = flow {
+    fun getSources(
+        scope: kotlinx.coroutines.CoroutineScope,
+        apiKeys: List<String>,
+        refresh: Boolean = true
+    ): Flow<List<JulesClient.JulesSource>> = flow {
         emitAll(getSourcesFlow())
     }.onStart {
         if (refresh) {
-            kotlinx.coroutines.GlobalScope.launch {
-                refreshSources(apiKeys)
+            scope.launch {
+                if (shouldRefreshSources()) {
+                    refreshSources(apiKeys)
+                }
             }
         }
     }
 
     /** Room-backed sessions: emits cached rows first, optionally refreshes from the API in the background. */
     fun getSessions(
+        scope: kotlinx.coroutines.CoroutineScope,
         apiKeys: List<String>,
         sourceName: String,
         refresh: Boolean = true,
@@ -334,7 +341,7 @@ class JulesRepository(
         emitAll(getSessionsFlow(sourceName))
     }.onStart {
         if (refresh) {
-            kotlinx.coroutines.GlobalScope.launch {
+            scope.launch {
                 refreshSessionsInternal(apiKeys, sourceName, pageSize, refreshActivities)
             }
         }

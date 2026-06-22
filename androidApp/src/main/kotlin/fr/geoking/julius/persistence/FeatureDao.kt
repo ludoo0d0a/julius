@@ -12,6 +12,19 @@ import kotlinx.coroutines.flow.Flow
 interface FeatureDao {
     @Query("SELECT * FROM features WHERE isArchived = 0 ORDER BY position ASC")
     fun getAllFeaturesFlow(): Flow<List<FeatureEntity>>
+
+    @Query("SELECT * FROM features WHERE isArchived = 0 AND (:sourceName IS NULL OR sourceName = :sourceName) ORDER BY position ASC")
+    fun getFeaturesFlow(sourceName: String?): Flow<List<FeatureEntity>>
+
+    @Query("SELECT * FROM features WHERE isArchived = 0 AND (:sourceName IS NULL OR sourceName = :sourceName) ORDER BY position ASC")
+    suspend fun getFeatures(sourceName: String?): List<FeatureEntity>
+
+    @Query("SELECT COUNT(*) FROM features WHERE isArchived = 0 AND (:sourceName IS NULL OR sourceName = :sourceName)")
+    suspend fun getFeaturesCount(sourceName: String?): Int
+
+    @Query("SELECT MAX(updatedAt) FROM features WHERE isArchived = 0 AND (:sourceName IS NULL OR sourceName = :sourceName)")
+    suspend fun getFeaturesLastUpdated(sourceName: String?): Long?
+
     @Query("SELECT * FROM features WHERE id = :id")
     suspend fun getFeature(id: String): FeatureEntity?
 

@@ -89,30 +89,55 @@ fun FeaturesV3Screen(
     var isRefreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    // List recent sessions, promote orphans to features, then show from Room.
+    var features by remember { mutableStateOf<List<fr.geoking.julius.persistence.FeatureEntity>>(emptyList()) }
+
+    // DB first; API refresh only when cache is empty or stale.
     LaunchedEffect(sourceName, apiKeys) {
-        if (sourceName == null) return@LaunchedEffect
-        isRefreshing = true
-        try {
-            deps.featureRepository.refreshFeatures(sourceName, apiKeys, settings.githubApiKey)
-        } finally {
+        if (apiKeys.isEmpty()) {
+            features = emptyList()
             isRefreshing = false
+            return@LaunchedEffect
+        }
+
+        // 1. Initial quick load from cache
+        features = deps.featureRepository.getFeaturesCached(sourceName)
+
+        // 2. Decide if we need to show a loading indicator (only if cache is empty)
+        isRefreshing = features.isEmpty()
+
+        // 3. Background refresh if needed
+        val refreshJob = if (deps.featureRepository.shouldRefreshFeatures(sourceName)) {
+            launch {
+                try {
+                    deps.featureRepository.refreshFeatures(sourceName, apiKeys, settings.githubApiKey)
+                } catch (e: Exception) {
+                    android.util.Log.e("FeaturesV3Screen", "Refresh failed for $sourceName", e)
+                } finally {
+                    isRefreshing = false
+                }
+            }
+        } else {
+            isRefreshing = false
+            null
+        }
+
+        // 4. Observe the flow for real-time updates (from cache or after refresh)
+        try {
+            deps.featureRepository.getFeaturesFlow(sourceName).collect { list ->
+                features = list
+            }
+        } finally {
+            refreshJob?.cancel()
         }
     }
-
-    val featuresFlow = remember { deps.featureRepository.getAllFeatures() }
-    val all by featuresFlow.collectAsState(initial = emptyList())
     var query by remember { mutableStateOf("") }
     var bucket by remember { mutableStateOf(FeatureBucket.ALL) }
     var sortAscending by remember { mutableStateOf(false) }
     var showProjectPicker by remember { mutableStateOf(false) }
 
-    val scoped = remember(all, sourceName) {
-        if (sourceName == null) all else all.filter { it.sourceName == sourceName }
-    }
-    val filtered = remember(scoped, query, bucket, sortAscending) {
+    val filtered = remember(features, query, bucket, sortAscending) {
         val q = query.trim().lowercase()
-        scoped.filter { f ->
+        features.filter { f ->
             (bucket == FeatureBucket.ALL || bucketOf(f.status) == bucket) &&
                 (q.isEmpty() || f.title.lowercase().contains(q) || f.sourceName.lowercase().contains(q))
         }.sortedByDescending { it.createdAt }.let { if (sortAscending) it.reversed() else it }
