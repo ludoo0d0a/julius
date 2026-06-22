@@ -54,6 +54,7 @@ fun ConversationV3Screen(
     onBack: () -> Unit,
     onOpenGitCi: (String, String) -> Unit,
     onOpenConflict: (String) -> Unit,
+    onReplayPrConflict: () -> Unit = {},
     scrollTrigger: Int? = null, // 0: top, 1: bottom
     onScrolled: () -> Unit = {},
     onProvideJson: (((suspend () -> String)) -> Unit) = {}
@@ -214,6 +215,7 @@ fun ConversationV3Screen(
                     }
                 },
                 onResolve = { onOpenConflict(s.prUrl!!) },
+                onReplayPr = onReplayPrConflict,
                 onGitCi = { parseGitHubPullRequestUrl(s.prUrl!!)?.let { onOpenGitCi(it.owner, it.repo) } },
                 onView = { uriHandler.openUri(s.prUrl!!) },
                 onRetry = { scope.launch { runCatching { deps.julesRepository.sendMessage(sessionId, "Corrige les problèmes et repousse la PR.") }; sendTick++ } },
@@ -228,6 +230,7 @@ private fun PrFabSpeedDial(
     modifier: Modifier,
     onMerge: () -> Unit,
     onResolve: () -> Unit,
+    onReplayPr: () -> Unit,
     onGitCi: () -> Unit,
     onView: () -> Unit,
     onRetry: () -> Unit,
@@ -238,8 +241,12 @@ private fun PrFabSpeedDial(
             ConvMiniAction("Relancer", Icons.Filled.Replay) { open = false; onRetry() }
             ConvMiniAction("Git & CI", Icons.Filled.Build) { open = false; onGitCi() }
             ConvMiniAction("Voir la PR", Icons.AutoMirrored.Filled.OpenInNew) { open = false; onView() }
-            if (conflict) ConvMiniAction("Résoudre", Icons.Filled.Warning) { open = false; onResolve() }
-            else ConvMiniAction("Merger", Icons.Filled.Done) { open = false; onMerge() }
+            if (conflict) {
+                ConvMiniAction("Rejouer PR", Icons.Filled.Autorenew) { open = false; onReplayPr() }
+                ConvMiniAction("Manuel", Icons.Filled.Warning) { open = false; onResolve() }
+            } else {
+                ConvMiniAction("Merger", Icons.Filled.Done) { open = false; onMerge() }
+            }
         }
         FloatingActionButton(onClick = { open = !open }, containerColor = V3.Accent, contentColor = V3.AccentInk) {
             Icon(if (open) Icons.Filled.Close else Icons.Filled.AccountTree, "Actions PR")

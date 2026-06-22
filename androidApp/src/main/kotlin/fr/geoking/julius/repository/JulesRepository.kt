@@ -516,6 +516,20 @@ class JulesRepository(
                 val repo = detail.repository?.fullName ?: detail.head?.repo?.fullName
                 julesDao.updateSessionGitHubDetails(session.id, branch, repo)
 
+                val prTitle = detail.title.takeIf { it.isNotBlank() }
+                val prDescription = detail.body?.takeIf { it.isNotBlank() }
+                if (prTitle != null || prDescription != null) {
+                    val current = julesDao.getSession(session.id) ?: session
+                    julesDao.insertSessions(
+                        listOf(
+                            current.copy(
+                                prTitle = prTitle ?: current.prTitle,
+                                prDescription = prDescription ?: current.prDescription,
+                            ),
+                        ),
+                    )
+                }
+
                 if (statusChanged) {
                     julesDao.updateSessionLastUpdated(session.id, System.currentTimeMillis())
 
@@ -1449,6 +1463,33 @@ class JulesRepository(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    /**
+     * Title and body to seed a new agent conversation from an existing PR (conflict replay).
+     * Prefers cached session fields, then GitHub, then the original session prompt.
+     */
+    suspend fun resolvePrConversationPrompt(
+        session: JulesSessionEntity,
+        githubToken: String,
+    ): Pair<String, String> {
+        var title = session.prTitle?.takeIf { it.isNotBlank() }
+        var prompt = session.prDescription?.takeIf { it.isNotBlank() }
+
+        val prUrl = session.prUrl
+        if ((title == null || prompt == null) && !prUrl.isNullOrBlank() && githubToken.isNotBlank()) {
+            getPrDetails(githubToken, prUrl).getOrNull()?.let { detail ->
+                if (title == null) title = detail.title.takeIf { it.isNotBlank() }
+                if (prompt == null) prompt = detail.body?.takeIf { it.isNotBlank() }
+            }
+        }
+
+        val resolvedPrompt = prompt?.takeIf { it.isNotBlank() }
+            ?: session.prompt.takeIf { it.isNotBlank() }
+            ?: throw Exception("PR description not available")
+        val resolvedTitle = title?.takeIf { it.isNotBlank() }
+            ?: resolvedPrompt.take(80).ifBlank { "Conversation" }
+        return resolvedTitle to resolvedPrompt
     }
 
     suspend fun getPrDetails(githubToken: String, prUrl: String): Result<GitHubClient.GitHubPullRequestDetail> {

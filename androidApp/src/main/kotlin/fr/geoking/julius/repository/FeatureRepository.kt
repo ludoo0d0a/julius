@@ -119,11 +119,34 @@ class FeatureRepository(
         return startFeatureInternal(feature, account, feature.title, requirePlanApproval)
     }
 
+    /**
+     * Starts a new conversation on the same feature, using the PR title and description
+     * as the session title and initial prompt (conflict replay).
+     */
+    suspend fun startConversationFromPr(
+        sessionId: String,
+        githubToken: String,
+        account: AgentAccount,
+        requirePlanApproval: Boolean? = null,
+    ): String {
+        val session = julesRepository.getSession(sessionId) ?: throw Exception("Session not found")
+        if (session.prUrl.isNullOrBlank()) throw Exception("No PR on this session")
+
+        val featureId = session.featureId
+            ?: featureDao.getFeatureBySessionId(sessionId)?.id
+            ?: throw Exception("No feature linked to this session")
+        val feature = featureDao.getFeature(featureId) ?: throw Exception("Feature not found")
+
+        val (title, prompt) = julesRepository.resolvePrConversationPrompt(session, githubToken)
+        return startFeatureInternal(feature, account, prompt, requirePlanApproval, conversationTitle = title)
+    }
+
     private suspend fun startFeatureInternal(
         feature: FeatureEntity,
         account: AgentAccount,
         prompt: String,
-        requirePlanApproval: Boolean? = null
+        requirePlanApproval: Boolean? = null,
+        conversationTitle: String? = null,
     ): String {
         val now = System.currentTimeMillis()
 
@@ -146,13 +169,19 @@ class FeatureRepository(
                 account = account,
                 prompt = prompt,
                 source = feature.sourceName,
-                title = feature.title,
+                title = conversationTitle ?: feature.title,
                 featureId = feature.id,
                 requirePlanApproval = requirePlanApproval,
             )
         } catch (e: Exception) {
             android.util.Log.e("FeatureRepository", "createSession failed for ${feature.id}", e)
-            julesRepository.createFailedSession(feature.sourceName, feature.title, prompt, feature.id, e.message)
+            julesRepository.createFailedSession(
+                feature.sourceName,
+                conversationTitle ?: feature.title,
+                prompt,
+                feature.id,
+                e.message,
+            )
         }
 
         // 3. Link the sessionId to the feature

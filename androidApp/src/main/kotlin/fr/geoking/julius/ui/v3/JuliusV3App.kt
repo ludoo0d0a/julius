@@ -76,6 +76,7 @@ class V3Deps(
 private sealed class V3Sheet {
     data object AddProject : V3Sheet()
     data class Launch(val featureId: String) : V3Sheet()
+    data class ReplayPr(val sessionId: String) : V3Sheet()
     data class EditFeature(val featureId: String) : V3Sheet()
 }
 
@@ -356,6 +357,7 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                         deps = deps, sessionId = r.sessionId, onBack = { nav.pop() },
                         onOpenGitCi = { owner, repo -> nav.push(V3Route.GitCi(owner, repo)) },
                         onOpenConflict = { prUrl -> nav.push(V3Route.PrConflict(r.sessionId, prUrl)) },
+                        onReplayPrConflict = { sheet = V3Sheet.ReplayPr(r.sessionId) },
                         scrollTrigger = scrollTrigger,
                         onScrolled = { scrollTrigger = null },
                         onProvideJson = { getActivitiesJson = it as (suspend () -> String) }
@@ -364,7 +366,11 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                         deps = deps, owner = r.owner, repo = r.repo, onBack = { nav.pop() },
                     )
                     is V3Route.PrConflict -> PrConflictV3Screen(
-                        deps = deps, prUrl = r.prUrl, onBack = { nav.pop() },
+                        deps = deps,
+                        sessionId = r.sessionId,
+                        prUrl = r.prUrl,
+                        onBack = { nav.pop() },
+                        onReplayPr = { sheet = V3Sheet.ReplayPr(r.sessionId) },
                     )
                     is V3Route.AddFeature -> AddFeatureV3Screen(
                         deps = deps, sourceName = r.sourceName, onBack = { nav.pop() },
@@ -403,6 +409,14 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                     sheet = null
                     nav.push(V3Route.Conversation(sessionId))
                     scope.launch { snackbar.showSnackbar("Session démarrée") }
+                },
+            )
+            is V3Sheet.ReplayPr -> ReplayPrConversationSheet(
+                deps, s.sessionId, onClose = { sheet = null },
+                onStarted = { sessionId ->
+                    sheet = null
+                    nav.push(V3Route.Conversation(sessionId))
+                    scope.launch { snackbar.showSnackbar("Nouvelle conversation démarrée (description PR)") }
                 },
             )
             is V3Sheet.EditFeature -> EditFeatureSheet(deps, s.featureId, onClose = { sheet = null }) { msg ->
@@ -773,6 +787,137 @@ private fun AddProjectSheet(deps: V3Deps, onClose: () -> Unit, onDone: (String) 
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = V3.Accent, contentColor = V3.AccentInk),
             ) { Text("Définir comme projet actif") }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReplayPrConversationSheet(
+    deps: V3Deps,
+    sessionId: String,
+    onClose: () -> Unit,
+    onStarted: (String) -> Unit,
+) {
+    val settings by deps.settingsManager.settings.collectAsState()
+    val status by deps.queueEngine.status.collectAsState()
+    val scope = rememberCoroutineScope()
+    val accounts = remember(settings) { settings.agentAccounts.filter { it.enabled && it.apiKey.isNotBlank() } }
+    val rows = remember(status) { status.accounts.associateBy { it.accountId } }
+    fun atLimit(id: String): Boolean { val r = rows[id]; return r != null && r.dailyLimit > 0 && r.usedToday >= r.dailyLimit }
+    val recommended = remember(accounts, rows) {
+        accounts.filterNot { atLimit(it.id) }
+            .minWithOrNull(compareBy({ rows[it.id]?.activeSessions ?: 0 }, { rows[it.id]?.usedToday ?: 0 }))
+    }
+    var selected by remember(recommended) { mutableStateOf(recommended ?: accounts.firstOrNull { !atLimit(it.id) } ?: accounts.firstOrNull()) }
+    var starting by remember { mutableStateOf(false) }
+    var requirePlanApproval by remember { mutableStateOf(false) }
+    var preview by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var previewError by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(sessionId, settings.githubApiKey) {
+        val session = deps.julesRepository.getSession(sessionId)
+        if (session == null) {
+            previewError = "Session introuvable"
+            return@LaunchedEffect
+        }
+        runCatching {
+            deps.julesRepository.resolvePrConversationPrompt(session, settings.githubApiKey)
+        }.onSuccess {
+            preview = it
+            previewError = null
+        }.onFailure {
+            preview = null
+            previewError = it.message ?: "Description PR indisponible"
+        }
+    }
+
+    ModalBottomSheet(onDismissRequest = onClose, containerColor = V3.Surface) {
+        Column(Modifier.padding(horizontal = 18.dp).padding(bottom = 24.dp)) {
+            Text("Rejouer la PR", color = V3.Fg, style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Nouvelle conversation sur la même feature avec le titre et la description de la PR.",
+                color = V3.Muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
+            )
+            preview?.let { (title, body) ->
+                V3Card {
+                    Column(Modifier.padding(14.dp)) {
+                        Text(title, color = V3.Fg, fontSize = 14.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                        if (body.isNotBlank()) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(body, color = V3.Muted, fontSize = 13.sp, lineHeight = 19.sp, maxLines = 6, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+            previewError?.let {
+                Text(it, color = V3.Danger, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 10.dp))
+            }
+            if (accounts.isEmpty()) {
+                Text("Aucun compte agent activé. Ajoute-en dans Réglages.", color = V3.Warn, style = MaterialTheme.typography.bodyMedium)
+            } else {
+                accounts.forEach { acc ->
+                    val sel = acc.id == selected?.id
+                    val r = rows[acc.id]
+                    val full = atLimit(acc.id)
+                    val quota = when {
+                        r == null -> acc.backend.name
+                        r.dailyLimit > 0 -> "${acc.backend.name} · ${r.usedToday}/${r.dailyLimit}" + if (r.activeSessions > 0) " · ${r.activeSessions} act." else ""
+                        else -> "${acc.backend.name} · ${r.usedToday} aujourd'hui"
+                    }
+                    ListItem(
+                        headlineContent = {
+                            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                Text(acc.label, color = if (full) V3.Faint else V3.Fg)
+                                if (acc.id == recommended?.id && !full) {
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("recommandé", color = V3.Success, fontSize = 11.sp)
+                                }
+                                if (full) {
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("quota atteint", color = V3.Danger, fontSize = 11.sp)
+                                }
+                            }
+                        },
+                        supportingContent = { Text(quota, color = V3.Muted, fontFamily = FontFamily.Monospace, fontSize = 11.5.sp) },
+                        trailingContent = { RadioButton(selected = sel, onClick = { if (!full) selected = acc }, enabled = !full) },
+                        colors = ListItemDefaults.colors(containerColor = if (sel) V3.SurfaceHi else V3.Surface),
+                        modifier = Modifier.clickable(enabled = !full) { selected = acc },
+                    )
+                }
+                Spacer(Modifier.height(14.dp))
+                ListItem(
+                    headlineContent = { Text("Approbation du plan", color = V3.Fg) },
+                    supportingContent = { Text("Jules attendra votre validation avant d'appliquer les changements.", color = V3.Muted, fontSize = 11.5.sp) },
+                    trailingContent = { Switch(checked = requirePlanApproval, onCheckedChange = { requirePlanApproval = it }, colors = SwitchDefaults.colors(checkedThumbColor = V3.Accent, checkedTrackColor = V3.Accent.copy(alpha = 0.5f))) },
+                    colors = ListItemDefaults.colors(containerColor = V3.Surface),
+                )
+                Spacer(Modifier.height(14.dp))
+                Button(
+                    onClick = {
+                        val acc = selected ?: return@Button
+                        starting = true
+                        scope.launch {
+                            try {
+                                val newSessionId = deps.featureRepository.startConversationFromPr(
+                                    sessionId = sessionId,
+                                    githubToken = settings.githubApiKey,
+                                    account = acc,
+                                    requirePlanApproval = requirePlanApproval,
+                                )
+                                onStarted(newSessionId)
+                            } catch (e: Exception) {
+                                starting = false
+                                previewError = e.message ?: "Échec du démarrage"
+                            }
+                        }
+                    },
+                    enabled = selected != null && !starting && preview != null,
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = V3.Accent, contentColor = V3.AccentInk),
+                ) { Text(if (starting) "Démarrage…" else "Démarrer avec la description PR") }
+            }
         }
     }
 }

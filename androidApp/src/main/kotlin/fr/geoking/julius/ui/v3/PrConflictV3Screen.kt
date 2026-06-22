@@ -31,8 +31,10 @@ private fun buildResolved(content: String, conflicts: List<JulesRepository.Confl
 @Composable
 fun PrConflictV3Screen(
     deps: V3Deps,
+    sessionId: String,
     prUrl: String,
     onBack: () -> Unit,
+    onReplayPr: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val settings by deps.settingsManager.settings.collectAsState()
@@ -81,6 +83,16 @@ fun PrConflictV3Screen(
 
             if (selected == null) {
                 // file list
+                V3Card {
+                    V3Row(
+                        title = "Rejouer via l'agent",
+                        subtitle = "Nouvelle conversation avec le titre et la description de la PR",
+                        leadingIcon = Icons.Filled.Description,
+                        leadingTint = V3.Accent,
+                        onClick = onReplayPr,
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
                 if (f.isEmpty()) {
                     EmptyHint("Aucun conflit.")
                 } else {
