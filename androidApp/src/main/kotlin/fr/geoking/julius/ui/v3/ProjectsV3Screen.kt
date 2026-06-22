@@ -28,16 +28,17 @@ fun ProjectsV3Screen(
 ) {
     val settings by deps.settingsManager.settings.collectAsState()
     val apiKeys = remember(settings) { settings.julesApiKeys() }
+    val isConfigured = remember(apiKeys) { deps.julesRepository.isCodingAgentConfigured(apiKeys) }
 
     val sourcesFlow = remember(deps.julesRepository) { deps.julesRepository.getSourcesFlow() }
     val sources by sourcesFlow.collectAsState(initial = emptyList())
 
-    var isRefreshing by remember(apiKeys) { mutableStateOf(apiKeys.isNotEmpty()) }
+    var isRefreshing by remember(apiKeys) { mutableStateOf(isConfigured) }
     val scope = rememberCoroutineScope()
 
     // Background API refresh only when cache is empty or stale.
     LaunchedEffect(apiKeys) {
-        if (apiKeys.isEmpty()) {
+        if (!isConfigured) {
             isRefreshing = false
             return@LaunchedEffect
         }
@@ -103,7 +104,7 @@ fun ProjectsV3Screen(
     PullToRefreshBox(
         isRefreshing = isRefreshing,
         onRefresh = {
-            if (apiKeys.isEmpty()) return@PullToRefreshBox
+            if (!isConfigured) return@PullToRefreshBox
             scope.launch {
                 isRefreshing = true
                 try {

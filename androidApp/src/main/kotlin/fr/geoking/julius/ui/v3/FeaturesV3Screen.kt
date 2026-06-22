@@ -148,7 +148,6 @@ fun FeaturesV3Screen(
         isRefreshing = isRefreshing,
         onRefresh = {
             scope.launch {
-                if (sourceName == null) return@launch
                 isRefreshing = true
                 try {
                     deps.featureRepository.refreshFeatures(sourceName, apiKeys, settings.githubApiKey)
@@ -222,7 +221,11 @@ fun FeaturesV3Screen(
 
         Spacer(Modifier.height(10.dp))
         if (filtered.isEmpty()) {
-            if (!isRefreshing) {
+            if (isRefreshing) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = V3.Accent)
+                }
+            } else {
                 EmptyHint(if (query.isEmpty()) "Aucune feature." else "Aucun résultat pour « $query »")
             }
         } else {
