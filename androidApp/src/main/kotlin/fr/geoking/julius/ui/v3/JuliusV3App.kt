@@ -59,6 +59,7 @@ import fr.geoking.julius.ui.AgentApiUsageTarget
 import fr.geoking.julius.ui.components.SpeechMicPlacement
 import fr.geoking.julius.ui.components.SpeechTextInput
 import fr.geoking.julius.ui.components.HarnessDebugBar
+import fr.geoking.julius.queue.julesApiKeys
 import kotlinx.coroutines.launch
 
 /** Dependency bundle threaded into the v3 screens (reuses existing Koin singletons). */
@@ -87,6 +88,14 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
         val previous = deps.conversationStore.autoSendFinalTranscripts
         deps.conversationStore.autoSendFinalTranscripts = false
         onDispose { deps.conversationStore.autoSendFinalTranscripts = previous }
+    }
+
+    val settingsState by deps.settingsManager.settings.collectAsState()
+    LaunchedEffect(Unit) {
+        val apiKeys = settingsState.julesApiKeys()
+        if (apiKeys.isNotEmpty() && deps.julesRepository.shouldRefreshSources()) {
+            deps.julesRepository.refreshSources(apiKeys)
+        }
     }
 
     JuliusV3Theme {
@@ -689,6 +698,7 @@ private fun AddFeatureV3Screen(
     var desc by remember { mutableStateOf("") }
     var source by remember { mutableStateOf(sourceName ?: settings.lastJulesRepoName) }
     var saving by remember { mutableStateOf(false) }
+    var showProjectPicker by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 18.dp).padding(top = 8.dp)) {
         SpeechTextInput(
@@ -719,6 +729,11 @@ private fun AddFeatureV3Screen(
             label = { Text("Dépôt (owner/repo)") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
+            trailingIcon = {
+                IconButton(onClick = { showProjectPicker = true }) {
+                    Icon(Icons.Filled.FolderOpen, "Choisir un projet", tint = V3.Accent)
+                }
+            },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = V3.Fg,
                 unfocusedTextColor = V3.Fg,
@@ -754,6 +769,12 @@ private fun AddFeatureV3Screen(
             } else {
                 Text("Ajouter à la file")
             }
+        }
+    }
+
+    if (showProjectPicker) {
+        ProjectPickerSheet(deps, onDismiss = { showProjectPicker = false }) { selected ->
+            if (selected != null) source = selected
         }
     }
 }

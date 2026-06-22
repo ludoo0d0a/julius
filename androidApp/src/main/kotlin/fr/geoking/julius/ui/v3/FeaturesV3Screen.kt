@@ -226,12 +226,22 @@ fun FeaturesV3Screen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ProjectPickerSheet(
+fun ProjectPickerSheet(
     deps: V3Deps,
     onDismiss: () -> Unit,
     onSelect: (String?) -> Unit,
 ) {
+    val settings by deps.settingsManager.settings.collectAsState()
     val sources by deps.julesRepository.getSourcesFlow().collectAsState(initial = emptyList())
+
+    LaunchedEffect(sources) {
+        if (sources.isEmpty()) {
+            val apiKeys = settings.julesApiKeys()
+            if (apiKeys.isNotEmpty()) {
+                deps.julesRepository.refreshSources(apiKeys)
+            }
+        }
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = V3.Surface) {
         Column(Modifier.padding(horizontal = 18.dp).padding(bottom = 24.dp)) {

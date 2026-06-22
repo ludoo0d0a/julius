@@ -179,7 +179,8 @@ data class AppSettings(
     val lastJulesRepoName: String = "",
     val googleUserName: String? = null,
     val isLoggedIn: Boolean = false,
-    val lastCountryCode: String? = null
+    val lastCountryCode: String? = null,
+    val autoCreateFeaturesFromSessions: Boolean = true
 )
 
 open class SettingsManager(
@@ -238,6 +239,7 @@ open class SettingsManager(
         val claudeEnvironmentId = prefs.getString("claude_environment_id", "") ?: ""
         val lastJulesRepoId = prefs.getString("last_jules_repo_id", "") ?: ""
         val lastJulesRepoName = prefs.getString("last_jules_repo_name", "") ?: ""
+        val autoCreateFeaturesFromSessions = prefs.getBoolean("auto_create_features_from_sessions", true)
         val googleUserName = prefs.getString("google_user_name", null)
         val isLoggedIn = prefs.getBoolean("is_logged_in", false)
         val lastCountryCode = prefs.getString("last_country_code", null)
@@ -379,6 +381,7 @@ open class SettingsManager(
             selectedLlamatikModelVariant = prefs.getString("selected_llamatik_model_variant", "Gemma4_E4B_Gguf") ?: "Gemma4_E4B_Gguf",
             lastJulesRepoId = lastJulesRepoId,
             lastJulesRepoName = lastJulesRepoName,
+            autoCreateFeaturesFromSessions = autoCreateFeaturesFromSessions,
             googleUserName = googleUserName,
             isLoggedIn = isLoggedIn,
             lastCountryCode = lastCountryCode
@@ -565,6 +568,7 @@ open class SettingsManager(
             .putString("last_jules_repo_name", settings.lastJulesRepoName)
             .putString("google_user_name", settings.googleUserName)
             .putBoolean("is_logged_in", settings.isLoggedIn)
+            .putBoolean("auto_create_features_from_sessions", settings.autoCreateFeaturesFromSessions)
             .apply { settings.lastCountryCode?.let { putString("last_country_code", it) } ?: remove("last_country_code") }
             .remove("wake_word_enabled")
             .remove("mute_media_on_car")
@@ -650,6 +654,7 @@ open class SettingsManager(
             selectedLlamatikModelVariant = selectedLlamatikModelVariant,
             lastJulesRepoId = _settings.value.lastJulesRepoId,
             lastJulesRepoName = _settings.value.lastJulesRepoName,
+            autoCreateFeaturesFromSessions = _settings.value.autoCreateFeaturesFromSessions,
             googleUserName = _settings.value.googleUserName,
             isLoggedIn = _settings.value.isLoggedIn,
             lastCountryCode = _settings.value.lastCountryCode
