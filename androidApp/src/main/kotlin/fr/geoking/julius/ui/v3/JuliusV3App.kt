@@ -132,7 +132,7 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                                 is V3Route.Features -> "Features"
                                 is V3Route.Projects -> "Projets"
                                 is V3Route.Settings -> "Réglages"
-                                is V3Route.ProjectFeatures -> route.sourceName
+                                is V3Route.ProjectFeatures -> "Features"
                                 is V3Route.AddFeature -> "Nouvelle feature"
                                 is V3Route.AgentDetail -> if (route.accountId == null) "Nouvel agent" else "Agent"
                                 is V3Route.AgentBilling -> AgentApiUsageTarget.decode(route.targetKey)?.displayName?.let { "$it — facturation" } ?: "Usage & billing"
@@ -329,10 +329,18 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                     is V3Route.Features -> FeaturesV3Screen(
                         deps = deps, sourceName = null, onBack = null,
                         onOpenFeature = { nav.push(V3Route.FeatureDetail(it)) },
+                        onSelectProject = {
+                            nav.selectTab(V3Route.Features)
+                            if (it != null) nav.push(V3Route.ProjectFeatures(it))
+                        }
                     )
                     is V3Route.ProjectFeatures -> FeaturesV3Screen(
                         deps = deps, sourceName = r.sourceName, onBack = { nav.pop() },
                         onOpenFeature = { nav.push(V3Route.FeatureDetail(it)) },
+                        onSelectProject = {
+                            nav.selectTab(V3Route.Features)
+                            if (it != null) nav.push(V3Route.ProjectFeatures(it))
+                        }
                     )
                     is V3Route.Projects -> ProjectsV3Screen(
                         deps = deps,
