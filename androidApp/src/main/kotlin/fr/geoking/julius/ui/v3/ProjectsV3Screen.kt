@@ -27,24 +27,40 @@ fun ProjectsV3Screen(
     val settings by deps.settingsManager.settings.collectAsState()
     val apiKeys = remember(settings) { settings.julesApiKeys() }
 
-    // Room-backed sources: cached rows first, API refresh in the background.
-    var isRefreshing by remember { mutableStateOf(false) }
+    var isRefreshing by remember(apiKeys) { mutableStateOf(apiKeys.isNotEmpty()) }
     val scope = rememberCoroutineScope()
     var sources by remember { mutableStateOf<List<JulesClient.JulesSource>>(emptyList()) }
 
+    // DB first; API refresh only when cache is empty or stale (not on every tab visit).
     LaunchedEffect(apiKeys) {
         if (apiKeys.isEmpty()) {
             sources = emptyList()
             isRefreshing = false
             return@LaunchedEffect
         }
-        isRefreshing = true
-        launch {
-            runCatching { deps.julesRepository.refreshSources(apiKeys) }
-        }
-        deps.julesRepository.getSourcesFlow().collect { list ->
-            sources = list
+
+        sources = deps.julesRepository.getSourcesCached()
+        isRefreshing = sources.isEmpty()
+
+        val refreshJob = if (deps.julesRepository.shouldRefreshSources()) {
+            launch {
+                try {
+                    deps.julesRepository.refreshSources(apiKeys)
+                } finally {
+                    isRefreshing = false
+                }
+            }
+        } else {
             isRefreshing = false
+            null
+        }
+
+        try {
+            deps.julesRepository.getSourcesFlow().collect { list ->
+                sources = list
+            }
+        } finally {
+            refreshJob?.cancel()
         }
     }
 
@@ -72,10 +88,11 @@ fun ProjectsV3Screen(
     PullToRefreshBox(
         isRefreshing = isRefreshing,
         onRefresh = {
+            if (apiKeys.isEmpty()) return@PullToRefreshBox
             scope.launch {
                 isRefreshing = true
                 try {
-                    runCatching { deps.julesRepository.refreshSources(apiKeys) }
+                    deps.julesRepository.refreshSources(apiKeys)
                 } finally {
                     isRefreshing = false
                 }

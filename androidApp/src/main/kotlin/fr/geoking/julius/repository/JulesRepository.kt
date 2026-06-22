@@ -44,6 +44,8 @@ import kotlinx.coroutines.awaitAll
 import java.time.OffsetDateTime
 import java.time.Instant
 
+private const val SOURCES_CACHE_TTL_MS = 5 * 60 * 1000L
+
 class JulesRepository(
     private val context: Context,
     private val julesClient: JulesClient,
@@ -240,6 +242,14 @@ class JulesRepository(
                 } else null
             )
         }
+    }
+
+    /** True when the Room cache is empty or older than [ttlMs] (default 5 min). */
+    suspend fun shouldRefreshSources(ttlMs: Long = SOURCES_CACHE_TTL_MS): Boolean {
+        val rows = runCatching { julesDao.getSources() }.getOrDefault(emptyList())
+        if (rows.isEmpty()) return true
+        val cachedAt = rows.maxOf { it.lastUpdated }
+        return System.currentTimeMillis() - cachedAt > ttlMs
     }
 
     suspend fun refreshSources(apiKeys: List<String>) {
