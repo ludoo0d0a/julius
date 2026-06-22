@@ -570,6 +570,7 @@ fun MainUIPreview() {
             override fun getFeatureFlow(id: String): kotlinx.coroutines.flow.Flow<fr.geoking.julius.persistence.FeatureEntity?> =
                 kotlinx.coroutines.flow.flowOf(null)
             override suspend fun getFeature(id: String): fr.geoking.julius.persistence.FeatureEntity? = null
+            override suspend fun getFeatureBySessionId(sessionId: String): fr.geoking.julius.persistence.FeatureEntity? = null
             override suspend fun insertFeature(feature: fr.geoking.julius.persistence.FeatureEntity) {}
             override suspend fun updateFeature(feature: fr.geoking.julius.persistence.FeatureEntity) {}
             override suspend fun updateFeatures(features: List<fr.geoking.julius.persistence.FeatureEntity>) {}
