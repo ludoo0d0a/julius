@@ -1,5 +1,7 @@
 package fr.geoking.julius.ui.v3
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -142,7 +144,7 @@ fun FeaturesV3Screen(
                     leadingIconContentColor = V3.Accent,
                     trailingIconContentColor = V3.Faint,
                 ),
-                border = AssistChipDefaults.assistChipBorder(borderColor = V3.Border)
+                border = BorderStroke(1.dp, V3.Border)
             )
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
