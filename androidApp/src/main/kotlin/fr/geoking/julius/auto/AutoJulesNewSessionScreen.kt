@@ -102,7 +102,7 @@ class AutoJulesNewSessionScreen(
                     apiKeys = apiKeys,
                     prompt = prompt,
                     source = sourceId,
-                    title = null,
+                    title = prompt.take(80),
                     featureId = featureId
                 )
                 val entity = julesRepository.getSession(sessionId) ?: throw Exception("Failed to load created session")

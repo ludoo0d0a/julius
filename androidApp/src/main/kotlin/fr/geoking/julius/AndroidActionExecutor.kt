@@ -281,7 +281,7 @@ class AndroidActionExecutor(
         if (title == null) return ActionResult(false, "No title for the feature")
         val sources = julesRepository.getSourcesCached()
         val source = sources.firstOrNull()?.name ?: ""
-        val id = featureRepository.addFeature(title, "", 0, source)
+        val id = featureRepository.addFeature(title, title, 0, source)
         queueEngine.tick()
         return ActionResult(true, "Feature queued: $title (ID: $id)")
     }

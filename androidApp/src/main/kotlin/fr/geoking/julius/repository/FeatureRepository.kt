@@ -40,12 +40,15 @@ class FeatureRepository(
         status: String = "PENDING",
         sessionId: String? = null,
     ): String {
+        if (title.isBlank()) throw Exception("Le titre est obligatoire")
+        if (prompt.isBlank()) throw Exception("Le prompt est obligatoire")
+
         val maxPos = featureDao.getMaxPosition() ?: -1
         val id = UUID.randomUUID().toString()
         val feature = FeatureEntity(
             id = id,
-            title = title,
-            description = prompt,
+            title = title.trim(),
+            description = prompt.trim(),
             priority = priority,
             position = maxPos + 1,
             sourceName = sourceName,
@@ -107,6 +110,8 @@ class FeatureRepository(
     ): String {
         val feature = featureDao.getFeature(featureId) ?: throw Exception("Feature not found")
         val prompt = feature.description.ifBlank { feature.title }
+        if (prompt.isBlank()) throw Exception("Le prompt est obligatoire")
+        if (feature.title.isBlank()) throw Exception("Le titre est obligatoire")
         return startFeatureInternal(feature, account, prompt, requirePlanApproval)
     }
 
@@ -116,6 +121,7 @@ class FeatureRepository(
         requirePlanApproval: Boolean? = null
     ): String {
         val feature = featureDao.getFeature(featureId) ?: throw Exception("Feature not found")
+        if (feature.title.isBlank()) throw Exception("Le titre est obligatoire")
         return startFeatureInternal(feature, account, feature.title, requirePlanApproval)
     }
 
@@ -199,7 +205,7 @@ class FeatureRepository(
             account = account,
             prompt = combinedPrompt,
             source = feature.sourceName,
-            title = "Replay: ${feature.title}",
+            title = "Replay: ${feature.title.ifBlank { "Feature" }}",
             featureId = featureId,
         )
 
@@ -223,7 +229,7 @@ class FeatureRepository(
                 val initialStatus = calculateFeatureStatus(listOf(session))
                 val featureId = addFeature(
                     title = session.title.ifBlank { "Conversation" },
-                    prompt = session.prompt,
+                    prompt = session.prompt.ifBlank { "Initial prompt" },
                     priority = 0,
                     sourceName = sourceName,
                     status = initialStatus,

@@ -403,6 +403,9 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                     nav.push(V3Route.Conversation(sessionId))
                     scope.launch { snackbar.showSnackbar("Session démarrée") }
                 },
+                onError = { msg ->
+                    scope.launch { snackbar.showSnackbar(msg) }
+                }
             )
             is V3Sheet.EditFeature -> EditFeatureSheet(deps, s.featureId, onClose = { sheet = null }) { msg ->
                 sheet = null; scope.launch { snackbar.showSnackbar(msg) }
@@ -626,7 +629,7 @@ private fun EditFeatureSheet(deps: V3Deps, featureId: String, onClose: () -> Uni
                 value = title,
                 onValueChange = { title = it },
                 voiceManager = deps.voiceManager,
-                label = { Text("Titre (optionnel)") },
+                label = { Text("Titre *") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 micTint = V3.Accent,
@@ -646,12 +649,12 @@ private fun EditFeatureSheet(deps: V3Deps, featureId: String, onClose: () -> Uni
             Button(
                 onClick = {
                     val cur = f ?: return@Button
-                    if (desc.isNotBlank()) scope.launch {
+                    if (title.isNotBlank() && desc.isNotBlank()) scope.launch {
                         deps.featureRepository.updateFeature(cur.copy(title = title.trim(), description = desc.trim()))
                         onDone("Feature mise à jour")
                     }
                 },
-                enabled = f != null && desc.isNotBlank(),
+                enabled = f != null && title.isNotBlank() && desc.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = V3.Accent, contentColor = V3.AccentInk),
             ) { Text("Enregistrer") }
@@ -678,7 +681,7 @@ private fun AddFeatureV3Screen(
             value = title,
             onValueChange = { title = it },
             voiceManager = deps.voiceManager,
-            label = { Text("Titre (optionnel)") },
+            label = { Text("Titre *") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             micTint = V3.Accent,
@@ -712,7 +715,7 @@ private fun AddFeatureV3Screen(
         Spacer(Modifier.height(24.dp))
         Button(
             onClick = {
-                if (desc.isNotBlank() && source.isNotBlank()) {
+                if (title.isNotBlank() && desc.isNotBlank() && source.isNotBlank()) {
                     saving = true
                     scope.launch {
                         try {
@@ -720,13 +723,16 @@ private fun AddFeatureV3Screen(
                             // call here spawned a duplicate run that started two conversations.
                             deps.featureRepository.addFeature(title.trim(), desc.trim(), 0, source.trim())
                             onDone("Feature ajoutée à la file")
+                        } catch (e: Exception) {
+                            deps.dbCacheDebugTracker.recordError("AddFeature", e.message)
+                            onDone("Erreur : ${e.message}")
                         } finally {
                             saving = false
                         }
                     }
                 }
             },
-            enabled = desc.isNotBlank() && source.isNotBlank() && !saving,
+            enabled = title.isNotBlank() && desc.isNotBlank() && source.isNotBlank() && !saving,
             modifier = Modifier.fillMaxWidth().height(56.dp),
             colors = ButtonDefaults.buttonColors(containerColor = V3.Accent, contentColor = V3.AccentInk),
         ) {
@@ -779,6 +785,7 @@ private fun LaunchConversationSheet(
     featureId: String,
     onClose: () -> Unit,
     onStarted: (String) -> Unit,
+    onError: (String) -> Unit,
 ) {
     val settings by deps.settingsManager.settings.collectAsState()
     val status by deps.queueEngine.status.collectAsState()
@@ -850,8 +857,10 @@ private fun LaunchConversationSheet(
                             try {
                                 val sessionId = deps.featureRepository.startFeature(featureId, acc, requirePlanApproval)
                                 onStarted(sessionId)
-                            } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            deps.dbCacheDebugTracker.recordError("LaunchSession", e.message)
                                 starting = false
+                            onError("Erreur : ${e.message}")
                             }
                         }
                     },

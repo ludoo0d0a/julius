@@ -654,8 +654,11 @@ class JulesRepository(
         featureId: String? = null,
         requirePlanApproval: Boolean? = null,
     ): String {
-        val finalPrompt = prompt.ifBlank { title ?: "New session" }
-        val finalTitle = title?.takeIf { it.isNotBlank() }
+        if (prompt.isBlank()) throw Exception("Le prompt est obligatoire")
+        if (title.isNullOrBlank()) throw Exception("Le titre est obligatoire")
+
+        val finalPrompt = prompt.trim()
+        val finalTitle = title.trim()
 
         val isOnline = networkService.status.value.isConnected
         if (isOnline) {
@@ -677,7 +680,7 @@ class JulesRepository(
                     owner = owner,
                     repo = repo,
                     githubToken = githubToken,
-                    title = finalTitle ?: prompt.take(80)
+                    title = finalTitle
                 )
                 val entity = JulesSessionEntity(
                     id = session.id,
@@ -738,7 +741,7 @@ class JulesRepository(
             val tempId = "offline_${java.util.UUID.randomUUID()}"
             val entity = JulesSessionEntity(
                 id = tempId,
-                title = finalTitle ?: prompt.take(80),
+                title = finalTitle,
                 prompt = finalPrompt,
                 sourceName = source,
                 prUrl = null,
@@ -813,7 +816,7 @@ class JulesRepository(
         val now = System.currentTimeMillis()
         val entity = JulesSessionEntity(
             id = id,
-            title = title?.takeIf { it.isNotBlank() } ?: prompt.take(80).ifBlank { "Conversation" },
+            title = title?.takeIf { it.isNotBlank() } ?: prompt.trim().take(80).ifBlank { "Conversation" },
             prompt = prompt,
             sourceName = source,
             prUrl = null,
