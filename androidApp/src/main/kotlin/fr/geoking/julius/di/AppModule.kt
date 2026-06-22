@@ -472,7 +472,7 @@ val appModule = module {
 
     single { DbCacheDebugTracker() }
     single { JulesRepository(androidContext(), get(), get(), get(), get(), get(), get(), get(), get()) }
-    single { FeatureRepository(androidContext(), get(), get(), get()) }
+    single { FeatureRepository(androidContext(), get(), get(), get(), get()) }
     single { AccountAllocator() }
     single { FeatureGitHubLifecycle(get(), get(), get()) }
     single {
