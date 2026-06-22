@@ -9,6 +9,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
@@ -96,16 +98,17 @@ fun FeaturesV3Screen(
     val all by featuresFlow.collectAsState(initial = emptyList())
     var query by remember { mutableStateOf("") }
     var bucket by remember { mutableStateOf(FeatureBucket.ALL) }
+    var sortAscending by remember { mutableStateOf(false) }
 
     val scoped = remember(all, sourceName) {
         if (sourceName == null) all else all.filter { it.sourceName == sourceName }
     }
-    val filtered = remember(scoped, query, bucket) {
+    val filtered = remember(scoped, query, bucket, sortAscending) {
         val q = query.trim().lowercase()
         scoped.filter { f ->
             (bucket == FeatureBucket.ALL || bucketOf(f.status) == bucket) &&
                 (q.isEmpty() || f.title.lowercase().contains(q) || f.sourceName.lowercase().contains(q))
-        }
+        }.sortedByDescending { it.createdAt }.let { if (sortAscending) it.reversed() else it }
     }
     val chips = listOf(FeatureBucket.ALL, FeatureBucket.RUNNING, FeatureBucket.QUEUED, FeatureBucket.MERGED, FeatureBucket.FAILED)
 
@@ -138,10 +141,25 @@ fun FeaturesV3Screen(
             Row(
                 Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 chips.forEach { b ->
                     FilterChipWithHint(selected = bucket == b, bucket = b) { bucket = b }
                 }
+                Spacer(Modifier.width(4.dp))
+                FilterChip(
+                    selected = false,
+                    onClick = { sortAscending = !sortAscending },
+                    label = { Text(if (sortAscending) "Ancien" else "Récent") },
+                    leadingIcon = { Icon(if (sortAscending) Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward, null, modifier = Modifier.size(18.dp)) },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        containerColor = V3.Surface,
+                        labelColor = V3.Accent,
+                        iconColor = V3.Accent,
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(enabled = true, selected = false, borderColor = V3.Border)
+                )
             }
         }
 
