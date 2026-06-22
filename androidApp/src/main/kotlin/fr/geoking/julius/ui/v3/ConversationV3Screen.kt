@@ -42,7 +42,8 @@ import fr.geoking.julius.api.github.parseGitHubPullRequestUrl
 import fr.geoking.julius.api.jules.JulesChatItem
 import fr.geoking.julius.persistence.JulesSessionEntity
 import fr.geoking.julius.ui.components.JulesErrorCard
-import fr.geoking.julius.ui.components.VoiceTextField
+import fr.geoking.julius.ui.components.SpeechMicPlacement
+import fr.geoking.julius.ui.components.SpeechTextInput
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -172,11 +173,12 @@ fun ConversationV3Screen(
                     Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    VoiceTextField(
+                    SpeechTextInput(
                         value = prompt,
                         onValueChange = { prompt = it },
-                        voiceManager = deps.voiceManager,
-                        placeholder = { Text("Message à l'agent…") },
+                        micPlacement = SpeechMicPlacement.Inline,
+                        showWaveform = false,
+                        placeholderContent = { Text("Message à l'agent…") },
                         modifier = Modifier.weight(1f),
                         maxLines = 4,
                         shape = RoundedCornerShape(22.dp),
