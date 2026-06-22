@@ -601,6 +601,7 @@ class JulesClient(
                 a.planGenerated != null -> "plan"
                 a.progressUpdated != null -> "progress"
                 a.sessionCompleted != null -> "completion"
+                a.sessionFailed != null -> "failure"
                 else -> "other"
             }
 

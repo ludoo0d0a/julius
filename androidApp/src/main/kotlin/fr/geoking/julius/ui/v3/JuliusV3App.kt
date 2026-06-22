@@ -56,7 +56,8 @@ import fr.geoking.julius.repository.JulesRepository
 import fr.geoking.julius.shared.conversation.ConversationStore
 import fr.geoking.julius.shared.voice.VoiceManager
 import fr.geoking.julius.ui.AgentApiUsageTarget
-import fr.geoking.julius.ui.components.VoiceTextField
+import fr.geoking.julius.ui.components.SpeechMicPlacement
+import fr.geoking.julius.ui.components.SpeechTextInput
 import fr.geoking.julius.ui.components.HarnessDebugBar
 import kotlinx.coroutines.launch
 
@@ -132,7 +133,7 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                                 is V3Route.Features -> "Features"
                                 is V3Route.Projects -> "Projets"
                                 is V3Route.Settings -> "Réglages"
-                                is V3Route.ProjectFeatures -> route.sourceName
+                                is V3Route.ProjectFeatures -> "Features"
                                 is V3Route.AddFeature -> "Nouvelle feature"
                                 is V3Route.AgentDetail -> if (route.accountId == null) "Nouvel agent" else "Agent"
                                 is V3Route.AgentBilling -> AgentApiUsageTarget.decode(route.targetKey)?.displayName?.let { "$it — facturation" } ?: "Usage & billing"
@@ -329,10 +330,18 @@ fun JuliusV3App(deps: V3Deps, onExit: () -> Unit) {
                     is V3Route.Features -> FeaturesV3Screen(
                         deps = deps, sourceName = null, onBack = null,
                         onOpenFeature = { nav.push(V3Route.FeatureDetail(it)) },
+                        onSelectProject = {
+                            nav.selectTab(V3Route.Features)
+                            if (it != null) nav.push(V3Route.ProjectFeatures(it))
+                        }
                     )
                     is V3Route.ProjectFeatures -> FeaturesV3Screen(
                         deps = deps, sourceName = r.sourceName, onBack = { nav.pop() },
                         onOpenFeature = { nav.push(V3Route.FeatureDetail(it)) },
+                        onSelectProject = {
+                            nav.selectTab(V3Route.Features)
+                            if (it != null) nav.push(V3Route.ProjectFeatures(it))
+                        }
                     )
                     is V3Route.Projects -> ProjectsV3Screen(
                         deps = deps,
@@ -614,23 +623,25 @@ private fun EditFeatureSheet(deps: V3Deps, featureId: String, onClose: () -> Uni
         Column(Modifier.padding(horizontal = 18.dp).padding(bottom = 24.dp)) {
             Text("Éditer la feature", color = V3.Fg, style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(12.dp))
-            VoiceTextField(
+            SpeechTextInput(
                 value = title,
                 onValueChange = { title = it },
-                voiceManager = deps.voiceManager,
                 label = { Text("Titre (optionnel)") },
                 singleLine = true,
+                micPlacement = SpeechMicPlacement.Inline,
+                showWaveform = false,
                 modifier = Modifier.fillMaxWidth(),
                 micTint = V3.Accent,
                 colors = v3TextFieldColors(),
             )
             Spacer(Modifier.height(10.dp))
-            VoiceTextField(
+            SpeechTextInput(
                 value = desc,
                 onValueChange = { desc = it },
-                voiceManager = deps.voiceManager,
                 label = { Text("Prompt *") },
-                modifier = Modifier.fillMaxWidth().height(110.dp),
+                micPlacement = SpeechMicPlacement.External,
+                showWaveform = true,
+                modifier = Modifier.fillMaxWidth(),
                 micTint = V3.Accent,
                 colors = v3TextFieldColors(),
             )
@@ -666,23 +677,25 @@ private fun AddFeatureV3Screen(
     var saving by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 18.dp).padding(top = 8.dp)) {
-        VoiceTextField(
+        SpeechTextInput(
             value = title,
             onValueChange = { title = it },
-            voiceManager = deps.voiceManager,
             label = { Text("Titre (optionnel)") },
             singleLine = true,
+            micPlacement = SpeechMicPlacement.Inline,
+            showWaveform = false,
             modifier = Modifier.fillMaxWidth(),
             micTint = V3.Accent,
             colors = v3TextFieldColors(),
         )
         Spacer(Modifier.height(14.dp))
-        VoiceTextField(
+        SpeechTextInput(
             value = desc,
             onValueChange = { desc = it },
-            voiceManager = deps.voiceManager,
             label = { Text("Prompt *") },
-            modifier = Modifier.fillMaxWidth().height(150.dp),
+            micPlacement = SpeechMicPlacement.External,
+            showWaveform = true,
+            modifier = Modifier.fillMaxWidth(),
             micTint = V3.Accent,
             colors = v3TextFieldColors(),
         )

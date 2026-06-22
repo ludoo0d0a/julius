@@ -41,7 +41,9 @@ import androidx.compose.ui.unit.sp
 import fr.geoking.julius.api.github.parseGitHubPullRequestUrl
 import fr.geoking.julius.api.jules.JulesChatItem
 import fr.geoking.julius.persistence.JulesSessionEntity
-import fr.geoking.julius.ui.components.VoiceTextField
+import fr.geoking.julius.ui.components.JulesErrorCard
+import fr.geoking.julius.ui.components.SpeechMicPlacement
+import fr.geoking.julius.ui.components.SpeechTextInput
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -171,11 +173,12 @@ fun ConversationV3Screen(
                     Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    VoiceTextField(
+                    SpeechTextInput(
                         value = prompt,
                         onValueChange = { prompt = it },
-                        voiceManager = deps.voiceManager,
-                        placeholder = { Text("Message à l'agent…") },
+                        micPlacement = SpeechMicPlacement.Inline,
+                        showWaveform = false,
+                        placeholderContent = { Text("Message à l'agent…") },
                         modifier = Modifier.weight(1f),
                         maxLines = 4,
                         shape = RoundedCornerShape(22.dp),
@@ -276,7 +279,30 @@ private fun ChatBubble(item: JulesChatItem) {
             } else {
                 item.subItems.forEach { si ->
                     if (si.text.isNotBlank()) {
-                        CompactBubble(si.text, subItemIcon(si.type), subItemTint(si.type), V3.Surface, alignEnd = false)
+                        if (si.type == "error" || si.type == "failure") {
+                            Box(Modifier.padding(top = 8.dp)) {
+                                val details = remember(si.text) {
+                                    runCatching {
+                                        kotlinx.serialization.json.Json.decodeFromString(
+                                            fr.geoking.julius.api.jules.JulesErrorDetails.serializer(),
+                                            si.text
+                                        )
+                                    }.getOrNull()
+                                }
+                                if (details != null) {
+                                    JulesErrorCard(
+                                        error = details.error,
+                                        url = details.url,
+                                        httpCode = details.httpCode,
+                                        requestBody = details.requestBody
+                                    )
+                                } else {
+                                    JulesErrorCard(error = si.text)
+                                }
+                            }
+                        } else {
+                            CompactBubble(si.text, subItemIcon(si.type), subItemTint(si.type), V3.Surface, alignEnd = false)
+                        }
                     }
                 }
             }
@@ -288,12 +314,14 @@ private fun subItemIcon(type: String?): ImageVector = when (type) {
     "plan" -> Icons.Filled.Checklist
     "progress" -> Icons.Filled.Autorenew
     "completion" -> Icons.Filled.CheckCircle
+    "error", "failure" -> Icons.Filled.Warning
     else -> Icons.AutoMirrored.Filled.Chat
 }
 
 private fun subItemTint(type: String?): androidx.compose.ui.graphics.Color = when (type) {
     "plan" -> V3.Accent
     "completion" -> V3.Success
+    "error", "failure" -> V3.Danger
     else -> V3.Muted
 }
 

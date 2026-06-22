@@ -27,24 +27,40 @@ fun ProjectsV3Screen(
     val settings by deps.settingsManager.settings.collectAsState()
     val apiKeys = remember(settings) { settings.julesApiKeys() }
 
-    // Room-backed sources: cached rows first, API refresh in the background.
-    var isRefreshing by remember { mutableStateOf(false) }
+    var isRefreshing by remember(apiKeys) { mutableStateOf(apiKeys.isNotEmpty()) }
     val scope = rememberCoroutineScope()
     var sources by remember { mutableStateOf<List<JulesClient.JulesSource>>(emptyList()) }
 
+    // DB first; API refresh only when cache is empty or stale (not on every tab visit).
     LaunchedEffect(apiKeys) {
         if (apiKeys.isEmpty()) {
             sources = emptyList()
             isRefreshing = false
             return@LaunchedEffect
         }
-        isRefreshing = true
-        launch {
-            runCatching { deps.julesRepository.refreshSources(apiKeys) }
-        }
-        deps.julesRepository.getSourcesFlow().collect { list ->
-            sources = list
+
+        sources = deps.julesRepository.getSourcesCached()
+        isRefreshing = sources.isEmpty()
+
+        val refreshJob = if (deps.julesRepository.shouldRefreshSources()) {
+            launch {
+                try {
+                    deps.julesRepository.refreshSources(apiKeys)
+                } finally {
+                    isRefreshing = false
+                }
+            }
+        } else {
             isRefreshing = false
+            null
+        }
+
+        try {
+            deps.julesRepository.getSourcesFlow().collect { list ->
+                sources = list
+            }
+        } finally {
+            refreshJob?.cancel()
         }
     }
 
@@ -53,6 +69,13 @@ fun ProjectsV3Screen(
     val countBySource = remember(features) { features.groupingBy { it.sourceName }.eachCount() }
     val activeBySource = remember(features) {
         features.filter { it.status.uppercase() in setOf("IN_PROGRESS", "PLANNING") }
+            .groupingBy { it.sourceName }.eachCount()
+    }
+
+    val sessionsFlow = remember(deps.julesRepository) { deps.julesRepository.getAllSessionsFlow() }
+    val sessions by sessionsFlow.collectAsState(initial = emptyList())
+    val prsBySource = remember(sessions) {
+        sessions.filter { it.prUrl != null && !it.isFinished }
             .groupingBy { it.sourceName }.eachCount()
     }
 
@@ -65,10 +88,11 @@ fun ProjectsV3Screen(
     PullToRefreshBox(
         isRefreshing = isRefreshing,
         onRefresh = {
+            if (apiKeys.isEmpty()) return@PullToRefreshBox
             scope.launch {
                 isRefreshing = true
                 try {
-                    runCatching { deps.julesRepository.refreshSources(apiKeys) }
+                    deps.julesRepository.refreshSources(apiKeys)
                 } finally {
                     isRefreshing = false
                 }
@@ -92,6 +116,7 @@ fun ProjectsV3Screen(
                                 ProjectRow(
                                     source = recent, isRecent = true,
                                     count = countBySource[recent.name] ?: 0, active = activeBySource[recent.name] ?: 0,
+                                    prs = prsBySource[recent.name] ?: 0,
                                     name = displayName(recent),
                                     onOpen = {
                                         deps.settingsManager.saveSettings(settings.copy(lastJulesRepoName = recent.name, lastJulesRepoId = recent.name))
@@ -109,6 +134,7 @@ fun ProjectsV3Screen(
                                 ProjectRow(
                                     source = s, isRecent = s.name == recentName,
                                     count = countBySource[s.name] ?: 0, active = activeBySource[s.name] ?: 0,
+                                    prs = prsBySource[s.name] ?: 0,
                                     name = displayName(s),
                                     onOpen = {
                                         deps.settingsManager.saveSettings(settings.copy(lastJulesRepoName = s.name, lastJulesRepoId = s.name))
@@ -130,12 +156,17 @@ private fun ProjectRow(
     isRecent: Boolean,
     count: Int,
     active: Int,
+    prs: Int,
     name: String,
     onOpen: () -> Unit,
 ) {
     V3Row(
         title = name,
-        subtitle = if (count > 0) "$count feature(s)" + if (active > 0) " · $active en cours" else "" else "—",
+        subtitle = if (count > 0) {
+            "$count feature(s)" +
+                (if (active > 0) " · $active en cours" else "") +
+                (if (prs > 0) " · $prs PR(s)" else "")
+        } else "—",
         leadingIcon = if (isRecent) Icons.Filled.CheckCircle else Icons.Filled.FolderOpen,
         leadingTint = if (isRecent || active > 0) V3.Accent else V3.Muted,
         onClick = onOpen,

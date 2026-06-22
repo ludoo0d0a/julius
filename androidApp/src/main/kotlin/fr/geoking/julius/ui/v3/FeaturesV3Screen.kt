@@ -1,5 +1,7 @@
 package fr.geoking.julius.ui.v3
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,12 +12,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Search
+import fr.geoking.julius.ui.components.SpeechMicPlacement
+import fr.geoking.julius.ui.components.SpeechTextInput
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import fr.geoking.julius.queue.julesApiKeys
@@ -77,6 +82,7 @@ fun FeaturesV3Screen(
     sourceName: String?,
     onBack: (() -> Unit)?,
     onOpenFeature: (String) -> Unit,
+    onSelectProject: (String?) -> Unit,
 ) {
     val settings by deps.settingsManager.settings.collectAsState()
     val apiKeys = remember(settings) { settings.julesApiKeys() }
@@ -99,6 +105,7 @@ fun FeaturesV3Screen(
     var query by remember { mutableStateOf("") }
     var bucket by remember { mutableStateOf(FeatureBucket.ALL) }
     var sortAscending by remember { mutableStateOf(false) }
+    var showProjectPicker by remember { mutableStateOf(false) }
 
     val scoped = remember(all, sourceName) {
         if (sourceName == null) all else all.filter { it.sourceName == sourceName }
@@ -129,13 +136,38 @@ fun FeaturesV3Screen(
     ) {
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.padding(horizontal = 18.dp).padding(top = 16.dp)) {
-            OutlinedTextField(
-                value = query, onValueChange = { query = it },
-                placeholder = { Text("Rechercher…", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                leadingIcon = { Icon(Icons.Filled.Search, null, tint = V3.Faint) },
+            AssistChip(
+                onClick = { showProjectPicker = true },
+                label = { Text(sourceName ?: "Tous les projets") },
+                leadingIcon = { Icon(Icons.Filled.FolderOpen, null, modifier = Modifier.size(18.dp)) },
+                trailingIcon = { Icon(Icons.Filled.ArrowDropDown, null, modifier = Modifier.size(18.dp)) },
+                shape = RoundedCornerShape(10.dp),
+                colors = AssistChipDefaults.assistChipColors(
+                    containerColor = V3.Surface,
+                    labelColor = V3.Fg,
+                    leadingIconContentColor = V3.Accent,
+                    trailingIconContentColor = V3.Faint,
+                ),
+                border = BorderStroke(1.dp, V3.Border),
+            )
+            Spacer(Modifier.height(8.dp))
+            SpeechTextInput(
+                value = query,
+                onValueChange = { query = it },
+                placeholder = "Rechercher…",
                 singleLine = true,
+                micPlacement = SpeechMicPlacement.Inline,
+                showWaveform = false,
                 shape = RoundedCornerShape(13.dp),
                 modifier = Modifier.fillMaxWidth(),
+                micTint = V3.Accent,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = V3.Fg,
+                    unfocusedTextColor = V3.Fg,
+                    focusedBorderColor = V3.Accent,
+                    unfocusedBorderColor = V3.Border,
+                    cursorColor = V3.Accent,
+                ),
             )
             Spacer(Modifier.height(12.dp))
             Row(
@@ -183,5 +215,50 @@ fun FeaturesV3Screen(
             }
         }
     }
+    }
+
+    if (showProjectPicker) {
+        ProjectPickerSheet(deps, onDismiss = { showProjectPicker = false }, onSelect = onSelectProject)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProjectPickerSheet(
+    deps: V3Deps,
+    onDismiss: () -> Unit,
+    onSelect: (String?) -> Unit,
+) {
+    val sources by deps.julesRepository.getSourcesFlow().collectAsState(initial = emptyList())
+
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = V3.Surface) {
+        Column(Modifier.padding(horizontal = 18.dp).padding(bottom = 24.dp)) {
+            Text("Changer de projet", color = V3.Fg, style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(16.dp))
+            LazyColumn {
+                item {
+                    ProjectPickerRow(name = "Tous les projets", onClick = { onSelect(null); onDismiss() })
+                    HorizontalDivider(color = V3.Border)
+                }
+                items(sources) { s ->
+                    ProjectPickerRow(name = s.name, onClick = { onSelect(s.name); onDismiss() })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProjectPickerRow(name: String, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.FolderOpen, null, tint = V3.Muted, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(name, color = V3.Fg, fontSize = 16.sp)
     }
 }
