@@ -56,6 +56,19 @@ fun featureStatusVisual(status: String): StatusVisual = when (status.uppercase()
     else -> StatusVisual(status, status, V3.Muted)
 }
 
+fun workflowStatusVisual(status: String?, conclusion: String?): StatusVisual {
+    val concl = conclusion?.lowercase()
+    val st = status?.lowercase()
+    return when {
+        concl == "success" -> StatusVisual("Succès", "success", V3.Success)
+        concl in listOf("failure", "timed_out", "startup_failure") -> StatusVisual("Échec", concl ?: "failure", V3.Danger)
+        concl == "cancelled" -> StatusVisual("Annulé", "cancelled", V3.Muted)
+        st in listOf("in_progress", "queued", "pending", "waiting", "requested") || concl == null ->
+            StatusVisual("En cours", st ?: "in_progress", V3.Warn, pulse = true)
+        else -> StatusVisual(concl ?: st ?: "—", concl ?: "", V3.Muted)
+    }
+}
+
 fun sessionStatusVisual(session: JulesSessionEntity): StatusVisual = when {
     session.prState == "merged" -> StatusVisual("Mergé", "merged", V3.Success)
     session.prState == "closed" -> StatusVisual("Fermée", "closed", V3.Muted)
