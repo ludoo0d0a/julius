@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -14,14 +15,20 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import kotlin.math.min
 
+private const val TAG = "Dictation"
+
 /**
  * Lightweight STT for form dictation — isolated from [fr.geoking.julius.shared.voice.VoiceManager].
  * Returns a toggle: tap to start listening, tap again to stop and finalize.
+ *
+ * Aligned with the Vincent reference: one long-lived recognizer, fresh callbacks via
+ * [rememberUpdatedState], and no [RecognizerIntent.EXTRA_PREFER_OFFLINE] unless requested.
  */
 @Composable
 fun rememberDictation(
@@ -29,16 +36,22 @@ fun rememberDictation(
     onLevel: (Float) -> Unit,
     onListening: (Boolean) -> Unit,
     languageTag: String = "fr-FR",
-    preferOffline: Boolean = true,
+    preferOffline: Boolean = false,
 ): () -> Unit {
     val context = LocalContext.current
+    val text by rememberUpdatedState(onText)
+    val level by rememberUpdatedState(onLevel)
+    val listeningCb by rememberUpdatedState(onListening)
     var listening by remember { mutableStateOf(false) }
     var pendingStart by remember { mutableStateOf(false) }
-    var recognizer by remember { mutableStateOf<SpeechRecognizer?>(null) }
 
-    fun destroyRecognizer() {
-        recognizer?.destroy()
-        recognizer = null
+    val recognizer = remember {
+        if (SpeechRecognizer.isRecognitionAvailable(context)) {
+            SpeechRecognizer.createSpeechRecognizer(context)
+        } else {
+            Log.w(TAG, "Speech recognition not available on this device")
+            null
+        }
     }
 
     fun buildIntent(): Intent =
@@ -51,57 +64,52 @@ fun rememberDictation(
             }
         }
 
-    fun startRecognizer() {
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            onListening(false)
+    fun startListening() {
+        val sr = recognizer ?: run {
+            listeningCb(false)
             listening = false
             return
         }
-        destroyRecognizer()
-        val sr = SpeechRecognizer.createSpeechRecognizer(context)
-        recognizer = sr
-        sr.setRecognitionListener(object : RecognitionListener {
+        level(0f)
+        listening = true
+        listeningCb(true)
+        sr.startListening(buildIntent())
+    }
+
+    DisposableEffect(recognizer) {
+        recognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) = Unit
             override fun onBeginningOfSpeech() = Unit
             override fun onRmsChanged(rmsdB: Float) {
-                onLevel(min(1f, (rmsdB + 2f) / 12f))
+                level(min(1f, (rmsdB + 2f) / 12f))
             }
             override fun onBufferReceived(buffer: ByteArray?) = Unit
             override fun onEndOfSpeech() = Unit
             override fun onEvent(eventType: Int, params: Bundle?) = Unit
 
             override fun onError(error: Int) {
+                Log.w(TAG, "SpeechRecognizer error=$error")
                 listening = false
-                onListening(false)
-                onLevel(0f)
+                listeningCb(false)
+                level(0f)
             }
 
             override fun onPartialResults(partialResults: Bundle?) {
-                val text = partialResults
-                    ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                    ?.firstOrNull()
-                    ?.trim()
-                    .orEmpty()
-                if (text.isNotEmpty()) onText(text)
+                partialResults?.firstTranscript()?.let(text)
             }
 
             override fun onResults(results: Bundle?) {
-                val text = results
-                    ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                    ?.firstOrNull()
-                    ?.trim()
-                    .orEmpty()
-                if (text.isNotEmpty()) onText(text)
+                results?.firstTranscript()?.let(text)
                 listening = false
-                onListening(false)
-                onLevel(0f)
+                listeningCb(false)
+                level(0f)
             }
         })
-        onText("")
-        onLevel(0f)
-        listening = true
-        onListening(true)
-        sr.startListening(buildIntent())
+        onDispose {
+            recognizer?.cancel()
+            recognizer?.destroy()
+            listeningCb(false)
+        }
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -109,34 +117,24 @@ fun rememberDictation(
     ) { granted ->
         if (granted && pendingStart) {
             pendingStart = false
-            startRecognizer()
+            startListening()
         } else {
             pendingStart = false
             listening = false
-            onListening(false)
+            listeningCb(false)
         }
     }
 
-    DisposableEffect(Unit) {
-        onDispose {
-            recognizer?.cancel()
-            destroyRecognizer()
-            onListening(false)
-        }
-    }
-
-    return remember(context, languageTag, preferOffline) {
+    return remember(recognizer) {
         {
-            if (listening) {
-                recognizer?.stopListening()
-            } else {
-                val granted = ContextCompat.checkSelfPermission(
+            when {
+                recognizer == null -> listeningCb(false)
+                listening -> recognizer.stopListening()
+                ContextCompat.checkSelfPermission(
                     context,
                     Manifest.permission.RECORD_AUDIO,
-                ) == PackageManager.PERMISSION_GRANTED
-                if (granted) {
-                    startRecognizer()
-                } else {
+                ) == PackageManager.PERMISSION_GRANTED -> startListening()
+                else -> {
                     pendingStart = true
                     permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                 }
@@ -144,3 +142,9 @@ fun rememberDictation(
         }
     }
 }
+
+private fun Bundle.firstTranscript(): String? =
+    getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+        ?.firstOrNull()
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }

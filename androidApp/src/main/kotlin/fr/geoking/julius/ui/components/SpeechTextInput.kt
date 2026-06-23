@@ -69,7 +69,7 @@ fun SpeechTextInput(
     shape: Shape = RoundedCornerShape(24.dp),
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
     micTint: Color = Color.Unspecified,
-    preferOffline: Boolean = true,
+    preferOffline: Boolean = false,
 ) {
     var isListening by remember { mutableStateOf(false) }
     var audioLevel by remember { mutableFloatStateOf(0f) }
